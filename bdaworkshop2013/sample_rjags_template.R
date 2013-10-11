@@ -16,7 +16,7 @@ jagsPriorModel <- jags.model(jags.file, data = list(nFlips = length(use.data)), 
 
 update(jagsPriorModel, n.iter = burnin.steps);
 
-coda.sample.data <- coda.samples(jagsPriorModel, variable.names = c('mu', 'theta'), n.iter = sample.count);
+coda.sample.data <- coda.samples(jagsPriorModel, variable.names = c('theta'), n.iter = sample.count);
 mcmc.prior.samples <- as.matrix(coda.sample.data);
 
 
@@ -24,5 +24,5 @@ jagsPosteriorModel <- jags.model(jags.file, data = list(nFlips = length(use.data
 
 update(jagsPosteriorModel, n.iter = burnin.steps);
 
-coda.sample.data = coda.samples(jagsPosteriorModel, variable.names = c('mu', 'theta'), n.iter = sample.count);
+coda.sample.data = coda.samples(jagsPosteriorModel, variable.names = c('theta'), n.iter = sample.count);
 mcmc.posterior.samples <- as.matrix(coda.sample.data);
