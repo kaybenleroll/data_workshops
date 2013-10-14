@@ -37,6 +37,9 @@
 
 \maketitle
 
+%%%
+%%% SECTION: Basic Concepts
+%%%
 
 \worksheetsection{Basic Concepts}
 
@@ -100,6 +103,10 @@ to the natural fixed periods of the model. None of these are apparent
 in the air passenger data, and accounting for them are beyond the
 scope of this introductory tutorial.
 
+Finally, another important benefit of visualising the data is that it
+helps identify possible \emph{outliers} and \emph{erroneous} data.
+
+
 \worksheetexercise
 Load the air passengers data into your workspace and investigate the
 structure of the \texttt{ts} object using \texttt{str()}. How is a
@@ -119,6 +126,100 @@ segmenting the data by month.
 \worksheetexercise
 Repeat the above analysis for Maine unemployment data.
 
+
+%%%
+%%% SECTION: Multivariate Time Series
+%%%
+
+\worksheetsection{Multivariate Time Series}
+
+\noindent
+In many cases, we will also be dealing with time series that have
+multiple values at all, many or some of the points in time.
+
+Often, these values will be related in some ways, and we will want to
+analyse those relationships also. In fact, one of the most reliable
+methods of prediction is to find \emph{leading indicators} for the
+value or values you wish to predict --- you can often use the current
+values of the leading indicators to make inference on future values of
+the related quantities.
+
+The fact that this is one of the best methods in time series analysis
+says a lot about the difficulty of prediction (Yogi Berra, a US
+baseball player noted for his pithy statements, once said ``Prediction
+is difficult, especially about the future'').
+
+\worksheetexercise
+Load in the multivariate data from the file
+\texttt{cbe.dat}. Investigate the object type and some sample data to
+get an idea of how it is structured. The R functions \texttt{head()}
+and \text{tail()} will be of use for this.
+
+\worksheetexercise
+Create time series objects for this data using \texttt{ts()}, and plot
+them beside each other. \texttt{cbind()} is useful for creating all
+the plots together.
+
+\worksheetexercise
+Merge the electricity usage data with the US airline passenger data
+using \texttt{ts.intersect} and investigate any possible similarities
+between the two time series.
+
+\worksheetexercise
+Use the \texttt{cor()} function, investigate the correlation between
+the two time series. How plausible is a causal effect in this case?
+
+
+
+%%%
+%%% SECTION: Time Series Decomposition
+%%%
+
+\worksheetsection{Time Series Decomposition}
+
+\noindent
+Since many time series are dominated by trends or seasonal effects,
+and we can create fairly simple models based on these two
+components. The first of these, the
+\emph{additive decompositional model}, is just the sum of these
+effects, with the residual component being treated as random:
+
+\begin{equation}
+x_t = m_t + s_t + z_t,
+\end{equation}
+
+\noindent
+where, at any given time $t$, $x_t$ is the observed value, $m_t$ is
+trend, $s_t$ is the seasonal component, and $z_t$ is the error term.
+
+It is worth noting that, in general, the error terms will be a
+correlated sequence of values, something we will account for and model
+later.
+
+In other cases, we could have a situation where the seasonal effect
+increases as the trend increases, modeling the values as:
+
+\begin{equation}
+x_t = m_t s_t + z_t.
+\end{equation}
+
+Other options also exist, such as modeling the log of the observed
+values, which does cause some non-trivial modeling issues, such as
+biasing any predicted values for the time series.
+
+Various methods are used for estimating the trend, such as taking a
+\emph{moving average} of the values, which is a common approach.
+
+\worksheetexercise
+Using the \texttt{decompose()} function in R, look at the trend and
+the seasonal variation for the airline passenger data. The output of
+this function can be plotted directly, and visually check the
+output. Does the output match your intuition about what you observed?
+
+\worksheetexercise
+Repeat this process for the CBE dataset.
+
+\worksheetexercise
 
 
 

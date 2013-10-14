@@ -2,9 +2,6 @@
 ** Concept of a time series
 ** Introduct the ts() object in R
 ** Plotting a time series
-** Explain autocorrelation
-** Explain partial autocorrelation
-** Show how to display the correlogram
 * Decompositional Models
 ** Trends and Seasonality
 ** Estimating trend and seasonal components
@@ -21,6 +18,9 @@
 ** Harmonic seasonal models
 ** Forecasting from regression
 * Stationary Models
+** Explain autocorrelation
+** Explain partial autocorrelation
+** Show how to display the correlogram
 ** AR and MA models
 ** Explain combined ARMA models
 ** Concept of Parsimony
