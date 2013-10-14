@@ -115,7 +115,7 @@ using the default \text{plot} method.
 
 \worksheetexercise
 Using the data supplied in the file \texttt{Maine.dat} and the
-function texttt{read.table()}, load the Maine unemployment data into
+function \texttt{read.table()}, load the Maine unemployment data into
 your workspace and repeat the tasks above.
 
 \worksheetexercise
@@ -125,6 +125,16 @@ segmenting the data by month.
 
 \worksheetexercise
 Repeat the above analysis for Maine unemployment data.
+
+\worksheetexercise
+Calculate the average monthly data for each of the above time
+series. Compare this to the actual monthly data and plot them
+together. What can we learn from this?
+
+\worksheetexercise
+Using the \texttt{window()} function, calculate quantitative values
+for the above.
+
 
 
 %%%
@@ -153,7 +163,7 @@ is difficult, especially about the future'').
 Load in the multivariate data from the file
 \texttt{cbe.dat}. Investigate the object type and some sample data to
 get an idea of how it is structured. The R functions \texttt{head()}
-and \text{tail()} will be of use for this.
+and \texttt{tail()} will be of use for this.
 
 \worksheetexercise
 Create time series objects for this data using \texttt{ts()}, and plot
@@ -220,7 +230,13 @@ output. Does the output match your intuition about what you observed?
 Repeat this process for the CBE dataset.
 
 \worksheetexercise
+Try a multiplicative model for all of the above. \texttt{decompose()}
+allows the selection of this via the `\texttt{type}' parameter. Is the
+multiplicative model better? In either case, explain why this might be.
 
+\worksheetexercise
+Repeat the above, but use the \texttt{stl()} R function instead of
+\texttt{decompose()}. Compare the output of the two.
 
 
 

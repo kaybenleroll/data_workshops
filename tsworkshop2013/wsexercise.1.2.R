@@ -1,0 +1,20 @@
+
+###
+### Worksheet Exercise 1.2
+###
+
+source('setup_data.R', echo = TRUE);
+
+
+class(Maine.month.ts);
+str(Maine.month.ts);
+
+start(Maine.month.ts); end(Maine.month.ts); frequency(Maine.month.ts);
+
+plot(Maine.month.ts, ylab = "Unemployment data for the state of Maine");
+
+
+### Using ggplot2 looks better, but you have to work hard for the
+### labels on the x-axis so I am leaving this out for now.
+
+#qplot(1:length(Maine.month.ts), as.vector(Maine.month.ts), geom = 'line', ylab = 'Unemployment data for the state of Maine');

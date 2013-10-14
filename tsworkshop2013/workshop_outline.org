@@ -6,6 +6,11 @@
 ** Trends and Seasonality
 ** Estimating trend and seasonal components
 ** Using decompose() and stl()
+* Correlations
+** Explain autocorrelation
+** Explain partial autocorrelation
+** Show how to display the correlogram
+
 * Simple Forecasting Methods
 ** Leading variables
 ** Cross-correlations
@@ -18,9 +23,6 @@
 ** Harmonic seasonal models
 ** Forecasting from regression
 * Stationary Models
-** Explain autocorrelation
-** Explain partial autocorrelation
-** Show how to display the correlogram
 ** AR and MA models
 ** Explain combined ARMA models
 ** Concept of Parsimony
