@@ -240,4 +240,93 @@ Repeat the above, but use the \texttt{stl()} R function instead of
 
 
 
+%%%
+%%% SECTION: Autocorrelation
+%%%
+
+\worksheetsection{Autocorrelation}
+
+\noindent
+Assuming we can remove the trend and the seasonal variation, that
+still leaves the random component, $z_t$. Unfortunately, analysing
+this is usually highly non-trivial. As discussed, we model the random
+component as a sequence of random variables, but no further
+assumptions we made.
+
+To simplify the analysis, we often make assumptions like
+\emph{independent and identically distributed (i.i.d.)} random
+variables, but this will rarely work well. Most of the time, the $z_t$
+are correlated.
+
+The \emph{expected value} or \emph{expectation} of a random variable
+$x$, denoted $E(x)$, is the mean value of $x$ in the population. So,
+for a continuous $x$, we have
+
+\begin{equation}
+\mu = E(x) = \int p(x) \, x \, dx.
+\end{equation}
+
+\noindent
+and the \emph{variance}, $\sigma^2$, is the expectation of the squared
+deviations,
+
+\begin{equation}
+\sigma^2 = E[(x - \mu)^2],
+\end{equation}
+
+For bivariate data, each datapoint can be represented as $(x, y)$ and
+we can generalise this concept to the \emph{covariance},
+$\gamma(x, y)$,
+
+\begin{equation}
+\gamma(x, y) = E[(x - \mu_x)(y - \mu_y)].
+\end{equation}
+
+\noindent
+Correlation, $\rho$, is the standardised covariance, dividing the
+covariance by the standard deviation of the two variables,
+
+\begin{equation}
+\rho(x, y) = \frac{\gamma(x, y)}{\sigma_x \sigma_y}.
+\end{equation}
+
+\noindent
+Autocorrelation, often referred to as \emph{serial correlation}, is
+the correlation between the random variables at different time
+intervals. We can define the \emph{autocovariance function} and the
+\emph{autocorrelation function} as functions of the \emph{lag}, $k$, as
+
+\begin{eqnarray}
+\gamma_k &=& E[(x_t - \mu)(x_{t+k} - \mu)], \\
+\rho_k   &=& \frac{\gamma_k}{\sigma^2}.
+\end{eqnarray}
+
+\noindent
+Be default, the \texttt{acf()} function plots the \emph{correlogram},
+which is a plot of the sample autocorrelation at $r_k$ against the lag
+$k$.
+
+\worksheetexercise
+Using the function \texttt{acf()}, calculate the autocorrelations for
+all the time series we have looked at. Look at the structure of the
+output, and use the help system to see what options are provided.
+
+\worksheetexercise
+Plot the output of the \texttt{acf()} for the different time
+series. Think about what these plots are telling you. Do do these
+plots help the modelling process, if so, how?
+
+\worksheetexercise
+Decompose the air passenger data and look at the appropriate
+correlogram. What does this plot tell you? How does it differ from the
+previous correlogram you looked at?
+
+\worksheetexercise
+How can we use all that we have learned so far to assess the efficacy
+of the decompositional approach for time series.
+
+
+%\worksheetsection{Basic Forecasting}
+
+
 \end{document}
