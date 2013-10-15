@@ -5,15 +5,15 @@
 source('setup_data.R', echo = TRUE);
 
 
-class(AP);
-str(AP);
+class(AP.ts);
+str(AP.ts);
 
-start(AP); end(AP); frequency(AP);
+start(AP.ts); end(AP.ts); frequency(AP.ts);
 
-plot(AP, ylab = "Air Passengers (\'000s)");
+plot(AP.ts, ylab = "Air Passengers (\'000s)");
 
 
 ### Using ggplot2 looks better, but you have to work hard for the
 ### labels on the x-axis so I am leaving this out for now.
 
-#qplot(1:length(AP), as.vector(AP), geom = 'line', ylab = 'Air Passengers (\'000s)');
+#qplot(1:length(AP.ts), as.vector(AP.ts), geom = 'line', ylab = 'Air Passengers (\'000s)');
