@@ -65,18 +65,18 @@ Example of a Time Series: Monthly Airline Passengers in the US}
 
 
 Before we begin trying to analyse data such as this, we need to first
-create some kind of mathematical framework to work in. Fortunately, we
-do not need anything too complicated, and for a finite time-series of
-length $N$, we model the time series as a sequence of $N$ random
-variables, $X_i$, with $i = 1, 2, ..., N$.
+create a mathematical framework to work in. Fortunately, we do not
+need anything too complicated, and for a finite time-series of length
+$N$, we model the time series as a sequence of $N$ random variables,
+$X_i$, with $i = 1, 2, ..., N$.
 
-It is important to realise that each individual $X_i$ is a wholly
-separate random variable --- analysing time series statistically is
-unusual as we only ever have a single measurement from which we can
-do inference. In many cases we simplify this much further, but it is
-important to understand and appreciate that such simplifications are
-just that, and this is often the reason why time series can be very
-difficult to analyse.
+Realise that each individual $X_i$ is a wholly separate random
+variable --- analysing time series statistically is unusual as we only
+ever have a single measurement for each random variable from which we
+can do inference. In many cases we simplify this much further, but it
+is important to understand and appreciate that such simplifications
+are just that, and this is often the reason why time series can be
+very difficult to analyse.
 
 Before we get to any of that though, and before we try to build any
 kind of models for the data, we always start with visualising the
@@ -120,8 +120,8 @@ your workspace and repeat the tasks above.
 
 \worksheetexercise
 Analyse the trend and seasonality for the air passenger data by using
-the \texttt{aggregate()} function. Create a boxplot for the data,
-segmenting the data by month.
+the \texttt{aggregate()} and \texttt{cycle()} functions. Create a
+boxplot for the data, segmenting the data by month.
 
 \worksheetexercise
 Repeat the above analysis for Maine unemployment data.
@@ -148,7 +148,7 @@ In many cases, we will also be dealing with time series that have
 multiple values at all, many or some of the points in time.
 
 Often, these values will be related in some ways, and we will want to
-analyse those relationships also. In fact, one of the most reliable
+analyse those relationships also. In fact, one of the most efficient
 methods of prediction is to find \emph{leading indicators} for the
 value or values you wish to predict --- you can often use the current
 values of the leading indicators to make inference on future values of
@@ -312,6 +312,14 @@ all the time series we have looked at. Look at the structure of the
 output, and use the help system to see what options are provided.
 
 \worksheetexercise
+Check the output of \texttt{acf()} against manual calculations of the
+correlations at various timesteps. Do the numbers match?
+
+\noindent
+\textbf{HINT:} The \texttt{cor()} function and some vector indexing
+will be helpful here.
+
+\worksheetexercise
 Plot the output of the \texttt{acf()} for the different time
 series. Think about what these plots are telling you. Do do these
 plots help the modelling process, if so, how?
@@ -326,7 +334,48 @@ How can we use all that we have learned so far to assess the efficacy
 of the decompositional approach for time series.
 
 
-%\worksheetsection{Basic Forecasting}
+\worksheetsection{Basic Forecasting}
+
+\noindent
+As mentioned earlier, an efficient way to forecast a variable is to
+find a related variable whose value leads it by one or more
+timesteps. The closer the relationship and the longer the lead time,
+the better it becomes.
+
+The trick, of course, is to find a leading variable.
+
+Multivariate series has a temporal equivalent to correlation and
+covariance, known as the \emph{cross-covariance function (ccvf)} and
+the \emph{cross-correlation function (ccf)},
+
+\begin{eqnarray}
+\gamma_k(x, y) &=& E[(x_{t+k} - \mu_x)(y_t - \mu_y)], \\
+\rho_k(x, y)   &=& \frac{\gamma_k(x, y)}{\sigma_x \sigma_y}.
+\end{eqnarray}
+
+\noindent
+Note that the above functions are not symmetric, as the lag is always
+on the first variable, $x$.
+
+
+\worksheetexercise
+Load the building approvals and activity data from the
+\texttt{ApprovActiv.dat} file. The data is quarterly and starts in
+1996. Determine which is the leading variable and investigate the
+relationship between the two.
+
+\worksheetexercise
+Binding the time-series using \texttt{ts.union()}, find the
+cross-correlations for the building data. Verify the calculations as
+before.
+
+\worksheetexercise
+Examine the cross-correlations of the random element of the decomposed
+time-series for the building data, and compare this to the original
+cross-correlations.
+
+
+
 
 
 \end{document}
