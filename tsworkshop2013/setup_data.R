@@ -14,7 +14,7 @@ ensure.installed("gridExtra")
 library(gridExtra);
 
 ensure.installed("reshape")
-library(reshape)
+library(reshape2)
 
 
 data(AirPassengers);

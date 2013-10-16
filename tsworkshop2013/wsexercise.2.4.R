@@ -4,6 +4,8 @@
 
 source('setup_data.R', echo = TRUE);
 
+elec.ts <- ts(CBE.df$elec, start = 1958, freq = 12);
+AP.elec.ts <- ts.intersect(AP.ts, elec.ts);
 AP.elec.cor <- cor(AP.elec.ts);
 
 str(AP.elec.cor);
