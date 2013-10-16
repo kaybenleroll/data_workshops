@@ -6,8 +6,8 @@ source('setup_data.R', echo = TRUE);
 
 
 ### We are going to aggregate over the years, and extract the cycles
-MA.year.ts  <- aggregate(Maine.month.ts);
-MA.cycle.ts <- cycle(Maine.month.ts);
+MA.year.ts  <- aggregate(MA.month.ts);
+MA.cycle.ts <- cycle(MA.month.ts);
 
 
 ### We are going to stack the two plots together

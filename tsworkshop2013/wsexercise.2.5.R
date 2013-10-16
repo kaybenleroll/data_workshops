@@ -4,8 +4,8 @@
 
 source('setup_data.R', echo = TRUE);
 
-head(CBE);
+head(CBE.df);
 
-tail(CBE);
+tail(CBE.df);
 
-str(CBE);
+str(CBE.df);
