@@ -19,6 +19,6 @@ boxplot(MA.month.ts ~ MA.cycle.ts)
 ### Create a plot in ggplot2
 
 #plot1 <- qplot(start(MA.year.ts)[1]:end(MA.year.ts)[1], as.vector(MA.year.ts), geom = 'line', xlab = 'Year', ylab = 'Yearly Aggregates')
-#plot2 <- qplot(cycle.ts, MA.ts, data = data.frame(cycle = as.factor(MA.cycle.ts), MA = as.vector(MA.ts)), geom = 'boxplot', xlab = 'Month', ylab = 'Passengers');
+#plot2 <- qplot(MA.cycle.ts, MA.month.ts, data = data.frame(cycle = as.factor(MA.cycle.ts), MA = as.vector(MA.month.ts)), geom = 'boxplot', xlab = 'Month', ylab = 'Passengers');
 
 #grid.arrange(plot1, plot2);

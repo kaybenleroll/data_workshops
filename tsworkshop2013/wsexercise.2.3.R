@@ -16,4 +16,4 @@ plot(AP.elec.ts);
 
 
 ### Create a plot in ggplot2
-qplot(Var1, value, data = melt(AP.elec.ts), geom = 'line', colour = Var2);
+#qplot(Var1, value, data = melt(AP.elec.ts), geom = 'line', colour = Var2);
