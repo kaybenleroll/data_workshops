@@ -4,7 +4,7 @@
 
 source('setup_data.R', echo = TRUE);
 
-elec.ts <- ts(CBE.df$elec, start = 1958, freq = 12);
+elec.ts    <- ts(CBE.df$elec, start = 1958, freq = 12);
 AP.elec.ts <- ts.intersect(AP.ts, elec.ts);
 
 head(AP.elec.ts); tail(AP.elec.ts);
