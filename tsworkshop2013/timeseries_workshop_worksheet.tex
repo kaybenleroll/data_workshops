@@ -507,7 +507,7 @@ reliable are these forecasts do you think?
 A time series $w_t$ is \emph{discrete white noise} if the $w_t$ are
 i.i.d with a mean of zero. Thus, they all have the same variance
 $\sigma^2$ and $\text{Cor}(w_i, w_j) = 0$ for $i \neq j$. In addition,
-if the $w_j \tilde N(0, \sigma^2)$ then it is said to be
+if the $w_j \sim N(0, \sigma^2)$ then it is said to be
 \emph{Gaussian white noise}.
 
 \vspace{5mm}
@@ -523,12 +523,13 @@ x_t = x_{t-1} + w_t,
 where $w_t$ is a white-noise series.
 
 \worksheetexercise
-Generate a white noise series using \texttt{rnorm()}. Plot the output,
-and investigate its correlogram.
+Generate a white noise series using \texttt{rnorm()}, with an initial
+value, $w_0 = 1$. and length 100. Plot the output, and investigate its
+correlogram.
 
 \worksheetexercise
-Generate a random walk time series. Plot its output and investigate
-its correlogram.
+Generate a random walk time series with initial value $x_0 = 1$ and
+length 100. Plot its output and investigate its correlogram.
 
 \worksheetexercise
 Think about how you might create a random walk with an underlying
@@ -536,10 +537,10 @@ drift?
 
 \worksheetexercise
 Load in the data for the stock price of the Exchange-Traded Fund (ETF)
-SPDR S\&P 500, symbol SPY. This is a fund that closely tracks the S\&P
-500 Index, and is the most highly-traded stock in the world. Fit all
-three types of time series to the data, and try to determine which
-model is the best fit.
+SPDR S\&P 500, stock symbol SPY, given in file \texttt{spy.dat}. This
+is a fund that closely tracks the S\&P 500 Index, and is the most
+highly-traded stock in the world. Fit all three types of time series
+to the data, and try to determine which model is the best fit.
 
 \worksheetexercise
 What transformations of the data are possible to improve our modelling

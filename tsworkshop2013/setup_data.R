@@ -7,14 +7,14 @@ ensure.installed <- function(package){
 }
 
 
-ensure.installed("ggplot2")
+ensure.installed("ggplot2");
 library(ggplot2);
 
-ensure.installed("gridExtra")
+ensure.installed("gridExtra");
 library(gridExtra);
 
-ensure.installed("reshape")
-library(reshape2)
+ensure.installed("reshape2");
+library(reshape2);
 
 
 data(AirPassengers);
