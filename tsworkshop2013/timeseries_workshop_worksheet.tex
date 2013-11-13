@@ -627,7 +627,88 @@ Compare the AR and MA models to one another.
 %%% SECTION: ARMA and ARIMA Models
 %%%
 
-%\worksheetsection{ARMA and ARIMA Models}
+\worksheetsection{ARMA and ARIMA Models}
+
+\noindent
+Now suppose we combine the ideas of autoregressive and moving average
+models together. A time series follows an
+\emph{autoregressive moving average (ARMA)} process of order $(p, q)$
+when
+
+\begin{equation}
+x_t = \sum_{i=1}^p \alpha_i x_{t-i} + w_t + sum_{j=1}^q \beta_j w_{t-j}
+\end{equation}
+
+\noindent
+where $w_t$ is white noise.
+
+Both $\text{AR}(p)$ and $\text{MA}(q)$ models are special cases of
+$\text{ARMA}(p, q)$ (with $q = 0$ and $p = 0$ respectively), and ARMA
+models are usually preferred due to \emph{parameter parsimony} ---
+when fitting data, the ARMA model is usually more parameter efficient,
+requiring few parameters.
+
+\worksheetexercise
+Using the R function \texttt{arima.sim()}, create an ARMA(1,1)
+time-series of length 1000 with $\alpha = -0.6$, and
+$\beta = 0.5$. Plot this time series and check its ACF. Is this
+correct?
+
+\worksheetexercise
+Using \texttt{arma()}, fit your generated time series to an
+$\text{ARMA}(1,1)$ model and compare the fitted output to the values
+you have set.
+
+\worksheetexercise
+Repeat the above exercises, but for an $\text{ARMA}(2, 2)$ model with
+$\alpha_1 = 0.2$, $\alpha_2 = -0.5$, $\beta_1 = -0.1$ and
+$\beta_2 = 0.3$.
+
+\worksheetexercise
+Investigate the effect of the parameters $p$ and $q$ by generating the
+various combinations of the $\text{ARMA}(p, q)$ models but using the
+same set of innovations in each case.\\
+\textbf{HINT:} \texttt{arima.sim()} has a parameter \texttt{innov = ...}
+that allows you to pass in a set of innovations into the ARMA process.
+
+\worksheetexercise
+Load in the GBP/NZD currency pair data from the file
+\texttt{pound\_nz.dat}, and create a time-series from this. The data is
+quarterly, and starts in Q1 1991.
+
+\worksheetexercise
+Fit the data GBP/NZD to an $\text{MA}(1)$, an $\text{AR}(1)$ and an
+$\text{ARMA}(1, 1)$ process. Which of the above models does the best
+job at fitting the data?
+
+\vspace{5mm}
+
+\noindent
+It may be becoming quickly apparent that the choice of parameter count
+is non-trivial, and some kind of systematic approach would be
+desirable.
+
+One such method for choosing the optimal number of parameters is to
+fit multiple options and choose the best one, using a metric known as
+the \emph{Akaike Information Criterion (AIC)}. The AIC is defined to
+be
+
+\begin{equation}
+\text{AIC} = -2 \times \text{loglikelihood of fit} + 2 \times
+\text{parameter count},
+\end{equation}
+
+\noindent
+so that it balances the better fitting of parameters while penalising
+using too many parameters to fit.
+
+\worksheetexercise
+Use the R function \texttt{AIC} to calculate the AIC of the three
+models above. Which one is the best? Why is this question a trap?
+
+\worksheetexercise
+Using all of the various techniques in this workshop, try to model the
+electricity time series data from the CBE dataset.
 
 
 
