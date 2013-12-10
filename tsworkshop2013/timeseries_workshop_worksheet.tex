@@ -535,17 +535,6 @@ length 100. Plot its output and investigate its correlogram.
 Think about how you might create a random walk with an underlying
 drift?
 
-\worksheetexercise
-Load in the data for the stock price of the Exchange-Traded Fund (ETF)
-SPDR S\&P 500, stock symbol SPY, given in file \texttt{spy.dat}. This
-is a fund that closely tracks the S\&P 500 Index, and is the most
-highly-traded stock in the world. Fit all three types of time series
-to the data, and try to determine which model is the best fit.
-
-\worksheetexercise
-What transformations of the data are possible to improve our modelling
-of this time-series?
-
 \vspace{5mm}
 
 \noindent
@@ -563,24 +552,23 @@ order-$p$ process.
 \worksheetexercise
 Generate data for an AR(1) model with $\alpha = 0.5$ and initial value
 $x_1 = 1$. Plot the data and investigate its correlogram. Does this
-time series appear to be stationary?
+time series appear to be stationary? The R function
+\texttt{arima.sim()} can be used for this.
 
 \worksheetexercise
 Generate data for an AR(2) model with $\alpha_1 = 1$ and
-$\alpha_2 = -0.25$ and initial value $x_1 = 1$. Plot the data and
-investigate its correlogram. Does this time series appear to be
-stationary?
+$\alpha_2 = -0.25$ and initial value $x_1 = 1$, $x_2 = 1$. Plot the
+data and investigate its correlogram. Does this time series appear to
+be stationary?
 
 \worksheetexercise
 Generate data for an AR(2) model with $\alpha_1 = 0.5$ and
-$\alpha_2 = 0.5$ and initial value $x_1 = 1$. Plot the data and
-investigate its correlogram. Does this time series appear to be
-stationary?
+$\alpha_2 = 0.5$ and initial value $x_1 = 1$, $x_2 = 1$.
 
 \worksheetexercise
-Fit the three time-series you generated above to an autoregressive
-model using the function \texttt{ar()}. How do the fitted parameters
-match the values you used?
+Fit the time-series you generated above to an autoregressive model
+using the function \texttt{ar()}. How do the fitted parameters match
+the values you used?
 
 \vspace{5mm}
 
@@ -603,20 +591,18 @@ time series appear to be stationary?
 
 \worksheetexercise
 Generate data for an MA(2) model with $\alpha_1 = 1$ and
-$\alpha_2 = -0.25$ and initial value $x_1 = 1$. Plot the data and
-investigate its correlogram. Does this time series appear to be
-stationary?
+$\alpha_2 = -0.25$ and initial values $x_1 = 1$, $x_2 = 2$. Plot the
+data and investigate its correlogram. Does this time series appear to
+be stationary?
 
 \worksheetexercise
 Generate data for an MA(2) model with $\alpha_1 = 0.5$ and
-$\alpha_2 = 0.5$ and initial value $x_1 = 1$. Plot the data and
-investigate its correlogram. Does this time series appear to be
-stationary?
+$\alpha_2 = 0.5$ and initial values $x_1 = 1$, $x_2 = 1$.
 
 \worksheetexercise
-Fit the three time-series you generated above to a moving-average
-model using the function \texttt{arima()}. How do the fitted
-parameters match the values you used?
+Fit the time-series you generated above to a moving-average model
+using the function \texttt{arima()}. How do the fitted parameters
+match the values you used?
 
 \worksheetexercise
 Compare the AR and MA models to one another.

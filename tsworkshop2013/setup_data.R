@@ -23,6 +23,8 @@ AP.ts       <- AirPassengers;
 MA.month.df <- read.table('Maine.dat', header = TRUE);
 MA.month.ts <- ts(MA.month.df$unemploy, start = c(1996, 1), freq = 12)
 
-CBE.df      <- read.table('cbe.dat', header = TRUE);
+CBE.df      <- read.table('cbe.dat',         header = TRUE);
 AA.df       <- read.table('ApprovActiv.dat', header = TRUE);
-motororg.df <- read.table('motororg.dat', header = TRUE);
+motororg.df <- read.table('motororg.dat',    header = TRUE);
+
+SPY.df      <- read.csv('spy.dat', header = TRUE);
