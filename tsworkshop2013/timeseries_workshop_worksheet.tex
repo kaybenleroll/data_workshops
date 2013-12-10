@@ -585,19 +585,19 @@ x_t = w_t + \sum^q_{i=1} \beta_i w_{t - i}
 where $w_t$ is a white-noise process with mean 0 and variance $\sigma^2$.
 
 \worksheetexercise
-Generate data for an MA(1) model with $\alpha = 0.5$ and initial value
+Generate data for an MA(1) model with $\beta = 0.5$ and initial value
 $x_1 = 1$. Plot the data and investigate its correlogram. Does this
 time series appear to be stationary?
 
 \worksheetexercise
-Generate data for an MA(2) model with $\alpha_1 = 1$ and
-$\alpha_2 = -0.25$ and initial values $x_1 = 1$, $x_2 = 2$. Plot the
+Generate data for an MA(2) model with $\beta_1 = 1$ and
+$\beta_2 = -0.25$ and initial values $x_1 = 1$, $x_2 = 2$. Plot the
 data and investigate its correlogram. Does this time series appear to
 be stationary?
 
 \worksheetexercise
-Generate data for an MA(2) model with $\alpha_1 = 0.5$ and
-$\alpha_2 = 0.5$ and initial values $x_1 = 1$, $x_2 = 1$.
+Generate data for an MA(2) model with $\beta_1 = 0.5$ and
+$\beta_2 = 0.5$ and initial values $x_1 = 1$, $x_2 = 1$.
 
 \worksheetexercise
 Fit the time-series you generated above to a moving-average model
@@ -622,7 +622,7 @@ models together. A time series follows an
 when
 
 \begin{equation}
-x_t = \sum_{i=1}^p \alpha_i x_{t-i} + w_t + sum_{j=1}^q \beta_j w_{t-j}
+x_t = \sum_{i=1}^p \alpha_i x_{t-i} + w_t + \sum_{j=1}^q \beta_j w_{t-j}
 \end{equation}
 
 \noindent

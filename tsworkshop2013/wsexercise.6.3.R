@@ -6,7 +6,8 @@ source('setup_data.R', echo = TRUE);
 
 set.seed(42);
 
-x <- rnorm(99, 0, 1) + 0.05;
+drift.amount <- 0.05;
+x            <- rnorm(99, 0, 1) + drift.amount;
 
 randomwalk.ts     <- ts(cumsum(c(1, x)));
 randomwalk.ts.acf <- acf(randomwalk.ts, plot = FALSE);
