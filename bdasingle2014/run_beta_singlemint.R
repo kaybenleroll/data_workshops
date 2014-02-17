@@ -1,6 +1,4 @@
-library(rjags);
-library(data.table);
-library(ggplot2);
+source("setup_data.R", echo = TRUE);
 
 
 ### Set a seed to ensure that the random processes are repeatable.
@@ -12,7 +10,7 @@ chain.count  <- 3;
 adapt.steps  <- 500;
 burnin.steps <- 1000;
 
-jags.file <- 'singlemint_beta_full.jag';
+jags.file <- 'singlemint_beta.jag';
 
 
 generate.jags.beta.samples <- function(mintdata.dt) {
@@ -32,7 +30,7 @@ generate.jags.beta.samples <- function(mintdata.dt) {
 
 
 ### Setup and run the model for mint 1
-mintdata.dt <- data.dt[, list(success = sum(outcome), tosscount = dim(.SD)[1]), by = list(mintid, coinid)]
+mintdata.dt <- use.data.dt[, list(success = sum(outcome), tosscount = dim(.SD)[1]), by = list(mintid, coinid)]
 
 coda.beta.mint1 <- generate.jags.beta.samples(mintdata.dt[mintid == 1]);
 coda.beta.mint2 <- generate.jags.beta.samples(mintdata.dt[mintid == 2]);

@@ -1,7 +1,5 @@
-library(rjags);
-library(data.table);
-library(ggplot2);
 
+source("setup_data.R", echo = TRUE);
 
 ### Set a seed to ensure that the random processes are repeatable.
 set.seed(42);
@@ -12,7 +10,7 @@ chain.count  <- 3;
 adapt.steps  <- 500;
 burnin.steps <- 1000;
 
-jags.file <- 'singlemint_bern_full.jag';
+jags.file <- 'singlemint_bern.jag';
 
 
 
@@ -33,9 +31,7 @@ generate.jags.bernouilli.samples <- function(mintdata.dt) {
 }
 
 
-
-
 ### Setup and run the model for mint 1
-coda.bern.mint1 <- generate.jags.bernouilli.samples(data.dt[mintid == 1]);
-coda.bern.mint2 <- generate.jags.bernouilli.samples(data.dt[mintid == 2]);
-coda.bern.mint3 <- generate.jags.bernouilli.samples(data.dt[mintid == 3]);
+coda.bern.mint1 <- generate.jags.bernouilli.samples(use.data.dt[mintid == 1]);
+coda.bern.mint2 <- generate.jags.bernouilli.samples(use.data.dt[mintid == 2]);
+coda.bern.mint3 <- generate.jags.bernouilli.samples(use.data.dt[mintid == 3]);
