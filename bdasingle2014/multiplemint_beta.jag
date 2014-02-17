@@ -1,0 +1,27 @@
+# JAGS model specification begins ...
+model {
+    # Likelihood:
+    for(i in 1:nCoins) {
+        y[i] ~ dbin(theta[i], tosscount[i]);
+    }
+
+    # Prior:
+    for(j in 1:nCoins) {
+        theta[j] ~ dbeta(a[mint[j]], b[mint[j]])T(0.0001,0.9999)
+    }
+
+    for(mId in 1:nMint) {
+        a[mId] <- mu[mId] * kappa[mId]
+        b[mId] <- (1.0 - mu[mId]) * kappa[mId]
+
+    	mu[mId]    ~ dbeta (Amu,    Bmu)
+    	kappa[mId] ~ dgamma(Skappa, Rkappa)
+    }
+
+
+    Amu <- 2.0
+    Bmu <- 2.0
+    Skappa <- pow(10, 2) / pow(10, 2)
+    Rkappa <- 10         / pow(10, 2)
+}
+# ... JAGS model specification ends.
