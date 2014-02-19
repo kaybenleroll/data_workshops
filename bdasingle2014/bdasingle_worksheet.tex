@@ -161,24 +161,47 @@ multiple mint hierarchical model, and investigate the output.
 \worksheetexercise Is there any difference in the posterior
 distributions from this approach to the single mint model?
 
-\worksheetexercise
+\worksheetexercise How do the above posterior distributions compare to the simple density estimation distributions we originally produced?
 
 \vspace{5mm}
 \noindent
-\textbf{Hint:} The code in \texttt{run\_bern\_singlemint.R} and
-\texttt{run\_beta\_singlemint.R} may be of help here.
-
-
-
+\textbf{Hint:} The code in \texttt{run\_multiplemint.R} may be of help here.
 
 
 \worksheetsection{Exploring the Effect of the Data}
 
 \noindent
+We are going to investigate the effect that the composition of the
+data has on inference. This can be important if we have a constrained
+amount of data collection at the lowest level, but have a certain
+amount of discretion at the higher levels.
+
+So, suppose we have a relatively fixed amount of total coin tosses we
+can record, but we can choose whether to use more coins per mint, or
+more tosses per coin. How does this affect the output of our analysis?
+
+\worksheetexercise Inspect the code in the function
+\texttt{generate.cointoss.data()} and make sure you understand how it
+works.
+
+\worksheetexercise Use the function to generate a dataset with a
+relatively high number of coins per mint, and low number of tosses per
+coin.
+
+\worksheetexercise Use the function to generate a dataset with a
+relatively high number of coins per mint, and low number of tosses per
+coin.
+
+\worksheetexercise Use all of the above to investigate the above
+compositional effects of the data on the outputs of our model?
 
 
 
 \worksheetsection{Further Work and Open Questions}
+
+
+\worksheetexercise Is there ways in which we can improve the data
+generation to help us understand how this approach handles differences?
 
 \worksheetexercise How do we incorporate errors in data collection to
 our model?
@@ -186,7 +209,10 @@ our model?
 \worksheetexercise What kind of effects would these errors have on our
 output and our conclusions?
 
-\worksheetexercise
+\worksheetexercise How can we extend this model at the higher
+levels?
+
+
 
 
 \end{document}
