@@ -10,7 +10,7 @@ model {
         theta[j] ~ dbeta(a[mint[j]], b[mint[j]])T(0.0001,0.9999)
     }
 
-    for(mId in 1:nMint) {
+    for(mId in 1:nMints) {
         a[mId] <- mu[mId] * kappa[mId]
         b[mId] <- (1.0 - mu[mId]) * kappa[mId]
 

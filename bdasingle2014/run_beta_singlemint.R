@@ -18,8 +18,11 @@ generate.jags.beta.samples <- function(mintdata.dt) {
     data.tosscount   <- mintdata.dt$tosscount
     data.y           <- mintdata.dt$success;
 
+    data.jags <- list(nCoins    = data.nCoins,
+                      tosscount = data.tosscount,
+                      y         = data.y);
 
-    jagsModel <- jags.model(jags.file, data = list(nCoins = data.nCoins, tosscount = data.tosscount, y = data.y), n.chains = chain.count, n.adapt = adapt.steps);
+    jagsModel <- jags.model(jags.file, data = data.jags, n.chains = chain.count, n.adapt = adapt.steps);
 
     update(jagsModel, n.iter = burnin.steps);
 
@@ -35,3 +38,7 @@ mintdata.dt <- use.data.dt[, list(success = sum(outcome), tosscount = dim(.SD)[1
 coda.beta.mint1 <- generate.jags.beta.samples(mintdata.dt[mintid == 1]);
 coda.beta.mint2 <- generate.jags.beta.samples(mintdata.dt[mintid == 2]);
 coda.beta.mint3 <- generate.jags.beta.samples(mintdata.dt[mintid == 3]);
+
+coda.beta.lst <- list(mint1 = coda.beta.mint1,
+                      mint2 = coda.beta.mint2,
+                      mint3 = coda.beta.mint3);

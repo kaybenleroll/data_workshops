@@ -20,8 +20,12 @@ generate.jags.bernouilli.samples <- function(mintdata.dt) {
     data.coin        <- match(mintdata.dt$coinid, unique(mintdata.dt$coinid));
     data.y           <- mintdata.dt$outcome;
 
+    data.jags <- list(nTrialTotal = data.nTrialTotal,
+                      nCoins      = data.nCoins,
+                      coin        = data.coin,
+                      y           = data.y);
 
-    jagsModel <- jags.model(jags.file, data = list(nTrialTotal = data.nTrialTotal, nCoins = data.nCoins, coin = data.coin, y = data.y), n.chains = chain.count, n.adapt = adapt.steps);
+    jagsModel <- jags.model(jags.file, data = data.jags, n.chains = chain.count, n.adapt = adapt.steps);
 
     update(jagsModel, n.iter = burnin.steps);
 
@@ -35,3 +39,7 @@ generate.jags.bernouilli.samples <- function(mintdata.dt) {
 coda.bern.mint1 <- generate.jags.bernouilli.samples(use.data.dt[mintid == 1]);
 coda.bern.mint2 <- generate.jags.bernouilli.samples(use.data.dt[mintid == 2]);
 coda.bern.mint3 <- generate.jags.bernouilli.samples(use.data.dt[mintid == 3]);
+
+coda.bern.lst <- list(mint1 = coda.bern.mint1,
+                      mint2 = coda.bern.mint2,
+                      mint3 = coda.bern.mint3);
