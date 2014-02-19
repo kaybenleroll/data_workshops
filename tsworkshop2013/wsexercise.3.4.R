@@ -1,5 +1,5 @@
 ###
-### Worksheet Exercise 3.1
+### Worksheet Exercise 3.4
 ###
 
 source('setup_data.R', echo = TRUE);
