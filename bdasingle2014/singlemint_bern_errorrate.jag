@@ -2,7 +2,10 @@
 model {
     # Likelihood:
     for(t in 1:nTrialTotal) {
-        y[t] ~ dbern(theta[coin[t]])
+    	use.theta[t] <- equals(error.flag[t], 0) * theta[coin[t]] + equals(error.flag[t], 1) * (1 - theta[coin[t]])
+
+        error.flag[t] ~ dbern(error.rate);
+	y[t] ~ dbern(use.theta[t]);
     }
 
     # Prior:

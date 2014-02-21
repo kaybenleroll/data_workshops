@@ -7,7 +7,7 @@ model {
 
     # Prior:
     for(j in 1:nCoins) {
-        theta[j] ~ dbeta(a[mint[j]], b[mint[j]])T(0.0001,0.9999)
+        theta[j] ~ dbeta(a[mint[j]], b[mint[j]])T(0.001,0.999)
     }
 
     for(mId in 1:nMints) {
