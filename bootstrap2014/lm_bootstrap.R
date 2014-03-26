@@ -22,3 +22,18 @@ model.fun <- function(d, i) {
 
 cats.case <- boot(cats1, case.fun,  R = 999);
 cats.mod  <- boot(cats1, model.fun, R = 999);
+
+
+### Show the bootstrapping of rlm()
+
+mod.duncan.hub <- rlm(prestige ~ income + education, data = Duncan)
+summary(mod.duncan.hub)
+
+boot.huber <- function(data, indices, maxit = 20) {
+    data <- data[indices, ]; # select obs. in bootstrap sample
+    mod  <- rlm(prestige ~ income + education, data = data, maxit = maxit);
+
+    return(coefficients(mod)); # return coefficient vector
+}
+
+duncan.boot <- boot(Duncan, boot.huber, 1999, maxit = 100);
