@@ -10,7 +10,7 @@ library(MASS);
 
 data(catsM);
 data(lynx);
-data(Duncan);y
+data(Duncan);
 
 
 equity.returns <- readRDS("equity_returns.rds");

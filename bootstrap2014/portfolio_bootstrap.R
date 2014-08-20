@@ -13,4 +13,4 @@ bootstrap.calc <- function(price.returns, indexes, use.count = 120) {
 }
 
 
-portfolio.boot <- boot(returns.matrix, statistic = bootstrap.calc, R = 1000, use.count = 120);
+portfolio.boot <- boot(equity.returns, statistic = bootstrap.calc, R = 1000, use.count = 120);
