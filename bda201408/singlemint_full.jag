@@ -13,7 +13,7 @@ model {
     a <- mu * kappa
     b <- ( 1.0 - mu ) * kappa
 
-    mu ~ dbeta( Amu , Bmu )
+    mu    ~ dbeta( Amu , Bmu )
     kappa ~ dgamma( Skappa , Rkappa )
 
     Amu <- 2.0
