@@ -43,42 +43,6 @@ generate.disease.twotest.data <- function(n = 1000000, prior.prob = 0.001, hit.r
 }
 
 
-do.metropolis.island.sampling <- function(island.distrib, proposal.prob = 0.5, init.island = 1, sample.count = 1000, burn.in = 100) {
-
-    i <- 0;
-    island.count <- length(island.distrib);
-
-    total.count <- sample.count + burn.in;
-    sample.data <- rep(0, total.count);
-
-    sample.data[1] <- init.island;
-
-
-    for(i in 1:(total.count-1)) {
-        proposal <- sample.data[i] + ifelse(runif(1, 0, 1) > proposal.prob, -1, 1);
-
-        if(proposal == 0)           proposal <- island.count;
-        if(proposal > island.count) proposal <- 1;
-
-        if(island.distrib[proposal] > island.distrib[sample.data[i]]) {
-            new.island <- proposal;
-        } else {
-            random.number <- runif(1, 0, 1);
-
-            if(random.number < (island.distrib[proposal] / island.distrib[sample.data[i]])) {
-                new.island <- proposal;
-            } else {
-                new.island <- sample.data[i];
-            }
-        }
-
-        sample.data[i+1] <- new.island;
-    }
-
-    return(sample.data[-(1:burn.in)]);
-}
-
-
 calculate.likelihood <- function(y, theta) { return(theta^y * (1 - theta)^(1 - y)) }
 
 calculate.data.probability <- function(data, theta) {
