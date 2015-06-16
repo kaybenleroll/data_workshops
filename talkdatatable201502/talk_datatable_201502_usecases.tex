@@ -12,6 +12,8 @@
 \title[data.table: data.frame 2.0 (Examples)]{data.table: data.frame 2.0\\Examples}
 \author{Mick Cooney}
 \date{18 Feb 2015}
+
+
 \begin{document}
 
 \begin{frame}
@@ -52,7 +54,7 @@ A game for data junkies...
 \item<2-> CCP provides data API
 \item<3-> Provides access to market transactions, industry jobs, skill training, etc
 \item<4-> Third party data providers
-\item<5-> Rumours of real-time data being set up
+\item<5-> Real-time Datafeed -- EMDR (scalable, high-availability)
 \end{itemize}
 
 \end{frame}
@@ -270,9 +272,8 @@ calculate.avg.price <- function(trade.dt) {
 %%%
 \begin{frame}[fragile]
 \begin{verbatim}
-> within(calculate.avg.price(trade.dt[transactTime >= as.POSIXct('2012-09-01')]), {
-    price = format(avgprice, big.mark = ',', scientific = F)
-})
+> avgprice.dt <- calculate.avg.price(trade.dt[transactTime >= as.POSIXct('2012-09-01')])
+> avgprice.dt[, price := format(avgprice, big.mark = ',', scientific = F)]
      typeID                                typeName transactionType   volume         cash
   1:     34                               Tritanium             buy 49991443 277885841.55
   2:     35                                 Pyerite             buy 23908532 258529648.64
@@ -312,7 +313,8 @@ calculate.avg.price <- function(trade.dt) {
 \item<3-> Nanotech fabbing
 \item<4-> Blueprint + Materials + Manufacturing Slot $\rightarrow$ Item
 \item<5-> Better blueprint $\rightarrow$ Less waste
-\item<6-> $\text{Waste} = \text{Base Waste (10\%)} \times \left(\frac{1}{1 + \text{ME}}\right) \times \text{Material Amount}$
+\item<6-> Major update to system with Crius Expansion (June 2014)
+\item<7-> Pre-Crius:\\ $\text{Waste} = \text{Base Waste (10\%)} \times \left(\frac{1}{1 + \text{ME}}\right) \times \text{Material Amount}$
 \end{itemize}
 
 \end{frame}
@@ -395,6 +397,113 @@ calculate.construction.cost <- function(typeID, ME = 0, price.dt = pricedata.dt,
 7:      0.00    257268.70
 \end{verbatim}
 \end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+\begin{frame}[fragile]{Crius Changes}
+
+\begin{itemize}
+\item<2-> Major Changes
+\item<3-> Complete change in how Material Efficiency (ME) worked
+\item<4-> $\text{Required} = \text{Quantity} \times \text{Job Runs} \times (1 - \text{ME}\%)$
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+\begin{frame}[fragile]
+\begin{minted}[mathescape,
+               linenos,
+               fontsize=\tiny,
+               numbersep=5pt,
+               frame=lines,
+               framesep=2mm]{r}
+calculate.construction.cost <- function(typeID, ME = 0, runs = 1, price.dt = pricedata.dt,
+                                        verbose = FALSE, dbconnect = data.connection) {
+
+    stopifnot(ME >= 0 & ME <= 10);
+    stopifnot(runs > 1);
+
+    material.dt <- get.blueprint.data(typeID, dbconnect);
+
+    setkey(material.dt, typeID);
+    setkey(price.dt,    typeID);
+
+    material.dt <- merge(material.dt,
+                         price.dt[, list(matTypeID = typeID, price)],
+                         all.x = TRUE, by = c('matTypeID'));
+
+    cost.dt <- material.dt;
+    cost.dt[, required     := ceiling(quantity * runs * (1 - ME / 100))];
+    cost.dt[, requiredCost := required * price];
+
+
+    return(cost.dt);
+}
+\end{minted}
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+\begin{frame}[fragile]{Cartesian Expansion}
+\begin{minted}[mathescape,
+               linenos,
+               fontsize=\tiny,
+               numbersep=5pt,
+               frame=lines,
+               framesep=2mm]{r}
+> set.seed(42); data.dt <- data.table(keyval = LETTERS[1:5], val = sample(1:10, 5))
+   keyval val
+1:      A  10
+2:      B   9
+3:      C   3
+4:      D   6
+5:      E   4
+
+> set.seed(42); data.dt[, .SD[rep(1, val)][, val := 1:val[1]], by = keyval]
+    keyval val
+ 1:      A   1
+ 2:      A   2
+ 3:      A   3
+ 4:      A   4
+ 5:      A   5
+ 6:      A   6
+ 7:      A   7
+ 8:      A   8
+ 9:      A   9
+10:      A  10
+11:      B   1
+...
+28:      D   6
+29:      E   1
+30:      E   2
+31:      E   3
+32:      E   4
+    keyval val
+\end{minted}
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+\begin{frame}{Summary}
+
+\pause
+\begin{center}
+\Huge
+\texttt{data.table} is the schnizzle
+\end{center}
+\end{frame}
+
+
 
 
 \end{document}
