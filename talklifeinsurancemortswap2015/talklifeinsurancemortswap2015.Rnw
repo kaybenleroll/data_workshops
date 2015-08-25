@@ -6,6 +6,7 @@
 
 \usepackage{graphicx}
 \usepackage{eurosym}
+\usepackage{hyperref}
 
 
 
@@ -13,7 +14,7 @@
 
 
 \title[Life Insurance and Mortality Swaps]{Life Insurance and Mortality Swaps\\Dublin R}
-\author{Mick Cooney}
+\author{Mick Cooney \\ \href{mailto:michael.cooney@applied.ai}{michael.cooney@applied.ai}}
 \date{23 June 2015}
 
 <<setoptions, include=TRUE, echo=FALSE, cache=FALSE, results='hide'>>=
@@ -126,8 +127,8 @@ where
 A &=& \text{policy premium}\\
 L &=& \text{death payment}\\
 q(t) &=& \text{curtate mortality from time $t-1$ to $t$}\\
-r &=& \text{interest rate}\\
-N &=& \text{term of the policy}
+r &=& \text{interest rate (annualised)}\\
+N &=& \text{term of the policy (in years)}
 \end{eqnarray*}
 
 \end{frame}
@@ -148,24 +149,12 @@ setDT(NVSR.Table01.dt);
 setnames(NVSR.Table01.dt, c("Age", "q(x)", "l(x)", "d(x)", "L(x)", "T(x)", "e(x)"));
 
 print(head(NVSR.Table01.dt, n = 10));
-@
 
-
-\end{frame}
-
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]
-
-<<show_simple_lifetable, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+cat("\n\n");
 
 lifetable.dt <- fread("lifetable.csv");
 
-print(head(lifetable.dt, n = 10));
+print(head(lifetable.dt[, list(age, qx = round(qx, 8))], n = 10));
 @
 
 
@@ -182,7 +171,7 @@ print(head(lifetable.dt, n = 10));
 Price for 20-year policy of a 30 year old (per \$100,000 assured)
 
 <<price_insurance_code, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
-price.term.assurance <- function(q, A = 200000, r = 0.05, P = 0) {
+price.term.assurance <- function(q, A = 100000, r = 0.05, P = 0) {
     ### Calculates the price of term assurance by equating the expected values
 
     N <- length(q);
@@ -211,7 +200,7 @@ price.term.assurance(lifetable.dt[age > 30][age <= 50]$qx, A = 100000, r = 0.05,
 
 <<calculate_multiplier, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
 A  <- 100000;
-qx <- lifetable.dt[age > 30][age <= 50]$qx;
+qx <- lifetable.dt[age >= 30][age < 50]$qx;
 r  <- 0.05;
 
 calculate.multiple.diff <- function(MUR, mult) {
@@ -257,7 +246,7 @@ qplot(MUR.values, MUR.mult, geom = 'line', xlab = "MUR", ylab = "Multiplier") +
 Try for 45-year old with 15-year policy:
 
 <<calculate_multiplier_plot_alt, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
-qx <- lifetable.dt[age > 45][age <= 60]$qx;
+qx <- lifetable.dt[age >= 45][age < 60]$qx;
 r  <- 0.05;
 
 calculate.multiple.diff <- function(MUR, mult) {
@@ -719,6 +708,30 @@ load("tif.ensemble.1000.100.rda");
 qplot(Var2, value, data = melt(tif.ensemble.1000.100), geom = 'line', group = Var1, alpha = I(0.1), size = I(0.5), xlab = 'Year', ylab = 'Mean Loss Average') +
     scale_y_continuous(label = dollar) + expand_limits(y = 0);
 @
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Summary}
+
+\begin{center}
+R package: \texttt{mcmortswap}
+
+\url{https://bitbucket.org/appliedai/mcmortswap}
+
+\vspace{3mm}
+
+Email: \href{mailto:michael.cooney@applied.ai}{michael.cooney@applied.ai}
+
+\vspace{3mm}
+
+Slides available on github: \url{https://github.com/kaybenleroll/dublin_r_workshops}
+\end{center}
 
 \end{frame}
 
