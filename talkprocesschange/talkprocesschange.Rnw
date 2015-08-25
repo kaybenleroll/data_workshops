@@ -1,0 +1,280 @@
+\documentclass[11pt]{beamer}
+
+\makeatletter
+\g@addto@macro\@verbatim\tiny
+\makeatother
+
+\usepackage{graphicx}
+\usepackage{eurosym}
+\usepackage{hyperref}
+
+
+
+\usetheme[compress]{Berlin}
+
+
+\title[Monitoring Process Change with Bayesian Methods]{Monitoring Process Change with Bayesian Methods}
+\author{Mick Cooney \\ \href{mailto:michael.cooney@applied.ai}{michael.cooney@applied.ai}}
+\date{2 September 2015}
+
+<<setoptions, include=TRUE, echo=FALSE, cache=FALSE, results='hide'>>=
+opts_knit$set(root.dir = ".")
+
+opts_chunk$set(fig.path = '.');
+opts_chunk$set(fig.align = 'center');
+opts_chunk$set(out.width  = '11cm');
+opts_chunk$set(out.height =  '6cm');
+
+opts_chunk$set(size = 'tiny');
+
+set.seed(42);
+
+@
+
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+dev_mode(TRUE);
+
+require(ggplot2);
+require(data.table);
+require(scales);
+require(reshape2);
+require(xts);
+
+@
+
+
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+
+
+%%%
+%%%  Section: Introduction
+%%%
+
+\section{Introduction}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Structure of Talk}
+
+\begin{itemize}
+    \item Discussion of Problem
+    \item Bayesian Analysis and the Beta Distribution
+    \item Adding Layers of Noise
+    \item Distribution Distances and f-divergences
+\end{itemize}
+
+\end{frame}
+
+
+
+%%%
+%%%  Section: Introduction
+%%%
+
+\section{Problem Discussion}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Monitoring Process Change}
+
+\begin{itemize}
+  \item NOT Change-point Analysis
+  \item Time of change known - want to measure change effect
+  \item Have measured metrics
+  \item Need to determine change vs noise
+  \item Generic technique for the problem
+\end{itemize}
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Sales-call Conversions}
+
+\begin{itemize}
+  \item Assume a binary outcome
+  \item Conversion rate of sales calls to actual sales
+  \item Amount irrelevant
+  \item Data summarised monthly
+  \item Change due to internal improvements leading to faster turnaround
+\end{itemize}
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Sales-call Conversions}
+
+\begin{itemize}
+  \item Assume a binary outcome
+  \item Conversion rate of sales calls to actual sales
+  \item Amount irrelevant
+  \item Data summarised monthly
+  \item Change due to internal improvements leading to faster turnaround
+\end{itemize}
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Generating Data}
+
+Want to generate time-series for $\theta$, use normal distribution:
+
+<<generating_data, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+
+generate_process_rates <- function(mu0 = 0.10, sd0 = 0.03, mu1 = 0.15, sd1 = 0.03,
+                                   start_date  = as.Date("2010-01-01"),
+                                   end_date    = as.Date("2015-03-01"),
+                                   change_date = as.Date("2014-01-01")) {
+
+    month_vector <- as.yearmon(seq(start_date, end_date, by = "month"));
+    switch_month <- as.yearmon(change_date);
+
+    switch_idx <- match(switch_month, month_vector);
+
+    pre_rate  <- rnorm(switch_idx - 1, mu0, sd0);
+    post_rate <- rnorm(length(month_vector) - switch_idx + 1, mu1, sd1);
+
+    rate_dt <- data.table(rate_date = as.Date(month_vector), underlying_rate = c(pre_rate, post_rate));
+
+    return(rate_dt)
+}
+@
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+<<generating_data_plot, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='5.5cm'>>=
+plot_rate_dt <- generate_process_rates(mu0 = 0.10, sd0 = 0.02, mu1 = 0.15, sd1 = 0.03);
+
+qplot(rate_date, underlying_rate, data = plot_rate_dt, geom = 'line', ylim = c(0, 0.2),
+      xlab = 'Date', ylab = 'Conversion Rate');
+@
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+<<generating_data_extra_funcs, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+generate_counts <- function(rate_dt, month_count) {
+    rate_dt <- data.table(rate_dt, month_count = month_count);
+
+    rate_dt[, conversion_count := mapply(rbinom, n = 1, month_count, underlying_rate)];
+    rate_dt[, conversion_rate  := conversion_count / month_count];
+
+    return(rate_dt);
+}
+
+generate_yearly_data <- function(rate_dt) {
+    year_dt <- rate_dt[, list(a = sum(conversion_count), b = sum(month_count - conversion_count)),
+                         by = list(data_year = format(rate_date, '%Y'))];
+    year_dt[, c("cum_a", "cum_b") := list(cumsum(a) + 1, cumsum(b) + 1)];
+
+    distrib_dt <- year_dt[, generate_beta_plot_data(cum_a, cum_b), by = data_year];
+
+    return(distrib_dt);
+}
+@
+
+\end{frame}
+
+
+
+
+
+
+
+
+
+
+
+
+%%%
+%%%  Section: Other Concepts
+%%%
+
+\section{Bayesian Analysis}
+
+
+
+%%%
+%%%  Section: Pricing Mortality Swaps
+%%%
+
+\section{Adding Noise}
+
+
+
+%%%
+%%%  Section: Pricing Tail Risk
+%%%
+
+\section{f-divergences}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Summary}
+
+\begin{center}
+R package: \texttt{mcmortswap}
+
+\url{https://bitbucket.org/appliedai/mcmortswap}
+
+\vspace{3mm}
+
+\href{mailto:michael.cooney@applied.ai}{michael.cooney@applied.ai}\\
+\href{mailto:mickcooney@gmail.com}{mickcooney@gmail.com}
+
+\vspace{3mm}
+
+Slides available on github: \url{https://github.com/kaybenleroll/dublin_r_workshops}
+\end{center}
+
+\end{frame}
+
+
+
+
+\end{document}
