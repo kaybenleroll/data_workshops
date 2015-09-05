@@ -99,11 +99,12 @@ kl_metric <- function(x, P, Q) {
 
     N  <- length(x);
     dx <- diff(x);
+    dx <- c(dx[1], dx);
 
     ### Need to select out the non-zero indices for both P and Q
     idx <- intersect(which(P > 0),  which(Q > 0));
 
-    return(sum((P[idx] * log(P[idx] / Q[idx]) * dx[idx])));
+    return(sum((P * log(P/Q) * dx)[idx]));
 }
 
 beta_hellinger_metric <- function(alpha1, beta1, alpha2, beta2) {

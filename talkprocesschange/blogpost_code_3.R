@@ -28,7 +28,7 @@ staticmu_2_plot <- qplot(x_seq, Beta1, geom = 'line', xlab = expression(theta), 
 
 
 double_plot <- arrangeGrob(staticmu_1_plot, staticmu_2_plot, ncol = 2);
-ggsave(double_plot, file = "double_static_plot.png", width = 14, height = 10);
+#ggsave(double_plot, file = "double_static_plot.png", width = 14, height = 10);
 
 
 ### Calculate the distance metrics for Beta1, Beta2 and Beta3

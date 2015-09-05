@@ -31,7 +31,7 @@ stochastic_empirical_rate_dt <- stochastic_rate_count_data_dt[, list(conversion 
                                                                      rate       = sum(conversion_count) / sum(month_count)),
                                                               by = list(year = as.numeric(format(rate_date, "%Y")))];
 
-stochastic_empirical_rate_plot <- qplot(year, rate, data = stochastic_yearly_rate_dt, geom = 'line', ylim = c(0, 0.2));
+stochastic_empirical_rate_plot <- qplot(year, rate, data = stochastic_empirical_rate_dt, geom = 'line', ylim = c(0, 0.2));
 ggsave(stochastic_empirical_rate_plot, file = 'stochastic_empirical_rate.png', width = 14, height = 10);
 
 
@@ -108,9 +108,14 @@ ggsave(highbase_plot, file = 'highbase_posterior.png', width = 14, height = 10);
 
 
 ### Create plot for area under the two curves
-areaunder_plot <- qplot(seq(0, 1, by = 0.0001), P, geom = 'line', xlab = expression(theta), ylab = 'Probability Density') +
+theta_seq <- seq(0, 1, by = 0.0001);
+
+P <- dbeta(theta_seq, 50, 50);
+Q <- dbeta(theta_seq, 40, 60);
+
+areaunder_plot <- qplot(theta_seq, P, geom = 'line', xlab = expression(theta), ylab = 'Probability Density') +
     geom_line(aes(y = Q), colour = 'red') +
-    geom_area(aes(x = seq(0, 1, by = 0.0001), y = pmin(P, Q)), fill = 'grey', alpha = 0.5);
+    geom_area(aes(x = theta_seq, y = pmin(P, Q)), fill = 'grey', alpha = 0.5);
 
 ggsave(areaunder_plot, file = 'areaunder_plot.png', width = 14, height = 10);
 

@@ -25,7 +25,7 @@ ggsave(set_conversion_rate_plot, file = 'set_conversion_rate.png', width = 14, h
 
 set_conversion_yearly_data_dt <- generate_yearly_data(set_conversion_count_data_dt);
 
-set_conversion_yearly_plot <- qplot(theta, prob.dens, data = set_conversion_yearly_data_dt, geom = 'line',
+set_conversion_yearly_plot <- qplot(theta, prob_dens, data = set_conversion_yearly_data_dt, geom = 'line',
                                     colour = data_year, xlim = c(0.05, 0.15), xlab = expression(theta), ylab = "Probability Density");
 
 ggsave(set_conversion_yearly_plot, file = 'set_conversion_yearly.png', width = 14, height = 10);
@@ -48,7 +48,7 @@ ggsave(month_count_rate_plot, file = 'month_count_rate.png', width = 14, height 
 
 month_count_yearly_data_dt <- generate_yearly_data(month_count_count_data_dt);
 
-month_count_yearly_plot <- qplot(theta, prob.dens, data = month_count_yearly_data_dt, geom = 'line',
+month_count_yearly_plot <- qplot(theta, prob_dens, data = month_count_yearly_data_dt, geom = 'line',
                                     colour = data_year, xlim = c(0.05, 0.15), xlab = expression(theta), ylab = "Probability Density");
 
 ggsave(month_count_yearly_plot, file = 'month_count_yearly.png', width = 14, height = 10);
