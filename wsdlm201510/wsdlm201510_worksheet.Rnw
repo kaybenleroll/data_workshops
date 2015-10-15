@@ -48,10 +48,72 @@ require(ggplot2);
 
 
 
+%%%
+%%%
+%%% Section: Introduction
+%%%
+%%%
+
 \worksheetsection{Introduction}
 
+\noindent
+A \emph{continuous-time} linear dynamical system (CT LDS) has the form
 
+\[ \dot{x} = \frac{dx}{dt} = A(t) x(t) + B(t) u(t), \;\;\; y(t) = C(t) x(t) + D(t) u(t), \]
+
+\noindent
+where
+\begin{itemize}
+  \item $t \in \mathbb{R}$
+  \item $x(t) \in \mathbb{R}^n$ is the \emph{state}
+  \item $u(t) \in \mathbb{R}^m$ is the \emph{input} or \emph{control}
+  \item $y(t) \in \mathbb{R}^p$ is the \emph{output}
+  \item $A(t) \in \mathbb{R}^{n \times n}$ is the \emph{dynamics matrix}
+  \item $B(t) \in \mathbb{R}^{n \times m}$ is the \emph{input matrix}
+  \item $C(t) \in \mathbb{R}^{p \times n}$ is the \emph{output} or \emph{sensor matrix}
+  \item $D(t) \in \mathbb{R}^{p \times m}$ is the \emph{feedthrough matrix}
+\end{itemize}
+
+\noindent
+These are often written more conveniently as
+
+\[ \dot{x} = Ax + Bu, \;\;\; y = Cx + Du,  \]
+
+\noindent
+and is a first-order vector \emph{differential equation}. They are
+also referred to as \emph{state equations} or an `$m$-input, $n$-state,
+$p$-output' linear dynamical system.
+
+\vspace{3mm}
+\noindent
+The \emph{discrete-time} linear dynamical system (DT LDS) has the form:
+
+\[ x(t+1) = A(t) x(t) + B(t) u(t), \;\;\; y(t) = C(t) x(t) + D(t) u(t), \]
+
+\noindent
+where
+\begin{itemize}
+  \item $t \in \mathbb{Z} = {0, \pm 1, \pm 2, ...}$
+  \item (vector) signals $x$, $u$, $y$ are \emph{sequences}
+\end{itemize}
+
+\noindent
+DT LDS is a first-order vector \emph{recursion}.
+
+
+
+%%%
+%%%
+%%% Section: Power Control Algorithm
+%%%
+%%%
+
+\pagebreak
 \worksheetsection{Problem: A Simple Power Control Algorithm for a Wireless Network}
+
+%%% WORKSHOP
+\noindent
+\textbf{\emph{PROBLEM:}}
 
 \noindent
 We consider a network of $n$ transmitter/receiver pairs. Transmitter
@@ -143,8 +205,10 @@ what you observe.
 \vspace{3mm} \noindent
 Comment: You'll soon understand what you see.
 
-\vspace{3mm} \vspace{3mm} \noindent
-\textbf{\emph{SOLUTION FOR WORKSHOP:}}
+%%% WORKSHOP
+\vspace{10mm}
+\noindent
+\textbf{\emph{WORKSHOP:}}
 
 \noindent
 We can manipulate the definitions to get some sense of the update rule:
@@ -218,8 +282,388 @@ check what happens for different starting power initialisations.
 
 \worksheetexercise Redo the previous work using $\gamma = 5$.
 
+\worksheetexercise Repeat the work using a different value for $G$.
 
 
+
+%%%
+%%%
+%%% Section: Temperature of Multi-core Processor
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Problem: Temperatures in a Multi-core Processor}
+
+\noindent
+\textbf{\emph{PROBLEM:}}
+
+\noindent
+We are concerned with the temperature of a processor at two critical
+locations. These temperatures, denoted $T = (T_1 , T_2)$ (in degrees
+C), are affine functions of the power dissipated by three processor
+cores, denoted $P = (P_1, P_2, P_3)$ (in watts). We make 4
+measurements. In the first, all cores are idling, and dissipate
+10W. In the next three measurements, one of the processors is set to
+full power, 100W, and the other two are idling. In each experiment we
+measure and note the temperatures at the two critical locations.
+
+\begin{center}
+\begin{tabular}{ccc|cc}
+$P_1$  & $P_2$  & $P_3$ & $T_1$ & $T_2$\\
+\hline
+10W    & 10W    & 10W   & 27C   & 29C\\
+100W   & 10W    & 10W   & 45C   & 37C\\
+10W    & 100W   & 10W   & 41C   & 49C\\
+10W    & 10W    & 100W  & 35C   & 55C\\
+\end{tabular}
+\end{center}
+
+\noindent
+Suppose we operate all cores at the same power, $p$. How large can we
+make $p$, without $T_1$ or $T_2$ exceeding 70C?
+
+\vspace{3mm} \noindent
+You must fully explain your reasoning and method, in addition to
+providing the numerical solution.
+
+
+\vspace{10mm}
+\noindent
+\textbf{\emph{WORKSHOP:}}
+
+\worksheetexercise Set up the linear system as given in the problem.
+
+\worksheetexercise Find the maxium power that all cores can use
+without exceeding 70C.
+
+\worksheetexercise How does this change for 80C?
+
+
+
+%%%
+%%%
+%%% Section: Concentration of Chemicals
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Problem: Concentration of Chemicals in Reaction Kinetics}
+
+\noindent
+\textbf{\emph{PROBLEM:}}
+
+\noindent
+When a linear system has no input, it is called an \emph{autonomous} system:
+
+\[ \dot{x} = A x, \]
+
+\noindent
+which can be a good model for the concentration $x_i$ of chemical $i$
+in some reaction chains.
+
+\vspace{3mm}
+\noindent
+Suppose we have a reaction chain:
+
+\[ C_1 \xrightarrow{k_1} C_2 \xrightarrow{k_2} C_3 \]
+
+\noindent
+then we can model it as the following linear system:
+
+\[
+\dot{x}
+=
+\begin{bmatrix}
+   k_1 &    0 & 0\\
+  -k_1 &  k_2 & 0\\
+     0 & -k_2 & 0
+\end{bmatrix}
+x
+\]
+
+\vspace{3mm}
+\noindent
+To model this as a discrete-time system we can see that:
+
+\[ x(t+1) = (I + hA) x(t) \]
+
+\noindent
+where $h$ is the size of the timestep and is typically `small'.
+
+
+\vspace{10mm}
+\noindent
+\textbf{\emph{WORKSHOP:}}
+
+\worksheetexercise Plot the concentrations $x_i$ over time $t$ with
+$k_1 = k_2 = 1$ and $h = 0.01$.
+
+\worksheetexercise Repeat for $h = 0.001$ and $h = 0.1$ and $h = 1$.
+
+\worksheetexercise Repeat for $k_1 = k_2 = 0.1$ and the various
+timestep sizes we have used. Is there a connection with previous
+outputs?
+
+\worksheetexercise Create a new dynamics matrix $A$ that allows for
+more complex interactions? Are there any constraints we must impose
+for it to make sense?
+
+\worksheetexercise Create an analogous system for $N = 5$. Are there
+any qualitative differences from the $N=3$ system?
+
+
+
+%%%
+%%%
+%%% Section: Optimal Control Unit Mass
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Problem: Optimal Control of a Unit Mass}
+
+\noindent
+\textbf{\emph{PROBLEM:}}
+
+\noindent
+In this problem you will use R to solve an optimal control problem for
+a force acting on a unit mass. Consider a unit mass at position $p(t)$
+with velocity $\dot{p}(t)$, subjected to force $f(t)$, where $f(t) = x_i$
+for $i − 1 < t \leq i$, for $i = 1, ..., 10$.
+
+\vspace{3mm}
+\noindent
+(a) Assume the mass has zero initial position and velocity:
+$p(0) = \dot{p}(0) = 0$. Find $x$ that minimises
+
+\[ \int^{t=10}_{0} f(t)^2 \, dt \]
+
+\noindent
+subject to the following specifications: $p(10) = 1$,
+$\dot{p}(10) = 0$, and $p(5) = 0$. Plot the optimal force $f$ and the
+resulting $p$ and $\dot{p}$. Make sure the specifications are
+satisfied. Give a short intuitive explanation for what you see.
+
+\vspace{3mm}
+\noindent
+(b) Assume the mass has initial position $p(0) = 0$ and velocity
+$\dot{p}(0) = 1$. Our goal is to bring the mass near or to the origin
+at $t = 10$, at or near rest, i.e. we want
+
+\[ J_1 = p(10)^2 + \dot{p}(10)^2 \]
+
+\noindent
+small, while keeping
+
+\[ J_2 = \int^{t=10}_{0} f(t)^2 \, dt \]
+
+\noindent
+small, or at least not too large. Plot the optimal trade-off curve
+between $J_1$ and $J_2$. Check that the end-points make sense to
+you. \emph{Hint:} the parameter $\mu$ has to cover a very large range,
+so it usually works better in practice to give it a logarithmic
+spacing, using e.g. \texttt{logspace} in Matlab. You do not need more
+than 50 or so points on the trade-off curve.
+
+\vspace{3mm}
+\noindent
+Your solution to this problem should consist of a clear written
+narrative that explains what you are doing, and gives formulas
+symbolically; the Matlab source code you devise to find the numerical
+answers, along with comments explaining it all; and the final plots
+produced by Matlab
+
+\vspace{10mm}
+\noindent
+\textbf{\emph{WORKSHOP:}}
+
+\noindent
+To show how we set this system up as a linear system, we will work
+through it over 4 timesteps. The key to this problem is to find the
+linear relationship between the forces $f_i$ and the final position
+and velocity (at $t = 4$) $x(4)$ and $\dot{x}(4)$ respectively. In
+other words, we should find the $2 \times 4$ matrix $A$ such that
+
+\[
+\begin{bmatrix}
+  \dot{x}(4)\\
+  x(4)
+\end{bmatrix}
+=
+A
+\begin{bmatrix}
+  f_1\\
+  f_2\\
+  f_3\\
+  f_4
+\end{bmatrix}
+\]
+
+\noindent
+First consider the time interval $0 \leq t < 1$. We have
+
+\[ \frac{d^2 x}{dt^2} = f_1, \; x(0) = 0, \; \dot{x}(0) = 0. \]
+
+\noindent
+This differential equation gives
+
+\[ \dot{x}(t) = f_1 t, \; x(t) = \frac{1}{2} f_1 t^2, \]
+
+\noindent
+so at $t=1$ the position and velocity become
+$x(1) = \frac{1}{2} f_1$ and $\dot{x}(1) = f_1$.
+
+\vspace{3mm}
+\noindent
+Now in the time interval $1 \leq t < 2$
+
+\[ \frac{d^2 x}{dt^2} = f_2, \; x(1) = \frac{1}{2} f_1, \; \dot{x}(1) = f_1, \]
+
+\noindent
+which gives
+
+\[ \dot{x}(t) = f_2(t-1) + f_1, \; x(t) = \frac{1}{2} f_2 (t-1)^2 + f_1 (t-1) + \frac{1}{2} f_1, \]
+
+\noindent
+and therefore $x(2) = \frac{1}{2} f_2 + \frac{3}{2} f_1$ and
+$\dot{x}(2) = f_1 + f_2$.
+
+\vspace{3mm}
+\noindent
+For $2 \leq t < 3$
+
+\[ \frac{d^2 x}{dt^2} = f_3, \; x(2) = \frac{1}{2} f_2 + \frac{3}{2} f_1, \; \dot{x}(2) = f_1 + f_2, \]
+
+\noindent
+and we get
+
+\begin{eqnarray*}
+  \dot{x}(3) &=& f_1 + f_2 + f_3\\
+        x(3) &=& \frac{5}{2} f_1 + \frac{3}{2} f_2 + \frac{1}{2} f_3,
+\end{eqnarray*}
+
+\noindent
+Proceeding in the same way we finally have:
+
+\[
+\begin{bmatrix}
+  \dot{x}(4)\\
+  x(4)
+\end{bmatrix}
+=
+\begin{bmatrix}
+  1 & 1 & 1 & 1\\
+  \frac{7}{2} & \frac{5}{2} & \frac{3}{2} & \frac{1}{2}
+\end{bmatrix}
+\begin{bmatrix}
+  f_1\\
+  f_2\\
+  f_3\\
+  f_4\\
+\end{bmatrix}.
+\]
+
+\noindent
+Finally, note that $\int^{t=10}_0 f(t)^2 \, dt$ is nothing but
+$||x||^2$ since
+
+\begin{eqnarray*}
+  \int^{t=10}_{0} &=& \int{t=1}_{0} x^2_1 \, dt + \int^{t=2}_1 x^2_2 \, dt + ... + \int{t=10}_9 x^2_{10} \, dt\\
+                  &=& x_1^2 + x_2^2 + ... + x_{10}^2\\
+                  &=& ||x||^2.
+\end{eqnarray*}
+
+\noindent
+(a) We can now express the constraints $p(10) = 1$,
+$\dot{p}(10) = 0$, and $p(5) = 0$ can be expressed as
+
+\begin{equation}
+\label{eqn:unitmass_constraint}
+\begin{bmatrix}
+  p(10)\\
+  \dot{p}(10)\\
+  p(5)
+\end{bmatrix}
+=
+\begin{bmatrix}
+  1\\
+  0\\
+  0
+\end{bmatrix}
+=
+\begin{bmatrix}
+  9.5 & 8.5 & 7.5 & 6.5 & 5.5 & 4.5 & 3.5 & 2.5 & 1.5 & 0.5\\
+    1 &   1 &   1 &   1 &   1 &   1 &   1 &   1 &   1 &   1\\
+  4.5 & 3.5 & 2.5 & 1.5 & 0.5 &   0 &   0 &   0 &   0 &   0
+\end{bmatrix}
+x.
+\end{equation}
+
+\noindent
+Thus the optimal $x$ is given by the minimiser of $||x||$ subject to
+(\ref{eqn:unitmass_constraint}). In other words, we want the minimum norm
+solution of (\ref{eqn:unitmass_constraint}).
+
+\vspace{3mm}
+\noindent
+(b) We now have two competing objectives: keep $J_1$ small and keep
+$J_2 = ||x||^2$ small. To express $J_1$ we rewrite the equations of
+motion with $p(0) = 0$ and $\dot{p}(0) = 1$. It is easy to verify that
+this gives us
+
+\begin{equation}
+\label{eqn:unitmass_j2}
+\begin{bmatrix}
+  p(10)\\
+  \dot{p}(10)
+\end{bmatrix}
+=
+\begin{bmatrix}
+  0\\
+  0
+\end{bmatrix}
+=
+\begin{bmatrix}
+  9.5 & 8.5 & 7.5 & 6.5 & 5.5 & 4.5 & 3.5 & 2.5 & 1.5 & 0.5\\
+    1 &   1 &   1 &   1 &   1 &   1 &   1 &   1 &   1 &   1\\
+\end{bmatrix}
+x
++
+\begin{bmatrix}
+  10\\
+  1
+\end{bmatrix}
+\end{equation}
+
+\noindent
+Therefore, to minimise $J_1$ we have to minimise $||Ax - y||^2$, where
+
+\[ y = \begin{bmatrix} -10\\-1 \end{bmatrix} \]
+
+\noindent
+So we need to calculate the minimiser of
+
+\[ J_1 + \mu J_2 = ||Ax - y||^2 + \mu ||x||^2 \]
+
+\noindent
+We can show that for a given value of $\mu$, the minimiser for this,
+$x_{\mu}$ is given by
+
+\[ x_{\mu} = (A^T A + \mu I)^{-1} A^T y. \]
+
+\worksheetexercise Calculate the minimum norm solution $x_{ln}$.
+
+\worksheetexercise Draw plots of $f$, $p$ and $\dot{p}$ over $t$.
+
+\worksheetexercise Ensure all these calculated values are internally
+consistent.
+
+\worksheetexercise Write a function that calculates $x_{\mu}$ for a
+given $\mu$.
+
+\worksheetexercise Graph the tradeoff chart between $J_1$ and
+$J_2$. What different methods can we use visualise this?
 
 
 \end{document}

@@ -46,14 +46,17 @@ for(i in 1:(n_iter-1)) {
 
 
 
-qplot(Var2, value, data = melt(pout), geom = 'line', colour = as.character(Var1), size = I(0.1)) +
+power.plot <- qplot(Var2, value, data = melt(pout), geom = 'line', colour = as.character(Var1), size = I(0.5)) +
     xlab('Time') + ylab('Power') +
     expand_limits(y = 0) +
     theme(legend.position = 'bottom') +
     scale_colour_discrete(name = 'Transmitter');
 
-qplot(Var2, value, data = melt(SINRout), geom = 'line', colour = as.character(Var1), size = I(0.1)) +
+sinr.plot <- qplot(Var2, value, data = melt(SINRout), geom = 'line', colour = as.character(Var1), size = I(0.5)) +
     xlab('Time') + ylab('SINR') +
     expand_limits(y = 0) +
     theme(legend.position = 'bottom') +
     scale_colour_discrete(name = 'Transmitter');
+
+
+grid.arrange(power.plot, sinr.plot, nrow = 2);
