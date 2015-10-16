@@ -1,5 +1,5 @@
 
-alpha <- 0.0001
+alpha <- 0.01
 
 recv.pos <- list(c( 0, 40)
                , c(10, 10)
@@ -10,22 +10,24 @@ recv.pos <- list(c( 0, 40)
                , c(60, 40)
                , c(70, 30)
                , c(90, 20)
-                ,c(90, 70));
+               , c(90, 70)
+                 );
 
 trans.pos <- list(c(30, 20)
                 , c(60, 70)
-                , c(80, 50));
+                , c(80, 50)
+                  );
 
 t.seq <- seq(0, 10, by = 0.01);
 
-sig1 <- list(1.3 * sin(2 * pi * t.seq)
-           , 0.6 * sin(2 * pi * t.seq + 1.5)
-           , 2.1 * sin(2 * pi * t.seq - 0.8)
+sig1 <- list(1.5 * sin(2 * pi * t.seq)
+           , 1.6 * sin(2 * pi * 5.0 * t.seq + 1.5)
+           , 1.5 * sin(2 * pi * 3.0 * t.seq - 0.8)
              );
 
-sig2 <- list(rep(3, length(t.seq))
-           , rep(6, length(t.seq))
-           , rep(5, length(t.seq))
+sig2 <- list(rep(5.0, length(t.seq))
+           , rep(5.1, length(t.seq))
+           , rep(5.0, length(t.seq))
              );
 
 calculate.receiver.signal <- function(idx, sig) {
@@ -40,4 +42,4 @@ calculate.receiver.signal <- function(idx, sig) {
 
 
 received.signal.1 <- sapply(1:length(recv.pos), function(idx) calculate.receiver.signal(idx, sig1));
-received.signal.2 <- sapply(1:length(recv.pos), function(idx) calculate.receiver.signal(idx, sig2));
+#received.signal.2 <- sapply(1:length(recv.pos), function(idx) calculate.receiver.signal(idx, sig2));

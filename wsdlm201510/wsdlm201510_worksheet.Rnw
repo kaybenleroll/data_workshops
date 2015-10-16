@@ -24,7 +24,7 @@
 
 
 \title{Dublin R Workshop on Linear Dynamical Systems}
-\author{Mick Cooney\\mickcooney@gmail.com}
+\author{Mick Cooney\\michael.cooney@applied.ai}
 \date{Oct 20, 2015}
 
 \begin{document}
@@ -664,6 +664,68 @@ given $\mu$.
 
 \worksheetexercise Graph the tradeoff chart between $J_1$ and
 $J_2$. What different methods can we use visualise this?
+
+
+
+%%%
+%%%
+%%% Section: Optimal Control Unit Mass
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Problem: The $n$-Transmitter, $m$-Receiver System}
+
+\noindent
+\textbf{\emph{PROBLEM:}}
+The signal transmitted by $n$ sources is measured at $m$
+receivers. The signal transmitted by each of the sources at sampling
+period $k$, for $k = 1, 2, ... ,p$, is denoted by an $n$-vector
+$x(k) \in \mathbb{R}^n$. The gain from the $j$-th source to the $i$-th
+receiver is denoted by $a_{ij} \in \mathbb{R}$. The signal measured at
+the receivers is then
+
+\[ y(k) = A x(k) + v(k), \;\;\; k = 1, . . . , p, \]
+
+\noindent
+where $v(k) \in \mathbb{R}^m$ is a vector of sensor noises, and
+$A \in \mathbb{R}^{m×n}$ is the matrix of source to receiver
+gains. However, we do not know the gains $a_{ij}$, nor the transmitted
+signal $x(k)$, nor even the number of sources present $n$. We only
+have the following additional a priori information:
+
+\begin{itemize}
+  \item We expect the number of sources to be less than the number of
+    receivers (i.e., $n < m$, so that $A$ is skinny);
+  \item $A$ is full-rank and well-conditioned;
+  \item All sources have roughly the same average power, the signal
+    $x(k)$ is unpredictable, and the source signals are unrelated to
+    each other; Hence, given enough samples (i.e., $p$ large) the
+    vectors $x(k)$ will ‘point in all directions’;
+  \item The sensor noise $v(k)$ is small relative to the received
+    signal $A x(k)$.
+\end{itemize}
+
+\noindent
+We first will create this data so that we can better understand
+exactly what it is we need to do. This should also help us ensure we
+are not making any mistakes.
+
+\worksheetexercise Create a dataset for 10 receivers based on 3
+transmitters with an $r^2$-distance attenuation. For the moment we
+ignore noise, and we can use the data loaded from the file
+\texttt{threetrans\_inital.data.R} as our inputs.
+
+\worksheetexercise Use SVD methods on the matrix $A$ can we relate
+this data to what we know about the data generation process.
+
+\worksheetexercise Repeat the above steps but with the data in
+\texttt{threetrans\_sinewaves.data.R}. Can you explain what is
+happening here?
+
+\worksheetexercise Using the SVD output and some matrix algebra, try
+to recreate the signals and see how they compare with our `known'
+signals.
 
 
 \end{document}
