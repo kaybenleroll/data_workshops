@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{fullpage}
+\usepackage{hyperref}
 
 
 \newcounter{wssection}
@@ -45,6 +46,37 @@ opts_chunk$set(size = 'scriptsize');
 require(data.table);
 require(ggplot2);
 @
+
+
+\noindent
+The content from this workshop is largely taken from Stanford's EE263
+course on Introduction to Linear Dynamical Systems. The homepage for
+the course as a whole is available at
+
+\vspace{3mm}
+\begin{center}
+\url{http://floatium.stanford.edu/ee263/}.
+\end{center}
+
+\vspace{3mm}
+\noindent
+Despite the title, it is also a course on applied linear algebra.
+
+\vspace{3mm}
+\noindent
+In the event that you would like a more basic course on linear algebra, I recommend Gilbert Strang's course from MIT:
+
+\vspace{3mm}
+\begin{center}
+\url{http://ocw.mit.edu/courses/mathematics/18-06-linear-algebra-spring-2010/video-lectures/}
+\end{center}
+
+\vspace{3mm}
+\noindent
+The video lectures for these courses are also on YouTube.
+
+
+
 
 
 
@@ -339,6 +371,9 @@ without exceeding 70C.
 
 \worksheetexercise How does this change for 80C?
 
+\worksheetexercise Suppose we need to run a processor at 100W, and the
+other two at 50W. Assume all processors are equal, how do we do this
+to minimise the largest temperature?
 
 
 %%%
@@ -406,7 +441,7 @@ timestep sizes we have used. Is there a connection with previous
 outputs?
 
 \worksheetexercise Create a new dynamics matrix $A$ that allows for
-more complex interactions? Are there any constraints we must impose
+more complex interactions. Are there any constraints we must impose
 for it to make sense?
 
 \worksheetexercise Create an analogous system for $N = 5$. Are there
