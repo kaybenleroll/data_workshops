@@ -116,7 +116,7 @@ and is a first-order vector \emph{differential equation}. They are
 also referred to as \emph{state equations} or an `$m$-input, $n$-state,
 $p$-output' linear dynamical system.
 
-\vspace{3mm}
+\vspace{10mm}
 \noindent
 The \emph{discrete-time} linear dynamical system (DT LDS) has the form:
 
@@ -129,6 +129,7 @@ where
   \item (vector) signals $x$, $u$, $y$ are \emph{sequences}
 \end{itemize}
 
+\vspace{3mm}
 \noindent
 DT LDS is a first-order vector \emph{recursion}.
 
