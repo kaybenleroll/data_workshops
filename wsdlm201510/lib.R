@@ -34,7 +34,7 @@ create.power.SINR.data <- function(G, gamma, alpha, sigma, p0, n_iter = 50) {
         SINRout[,i+1] <- (diag(G) * pout[,i+1]) / q;
     }
 
-    output.lst <- list(p = pout, SINR = SINRout);
+    output.lst <- list(A = A, b = b, p = pout, SINR = SINRout);
 
     return(output.lst);
 }

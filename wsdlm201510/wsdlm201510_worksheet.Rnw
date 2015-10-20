@@ -192,6 +192,14 @@ where $\alpha > 1$ is an SINR safety margin (of, for example, one or
 two dB).  Note that increasing $p_i (t)$ (power of the $i$-th transmitter)
 increases $S_i$ but decreases all other $S_j$.
 
+\vspace{3mm}
+\begin{figure}[h]
+\begin{center}
+\includegraphics[width=7cm]{transmitter_receiver_gain.png}
+\end{center}
+\end{figure}
+
+
 \vspace{3mm} \noindent
 A very simple power update algorithm is given by
 
@@ -237,6 +245,7 @@ what you observe.
 
 \vspace{3mm} \noindent
 Comment: You'll soon understand what you see.
+
 
 %%% WORKSHOP
 \vspace{10mm}
@@ -313,7 +322,12 @@ data for the plots as a function
 \worksheetexercise Using the same setup but different initialisations,
 check what happens for different starting power initialisations.
 
-\worksheetexercise Redo the previous work using $\gamma = 5$.
+\worksheetexercise Redo the previous work using $\gamma = 5$. What
+difference do you notice?
+
+\worksheetexercise Check the eigenvalues of the two constructed
+matrices $A$. Does anything stand out as a possible explanation for
+the difference in behaviour?
 
 \worksheetexercise Repeat the work using a different value for $G$.
 
@@ -696,7 +710,8 @@ $x_{\mu}$ is given by
 consistent.
 
 \worksheetexercise Write a function that calculates $x_{\mu}$ for a
-given $\mu$.
+given $\mu$. \emph{HINT:} You can use the function \texttt{solve()} to
+find the inverse of a matrix.
 
 \worksheetexercise Graph the tradeoff chart between $J_1$ and
 $J_2$. What different methods can we use visualise this?
