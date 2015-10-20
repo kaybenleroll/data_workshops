@@ -47,7 +47,13 @@ require(data.table);
 require(ggplot2);
 @
 
+\noindent
+\begin{center}
+\url{https://bitbucket.org/kaybenleroll/dublin_r_workshops}.
+\end{center}
 
+
+\vspace{3mm}
 \noindent
 The content from this workshop is largely taken from Stanford's EE263
 course on Introduction to Linear Dynamical Systems. The homepage for
