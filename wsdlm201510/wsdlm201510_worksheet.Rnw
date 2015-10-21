@@ -431,9 +431,9 @@ then we can model it as the following linear system:
 \dot{x}
 =
 \begin{bmatrix}
-   k_1 &    0 & 0\\
-  -k_1 &  k_2 & 0\\
-     0 & -k_2 & 0
+  -k_1 &    0 & 0\\
+   k_1 & -k_2 & 0\\
+     0 &  k_2 & 0
 \end{bmatrix}
 x
 \]
