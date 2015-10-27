@@ -1,0 +1,186 @@
+\documentclass[10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fullpage}
+\usepackage{hyperref}
+
+
+\newcounter{wssection}
+\newcounter{wsexercise}[wssection]
+
+
+\newcommand{\worksheetsection}[1]{
+  \vspace{10mm}
+  \stepcounter{wssection}
+  \noindent \Large \textbf{\thewssection. #1} \normalsize
+  \vspace{3mm}
+}
+
+
+\newcommand{\worksheetexercise}{
+  \stepcounter{wsexercise}
+  \vspace{5mm} \noindent \textbf{Exercise \thewssection.\thewsexercise \;}
+}
+
+
+\title{Dublin R Workshop on Probabilistic Graphical Models}
+\author{Mick Cooney\\michael.cooney@applied.ai}
+\date{Nov 19, 2015}
+
+\begin{document}
+
+\maketitle
+
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+opts_knit$set(root.dir = ".");
+
+opts_chunk$set(fig.path = './');
+opts_chunk$set(fig.align = 'center');
+opts_chunk$set(out.width  = '18cm');
+opts_chunk$set(out.height = '10cm');
+
+opts_chunk$set(size = 'scriptsize');
+
+
+require(data.table);
+require(ggplot2);
+require(gRain);
+@
+
+\noindent
+\begin{center}
+\url{https://bitbucket.org/kaybenleroll/dublin_r_workshops}.
+\end{center}
+
+\noindent
+Code is available in the \texttt{wspg201511} directory.
+
+\vspace{3mm}
+\noindent
+Content in this workshop is based on the book
+\href{http://www.springer.com/us/book/9781461422983}{Graphical Models with R}
+by S\o ren H\o jsgaard.
+
+\vspace{3mm}
+\noindent
+Also look at the vignettes for the packages
+\href{https://cran.r-project.org/web/packages/gRain/index.html}{\texttt{gRain}}
+and
+\href{https://cran.r-project.org/web/packages/gRbase/index.html}{\texttt{gRbase}}
+
+\pagebreak
+\worksheetsection{Introduction}
+
+\noindent
+A graph is a mathematical object that can be defined as a pair
+$\mathcal{G} = (V, E)$, where $V$ is a set of \emph{vertices} or
+\emph{nodes}, and $E$ is a set of \emph{edges} that joins two
+vertices. Edges in general may be directed, undirected or
+bidirected. They are typically visualised by using shapes or points
+for the nodes and lines for the edges.
+
+\vspace{3mm}
+\noindent
+The concept of \emph{conditional independence} is related to that of
+\emph{statistical independence}. Suppose we have three random
+variables $A$, $B$ and $C$, then $A$ and $B$ are
+\emph{conditionally independent} given $C$, writen $A \perp B | C$,
+iff, for every given value $c$ in $C$, $A$ and $B$ are independent
+in the conditional distribution given $C = c$.
+
+Another way of saying this is that for some $f$ a generic density or
+probability mass function, then one characteristic of $A \perp B | C$
+is that
+
+\[ f(a, b | c) = f(a | c) f(b | c). \]
+
+\noindent
+An equivalent characterisation is that the joint density of $A$, $B$
+and $C$ factorises as
+
+\[ f(a, b, c) = g(a, c) h(b, c). \]
+
+\vspace{3mm}
+\noindent
+Finally, we will also make heavy use of Bayes' Rule, the standard
+formula for relating conditional probabilities:
+
+\[ P(A|B) = \frac{P(A,B)}{P(B)} = \frac{P(B|A) P(A)}{P(B)}. \]
+
+
+\pagebreak
+\worksheetsection{The Sprinkler Network}
+
+<<sprinkler_graph, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE, fig.align='center', out.height='8cm'>>=
+yn <- c("yes", "no");
+
+e.r <- cptable(~Rain,                        levels = yn, values = c(2, 8));
+e.s <- cptable(~Sprinkler + Rain,            levels = yn, values = c(1, 99, 4, 6));
+e.g <- cptable(~wetGrass + Rain + Sprinkler, levels = yn, values = c(99, 1, 8, 2, 9, 1, 0, 1));
+
+plist <- compileCPT(list(e.r, e.s,e.g));
+
+sprinkler.network.grain <- grain(plist);
+
+plot(sprinkler.network.grain);
+@
+
+\noindent
+Two events can cause grass to be wet: Either the sprinkler is on or
+it is raining. Rain has a direct effect on the use of the sprinkler
+(namely that when it rains, the sprinkler is usually not turned on).
+
+\vspace{3mm}
+\noindent
+This can be modeled with a Bayesian network. The variables
+(R)ain, (S)prinkler, Wet(G)rass have two possible values: (y)es
+and (n)o.
+
+\vspace{3mm}
+\noindent
+We can factorise the joint probability mass function as
+
+\[ p_{GSR}(g, s, r) = p_{G|SR}(g | s, r) p_{S|R}(s | r) p_R(r) \]
+
+\noindent
+or overloading the notation a little:
+
+\[ P(G, S, R) = P(G | S, R) P(S, R) = P(G | S, R) P(S | R) P(R) \]
+
+\noindent
+This means we can construct the joint probability table by starting
+with the \emph{conditional probability tables} (CPTs).
+
+\worksheetexercise Create the 3 CPTs using the \texttt{parray}
+function and the following conditional probabilities:
+
+\begin{align*}
+  P(R)           &= 0.2 \\
+  P(S|R)         &= 0.01 & P(S|\neg R)         &= 0.4\\
+  P(G|S,R)       &= 0.99 & P(G|S, \neg R)      &= 0.9 & P(G|\neg S, R) &= 0.8  & P(G|\neg S, \neg R) &= 0
+\end{align*}
+
+\worksheetexercise Calculate the full joint probability function
+$P(G, S, R)$. \emph{HINT:} The function \texttt{tabListMult}
+might be of use.
+
+\worksheetexercise Calculate the probability that it is raining given
+that the grass is wet. \emph{HINT:} The functions \texttt{tabMarg} and
+\texttt{tabDiv} may be of use.
+
+
+
+
+
+
+
+
+\pagebreak
+\worksheetsection{Genetic Inheritance}
+
+
+
+
+
+\end{document}
