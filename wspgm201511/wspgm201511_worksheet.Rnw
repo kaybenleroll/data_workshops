@@ -23,8 +23,11 @@
   \vspace{5mm} \noindent \textbf{Exercise \thewssection.\thewsexercise \;}
 }
 
+\newcommand{\worksheetbreak} {
+  \vspace{3mm} \noindent
+}
 
-\title{Dublin R Workshop on Probabilistic Graphical Models}
+\title{Dublin R Workshop on Probabilistic Graphical Models:\\Bayesian Networks}
 \author{Mick Cooney\\michael.cooney@applied.ai}
 \date{Nov 19, 2015}
 
@@ -56,18 +59,29 @@ require(gRain);
 \noindent
 Code is available in the \texttt{wspg201511} directory.
 
-\vspace{3mm}
-\noindent
+\worksheetbreak
 Content in this workshop is based on the book
 \href{http://www.springer.com/us/book/9781461422983}{Graphical Models with R}
 by S\o ren H\o jsgaard.
 
-\vspace{3mm}
-\noindent
+\worksheetbreak
 Also look at the vignettes for the packages
 \href{https://cran.r-project.org/web/packages/gRain/index.html}{\texttt{gRain}}
 and
 \href{https://cran.r-project.org/web/packages/gRbase/index.html}{\texttt{gRbase}}
+
+\worksheetbreak
+Remember that this topic is massive. I could easily give a full
+semester course on this stuff to really do it justice, so most of this
+workshop is just me working through the material as I learn it.
+
+\worksheetbreak
+As a result, it is highly likely this worksheet and code contains
+typos, errors, logical flaws and other mistakes in need of correction
+in this workshop, so if you note any, please let me know so I can try
+to fix them!
+
+
 
 \pagebreak
 \worksheetsection{Introduction}
@@ -80,8 +94,7 @@ vertices. Edges in general may be directed, undirected or
 bidirected. They are typically visualised by using shapes or points
 for the nodes and lines for the edges.
 
-\vspace{3mm}
-\noindent
+\worksheetbreak
 The concept of \emph{conditional independence} is related to that of
 \emph{statistical independence}. Suppose we have three random
 variables $A$, $B$ and $C$, then $A$ and $B$ are
@@ -101,8 +114,7 @@ and $C$ factorises as
 
 \[ f(a, b, c) = g(a, c) h(b, c). \]
 
-\vspace{3mm}
-\noindent
+\worksheetbreak
 Finally, we will also make heavy use of Bayes' Rule, the standard
 formula for relating conditional probabilities:
 
@@ -115,15 +127,15 @@ formula for relating conditional probabilities:
 <<sprinkler_graph, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE, fig.align='center', out.height='8cm'>>=
 yn <- c("yes", "no");
 
-e.r <- cptable(~Rain,                        levels = yn, values = c(2, 8));
-e.s <- cptable(~Sprinkler + Rain,            levels = yn, values = c(1, 99, 4, 6));
-e.g <- cptable(~wetGrass + Rain + Sprinkler, levels = yn, values = c(99, 1, 8, 2, 9, 1, 0, 1));
+sprinkler.cptlist <- compileCPT(list(
+    cptable(~Rain,                        levels = yn, values = c(2, 8))
+   ,cptable(~Sprinkler + Rain,            levels = yn, values = c(1, 99, 4, 6))
+   ,cptable(~wetGrass + Rain + Sprinkler, levels = yn, values = c(99, 1, 8, 2, 9, 1, 0, 1))
+    ));
 
-plist <- compileCPT(list(e.r, e.s,e.g));
+sprinkler.grain <- grain(sprinkler.cptlist);
 
-sprinkler.network.grain <- grain(plist);
-
-plot(sprinkler.network.grain);
+plot(sprinkler.grain);
 @
 
 \noindent
@@ -131,14 +143,12 @@ Two events can cause grass to be wet: Either the sprinkler is on or
 it is raining. Rain has a direct effect on the use of the sprinkler
 (namely that when it rains, the sprinkler is usually not turned on).
 
-\vspace{3mm}
-\noindent
+\worksheetbreak
 This can be modeled with a Bayesian network. The variables
 (R)ain, (S)prinkler, Wet(G)rass have two possible values: (y)es
 and (n)o.
 
-\vspace{3mm}
-\noindent
+\worksheetbreak
 We can factorise the joint probability mass function as
 
 \[ p_{GSR}(g, s, r) = p_{G|SR}(g | s, r) p_{S|R}(s | r) p_R(r) \]
@@ -179,7 +189,248 @@ that the grass is wet. \emph{HINT:} The functions \texttt{tabMarg} and
 \pagebreak
 \worksheetsection{Genetic Inheritance}
 
+\noindent
+We now turn our attention to analysing genetic inheritance on the
+chromosomes for a given DNA sequence.
 
+\worksheetbreak
+An \emph{allele} is the DNA sequence at a marker and can take two
+values marked $A$ or $B$ (in practice there can be 10 or 20 different
+values).
+
+\worksheetbreak
+A \emph{genotype} is an unordered pair of alleles: $AA$, $AB$, or
+$BB$.
+
+\worksheetbreak
+The genotype of a person at a specific marker is a random variable
+with state space $\{AA, AB, BA\}$.
+
+\worksheetbreak
+We are interested in the joint distribution of genotypes for a group
+of people.
+
+<<genetics_graph, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE, fig.align='center', out.width='10cm', out.height='6cm'>>=
+ab <- c("A", "B");
+
+genetics.cptlist <- compileCPT(list(
+    cptable(~father,                  levels = ab, values = c(1, 1))
+   ,cptable(~mother,                  levels = ab, values = c(1, 1))
+   ,cptable(~child + mother + father, levels = ab, values = c(1, 1, 1, 1, 1, 1, 1, 1))
+    ));
+
+genetics.grain <- grain(genetics.cptlist);
+
+plot(genetics.grain);
+@
+
+
+\worksheetbreak
+A child inherits one allele from each parent independently.
+
+\worksheetbreak
+The parent’s two alleles have equal probability of being passed on to
+the child.
+
+\worksheetbreak
+Each combination has probability $0.25$; some lead to the same
+genotype for the child.
+
+<<genotype_table, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, size='normalsize'>>=
+gts <- c("AA", "AB", "BB");
+
+prob <- function(child, mother, father) {
+    child  <- strsplit(child,  "")[[1]];
+    mother <- strsplit(mother, "")[[1]];
+    father <- strsplit(father, "")[[1]];
+
+    ## Probability of inheriting allele a from genotype gt
+    P <- function(a, gt) ((a == gt[1]) + (a == gt[2])) / 2;
+
+    if(child[1] != child[2]) {
+        P(child[1], mother) * P(child[2], father) + P(child[1], father) * P(child[2], mother)
+    } else {
+        P(child[1], mother) * P(child[2], father)
+    }
+}
+
+
+dt_tab <- CJ(child = gts, mother = gts, father = gts);
+dt_tab <- dt_tab[, prob := mapply(prob, child, mother, father)];
+
+print(dcast(dt_tab, child ~ father + mother, value.var = 'prob'));
+
+@
+
+\noindent
+So in this case we have the the joint probability distribution as
+being
+
+\[ p(m, f, c) = p(m) \, p(f) \, p(c \, | \, m, f) \]
+
+\worksheetexercise Assuming the population frequency of alleles $A$
+and $B$ is $0.3$ and $0.7$ respectively, calculate the distribution of
+the genotypes. \emph{HINT:} You probably want to work with the
+binomial distribution for this, \texttt{dbinom}.
+
+\worksheetexercise Construct the probability tables for the three
+nodes in the chart. \emph{HINT:} Look at the function \texttt{cptable}
+for this.
+
+\worksheetexercise Build the Bayesian network and plot it out.
+
+\worksheetexercise What is the marginal distribution of the father's
+genotype?
+
+\worksheetexercise What is the joint distribution of mother and child?
+
+\worksheetexercise What is the conditional joint distribution of the
+father, given values for mother and child?
+
+\worksheetexercise A mother with a genotype $BB$ has a child with
+genotype $AB$. Given that a man has genotype $AB$, how can we
+determine if the man is likely to be the child's father?
+
+\worksheetexercise Construct the Bayesian network as seen below:
+
+<<genetics_graph_grandparents, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE, fig.align='center', out.width='10cm', out.height='8cm'>>=
+
+genetics.larger.cptlist <- compileCPT(list(
+    cptable(~grandfather,                        levels = ab, values = c(1, 1))
+   ,cptable(~grandmother,                        levels = ab, values = c(1, 1))
+   ,cptable(~mother,                             levels = ab, values = c(1, 1))
+   ,cptable(~father + grandfather + grandmother, levels = ab, values = rep(1, 8))
+   ,cptable(~uncle + grandfather + grandmother,  levels = ab, values = rep(1, 8))
+   ,cptable(~child + mother + father,            levels = ab, values = rep(1, 8))
+    ));
+
+genetics.larger.grain <- grain(genetics.larger.cptlist);
+
+plot(genetics.larger.grain);
+@
+
+\worksheetexercise Suppose the `father' is not willing to give a
+sample but his brother is, and tests $AA$. What is the probability of
+observing this evidence if the man is in fact the father?
+
+
+\pagebreak
+\worksheetsection{The Chest Clinic Example}
+
+\noindent
+We now move up to a bigger example, the Chest Clinic example as
+discussed in Lauritzen and Spiegelhalter (1988):
+
+\begin{quote}
+Shortness-of-breath (dyspnoea) may be due to tuberculosis, lung cancer
+or bronchitis, or none of them, or more than one of them. A recent
+visit to Asia increases the chances of tuberculosis, while smoking is
+known to be a risk factor for both lung cancer and bronchitis.  The
+results of a single chest X-ray do not discriminate between lung
+cancer and tuberculosis, as neither does the presence or absence of
+dyspnoea.
+\end{quote}
+
+\worksheetexercise Breaking down the above paragraph into discrete
+facts, construct a network graph that captures the relationships
+described.
+
+\worksheetexercise Load the dataset \texttt{chestSim500} and create
+the Bayesian network using this data. What is the unconditional
+probability of an individual having lung cancer according to this
+network?
+
+\worksheetexercise Given that we know the individual has visited Asia
+and has dyspnoea, what is the conditional probability now that the
+person has lung cancer?
+
+\worksheetexercise Repeat the above process using the dataset
+\texttt{chestSim1000}. How much do the probabilities change?
+
+\worksheetexercise Given the above evidence, what is the marginal
+probabilities of the three diseases mentioned above? (Lung cancer,
+Tuberculosis and Dyspnoea)
+
+
+\pagebreak
+\worksheetsection{Scaling the Networks}
+
+\noindent
+All of the above approaches are example of the `Brute Force' approach
+which is done by calculating the full joint distribution for the
+network $p(V)$ as a multiple of the CPTs that comprise it.
+
+
+\[ p(V) = p(a) \, p(t|a) \, p(s) \, p(l|s) \, p(b|s) \, p(e|t, l) \, p(d|e, b) \, p(x|e) \]
+
+\noindent
+This gives $p(V)$ represented by a table with $2^8 = 256$ entries.
+
+We can then marginalise and condition as desired to calculate whatever
+probabilities we need.
+
+\worksheetbreak
+This scales appalling badly. A network with 80 variables, each with 10
+values has a joint probability space of $10^{80}$, approximately the
+count of atoms in the universe.
+
+\worksheetbreak
+\begin{center}
+We are going to need a bigger boat...
+\end{center}
+
+\worksheetbreak
+So, we need a way to not need the full joint distribution, instead
+focusing on the the low dimensional CPTs and send `messages' between
+them.
+
+\worksheetbreak
+To use a network it first needs to be \emph{compiled} and then
+\emph{propagated}. Compilation of a network based on CPTs is first
+\emph{moralised} --- edges are added between the parents of each node,
+and then directed edges are replaced with undirected ones. It is then
+\emph{triangulated} to form a triangulated graph.
+
+\worksheetbreak
+The CPTs are transformed into \emph{clique potentials} defined on the
+cliques of the chordal graph.
+
+\worksheetbreak
+We can see this process below:
+
+<<chestclinic_compile_process, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE, fig.align='center', out.width='10cm', out.height='8cm'>>=
+source("wsexercise.4.1.R");
+
+chestclinic.moralized    <- moralize(chestclinic.dag);
+chestclinic.triangulated <- triangulate(chestclinic.moralized);
+
+iplot(chestclinic.triangulated);
+@
+
+\noindent
+Once we have this DAG created, we also want to see how the
+triangulated data looks as a junction tree. The messages passed
+between connected nodes on the graph involve the common variables in
+the nodes, and propagating the information just involves a double pass
+down and up the tree.
+
+<<chestclinic_rip_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, fig.align='center', out.width='10cm', out.height='8cm'>>=
+chestclinic.rip <- rip(chestclinic.triangulated);
+
+chestclinic.rip
+
+plot(rip(chestclinic.triangulated));
+@
+
+\worksheetexercise Create the \texttt{grain} object from the
+\texttt{chestSim500} data.
+
+\worksheetexercise Find the marginal, joint and conditional
+probability for lung cancer and bronchitis given that the person
+recently visited Asia and displayed symptoms of dyspnoea
+
+\worksheetexercise Suppress the automatic propagation of the data and
+redo the code, but this time adding the evidence one piece at a time.
 
 
 
