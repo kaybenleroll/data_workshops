@@ -45,10 +45,11 @@ opts_chunk$set(out.height = '10cm');
 
 opts_chunk$set(size = 'scriptsize');
 
-
 require(data.table);
 require(ggplot2);
 require(gRain);
+
+set.seed(42);
 @
 
 \noindent
@@ -98,21 +99,21 @@ for the nodes and lines for the edges.
 The concept of \emph{conditional independence} is related to that of
 \emph{statistical independence}. Suppose we have three random
 variables $A$, $B$ and $C$, then $A$ and $B$ are
-\emph{conditionally independent} given $C$, writen $A \perp B | C$,
+\emph{conditionally independent} given $C$, writen $A \perp B \, | \, C$,
 iff, for every given value $c$ in $C$, $A$ and $B$ are independent
 in the conditional distribution given $C = c$.
 
 Another way of saying this is that for some $f$ a generic density or
-probability mass function, then one characteristic of $A \perp B | C$
+probability mass function, then one characteristic of $A \perp B \, | \, C$
 is that
 
-\[ f(a, b | c) = f(a | c) f(b | c). \]
+\[ f(a, b \, | \, c) = f(a \, | \, c) f(b \, | \, c). \]
 
 \noindent
 An equivalent characterisation is that the joint density of $A$, $B$
 and $C$ factorises as
 
-\[ f(a, b, c) = g(a, c) h(b, c). \]
+\[ f(a, b, c) = g(a, c) \, h(b, c). \]
 
 \worksheetbreak
 Finally, we will also make heavy use of Bayes' Rule, the standard
@@ -291,11 +292,11 @@ father, given values for mother and child?
 genotype $AB$. Given that a man has genotype $AB$, how can we
 determine if the man is likely to be the child's father?
 
-\worksheetexercise Construct the Bayesian network as seen below:
+\worksheetexercise Construct the Bayesian network as seen below.
 
 <<genetics_graph_grandparents, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE, fig.align='center', out.width='10cm', out.height='8cm'>>=
 
-genetics.larger.cptlist <- compileCPT(list(
+extended.genetic.family.cptlist <- compileCPT(list(
     cptable(~grandfather,                        levels = ab, values = c(1, 1))
    ,cptable(~grandmother,                        levels = ab, values = c(1, 1))
    ,cptable(~mother,                             levels = ab, values = c(1, 1))
@@ -304,9 +305,9 @@ genetics.larger.cptlist <- compileCPT(list(
    ,cptable(~child + mother + father,            levels = ab, values = rep(1, 8))
     ));
 
-genetics.larger.grain <- grain(genetics.larger.cptlist);
+extended.genetic.family.grain <- grain(extended.genetic.family.cptlist);
 
-plot(genetics.larger.grain);
+plot(extended.genetic.family.grain);
 @
 
 \worksheetexercise Suppose the `father' is not willing to give a
@@ -399,7 +400,18 @@ cliques of the chordal graph.
 We can see this process below:
 
 <<chestclinic_compile_process, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE, fig.align='center', out.width='10cm', out.height='8cm'>>=
-source("wsexercise.4.1.R");
+
+chestclinic.dag <- dag(list(
+    "asia"
+   ,c("tub", "asia")
+   ,"smoke"
+   ,c("lung", "smoke")
+   ,c("bronc", "smoke")
+   ,c("either", "lung", "tub")
+   ,c("xray", "either")
+   ,c("dysp", "bronc", "either")
+    ));
+
 
 chestclinic.moralized    <- moralize(chestclinic.dag);
 chestclinic.triangulated <- triangulate(chestclinic.moralized);

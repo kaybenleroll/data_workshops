@@ -1,4 +1,4 @@
-
+y
 chestclinic.dag <- dag(list(
     "asia"
    ,c("tub", "asia")
