@@ -1,3 +1,4 @@
+require(data.table);
 require(gRbase);
 require(gRain);
 

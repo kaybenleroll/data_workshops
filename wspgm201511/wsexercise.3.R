@@ -5,7 +5,7 @@ source("lib.R");
 ##### Exercise 3.1
 #####
 
-gtvals  <- c("AA", "AB", "BB");
+qgtvals  <- c("AA", "AB", "BB");
 gtprobs <- dbinom(0:2, size = 2, prob = c(0.3, 0.7));
 
 

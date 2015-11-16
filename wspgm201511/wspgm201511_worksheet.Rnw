@@ -348,7 +348,12 @@ person has lung cancer?
 \worksheetexercise Repeat the above process using the dataset
 \texttt{chestSim1000}. How much do the probabilities change?
 
-\worksheetexercise Given the above evidence, what is the marginal
+\worksheetexercise Repeat the above process using the datasets for all
+the simulated data in the \texttt{gRbase} package. Does this have much
+of an effect on the outputted probabilities? \emph{HINT:} Use the R
+command \texttt{data()} to find all available datasets from a package.
+
+\worksheetexercise Given the above datasets, what is the marginal
 probabilities of the three diseases mentioned above? (Lung cancer,
 Tuberculosis and Dyspnoea)
 
@@ -367,6 +372,7 @@ network $p(V)$ as a multiple of the CPTs that comprise it.
 \noindent
 This gives $p(V)$ represented by a table with $2^8 = 256$ entries.
 
+\worksheetbreak
 We can then marginalise and condition as desired to calculate whatever
 probabilities we need.
 
