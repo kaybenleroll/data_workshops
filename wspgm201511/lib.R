@@ -19,3 +19,11 @@ calculate.allele.prob <- function(child, mother, father) {
         P(child[1], mother) * P(child[2], father)
     }
 }
+
+
+create.chestclinic.grain <- function(dag, data, smooth = 0.1) {
+    chestsim.grain <- grain(dag, data = data, smooth = smooth);
+    chestsim.grain <- compile(chestsim.grain, propagate = TRUE);
+
+    return(chestsim.grain);
+}

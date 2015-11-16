@@ -80,13 +80,6 @@ data(chestSim50000,  package = 'gRbase');
 data(chestSim100000, package = 'gRbase');
 
 
-create.chestclinic.grain <- function(dag, data, smooth = 0.1) {
-    chestsim.grain <- grain(dag, data = data, smooth = smooth);
-    chestsim.grain <- compile(chestsim.grain, propagate = TRUE);
-
-    return(chestsim.grain);
-}
-
 querygrain(create.chestclinic.grain(chestclinic.dag
                                   , chestSim10000
                                   , smooth = 0.1)
@@ -117,5 +110,5 @@ querygrain(create.chestclinic.grain(chestclinic.dag
 querygrain(create.chestclinic.grain(chestclinic.dag
                                   , chestSim500
                                   , smooth = 0.1)
-         , nodes = c('lung', 'dysp', 'tub')
+         , nodes = c('lung', 'bronc', 'tub')
          , type = 'marginal');
