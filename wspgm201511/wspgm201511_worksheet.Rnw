@@ -103,6 +103,7 @@ variables $A$, $B$ and $C$, then $A$ and $B$ are
 iff, for every given value $c$ in $C$, $A$ and $B$ are independent
 in the conditional distribution given $C = c$.
 
+\worksheetbreak
 Another way of saying this is that for some $f$ a generic density or
 probability mass function, then one characteristic of $A \perp B \, | \, C$
 is that
@@ -173,12 +174,12 @@ function and the following conditional probabilities:
 \end{align*}
 
 \worksheetexercise Calculate the full joint probability function
-$P(G, S, R)$. \emph{HINT:} The function \texttt{tabListMult}
-might be of use.
+$P(G, S, R)$. \emph{HINT:} The function \texttt{tabListMult()} might
+be of use.
 
 \worksheetexercise Calculate the probability that it is raining given
-that the grass is wet. \emph{HINT:} The functions \texttt{tabMarg} and
-\texttt{tabDiv} may be of use.
+that the grass is wet. \emph{HINT:} The functions \texttt{tabMarg()}
+and \texttt{tabDiv()} may be of use.
 
 
 
@@ -272,11 +273,11 @@ being
 \worksheetexercise Assuming the population frequency of alleles $A$
 and $B$ is $0.3$ and $0.7$ respectively, calculate the distribution of
 the genotypes. \emph{HINT:} You probably want to work with the
-binomial distribution for this, \texttt{dbinom}.
+binomial distribution for this, \texttt{dbinom()}.
 
 \worksheetexercise Construct the probability tables for the three
-nodes in the chart. \emph{HINT:} Look at the function \texttt{cptable}
-for this.
+nodes in the chart. \emph{HINT:} Look at the function
+\texttt{cptable()} for this.
 
 \worksheetexercise Build the Bayesian network and plot it out.
 
