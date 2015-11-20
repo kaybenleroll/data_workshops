@@ -58,7 +58,7 @@ set.seed(42);
 \end{center}
 
 \noindent
-Code is available in the \texttt{wspg201511} directory.
+Code is available in the \texttt{wspgm201511} directory.
 
 \worksheetbreak
 Content in this workshop is based on the book
@@ -81,6 +81,18 @@ As a result, it is highly likely this worksheet and code contains
 typos, errors, logical flaws and other mistakes in need of correction
 in this workshop, so if you note any, please let me know so I can try
 to fix them!
+
+\worksheetbreak
+If you want to look into this topic more, there is an old Coursera
+course by Daphne Koller (tough going but excellent):
+
+\begin{center}
+\url{https://www.coursera.org/course/pgm}
+\end{center}
+
+\worksheetbreak
+This course was based on her textbook
+\href{http://pgm.stanford.edu/}{Probabalistic Graphical Models: Principles and Techniques}
 
 
 

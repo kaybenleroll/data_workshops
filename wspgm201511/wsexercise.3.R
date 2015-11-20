@@ -5,8 +5,8 @@ source("lib.R");
 ##### Exercise 3.1
 #####
 
-qgtvals  <- c("AA", "AB", "BB");
-gtprobs <- dbinom(0:2, size = 2, prob = c(0.3, 0.7));
+gtvals  <- c("AA", "AB", "BB");
+gtprobs <- dbinom(0:2, size = 2, prob = 0.7);
 
 
 
@@ -14,6 +14,9 @@ gtprobs <- dbinom(0:2, size = 2, prob = c(0.3, 0.7));
 ##### Exercise 3.2
 #####
 
+## Us a bit of data.table (CJ is cross-join), construct the tables
+## of inheritance probabilities (based on 50% chance of passing on
+## one alleles
 dt_tab <- CJ(child = gtvals, mother = gtvals, father = gtvals);
 dt_tab <- dt_tab[, prob := mapply(calculate.allele.prob, child, mother, father)];
 
@@ -105,23 +108,23 @@ c.mf <- parray(c("child", "mother", "father")
              , levels = rep(list(gtvals), 3)
              , values = inheritance);
 
-## p(father | grandma, grandpa)
+## p(father | grandmother, grandfather)
 f.gmgf <- parray(c("father", "grandmother", "grandfather")
                , levels = rep(list(gtvals), 3)
                , values = inheritance);
 
 ## p(uncle | grandma, grandpa)
 u.gmgf <- parray(c("uncle", "grandmother", "grandfather")
-               , levels = rep(list(gts), 3)
+               , levels = rep(list(gtvals), 3)
                , values = inheritance);
 
 ## p(mother)
 m  <- parray("mother", values = gtprobs, levels = list(gtvals));
 
-## p(grandpa)
+## p(grandfather)
 gf <- parray("grandfather", values = gtprobs, levels = list(gtvals));
 
-## p(grandma)
+## p(grandmother)
 gm <- parray("grandmother", values = gtprobs, levels = list(gtvals));
 
 extended.genetic.family.cptlist <- compileCPT(list(c.mf, m, f.gmgf, u.gmgf, gm, gf));
