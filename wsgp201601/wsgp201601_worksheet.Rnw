@@ -1,0 +1,71 @@
+\documentclass[10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fullpage}
+\usepackage{hyperref}
+
+
+\newcounter{wssection}
+\newcounter{wsexercise}[wssection]
+
+
+\newcommand{\worksheetsection}[1]{
+  \vspace{10mm}
+  \stepcounter{wssection}
+  \noindent \Large \textbf{\thewssection. #1} \normalsize
+  \vspace{3mm}
+}
+
+
+\newcommand{\worksheetexercise}{
+  \stepcounter{wsexercise}
+  \vspace{5mm} \noindent \textbf{Exercise \thewssection.\thewsexercise \;}
+}
+
+\newcommand{\worksheetbreak} {
+  \vspace{3mm} \noindent
+}
+
+\title{Dublin R Workshop on Gaussian Processes}
+\author{Mick Cooney\\michael.cooney@applied.ai}
+\date{January 2016}
+
+\begin{document}
+
+\maketitle
+
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+opts_knit$set(root.dir = ".");
+
+opts_chunk$set(fig.path = './');
+opts_chunk$set(fig.align = 'center');
+opts_chunk$set(out.width  = '18cm');
+opts_chunk$set(out.height = '10cm');
+
+opts_chunk$set(size = 'scriptsize');
+
+require(data.table);
+require(ggplot2);
+
+set.seed(42);
+@
+
+\noindent
+\begin{center}
+\url{https://bitbucket.org/kaybenleroll/dublin_r_workshops}.
+\end{center}
+
+\noindent
+Code is available in the \texttt{wsgp201601} directory.
+
+\worksheetbreak
+Sombe basic intro text here
+
+
+\pagebreak
+\worksheetsection{Introduction}
+
+
+
+\end{document}
