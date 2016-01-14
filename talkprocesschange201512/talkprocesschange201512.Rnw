@@ -975,7 +975,10 @@ qplot(rate_date, value, data=highbase_postchange_plot_data_dt, geom='line', xlab
 
 \vspace{3mm}
 
-Slides and code available on BitBucket: \url{https://www.bitbucket.org/kaybenleroll/dublin_r_workshops}
+Slides and code available on BitBucket:\\
+
+\footnotesize
+\url{https://www.bitbucket.org/kaybenleroll/dublin_r_workshops}
 \end{center}
 
 \end{frame}
