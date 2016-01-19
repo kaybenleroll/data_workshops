@@ -58,14 +58,22 @@ set.seed(42);
 \noindent
 Code is available in the \texttt{wsgp201601/} directory.
 
-\vspace{20mm}
+\vspace{10mm}
 
 \worksheetbreak
 Part of this workshop is based on an interesting blog post I came
-across on \hyperref{R-Bloggers}{http://www.r-bloggers.com} by James Keirstead:
+across on \href{http://www.r-bloggers.com}{R-Bloggers} by James Keirstead:
 
 \begin{center}
 \url{http://www.jameskeirstead.ca/blog/gaussian-process-regression-with-r/}
+\end{center}
+
+\worksheetbreak
+Another good blog post to get started is ``Basic Regression in
+Gaussian Processes'' by Carl Boettiger:
+
+\begin{center}
+\url{http://www.carlboettiger.info/2012/10/17/basic-regression-in-gaussian-processes.html}
 \end{center}
 
 \worksheetbreak
@@ -156,7 +164,7 @@ functions by ensuring that closer points of the function are more
 highly correlated.
 
 \worksheetexercise Generate 1000 points from a normal distribution
-with $\mu = 0.0003$ and $sigma = 0.01$. \emph{HINT:} The R function
+with $\mu = 0.0003$ and $\sigma = 0.01$. \emph{HINT:} The R function
 \texttt{rnorm()} can be used to do this.
 
 \worksheetexercise Perform some simple checks to ensure you have
@@ -174,6 +182,9 @@ distribution using the following parameters:
 \noindent
 \emph{HINT:} The function \texttt{mvrnorm} from the \texttt{MASS}
 package is a useful function to do this, though there are others.
+
+\worksheetexercise Using summary checks and visualisations, check that
+the generated data is consistent with what was requested.
 
 \worksheetexercise Using the above distribution, suppose we know that
 $x_1 = 0.5$. What can we infer about the value of $x_2$? It may make
@@ -197,7 +208,7 @@ Does the step size have much of an effect on the output?
 
 x_seq <- seq(-1, 1, by = 0.01);
 
-sigma <- calcSigma(x_seq, x_seq, 1);
+sigma <- calc_covar(x_seq, x_seq, 1);
 
 gp_data <- MASS::mvrnorm(50, rep(0, length(x_seq)), sigma);
 
@@ -269,11 +280,11 @@ multivariate normal from which we sample:
 
 \worksheetexercise Using the data in \texttt{data\_dt}, calculate the
 modified parameters $\mu$ and $\Sigma$, using an interval of $(-5, 5)$
-for x with a discrete step size of $0.01$.
+for x with a discrete step size of $0.01$. \emph{HINT:} You may find
+`\texttt{\%*\%}' and \texttt{solve()} useful for this.
 
 \worksheetexercise Use these parameters to create 50 samples that fits
-the data. Plot the output. \emph{HINT:} You may find `\texttt{\%*\%}'
-and \texttt{solve()} useful for this.
+the data. Plot the output.
 
 \worksheetexercise Calculate the resulting inference for the $f(2.5)$
 with a band of $80\%$.
@@ -281,7 +292,7 @@ with a band of $80\%$.
 \worksheetexercise Repeat the above process but using 1,000
 samples. How does this affect our $80\%$ interval?
 
-\worksheetexercise Repeat the above with a $0.001$ interval for
+\worksheetexercise Repeat the above with a $0.005$ interval for
 $x$. How does this affect the inference of $f(2.5)$?
 
 \worksheetbreak
@@ -292,11 +303,11 @@ x_seq <- seq(-5, 5, by = 0.01);
 data_dt <- data.table(x=c(-4,-3,-2,-1, 0, 1, 2, 4),
                       y=c(-2, 0, 1, 1, 2, 2,-1, 1))
 
-kxx_inv <- solve(calcSigma(data_dt$x, data_dt$x));
+kxx_inv <- solve(calc_covar(data_dt$x, data_dt$x));
 
-Mu    <- calcSigma(x_seq, data_dt$x) %*% kxx_inv %*% data_dt$y;
-Sigma <- calcSigma(x_seq, x_seq) -
-    calcSigma(x_seq, data_dt$x) %*% kxx_inv %*% calcSigma(data_dt$x, x_seq);
+Mu    <- calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% data_dt$y;
+Sigma <- calc_covar(x_seq, x_seq) -
+    calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% calc_covar(data_dt$x, x_seq);
 
 gp_data <- MASS::mvrnorm(100, Mu, Sigma);
 
@@ -331,7 +342,104 @@ each data point, we instead require that the sample goes `close' to
 it. We add a probability distribution around each point, and the
 samples obey this `soft' constraint.
 
+\worksheetbreak
+For the moment we assume the noise around each observation is normal
+and i.i.d. but GP's can handle more complicated covariance
+structures. We denote the standard deviation of this noise as
+$\sigma$.
 
+\worksheetbreak
+Once again, we use some theory and algebra to get:
+
+\begin{eqnarray*}
+\mu &=& k(x, D_x) \, (k(D_x, D_x) + \sigma^2 I)^{-1} D_y\\
+\Sigma &=& k(x, x) - k(x, D_x) \, (k(D_x, D_x) + \sigma^2 I)y^{-1} \, k(D_x, x)
+\end{eqnarray*}
+
+\worksheetexercise Using the data in \texttt{data\_dt} and a noise std
+dev of $0.1$, calculate the modified parameters $\mu$ and $\Sigma$,
+using an interval of $(-5, 5)$ for x with a discrete step size of
+$0.01$.
+
+\worksheetexercise Use these parameters to create 50 samples that fits
+the data. Plot the output.
+
+\worksheetexercise Calculate the resulting inference for the $f(2.5)$
+with a band of $80\%$. How does this compare to the inference for the
+noise-free data?
+
+\worksheetexercise Investigate the effect of reducing the step size to
+$0.005$.
+
+\worksheetbreak
+
+<<gp_noisy_fitted_plot, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+x_seq <- seq(-5, 5, by = 0.01);
+
+noise_sigma <- 0.1;
+
+data_dt <- data.table(x=c(-4,-3,-2,-1, 0, 1, 2, 4),
+                      y=c(-2, 0, 1, 1, 2, 2,-1, 1))
+
+kxx_inv <- solve(calc_covar(data_dt$x, data_dt$x) + noise_sigma^2 * diag(1, nrow(data_dt)));
+
+Mu    <- calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% data_dt$y;
+Sigma <- calc_covar(x_seq, x_seq) -
+    calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% calc_covar(data_dt$x, x_seq);
+
+gp_data <- MASS::mvrnorm(100, Mu, Sigma);
+
+plot_dt <- melt(gp_data);
+setDT(plot_dt);
+
+plot_dt[, x := x_seq[Var2]];
+
+data_dt[, ymin := y - 3 * noise_sigma];
+data_dt[, ymax := y + 3 * noise_sigma];
+
+ggplot() +
+    geom_line(aes(x, value, group = Var1), data = plot_dt, size = I(0.3), alpha = I(0.2)) +
+    geom_point(aes(x, y), data = data_dt, colour = 'red') +
+    geom_errorbar(aes(x = x, ymin = ymin, ymax = ymax), data = data_dt, colour = 'red', width = 0.1) +
+    xlab(expression(x)) +
+    ylab(expression(f(x)));
+@
+
+
+%%%
+%%%
+%%% SECTION: Gaussian Processes in the Wild
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Gaussian Processes in the Wild}
+
+\noindent
+When using GPs in anger, we do not want to be doing all that linear
+algebra are sampling, so we use R packages to do as much of the work
+as possible.
+
+\worksheetbreak
+There are a number of packages that implement Gaussian processes, and
+the simplest seems to be the package \texttt{kernlab}.
+
+\worksheetexercise Use the \texttt{gausspr()} function with the data
+from the previous section to predict a value for $f(2.5)$. Assume
+there is no noise in the data.
+
+\worksheetexercise Repeat the process but with an additive noise term
+for $y$ of $0.1$.
+
+\worksheetexercise Use the provided functions
+\texttt{regression\_func()} and \texttt{add\_additive\_noise()} to
+generate 20 data points for the function in the rectangle
+$((-5,-5), (5,5))$. with $0.1$ as additive noise.
+
+\worksheetexercise Infer values for data that is not in your sample
+and compare the actual value of the function. What effect does the
+variance input to the GP regression have on the quality of the
+inference?
 
 
 \end{document}
