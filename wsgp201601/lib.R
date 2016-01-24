@@ -27,4 +27,4 @@ calc_covar <- function(X1, X2, l=1) {
 
 regression_func  <- function(x) { x[1]^2 - 2 * x[1] + 0.25 * x[2]^2 }
 
-add_additive_noise <- function(x, var) { return(x + rnorm(nrow(input), 0, var)) }
+add_additive_noise <- function(x, var) { return(x + rnorm(length(x), 0, var)) }
