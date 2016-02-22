@@ -3,8 +3,8 @@ require(ggplot2)
 require(RPostgreSQL)
 
 
-train_dt <- fread("train.csv")
-test_dt  <- fread("test.csv")
+train_dt <- fread("data/train.csv")
+test_dt  <- fread("data/test.csv")
 
 
 train_dt[, c("incident_ts", "label", "id") := .(as.POSIXct(Dates), "train", sprintf("T%08d", 1:.N))]
@@ -16,13 +16,9 @@ incident_test_dt  <- test_dt [, .(id = Id, label, incident_ts, dow = DayOfWeek, 
 
 incident_dt <- rbind(incident_train_dt, incident_test_dt);
 
-category_dt <- train_dt[, .(id, category = Category, desc = Descript, res = Resolution)]
+category_dt <- train_dt[, .(id, category = Category, description = Descript, res = Resolution)]
 
 dbconnection <- dbConnect(dbDriver("PostgreSQL"), host = 'localhost', dbname = 'sfcrime', user = 'geospuser', pass = 'geospuser')
 
 dbWriteTable(dbconnection, name = 'incident_data', value = incident_dt, append = TRUE, row.names = FALSE)
 dbWriteTable(dbconnection, name = 'category_data', value = category_dt, append = TRUE, row.names = FALSE)
-
-
-dbGetQuery(dbconnection, "ALTER TABLE incident_data ADD COLUMN geom geometry(Point,4326)")
-dbGetQuery(dbconnection, "UPDATE incident_data SET geom = st_setsrid(st_makepoint(lng, lat), 4326)")
