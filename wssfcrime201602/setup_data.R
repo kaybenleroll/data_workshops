@@ -8,7 +8,10 @@ test_dt  <- fread("data/test.csv")
 
 
 train_dt[, c("incident_ts", "label", "id") := .(as.POSIXct(Dates), "train", sprintf("T%08d", 1:.N))]
-test_dt [, c("incident_ts", "label") := .(as.POSIXct(Dates), "test")]
+test_dt [, c("incident_ts", "label")       := .(as.POSIXct(Dates), "test")]
+
+save(train_dt, test_dt, file = 'testtrain.rda', compress = 'xz')
+
 
 
 incident_train_dt <- train_dt[, .(id,      label, incident_ts, dow = DayOfWeek, district = PdDistrict, address = Address, lng = X, lat = Y)]
