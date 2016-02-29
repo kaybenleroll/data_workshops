@@ -1,0 +1,9 @@
+## data ..............................
+*.pdf
+
+## R related ...........................
+.RData
+
+*.tex
+
+orig_worksheet.Rnw
