@@ -417,7 +417,8 @@ the various posterior densities?
 %%%
 
 \pagebreak
-\worksheetsection{Markov-Chain Monte Carlo (MCMC) for Hierarchical Models}
+\worksheetsection{Markov-Chain Monte Carlo (MCMC) for Hierarchical
+  Models}
 
 \noindent
 It should be quickly apparent that using the discrete grid approach to
@@ -438,19 +439,15 @@ need access to a C++ compiler and the package \texttt{rstan}.
 
 \worksheetbreak
 There are a few steps involved in setting up the sampler, the first of
-which involves specifying the model used by Stan. This is usually done
-by writing it into a separate file. This has already been done, and
-the model definition is available in
+which involves specifying the model used by Stan. Stan has its own
+language for doing this, and is often written into its own file. For
+our first model, the single-mint-single-coin model is provided in file
 \texttt{singlemint\_\-singlecoin.stan}.
 
-\worksheetbreak
-The setup of the sampler in R is fairly straightforward, and the
-sample code is shown in the file
-\texttt{sample\_rstan\_template.R}. Use this file as a template.
 
-
-\worksheetexercise What inferences can be made on $\mu$ from this
-model? Think about why this is the case.
+\worksheetexercise Using the data in \texttt{cointoss10.rds}, set up
+the model in \texttt{rstan} and run the samplesWhat inferences can be
+made on $\mu$ from this model? Think about why this is the case.
 
 \worksheetexercise Repeat all the exercises from the equivalent grid
 approximation of this model, this time using \texttt{rstan} code to
