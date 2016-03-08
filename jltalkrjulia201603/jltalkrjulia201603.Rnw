@@ -227,6 +227,20 @@ sinr.plot <- qplot(Var2, value, data = melt(SINRout), geom = 'line', colour = as
 %%%  New Frame
 %%%
 
+\begin{frame}[fragile]{}
+
+<<prob1_plot, echo=FALSE, cache=FALSE, results='true', warning=FALSE, message=FALSE>>=
+grid.arrange(power.plot, sinr.plot, nrow = 2);
+@
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
 \begin{frame}[fragile]{Julia Code}
 
 \begin{verbatim}
@@ -257,6 +271,42 @@ for i = 2:K
     SINR[:,i] = (diag(G) .* p[:,i]) ./ q;
 end
 \end{verbatim}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Julia Code}
+
+\begin{verbatim}
+p1 = plot(layer(x = 1:K, y = p[1,:], Geom.line(), Theme(default_color = colorant"red"))
+         ,layer(x = 1:K, y = p[2,:], Geom.line(), Theme(default_color = colorant"blue"))
+         ,layer(x = 1:K, y = p[3,:], Geom.line(), Theme(default_color = colorant"green"))
+         )
+
+p2 = plot(layer(x = 1:K, y = SINR[1,:], Geom.line(), Theme(default_color = colorant"red"))
+         ,layer(x = 1:K, y = SINR[2,:], Geom.line(), Theme(default_color = colorant"blue"))
+         ,layer(x = 1:K, y = SINR[3,:], Geom.line(), Theme(default_color = colorant"green"))
+         )
+
+\end{verbatim}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Julia Code}
+
+\begin{center}
+\includegraphics[height=4cm]{sec2_power_plot.png}
+\includegraphics[height=4cm]{sec2_SINR_plot.png}
+\end{center}
 
 \end{frame}
 
@@ -436,7 +486,7 @@ for(i in 2:n_steps) {
 
 \begin{frame}[fragile]{}
 
-<<reactkin_plot, echo=TRUE, cache=FALSE, results='true', warning=FALSE, message=FALSE, fig.out='8cm'>>=
+<<reactkin_plot, echo=TRUE, cache=FALSE, results='true', warning=FALSE, message=FALSE, out.height='8cm'>>=
 
 qplot((Var2 - 1) * h, value, data = melt(x), geom = 'line', colour = as.factor(Var1)
       ,xlab = 'Time'
@@ -486,6 +536,20 @@ end
 
 \begin{frame}[fragile]{}
 
+\begin{verbatim}
+
+p1 = plot(layer(x = 1:n_steps, y = x[1,:], Geom.line(), Theme(default_color = colorant"red"))
+         ,layer(x = 1:n_steps, y = x[2,:], Geom.line(), Theme(default_color = colorant"blue"))
+         ,layer(x = 1:n_steps, y = x[3,:], Geom.line(), Theme(default_color = colorant"green"))
+         )
+
+draw(PNG("sec4_mixture_plot.png", 10cm, 7cm), p1)
+
+\end{verbatim}
+
+\begin{center}
+\includegraphics[height=4cm]{sec4_mixture_plot.png}
+\end{center}
 
 \end{frame}
 
@@ -571,7 +635,7 @@ p <- T2 %*% x;
 
 \begin{frame}[fragile]{}
 
-<<unitmass_plot, echo=FALSE, cache=FALSE, results='true', warning=FALSE, message=FALSE, fig.out='8cm'>>=
+<<unitmass_plot, echo=FALSE, cache=FALSE, results='true', warning=FALSE, message=FALSE, out.height='8cm'>>=
 
 x_plot    <- qplot(1:10, x,    geom = 'line', colour = I('black'), xlab = 'Timestep', ylim = c(-0.2, 0.2));
 p_plot    <- qplot(1:10, p,    geom = 'line', colour = I('green'), xlab = 'Timestep', ylim = c(-0.5, 1.2));
@@ -587,37 +651,7 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
+\begin{frame}[fragile]{Julia Code}
 
 
 \end{frame}
@@ -637,6 +671,42 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 
 \begin{frame}[fragile]{Gaussian Processes}
 
+\begin{itemize}
+    \item Gaussian Processes is a linear-algebra heavy technique
+    \item Uses RNGs drawn from a Multivariate Normal distribution,
+          $\mathcal{N}(\mu, \Sigma)$: mean $\mu$, covariance $\Sigma$
+    \item Not a huge amount of support in the languages
+    \item Ideal topic for Julia implementation (but also done in Stan)
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{R Code}
+
+<<gp_prob1_setup, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE >>=
+
+calc_covar <- function(X1, X2, l=1) {
+    Sigma <- outer(X1, X2, function(a, b) exp(-0.5 * (abs(a - b) / l)^2));
+
+    return(Sigma)
+}
+
+x_seq <- seq(-5, 5, by = 0.1);
+
+sigma <- calc_covar(x_seq, x_seq, 1);
+
+gp_data <- MASS::mvrnorm(50, rep(0, length(x_seq)), sigma);
+
+plot_dt <- melt(gp_data);
+setDT(plot_dt);
+
+plot_dt[, x := x_seq[Var2]];
+@
 
 \end{frame}
 
@@ -647,6 +717,48 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 
 \begin{frame}[fragile]{}
 
+<<gp_prob1_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='8cm' >>=
+
+qplot(x, value, data = plot_dt, geom = 'line', group = Var1, size = I(0.3),
+      xlab = expression(x), ylab = expression(f(x)))
+
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Julia Code}
+
+\begin{center}
+\includegraphics[height=6.5cm]{bombcat.jpg}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{What Went Wrong?}
+
+Multivariate Normal Distribution: Mean $\mu$, Covariance $\Sigma$
+
+\vspace{3mm}
+
+Covariance Matrix requires $\Sigma$ to be positive-definite
+
+<<gp_prob1_covar_pd, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE >>=
+corpcor::is.positive.definite(sigma)
+@
+
+\vspace{3mm}
+
+Can we find PD $\Sigma_{\text{new}}$ close to $\Sigma$?
 
 \end{frame}
 
@@ -657,6 +769,63 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 
 \begin{frame}[fragile]{}
 
+[[INSERT BA IMAGE HERE]]
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Julia Code}
+
+\begin{verbatim}
+using Gadfly
+using Distributions
+
+N = 201
+
+x_idx = 1:N
+
+x = linspace(-1, 1, N)
+
+sigma = zeros(N, N)
+
+for i = x_idx
+    for j = x_idx
+        sigma[i, j] = exp(-0.5 * (abs(x[i] - x[j]) / 1)^2)
+    end
+end
+
+mu = zeros(N)
+
+### Need to make sigma postive-definite
+d, v = eig(sigma)
+
+d[d .< 1e-12] = 1e-12
+
+sigma = v * diagm(d) * v'
+
+
+gp_data = rand(50, MvNormal(mu, sigma))
+\end{verbatim}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Gaussian Processes Regression}
+
+<<gp_data_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='6cm'>>=
+data_dt <- data.table(x=c(-4,-3,-2,-1, 0, 1, 2, 4),
+                      y=c(-2, 0, 1, 1, 2, 2,-1, 1))
+
+qplot(x, y, data = data_dt, geom = 'point', xlim = c(-5,5), ylim = c(-5,5))
+@
 
 \end{frame}
 
@@ -667,175 +836,23 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 
 \begin{frame}[fragile]{}
 
+<<gp_fitted_plot1, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+x_seq <- seq(-5, 5, by = 0.01);
 
-\end{frame}
+kxx_inv <- solve(calc_covar(data_dt$x, data_dt$x));
 
+Mu    <- calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% data_dt$y;
+Sigma <- calc_covar(x_seq, x_seq) -
+    calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% calc_covar(data_dt$x, x_seq);
 
-%%%
-%%%  New Frame
-%%%
+gp_data <- MASS::mvrnorm(100, Mu, Sigma);
 
-\begin{frame}[fragile]{}
+plot_dt <- melt(gp_data);
+setDT(plot_dt);
 
+plot_dt[, x := x_seq[Var2]];
 
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
+@
 
 
 \end{frame}
@@ -847,6 +864,15 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 
 \begin{frame}[fragile]{}
 
+<<gp_fitted_plot2, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+
+ggplot() +
+    geom_line(aes(x, value, group = Var1), data = plot_dt, size = I(0.3), alpha = I(0.2)) +
+    geom_point(aes(x, y), data = data_dt, colour = 'red') +
+    xlab(expression(x)) +
+    ylab(expression(f(x)));
+
+@
 
 \end{frame}
 
@@ -855,7 +881,7 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{}
+\begin{frame}[fragile]{Julia Code}
 
 
 \end{frame}
@@ -868,15 +894,6 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 \begin{frame}[fragile]{}
 
 
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
 
 \end{frame}
 
@@ -888,19 +905,35 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 \begin{frame}[fragile]{}
 
 
+
 \end{frame}
+
+
+
+
+%%%
+%%%  Section: Gotchas and Summary
+%%%
+
+\section{Summary}
 
 
 %%%
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{}
+\begin{frame}[fragile]{Some Gotchas}
+
+\begin{itemize}
+    \item Trouble working with \texttt{knitr}
+    \item Needed to install new ESS
+    \item Gadfly is still pretty immature
+    \item Cache of packages did need to recompile
+    \item Could not find good introduction documentation
+\end{itemize}
 
 
 \end{frame}
-
-
 
 
 %%%
@@ -908,6 +941,23 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 %%%
 
 \begin{frame}[fragile]{Summary}
+
+\begin{itemize}
+    \item Julia is very powerful --- Thumbs up
+    \item Not for beginners
+    \item Be prepared for irritation initially
+    \item Could use some more tools
+    \item Excellent for heavy linear-algebra problems
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Word}
 
 \begin{center}
 
@@ -917,18 +967,11 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 
 Slides and code available on BitBucket:\\
 
-\footnotesize
 \url{https://www.bitbucket.org/kaybenleroll/dublin_r_workshops}
 \end{center}
 
 
-<<close_doc, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
-
-@
-
 \end{frame}
-
-
 
 
 \end{document}

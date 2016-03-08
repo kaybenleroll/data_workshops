@@ -30,12 +30,16 @@ for i = 2:K
 end
 
 
-plot(layer(x = 1:K, y = p[1,:], Geom.line(), Theme(default_color = colorant"red"))
-    ,layer(x = 1:K, y = p[2,:], Geom.line(), Theme(default_color = colorant"blue"))
-    ,layer(x = 1:K, y = p[3,:], Geom.line(), Theme(default_color = colorant"green"))
-     )
+p1 = plot(layer(x = 1:K, y = p[1,:], Geom.line(), Theme(default_color = colorant"red"))
+          ,layer(x = 1:K, y = p[2,:], Geom.line(), Theme(default_color = colorant"blue"))
+          ,layer(x = 1:K, y = p[3,:], Geom.line(), Theme(default_color = colorant"green"))
+          )
 
-plot(layer(x = 1:K, y = SINR[1,:], Geom.line(), Theme(default_color = colorant"red"))
-    ,layer(x = 1:K, y = SINR[2,:], Geom.line(), Theme(default_color = colorant"blue"))
-    ,layer(x = 1:K, y = SINR[3,:], Geom.line(), Theme(default_color = colorant"green"))
-     )
+p2 = plot(layer(x = 1:K, y = SINR[1,:], Geom.line(), Theme(default_color = colorant"red"))
+          ,layer(x = 1:K, y = SINR[2,:], Geom.line(), Theme(default_color = colorant"blue"))
+          ,layer(x = 1:K, y = SINR[3,:], Geom.line(), Theme(default_color = colorant"green"))
+          )
+
+
+draw(PNG("sec2_power_plot.png", 10cm, 7cm), p1)
+draw(PNG("sec2_SINR_plot.png",  10cm, 7cm), p2)

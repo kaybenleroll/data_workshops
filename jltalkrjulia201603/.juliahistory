@@ -1,2 +1,31 @@
 whos()
 exit()
+include("sec2.jl")
+draw(PNG("sec2_power_plot.png", 10cm, 7cm), p1)
+draw(PNG("sec2_SINR_plot.png",  10cm, 7cm), p2)
+
+?include
+include("sec4.jl")
+include("sec4.jl")
+using  Distributions
+?outer
+?product
+using Iterators
+?product
+product
+?product
+?map
+?product
+Pkg.add("Iterators")
+Pkg.update()
+whos()
+product
+product([1 2 3], [1 2 3])
+for p in product([1 2 3], [1 2 3]); println(p); end
+1:6:0.1
+1:0.1:6
+1:6
+linspace
+?linspace
+linspace(-1,1,100)
+quit()
