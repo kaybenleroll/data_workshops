@@ -39,7 +39,7 @@ gp_data = rand(MvNormal(mu, sigma), 50)
 data_x = [-4 -3 -2 -1  0  1  2  4]
 data_y = [-2  0  1  1  2  2 -1  1]
 
-N = 1001
+N = 201
 x = linspace(-5, 5, N)
 
 #kxx_inv <- solve(calc_covar(data_dt$x, data_dt$x));
@@ -54,9 +54,11 @@ Sigma   = calc_covar(x, x) - calc_covar(x, data_x) * kxx_inv * calc_covar(data_x
 ### Need to make sigma postive-definite
 d, v = eig(Sigma)
 
-#d[d .< 1e-12] = 1e-12
+#d = real(d)
 
-#Sigma = v * diagm(d) * v'
+#d[abs(d) .< 1e-12] = 1e-12
+
+#Sigma_PD = v * diagm(d) * v'
 
 
-gp_data = rand(MvNormal(Mu, Sigma), 100)
+#gp_data = rand(MvNormal(Mu, Sigma), 100)

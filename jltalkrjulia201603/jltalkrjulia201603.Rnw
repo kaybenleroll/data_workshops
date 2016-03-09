@@ -769,7 +769,12 @@ Can we find PD $\Sigma_{\text{new}}$ close to $\Sigma$?
 
 \begin{frame}[fragile]{}
 
-[[INSERT BA IMAGE HERE]]
+\begin{center}
+\Large \textbf{Singular Value Decomposition}
+
+\includegraphics[height=6cm]{mrt.jpeg}
+\end{center}
+
 
 \end{frame}
 
