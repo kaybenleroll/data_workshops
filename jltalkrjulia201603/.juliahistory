@@ -29,3 +29,164 @@ linspace
 ?linspace
 linspace(-1,1,100)
 quit()
+includede("sec2.jl")
+include("sec2.jl")
+include("sec4.jl")
+include("sec6.jl")
+include("sec6.jl")
+using DataFrame
+using Dataframe
+using Dataframe
+using Dataframes
+using DataFrames
+include("sec6.jl")
+gp_data
+gp_data |> DataFrame
+gp_data |> DataFrame |> matplot
+size(gp_data)
+gp_data |> DataFrame |> matplot
+gp_data' |> DataFrame |> maplot
+gp_data' |> DataFrame |> matplot
+gp_data |> DataFrame |> matplot(x)
+
+matplot(gp_data |> DataFrame, x)
+
+function matplot(d::DataFrame, x_vals)
+    (row,col) = size(d)
+    dStack = stack(d)
+    dStack[:ndx] = rep(1:row,col)
+    Gadfly.plot(dStack,x=x_vals[:ndx],y=:value,color=:variable,Geom.line)
+end
+
+gp_data |> DataFrame |> matplot(x)
+
+matplot
+matplot(gp_data |> DataFrame, x)
+
+gp_data |> DataFrame
+include "sec6.jl"
+include("sec6.jl")
+include("sec6.jl")
+include("sec6.jl")
+Sigma
+Sigma - minimum(eigvals(Symmetric(Sigma)))*I
+eigvals(Symmetric(Sigma))
+Symmetric(Sigma)
+Symmetric(Sigma) - Sigma
+MvNormal(Mu, Sigma)
+MvNormal(Sigma)
+MvNormal(Symmetric(Sigma))
+Symmetric(Sigma)
+PDMats.PDMat(Symmetric(Sigma))
+PDMats.PDMat(Sigma - minimum(eigvals(Symmetric(Sigma)))*I)
+MvNormal(Sigma - minimum(eigvals(Symmetric(Sigma)))*I)
+MvNormal(Mu, Sigma - minimum(eigvals(Symmetric(Sigma)))*I)
+MvNormal(Mu', Sigma - minimum(eigvals(Symmetric(Sigma)))*I)
+Mu
+I
+Mu
+Mu'
+mu
+Mu
+Mu[:,1]
+mu
+Mu_vec   = Mu[:,1]
+Sigma_PD = Sigma - minimum(eigvals(Symmetric(Sigma))) * I
+
+
+gpreg_data = rand(MvNormal(Mu_vec, Sigma_PD), 100)
+
+include("sec6.jl")
+include("sec6.jl")
+function matplot(d::DataFrame)
+    (row,col) = size(d)
+    dStack = stack(d)
+    dStack[:ndx] = rep(1:row,col)
+    Gadfly.plot(dStack,x=:ndx,y=:value,group=:variable,Geom.line)
+end
+
+gp_data |> DataFrame |> matplot
+include("sec6.jl")
+include("sec6.jl")
+include("sec5.jl")
+include("sec5.jl")
+p10
+ whos()
+include("sec5.jl")
+p10
+p10
+p10[1]
+linspace(9.5, 0.5, 10)
+linspace(9.5, 0.5, 10)[1]
+linspace(9.5, 0.5, 10)[2]
+linspace(9.5, 0.5, 10)[end]
+include("sec5.jl")
+p10
+pd10
+p0
+include("sec5.jl")
+[p10; pd10, p0]
+[p10; pd10; p0]
+[p10'; pd10'; p0']
+include("sec5.jl")
+include("sec5.jl")
+inv(A)
+ginv
+pinv(A)
+include("sec5.jl")
+x = pinv(A) * y
+
+y = [1; 0; 0]
+pinv(A) * y
+include("sec5.jl")
+include("sec5.jl")
+T1 = Toeplitz(ones(10), [1; zeros(9)])
+
+ones(10)
+[1; zeros(9)]
+Toeplitz
+?Toeplitz
+Toeplitz(ones(10))
+ones(10)
+Toeplitz(ones(10))
+Toeplitz(ones(5))
+Toeplitz(ones(7))
+Toeplitz(ones(8))
+Toeplitz(ones(9))
+Toeplitz(ones(10))
+Toeplitz(ones(11))
+Toeplitz(ones(12))
+Toeplitz(ones(13))
+Toeplitz(ones(19))
+Toeplitz([1 0 0 1 1])
+Toeplitz([1;0;0;1;1])
+Toeplitz([0;0;0;1;1])
+Toeplitz([0;0;1;1;1])
+Toeplitz([0;0;0;1;1;1;1])
+T1 = Toeplitz([zeros(10); ones(11)])
+
+T1 = Toeplitz([zeros(10); 1; ones(10)])
+
+include("sec5.jl")
+x
+T1
+include("sec5.jl")
+T1
+x
+T1 * x
+full(T1) * x
+full(T1)
+include("sec5.jl")
+Toeplitz([zeros(9); linspace(0.5,9.5,10)])
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+include("sec5.jl")
+q()
+quit()
