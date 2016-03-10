@@ -1,20 +1,9 @@
+using DataFrames
 using Gadfly
 using Distributions
 
-function calc_covar(x, y)
-    N1 = length(x)
-    N2 = length(y)
+include("functions.jl")
 
-    sigma = zeros(N1, N2)
-
-    for i = 1:N1
-        for j = 1:N2
-            sigma[i, j] = exp(-0.5 * (abs(x[i] - y[j]) / 1)^2)
-        end
-    end
-
-    return sigma
-end
 
 
 N = 201
@@ -34,6 +23,12 @@ sigma = v * diagm(d) * v'
 
 gp_data = rand(MvNormal(mu, sigma), 50)
 
+gp_plot1 = gp_data |> DataFrame |> matplot
+
+draw(PNG("sec6_gp_simple.png", 10cm, 7cm), gp_plot1)
+
+
+
 
 ### Regression code
 data_x = [-4 -3 -2 -1  0  1  2  4]
@@ -42,23 +37,18 @@ data_y = [-2  0  1  1  2  2 -1  1]
 N = 201
 x = linspace(-5, 5, N)
 
-#kxx_inv <- solve(calc_covar(data_dt$x, data_dt$x));
-
-#Mu    <- calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% data_dt$y;
-#Sigma <- calc_covar(x_seq, x_seq) - calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% calc_covar(data_dt$x, x_seq);
 
 kxx_inv = inv(calc_covar(data_x, data_x))
 Mu      = calc_covar(x, data_x) * kxx_inv * data_y'
 Sigma   = calc_covar(x, x) - calc_covar(x, data_x) * kxx_inv * calc_covar(data_x, x)
 
 ### Need to make sigma postive-definite
-d, v = eig(Sigma)
-
-#d = real(d)
-
-#d[abs(d) .< 1e-12] = 1e-12
-
-#Sigma_PD = v * diagm(d) * v'
+Mu_vec   = Mu[:,1]
+Sigma_PD = Sigma - minimum(eigvals(Symmetric(Sigma))) * I
 
 
-#gp_data = rand(MvNormal(Mu, Sigma), 100)
+gpreg_data = rand(MvNormal(Mu_vec, Sigma_PD), 100)
+
+gp_plot2 = gpreg_data |> DataFrame |> matplot
+
+draw(PNG("sec6_gpreg.png", 10cm, 7cm), gp_plot2)

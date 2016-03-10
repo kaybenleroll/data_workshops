@@ -61,14 +61,26 @@ require(gridExtra)
 %%%
 
 \begin{frame}[fragile]{Background}
-
 \begin{itemize}
     \item Co-organiser of Dublin R
     \item Give regular workshops on various topics
     \item Linear Dynamical Systems / Gaussian Processes
     \item Heavy linear algebra, ideal for translation
 \end{itemize}
+\end{frame}
 
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Before We Begin...}
+\begin{itemize}
+    \item Still learning this stuff myself
+    \item Much better at R than Julia
+    \item No benchmarking at all --- unfair comparisons
+    \item This talk an excuse to learn as much as anything
+\end{itemize}
 \end{frame}
 
 
@@ -485,15 +497,11 @@ for(i in 2:n_steps) {
 %%%
 
 \begin{frame}[fragile]{}
-
-<<reactkin_plot, echo=TRUE, cache=FALSE, results='true', warning=FALSE, message=FALSE, out.height='8cm'>>=
-
+<<reactkin_plot, echo=TRUE, cache=FALSE, results='true', warning=FALSE, message=FALSE, out.height='6cm'>>=
 qplot((Var2 - 1) * h, value, data = melt(x), geom = 'line', colour = as.factor(Var1)
       ,xlab = 'Time'
       ,ylab = 'Chemical Propotion')
-
 @
-
 \end{frame}
 
 
@@ -652,8 +660,46 @@ grid.arrange(x_plot, p_plot, pdot_plot, nrow = 3);
 %%%
 
 \begin{frame}[fragile]{Julia Code}
+\begin{verbatim}
+using Gadfly
+using SpecialMatrices
 
 
+p10  = linspace(9.5,0.5,10)
+pd10 = ones(10)
+p0   = [linspace(4.5,0.5,5); zeros(5)]
+
+A = [p10'; pd10'; p0']
+y = [1; 0; 0]
+
+x = pinv(A) * y
+
+print(sqrt(sum(x' * x)))
+
+T1 = full(Toeplitz([zeros(9); 1; ones(9)]))
+pdot = T1 * x
+
+T2 = full(Toeplitz([zeros(9); linspace(0.5,9.5,10)]))
+p = T2 * x
+
+plotoutput = plot(layer(x = 1:10, y = x,    Geom.line(), Theme(default_color = colorant"red"))
+                 ,layer(x = 1:10, y = p,    Geom.line(), Theme(default_color = colorant"green"))
+                 ,layer(x = 1:10, y = pdot, Geom.line(), Theme(default_color = colorant"blue"))
+                  )
+
+draw(PNG("sec5_plots.png", 10cm, 7cm), plotoutput)
+\end{verbatim}
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Julia Code}
+\begin{center}
+\includegraphics[height=7cm]{sec5_plots.png}
+\end{center}
 \end{frame}
 
 
@@ -733,6 +779,42 @@ qplot(x, value, data = plot_dt, geom = 'line', group = Var1, size = I(0.3),
 
 \begin{frame}[fragile]{Julia Code}
 
+A couple of utility functions first:
+
+\begin{verbatim}
+function calc_covar(x, y)
+    N1 = length(x)
+    N2 = length(y)
+
+    sigma = zeros(N1, N2)
+
+    for i = 1:N1
+        for j = 1:N2
+            sigma[i, j] = exp(-0.5 * (abs(x[i] - y[j]) / 1)^2)
+        end
+    end
+
+    return sigma
+end
+
+
+function matplot(d::DataFrame)
+    (row,col) = size(d)
+    dStack = stack(d)
+    dStack[:ndx] = rep(1:row,col)
+    Gadfly.plot(dStack, x=:ndx, y=:value, group=:variable, Geom.line)
+end
+\end{verbatim}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
 \begin{center}
 \includegraphics[height=6.5cm]{bombcat.jpg}
 \end{center}
@@ -786,24 +868,19 @@ Can we find PD $\Sigma_{\text{new}}$ close to $\Sigma$?
 \begin{frame}[fragile]{Julia Code}
 
 \begin{verbatim}
+using DataFrames
 using Gadfly
 using Distributions
 
+include("functions.jl")
+
+
+
 N = 201
-
-x_idx = 1:N
-
 x = linspace(-1, 1, N)
 
-sigma = zeros(N, N)
-
-for i = x_idx
-    for j = x_idx
-        sigma[i, j] = exp(-0.5 * (abs(x[i] - x[j]) / 1)^2)
-    end
-end
-
-mu = zeros(N)
+mu    = zeros(N)
+sigma = calc_covar(x, x)
 
 ### Need to make sigma postive-definite
 d, v = eig(sigma)
@@ -813,8 +890,26 @@ d[d .< 1e-12] = 1e-12
 sigma = v * diagm(d) * v'
 
 
-gp_data = rand(50, MvNormal(mu, sigma))
+
+gp_data = rand(MvNormal(mu, sigma), 50)
+
+gp_plot1 = gp_data |> DataFrame |> matplot
+
+draw(PNG("sec6_gp_simple.png", 10cm, 7cm), gp_plot1)
 \end{verbatim}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+\begin{center}
+\includegraphics[height=7cm]{sec6_gp_simple.png}
+\end{center}
 
 \end{frame}
 
@@ -886,9 +981,44 @@ ggplot() +
 %%%  New Frame
 %%%
 
+\begin{frame}[fragile]{}
+
+\begin{center}
+\includegraphics[height=6.5cm]{bombcat.jpg}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
 \begin{frame}[fragile]{Julia Code}
+\begin{verbatim}
+### Regression code
+data_x = [-4 -3 -2 -1  0  1  2  4]
+data_y = [-2  0  1  1  2  2 -1  1]
+
+N = 201
+x = linspace(-5, 5, N)
 
 
+kxx_inv = inv(calc_covar(data_x, data_x))
+Mu      = calc_covar(x, data_x) * kxx_inv * data_y'
+Sigma   = calc_covar(x, x) - calc_covar(x, data_x) * kxx_inv * calc_covar(data_x, x)
+
+### Need to make sigma postive-definite
+Mu_vec   = Mu[:,1]
+Sigma_PD = Sigma - minimum(eigvals(Symmetric(Sigma))) * I
+
+
+gpreg_data = rand(MvNormal(Mu_vec, Sigma_PD), 100)
+
+gp_plot2 = gpreg_data |> DataFrame |> matplot
+
+draw(PNG("sec6_gpreg.png", 10cm, 7cm), gp_plot2)
+\end{verbatim}
 \end{frame}
 
 
@@ -897,22 +1027,10 @@ ggplot() +
 %%%
 
 \begin{frame}[fragile]{}
-
-
-
+\begin{center}
+\includegraphics[height=6cm]{sec6_gpreg.png}
+\end{center}
 \end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-
-\end{frame}
-
 
 
 
@@ -932,9 +1050,10 @@ ggplot() +
 \begin{itemize}
     \item Trouble working with \texttt{knitr}
     \item Needed to install new ESS
-    \item Gadfly is still pretty immature
+    \item Gadfly is still pretty immature --- plotting needs some improvement
     \item Cache of packages did need to recompile
     \item Could not find good introduction documentation
+    \item Need to be more careful with linear algebra (e.g. column and row vectors are not the same)
 \end{itemize}
 
 
@@ -951,8 +1070,9 @@ ggplot() +
     \item Julia is very powerful --- Thumbs up
     \item Not for beginners
     \item Be prepared for irritation initially
-    \item Could use some more tools
+    \item Could use some more tools and a bit more maturity
     \item Excellent for heavy linear-algebra problems
+    \item Seems simple to switch from Matlab
 \end{itemize}
 
 \end{frame}
