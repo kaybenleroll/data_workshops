@@ -58,7 +58,7 @@ calculate.data.probability <- function(data, theta) {
     N <- length(theta)
 
     prob.data.given.theta <- sapply(theta, function(itertheta) {
-        return(prod(calculate.likelihood(data, itertheta)))
+        return(exp(sum(log(calculate.likelihood(data, itertheta)))))
     })
 
     midpoint   <- 0.5 * (prob.data.given.theta[-1] + prob.data.given.theta[-N])

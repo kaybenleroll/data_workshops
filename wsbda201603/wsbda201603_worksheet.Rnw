@@ -430,8 +430,8 @@ incredible improvements in computational power have not been able to
 keep up.
 
 \worksheetbreak
-Instead, we will use a technique known as Markov-Chain Monte Carlo to
-sample from the posterior distribution. To do this, we use Stan, an
+Instead, we use a technique known as Markov-Chain Monte Carlo to
+sample from the posterior distribution. For this we use Stan, a
 generic MCMC sampler that uses Hamiltonian Monte Carlo, which has
 benefits over Gibbs sampling. Stan has largely superseded the older
 BUGS and JAGS software in the last few years. To use Stan with R, we
@@ -446,8 +446,8 @@ our first model, the single-mint-single-coin model is provided in file
 
 
 \worksheetexercise Using the data in \texttt{cointoss10.rds}, set up
-the model in \texttt{rstan} and run the samplesWhat inferences can be
-made on $\mu$ from this model? Think about why this is the case.
+the model in \texttt{rstan} and run the samples. What inferences can
+be made on $\mu$ from this model? Think about why this is the case.
 
 \worksheetexercise Repeat all the exercises from the equivalent grid
 approximation of this model, this time using \texttt{rstan} code to
