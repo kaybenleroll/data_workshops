@@ -33,11 +33,12 @@ set.seed(42)
 @
 
 <<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
-dev_mode(TRUE);
+dev_mode(TRUE)
 
-require(ggplot2);
-require(data.table);
-require(scales);
+library(ggplot2)
+library(data.table)
+library(scales)
+library(directlabels)
 @
 
 
@@ -413,6 +414,7 @@ plot(pv)
   \item Quant Finance: Bootstrapped Vega-Neutral Portfolio
   \item Insurance/Quant Finance: Modelling Retirement Portfolios
   \item R Workshop: Gaussian Processes with Data Uncertainty
+  \item Quant Finance: Assessing Equity and Equity Option Strategies
 \end{itemize}
 \end{frame}
 
@@ -450,11 +452,16 @@ plot_dt <- rbind(prior_dt, post_dt)
 
 \begin{minipage}{5cm}
 <<cmpd_code, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
-head(plot_dt)
+head(plot_dt, 3)
 
-pv <- ggplot(aes(x = x, y = dens, colour = distrib)
-            ,data = plot_dt) +
+pv <- ggplot() +
+    geom_line(aes(x = x, y = dens, colour = distrib)
+             ,data = plot_dt) +
     geom_line() +
+    geom_area(aes(x = theta_seq, y = minval)
+             ,data = plot_dt[, .(minval = min(dens))
+                            ,by = x]
+             ,fill = 'grey', alpha = 0.5) +
     xlab(expression(theta)) +
     ylab("Probability Density") +
     ggtitle("Comparison Plot of Beta Distributions")
@@ -477,7 +484,7 @@ plot(pv)
 \vspace{3mm}
 
 <<qfuv_data, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
-longterm_dt <- readRDS("data/longtermvol.dt.rds")
+longterm_dt <- readRDS("data/longtermvol_dt.rds")
 @
 
 \begin{minipage}{5cm}
@@ -789,6 +796,158 @@ plot(pv)
 
 \begin{frame}[fragile]{}
 <<gp_plot_fullpage, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+plot(pv)
+@
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Assessing Equity and Equity Option Strategies}
+
+\vspace{3mm}
+
+<<aeeos_data, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+fundnav_dt <- readRDS("data/fundnav_dt.rds")
+@
+
+\begin{minipage}{5cm}
+<<aeeos_code, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+pv <- ggplot() +
+    geom_line(aes(x = date, y = nav
+                 ,colour = fundlabel)
+             ,data = fundnav_dt
+             ,size = 0.3) +
+    scale_y_continuous(labels = dollar) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Fund NAV") +
+    ggtitle("Fund NAVs for Equity and Equity Option Strategies")
+@
+\end{minipage}
+\begin{minipage}{5cm}
+<<aeeos_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
+plot(pv)
+@
+\end{minipage}
+
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+<<aeeos_plot_fullpage, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+plot(pv)
+@
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+Replace legends with \texttt{directlabels}
+
+\vspace{3mm}
+
+\begin{minipage}{5cm}
+<<aeeos_dl_code, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+pv <- ggplot(data = fundnav_dt) +
+    geom_line(aes(x = date, y = nav
+                 ,colour = fundlabel)
+             ,size = 0.3) +
+    scale_y_continuous(labels = dollar) +
+    theme(legend.position = 'none') +
+    geom_dl(aes(x = date, y = nav
+               ,colour = fundlabel
+               ,label  = fundlabel)
+           ,method = list('last.bumpup')) +
+    expand_limits(x = as.Date('2017-07-01')
+                 ,y = 0) +
+    xlab("Date") +
+    ylab("Fund NAV") +
+    ggtitle("Fund NAVs for Equity and Equity Option Strategies")
+@
+\end{minipage}
+\begin{minipage}{5cm}
+<<aeeos_dl_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
+plot(pv)
+@
+\end{minipage}
+
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+<<aeeos_dl_plot_fullpage, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+plot(pv)
+@
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+Check 2008---2009
+
+\vspace{3mm}
+
+\begin{minipage}{5cm}
+<<aeeos_crisis_code, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+pv <- ggplot(data = fundnav_dt[date >= as.Date('2008-01-01') &
+                               date <= as.Date('2010-01-01')]) +
+    geom_line(aes(x = date, y = nav
+                 ,colour = fundlabel)
+             ,size = 0.3) +
+    scale_y_continuous(labels = dollar) +
+    theme(legend.position = 'none') +
+    geom_dl(aes(x = date, y = nav
+               ,colour = fundlabel
+               ,label  = fundlabel)
+           ,method = list('last.bumpup')) +
+    expand_limits(x = as.Date('2010-07-01')
+                 ,y = 0) +
+    xlab("Date") +
+    ylab("Fund NAV") +
+    ggtitle("Fund NAVs for Equity and Equity Option Strategies\nfor Years 2008 - 2009")
+@
+\end{minipage}
+\begin{minipage}{5cm}
+<<aeeos_crisis_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
+plot(pv)
+@
+\end{minipage}
+
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+<<aeeos_crisis_plot_fullpage, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
 plot(pv)
 @
 \end{frame}
