@@ -407,6 +407,17 @@ plot(pv)
 %%%
 
 \begin{frame}[fragile]{Real-World Examples}
+\begin{center}
+\includegraphics[height=6cm]{caution_jazz_hands.jpg}
+\end{center}
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
 \begin{itemize}
   \item R Workshop: Comparing Multiple Probability Distributions
   \item Quant Finance: Unconditional (Long-term) Volatility
