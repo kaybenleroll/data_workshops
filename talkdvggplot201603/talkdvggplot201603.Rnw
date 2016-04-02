@@ -287,12 +287,12 @@ plot(pv)
 
 \begin{frame}[fragile]{Creating Plots}
 
-Use well-known \texttt{mtcars} dataset
+Use well-known \texttt{mpg} dataset
 
 \vspace{3mm}
 
-<<cp_mtcars_data, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
-head(mtcars)
+<<cp_mpg_data, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+head(mpg)
 @
 \end{frame}
 
@@ -308,13 +308,13 @@ First scatterplot of engine displacement vs highway mileage
 \vspace{3mm}
 
 \begin{minipage}{5cm}
-<<cp_mtcars_plot1_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+<<cp_mpg_plot1_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
 pv <- ggplot(mpg, aes(x = displ, y = hwy)) +
     geom_point()
 @
 \end{minipage}
 \begin{minipage}{5cm}
-<<cp_mtcars_plot1_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
+<<cp_mpg_plot1_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
 plot(pv)
 @
 \end{minipage}
@@ -332,13 +332,13 @@ Add colour for car class
 \vspace{3mm}
 
 \begin{minipage}{5cm}
-<<cp_mtcars_plot2_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+<<cp_mpg_plot2_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
 pv <- ggplot(mpg, aes(x = displ, y = hwy, colour = class)) +
     geom_point()
 @
 \end{minipage}
 \begin{minipage}{5cm}
-<<cp_mtcars_plot2_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
+<<cp_mpg_plot2_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
 plot(pv)
 @
 \end{minipage}
@@ -356,14 +356,14 @@ Instead of colour for class, use facetting
 \vspace{3mm}
 
 \begin{minipage}{5cm}
-<<cp_mtcars_plot3_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+<<cp_mpg_plot3_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
 pv <- ggplot(mpg, aes(x = displ, y = hwy)) +
     geom_point() +
     facet_wrap(~class)
 @
 \end{minipage}
 \begin{minipage}{5cm}
-<<cp_mtcars_plot3_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
+<<cp_mpg_plot3_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
 plot(pv)
 @
 \end{minipage}
@@ -381,14 +381,14 @@ Add stats (loess smoother)
 \vspace{3mm}
 
 \begin{minipage}{5cm}
-<<cp_mtcars_plot4_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+<<cp_mpg_plot4_code, echo=TRUE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
 pv <- ggplot(mpg, aes(x = displ, y = hwy)) +
     geom_point() +
     geom_smooth()
 @
 \end{minipage}
 \begin{minipage}{5cm}
-<<cp_mtcars_plot4_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
+<<cp_mpg_plot4_plot, echo=FALSE, cache=FALSE, results='show', warning=FALSE, message=FALSE, out.height='4cm', out.width='6cm'>>=
 plot(pv)
 @
 \end{minipage}
