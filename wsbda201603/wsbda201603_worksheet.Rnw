@@ -475,10 +475,9 @@ The Stan model for a single mint, multiple coin model is supplied in
 the file \texttt{singlemint\_\-multiplecoin.stan}. Open the file and
 make sure you understand the model. Data for multiple coin tosses with
 two different coins is given in the file
-\texttt{singlemint\_\-twocoin.rds}. This data is a two-row column,
-with the first row being the label for the coin, and the second row
-being the result of the coin toss.
-
+\texttt{singlemint\_\-twocoin.rds}. This is a data.table with three
+columns denoting the id of the coin, the number of trials and the
+number of successes.
 
 
 \worksheetexercise Create a prior and posterior sample for the above

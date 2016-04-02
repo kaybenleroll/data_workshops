@@ -130,6 +130,17 @@ calculate.mu.prior <- function(mu, theta) {
 }
 
 
+generate.coin.data <- function(theta, toss.count) {
+    data.dt <- data.table(theta = theta, N = toss.count)
+
+    data.dt <- data.dt[, .(success = rbinom(N, size = N, prob = theta), trials = N), by = .I]
+
+    data.dt[, coin.id := .I]
+
+    return(data.dt[, .(coin.id, success, trials)])
+}
+
+
 generate.hierarchical.coin.data <- function(mu = 0.5, K = 20, coins = 5, total.tosses = 250) {
 
     toss.per.coin <- round(total.tosses / coins, 0)

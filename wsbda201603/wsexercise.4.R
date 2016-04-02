@@ -7,10 +7,10 @@ source("lib.R");
 
 cointoss10 <- readRDS("cointoss10.rds")
 
-d0  <- 0.005
-dmu <- 0.005
+d0  <- 0.001
+dmu <- 0.001
 
-theta.seq <- seq(0 + d0,  1 - d0, by = d0)
+theta.seq <- seq(0 + d0,  1 - d0,  by = d0)
 mu.seq    <- seq(0 + dmu, 1 - dmu, by = dmu)
 
 mu.prior  <- dbeta(mu.seq, 2, 2)
@@ -29,8 +29,8 @@ hier.5.plot <- qplot(x = theta.seq[Var1], y = mu.seq[Var2], z = value, data = me
 ##### Exercise 4.3
 #####
 
-d0  <- 0.005
-dmu <- 0.005
+d0  <- 0.001
+dmu <- 0.001
 
 theta.seq <- seq(0 + d0,  1 - d0, by = d0)
 mu.seq    <- seq(0 + dmu, 1 - dmu, by = dmu)
