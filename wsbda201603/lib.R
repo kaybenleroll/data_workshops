@@ -147,9 +147,10 @@ generate.hierarchical.coin.data <- function(mu = 0.5, K = 20, coins = 5, total.t
 
     theta.vals  <- rbeta(coins, mu * K, (1 - mu) * K)
 
-    theta    <- unlist(lapply(1:coins, function(idx) rep(theta.vals[idx], toss.per.coin)))
-    coin     <- unlist(lapply(1:coins, function(idx) rep(idx, toss.per.coin)))
-    cointoss <- unlist(lapply(theta.vals, function(coinmu) rbinom(toss.per.coin, 1, coinmu)))
+    data.dt <- data.table(theta = theta.vals, N = toss.per.coin)
+    data.dt <- data.dt[, .(success = rbinom(N, size = N, prob = theta), trials = N), by = .I]
 
-    return(rbind(theta, coin, cointoss))
+    data.dt[, coin.id := .I]
+
+    return(data.dt)
 }
