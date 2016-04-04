@@ -39,6 +39,8 @@ library(ggplot2)
 library(data.table)
 library(scales)
 
+library(ChainLadder)
+
 library(rstan)
 @
 
@@ -112,7 +114,7 @@ ppauto_ss_dt <- ppauto_dt[GRCODE %in% use_grcode
 
 print(dcast(ppauto_ss_dt[grcode == 43]
            ,grcode + accyear + premium ~ devlag
-           ,value.var = 'loss_ratio'),digits=3)
+           ,value.var = 'cumloss'),digits=3)
 @
 
 \end{frame}
@@ -132,7 +134,7 @@ ggplot() +
   facet_wrap(~grcode) +
   xlab('Development Time') +
   ylab('Loss Ratio') +
-  ggtitle('Snapshot of Loss Curves for 10 Years of ppauto Data\nfor Single Organisation') +
+  ggtitle('Snapshot of Loss Curves for 10 Years of\nPrivate Passenger Auto Insurance for Single Organisation') +
   guides(colour = guide_legend(title = 'Cohort Year')) +
   expand_limits(y = c(0,1))
 @
@@ -165,9 +167,52 @@ ggplot() +
   facet_wrap(~grcode) +
   xlab('Development Time') +
   ylab('Loss Ratio') +
-  ggtitle('Snapshot of Loss Curves for 10 Years of prodliab Data\nfor Single Organisation') +
+  ggtitle('Snapshot of Loss Curves for 10 Years of\nProduct Liability Insurance for Single Organisation') +
   guides(colour = guide_legend(title = 'Cohort Year')) +
   expand_limits(y = c(0,1))
+@
+
+\end{frame}
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Chain Ladder}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Chain Ladder}
+
+Standard R approach is \texttt{ChainLadder}
+
+<<chainladder_load, echo=TRUE, results='show', out.height='5cm'>>=
+ppauto_mat <- as.matrix(dcast(ppauto_ss_dt[grcode == 43]
+                             ,accyear ~ devlag
+                             ,value.var = 'cumloss')[,-1,with=FALSE])
+
+ppauto_triangle <- as.triangle(ppauto_mat)
+
+plot(ppauto_triangle)
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<chainladder_load, echo=TRUE, results='show'>>=
+ppauto_mack <- MackChainLadder(ppauto_triangle, est.sigma = "Mack")
 @
 
 \end{frame}
@@ -268,35 +313,6 @@ ggplot() +
 %%%
 
 \begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%
-%%%  Section:
-%%%
-%%%
-
-\section{Chain Ladder}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{Chain Ladder}
 
 
 \end{frame}
