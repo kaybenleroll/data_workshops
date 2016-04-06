@@ -6,8 +6,8 @@ data {
   int success[n_coins];
   int mint_id[n_coins];
 
-  real priorShape;
-  real priorRate;
+  real priorMean;
+  real priorSD;
 
   real priorA;
   real priorB;
@@ -41,6 +41,6 @@ model {
 
   for(j in 1:n_mints) {
     mu[j] ~ beta(priorA, priorB);
-    K[j]  ~ gamma(priorShape, priorRate);
+    K[j]  ~ lognormal(priorMean, priorSD);
   }
 }

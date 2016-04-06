@@ -154,3 +154,34 @@ generate.hierarchical.coin.data <- function(mu = 0.5, K = 20, coins = 5, total.t
 
     return(data.dt)
 }
+
+
+generate.multiple.mint.data <- function(mu = c(0.48, 0.51, 0.47, 0.51, 0.53)
+                                       ,K  = c(1000,  750,  500, 1500, 4000)
+                                       ,coin.mean =  50, coin.sd = 10
+                                       ,toss.mean = 250, toss.sd = 50) {
+
+    mint.count <- length(mu)
+    coin.count <- round(rnorm(mint.count, coin.mean, coin.sd), 0)
+
+    mint.dt <- data.table(mint.id = 1:mint.count, mu, K, coin.count)
+
+    mint.dt <- mint.dt[, {
+        theta = rbeta(coin.count, mu * K, (1 - mu) * K)
+
+        .(mu = mu, K = K, coin.count = coin.count, theta = theta)
+    }, by = mint.id]
+
+    mint.dt[, toss.count := round(rnorm(.N, toss.mean, toss.sd), 0)]
+    mint.dt[, coin.id := .I]
+
+    mint.dt <- mint.dt[, {
+        success = rbinom(1, size = toss.count, prob = theta)
+
+        .(mint.id = mint.id, mu = mu, K = K, coin.count = coin.count
+         ,theta = theta, toss.count = toss.count, success = success)
+
+    }, by = coin.id]
+
+    return(mint.dt[, .(mint.id, mu, K, coin.count, coin.id, theta, toss.count, success)])
+}

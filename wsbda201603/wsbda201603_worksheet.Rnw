@@ -376,7 +376,7 @@ p(\theta, \mu) = p(\theta | \mu) \, p(\mu) \],
 \noindent
 resulting in the following expression for the posterior distribution
 
-\[ p(\mu, \theta \, | \, y) = p(y | \theta) \, p(\theta | \mu) \, p(\mu) / p(y) \]
+\[ p(\mu, \theta \, | \, y) = \frac{p(y | \theta) \, p(\theta | \mu) \, p(\mu)}{p(y)} \]
 
 \worksheetbreak
 So, if we create a grid for both $\theta$ and $\mu$, we can
@@ -615,14 +615,65 @@ possible, i.e. the variance of the $\theta$ values for the coins is as
 low as possible.
 
 
-\worksheetexercise Using the reduced data, run the full multiple coin,
-multiple mint hierarchical model, and investigate the output.
+\worksheetexercise Generate data using the supplied funtion
+\texttt{generate.multiple.mint.data} for 5 mints. You can choose your
+own input parameters or work with the supplied defaults.
 
-\worksheetexercise Is there any difference in the posterior
-distributions from this approach to the single mint model?
+\worksheetexercise Use simple density estimation and summary
+statistics to get a quick estimate of the quality of the mints.
 
-\worksheetexercise How do the above posterior distributions compare to
-the simple density estimation distributions we originally produced?
+\worksheetexercise Use the supplied multiple mint Stan model to get
+estimates for the various $\mu$ and $K$ for each mint.
+
+\worksheetexercise Rerun the sampler, but now use the file in
+\texttt{multiplemint\_lognormal\_k.stan}, which puts a lognormal prior
+on the value of $K$. Compare the output to the previous model that
+uses a Gamma prior for $K$.
+
+\worksheetexercise Make a larger dataset, using more coins per mint
+and more tosses per coin, and rerun the samplers with this data. How
+does it affect the inferences?
+
+\worksheetexercise Vary both the number of coins per mint and the
+number of tosses per coin to determine which has the biggest effect on
+inference on $K$.
+
+
+%%%
+%%%
+%%% SECTION: Posterior Predictive Checks
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Posterior Predictive Checks}
+
+\noindent
+Posterior predictive checks (PPCs) are a way to use the output of the
+sampler to generate 'fake' data from your sample. You then compare the
+fake data to the original data and assess what aspects of the data are
+not being captured by the model.
+
+\worksheetbreak
+It is probably no surprise that the use of PPCs is quite an art, and
+involves thinking carefully about what you are doing. Ask very high
+level questions about your problem and then see if there is a way to
+quantify that question. You then compare quantities from your data to
+the generated quantities produced by the Stan model.
+
+\worksheetexercise Using our hierarchical mint model, what quantities
+might help us assess the quality of the mint? Think about ways in
+which we might encapsulate that in the data?
+
+\worksheetexercise Using the \texttt{generated quantities} block in
+Stan, use our latest model to generate samples of this value from our
+data. Compare the distribution of this generated quantity to that from
+our data.
+
+\worksheetexercise What can you infer from making this comparison?
+
+\worksheetexercise What other quantities can we think about to help us
+assess our current model?
 
 
 
@@ -648,8 +699,15 @@ output and our conclusions?
 
 \worksheetexercise How can we extend this model at the higher levels?
 
+\vspace{5mm}
 
-
+\begin{figure}[h]
+\begin{center}
+\includegraphics{hierarchical_mint_linking.png}
+\caption{\label{fig3}
+Graphical Representation of Hierarchical Model for Linking Mints}
+\end{center}
+\end{figure}
 
 
 

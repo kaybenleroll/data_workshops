@@ -44,3 +44,9 @@ model {
     K[j]  ~ gamma(priorShape, priorRate);
   }
 }
+
+
+generated quantities {
+
+
+}
