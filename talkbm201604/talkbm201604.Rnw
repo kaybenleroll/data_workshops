@@ -74,8 +74,8 @@ prodliab_dt <- fread("data/medmal_pos.csv")
 
 \begin{itemize}
     \item Loss Curves
-    \item Chain Ladder modelling (package \texttt{ChainLadder})
-    \item Creating a Model
+    \item Chain Ladder Modelling (package \texttt{ChainLadder})
+    \item Loss Growth Modelling
     \item Expanding the Model
     \item Posterior Predictive Checks
     \item Summary
@@ -211,8 +211,12 @@ plot(ppauto_triangle)
 
 \begin{frame}[fragile]{}
 
-<<chainladder_load, echo=TRUE, results='show'>>=
+<<chainladder_mack, echo=TRUE, results='show', warning=FALSE>>=
 ppauto_mack <- MackChainLadder(ppauto_triangle, est.sigma = "Mack")
+
+ppauto_mack$f
+
+ppauto_mack$FullTriangle
 @
 
 \end{frame}
@@ -224,6 +228,9 @@ ppauto_mack <- MackChainLadder(ppauto_triangle, est.sigma = "Mack")
 
 \begin{frame}[fragile]{}
 
+<<chainladder_mack_plot, echo=TRUE, results='show', warning=FALSE>>=
+plot(ppauto_mack)
+@
 
 \end{frame}
 
@@ -234,86 +241,9 @@ ppauto_mack <- MackChainLadder(ppauto_triangle, est.sigma = "Mack")
 
 \begin{frame}[fragile]{}
 
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{}
-
+<<chainladder_mack_plotlattice, echo=TRUE, results='show', warning=FALSE>>=
+plot(ppauto_mack, lattice = TRUE)
+@
 
 \end{frame}
 
@@ -324,14 +254,283 @@ ppauto_mack <- MackChainLadder(ppauto_triangle, est.sigma = "Mack")
 %%%
 %%%
 
-\section{Model Creation}
+\section{Loss Growth Modelling}
 
 
 %%%
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{Model Creation}
+\begin{frame}[fragile]{Loss Growth Modelling}
+
+Model growth cumulative losses as function
+
+Scale losses by premium
+
+\begin{align*}
+g(t; \; \omega, \theta) &= 1 - \exp\left( - \left(\frac{t}{\theta}\right)^\omega \right) & \text{Loglogistic Function} \\
+g(t; \; \omega, \theta) &= \frac{t^\omega}{t^\omega + \theta^\omega}                     & \text{Weibull Function}
+\end{align*}
+
+<<lgm_plot, echo=FALSE, results='show', warning=FALSE, out.width='7cm', out.height='4cm'>>=
+t_seq <- seq(0, 10, by = 0.01)
+
+loglogistic_func <- function(t, omega, theta) 1 - exp(-(t/theta)^omega)
+weibull_func     <- function(t, omega, theta) t^omega / (t^omega + theta^omega)
+
+plot_dt <- rbind(data.table(t = t_seq, label = 'Loglogistic', value = loglogistic_func(t_seq, 1.5, 2.2))
+                ,data.table(t = t_seq, label = 'Weibull',     value = weibull_func(t_seq, 1.5, 2.2))
+                 )
+
+
+ggplot(data = plot_dt) +
+    geom_line(aes(x = t, y = value, colour = label)) +
+    xlab(expression(t)) +
+    ylab(expression("Growth Factor for (" * omega * "=1.5, " * theta * "=2.2)"))
+@
+
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+Start with the Loglogistic Model
+
+\[
+g(t; \; \omega, \theta) = 1 - \exp\left( - \left(\frac{t}{\theta}\right)^\omega \right)
+\]
+
+\vspace{3mm}
+
+Treat as hierarchical model - group by Accident Year
+\[
+\text{Loss}_{\text{Y}, t} \sim \text{Normal}(\mu_{\text{L}, \text{Y}, t}, \sigma_{L})
+\]
+\noindent
+where
+\begin{eqnarray*}
+\mu_{\text{L}, \text{Y}, t} &=& \text{LR}_{\text{Y}} \, \times \, \text{P}_{\text{Y}} \, \times \, g(t; \, \omega, \theta) \\
+\sigma_{\text{L}} &=& \text{P}_{\text{Y}} \, \times \, \sigma \\
+\text{LR}_{\text{Y}} &\sim& \text{Lognormal}(\mu_{\text{LR}}, \sigma_{\text{LR}})
+\end{eqnarray*}
+
+\vspace{3mm}
+
+Normal prior for $\mu_{\text{LR}}$. Lognormal prior for $\omega$,
+$\theta$, $\sigma_{\text{LR}}$, $\sigma$.
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<lgm_stan_single_p1, echo=FALSE, results='show', comment="">>=
+stantext <- readLines("losscurves_single.stan")
+
+cat(stantext[1:33], sep = "\n")
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<lgm_stan_single_p2, echo=FALSE, results='show', comment="">>=
+cat(stantext[35:62], sep = "\n")
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<lgm_stan_single_p3, echo=FALSE, results='show', comment="">>=
+cat(stantext[64:length(stantext)], sep = "\n")
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Stan Output}
+
+<<lgm_stan_1_run, echo=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+ss_dt <- ppauto_ss_dt[grcode == 43]
+
+cohort_dt <- unique(ss_dt[, .(accyear, premium)])
+cohort_dt[, cohort_id := .I]
+
+lst_standata <- list(growthmodel_id = 1   # Use weibull rather than loglogistic
+                    ,n_data    = ss_dt[, .N]
+                    ,n_time    = ss_dt[, length(unique(devlag))]
+                    ,n_cohort  = cohort_dt[, .N]
+                    ,cohort_id = match(ss_dt$accyear, cohort_dt$accyear)
+                    ,t_value   = ss_dt[, sort(unique(devlag))]
+                    ,t_idx     = ss_dt[, match(devlag, sort(unique(devlag)))]
+                    ,premium   = cohort_dt$premium
+                    ,loss      = ss_dt$cumloss
+                    )
+
+lgm_1_stanfit <- stan(file    = 'losscurves_single.stan'
+                     ,data    = lst_standata
+                     ,chains  = 8
+                     ,verbose = TRUE
+                     )
+@
+
+<<lgm_stan_1_traceplots_p1, echo=FALSE, results='show', out.height='6cm'>>=
+traceplot(lgm_1_stanfit, par = c('omega', 'theta', 'LR')) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<lgm_stan_1_traceplots_p2, echo=FALSE, results='show', out.height='6cm'>>=
+traceplot(lgm_1_stanfit, par = c('growth_factor','loss_sd')) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+Check simple diagnostics:
+
+<<lgm_stan_1_diagnostics, echo=FALSE, results='show', out.height='6cm'>>=
+# Plot of convergence statistics
+lgm_1_draws   <- extract(lgm_1_stanfit, permuted = FALSE, inc_warmup = TRUE)
+lgm_1_monitor <- as.data.frame(monitor(lgm_1_draws, print = FALSE))
+lgm_1_monitor$Parameter <- as.factor(gsub("\\[.*]", "", rownames(lgm_1_monitor)))
+
+ggplot(lgm_1_monitor) +
+    aes(x = Parameter, y = Rhat, color = Parameter) +
+    geom_jitter(height = 0, width = 0.5, show.legend = FALSE) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+    ylab(expression(hat(italic(R))))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
 
 
 \end{frame}
