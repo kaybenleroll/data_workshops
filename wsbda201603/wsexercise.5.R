@@ -171,10 +171,10 @@ warmup.count <- 250
 sample.count <- 1000
 chain.count  <- 8
 
-stan.data.lst <- list(n_coins = smtc.dt[, length(unique(coin.id))]
+stan.data.lst <- list(n_coins = coin5.dt[, length(unique(coin.id))]
                      ,K = 5
-                     ,trials  = smtc.dt$trials
-                     ,success = smtc.dt$success
+                     ,trials  = coin5.dt$trials
+                     ,success = coin5.dt$success
                       )
 
 coin.coin5.stanmodel <- stan_model(stan.file, verbose = TRUE)
