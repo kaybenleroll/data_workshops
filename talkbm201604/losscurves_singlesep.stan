@@ -35,8 +35,13 @@ data {
 }
 
 parameters {
-  real<lower=0> omega;
-  real<lower=0> theta;
+  real<lower=0> omega[n_cohort];
+  real<lower=0> theta[n_cohort];
+
+  real mu_omega;
+  real<lower=0> sd_omega;
+  real mu_theta;
+  real<lower=0> sd_theta;
 
   real<lower=0> LR[n_cohort];
 
@@ -47,19 +52,21 @@ parameters {
 }
 
 transformed parameters {
-  real gf[n_time];
+  real gf[n_cohort, n_time];
   real loss_mean[n_cohort, n_time];
 
-  for(i in 1:n_time) {
-    if(growthmodel_id == 1) {
-      gf[i] <- growth_factor_weibull    (t_value[i], omega, theta);
-    } else {
-      gf[i] <- growth_factor_loglogistic(t_value[i], omega, theta);
+  for(i in 1:n_cohort) {
+    for(j in 1:n_time) {
+      if(growthmodel_id == 1) {
+        gf[i,j] <- growth_factor_weibull    (t_value[j], omega[i], theta[i]);
+      } else {
+        gf[i,j] <- growth_factor_loglogistic(t_value[j], omega[i], theta[i]);
+      }
     }
   }
 
   for(i in 1:n_data) {
-    loss_mean[cohort_id[i], t_idx[i]] <- LR[cohort_id[i]] * premium[cohort_id[i]] * gf[t_idx[i]];
+    loss_mean[cohort_id[i], t_idx[i]] <- LR[cohort_id[i]] * premium[cohort_id[i]] * gf[cohort_id[i], t_idx[i]];
   }
 }
 
@@ -69,10 +76,16 @@ model {
 
   LR ~ lognormal(mu_LR, sd_LR);
 
+  mu_omega ~ normal(0, 1);
+  sd_omega ~ lognormal(-3, 0.1);
+
+  mu_theta ~ normal(0, 1);
+  sd_omega ~ lognormal(-3, 0.1);
+
   loss_sd ~ lognormal(0, 0.7);
 
-  omega ~ lognormal(0, 1);
-  theta ~ lognormal(0, 1);
+  omega ~ lognormal(mu_omega, sd_omega);
+  theta ~ lognormal(mu_theta, sd_theta);
 
   for(i in 1:n_data) {
     loss[i] ~ normal(loss_mean[cohort_id[i], t_idx[i]], premium[cohort_id[i]] * loss_sd);
@@ -81,7 +94,10 @@ model {
 
 
 generated quantities {
+  real mu_omega_exp;
+  real mu_theta_exp;
   real mu_LR_exp;
+
   real<lower=0> loss_sample[n_cohort, n_time];
   real<lower=0> loss_prediction[n_cohort, n_time];
   real<lower=0> step_ratio[n_cohort, n_time];
@@ -89,12 +105,14 @@ generated quantities {
 
   for(i in 1:n_cohort) {
     for(j in 1:n_time) {
-      loss_sample[i, j] <- LR[i] * premium[i] * gf[t_idx[j]];
+      loss_sample[i, j] <- LR[i] * premium[i] * gf[i, t_idx[j]];
       step_ratio [i, j] <- 1.0;
     }
   }
 
-  mu_LR_exp <- exp(mu_LR);
+  mu_omega_exp <- exp(mu_omega);
+  mu_theta_exp <- exp(mu_theta);
+  mu_LR_exp    <- exp(mu_LR);
 
   for(i in 1:n_data) {
     loss_prediction[cohort_id[i], t_idx[i]] <- loss[i];
@@ -102,7 +120,7 @@ generated quantities {
 
   for(i in 1:n_cohort) {
     for(j in 2:n_time) {
-      step_ratio[i, j] <- gf[t_idx[j]] / gf[t_idx[j-1]];
+      step_ratio[i, j] <- gf[i, t_idx[j]] / gf[i, t_idx[j-1]];
     }
   }
 

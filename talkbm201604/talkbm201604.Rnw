@@ -27,9 +27,9 @@ opts_chunk$set(fig.align = 'center')
 opts_chunk$set(out.width  = '11cm')
 opts_chunk$set(out.height =  '6cm')
 
-opts_chunk$set(size = 'tiny')
+opts_chunk$set(size = 'scriptsize')
 
-set.seed(42)
+set.seed(4242) # Trying a different seed as some of the samplers fail with 42
 @
 
 <<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
@@ -38,6 +38,7 @@ dev_mode(TRUE)
 library(ggplot2)
 library(data.table)
 library(scales)
+library(gridExtra)
 
 library(ChainLadder)
 
@@ -249,6 +250,38 @@ plot(ppauto_mack, lattice = TRUE)
 
 
 %%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<chainladder_mack_plotcompare, echo=FALSE, results='show', warning=FALSE, out.height='6cm'>>=
+ppauto_mack_dt <- melt(ppauto_mack$FullTriangle)
+setDT(ppauto_mack_dt)
+
+ppauto_mack_dt[, label := 'ChainLadder']
+
+ppauto_data_dt <- ppauto_dt[GRCODE == 43, .(origin = match(AccidentYear
+                                                          ,unique(AccidentYear))
+                                           ,dev    = DevelopmentLag
+                                           ,value  = CumPaidLoss_B)]
+
+ppauto_data_dt[, label := 'Data']
+
+plotdata_dt <- rbind(ppauto_mack_dt, ppauto_data_dt)
+plotdata_dt[, AccYear := ppauto_dt[GRCODE == 43, unique(AccidentYear)][origin] ]
+
+ggplot(data = plotdata_dt) +
+    geom_line(aes(x = dev, y = value, colour = label)) +
+    scale_y_continuous(labels = dollar) +
+    facet_wrap(~AccYear, scales = 'free') +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+@
+
+\end{frame}
+
+
+%%%
 %%%
 %%%  Section:
 %%%
@@ -338,7 +371,7 @@ $\theta$, $\sigma_{\text{LR}}$, $\sigma$.
 <<lgm_stan_single_p1, echo=FALSE, results='show', comment="">>=
 stantext <- readLines("losscurves_single.stan")
 
-cat(stantext[1:33], sep = "\n")
+cat(stantext[1:35], sep = "\n")
 @
 
 \end{frame}
@@ -351,7 +384,7 @@ cat(stantext[1:33], sep = "\n")
 \begin{frame}[fragile]{}
 
 <<lgm_stan_single_p2, echo=FALSE, results='show', comment="">>=
-cat(stantext[35:62], sep = "\n")
+cat(stantext[37:64], sep = "\n")
 @
 
 \end{frame}
@@ -364,7 +397,7 @@ cat(stantext[35:62], sep = "\n")
 \begin{frame}[fragile]{}
 
 <<lgm_stan_single_p3, echo=FALSE, results='show', comment="">>=
-cat(stantext[64:length(stantext)], sep = "\n")
+cat(stantext[66:80], sep = "\n")
 @
 
 \end{frame}
@@ -379,22 +412,24 @@ cat(stantext[64:length(stantext)], sep = "\n")
 <<lgm_stan_1_run, echo=FALSE, results='hide', warning=FALSE, message=FALSE>>=
 ss_dt <- ppauto_ss_dt[grcode == 43]
 
-cohort_dt <- unique(ss_dt[, .(accyear, premium)])
+cohort_dt <- ss_dt[, .(maxtime = max(devlag), premium = unique(premium)), by = accyear]
 cohort_dt[, cohort_id := .I]
 
 lst_standata <- list(growthmodel_id = 1   # Use weibull rather than loglogistic
-                    ,n_data    = ss_dt[, .N]
-                    ,n_time    = ss_dt[, length(unique(devlag))]
-                    ,n_cohort  = cohort_dt[, .N]
-                    ,cohort_id = match(ss_dt$accyear, cohort_dt$accyear)
-                    ,t_value   = ss_dt[, sort(unique(devlag))]
-                    ,t_idx     = ss_dt[, match(devlag, sort(unique(devlag)))]
-                    ,premium   = cohort_dt$premium
-                    ,loss      = ss_dt$cumloss
+                    ,n_data         = ss_dt[, .N]
+                    ,n_time         = ss_dt[, length(unique(devlag))]
+                    ,n_cohort       = cohort_dt[, .N]
+                    ,cohort_id      = match(ss_dt$accyear, cohort_dt$accyear)
+                    ,t_value        = ss_dt[, sort(unique(devlag))]
+                    ,t_idx          = ss_dt[, match(devlag, sort(unique(devlag)))]
+                    ,premium        = cohort_dt$premium
+                    ,loss           = ss_dt$cumloss
+                    ,cohort_maxtime = cohort_dt$maxtime
                     )
 
 lgm_1_stanfit <- stan(file    = 'losscurves_single.stan'
                      ,data    = lst_standata
+                     ,iter    = 500
                      ,chains  = 8
                      ,verbose = TRUE
                      )
@@ -402,7 +437,7 @@ lgm_1_stanfit <- stan(file    = 'losscurves_single.stan'
 
 <<lgm_stan_1_traceplots_p1, echo=FALSE, results='show', out.height='6cm'>>=
 traceplot(lgm_1_stanfit, par = c('omega', 'theta', 'LR')) +
-    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
 @
 
 \end{frame}
@@ -415,8 +450,8 @@ traceplot(lgm_1_stanfit, par = c('omega', 'theta', 'LR')) +
 \begin{frame}[fragile]{}
 
 <<lgm_stan_1_traceplots_p2, echo=FALSE, results='show', out.height='6cm'>>=
-traceplot(lgm_1_stanfit, par = c('growth_factor','loss_sd')) +
-    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+traceplot(lgm_1_stanfit, par = c('gf','loss_sd')) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
 @
 
 \end{frame}
@@ -433,7 +468,9 @@ Check simple diagnostics:
 <<lgm_stan_1_diagnostics, echo=FALSE, results='show', out.height='6cm'>>=
 # Plot of convergence statistics
 lgm_1_draws   <- extract(lgm_1_stanfit, permuted = FALSE, inc_warmup = TRUE)
-lgm_1_monitor <- as.data.frame(monitor(lgm_1_draws, print = FALSE))
+lgm_1_monitor <- as.data.frame(monitor(lgm_1_draws
+                                      ,probs = c(0.025, 0.1, 0.25, 0.5, 0.75, 0.9, 0.975)
+                                      ,print = FALSE))
 lgm_1_monitor$Parameter <- as.factor(gsub("\\[.*]", "", rownames(lgm_1_monitor)))
 
 ggplot(lgm_1_monitor) +
@@ -450,7 +487,55 @@ ggplot(lgm_1_monitor) +
 %%%  New Frame
 %%%
 
+\begin{frame}[fragile]{}
+
+Check parameter values:
+
+<<lgm_stan_1_parameters, echo=FALSE, results='show', out.height='6cm'>>=
+param_root <- c("omega", "theta", "LR", "gf", "loss_sd")
+
+use_vars <- unlist(lapply(param_root
+                         ,function(iterstr) rownames(lgm_1_monitor)[grep(iterstr, rownames(lgm_1_monitor))]))
+
+plotdata_dt <- lgm_1_monitor[use_vars, c('mean', '10%', '50%', '90%')]
+
+setDT(plotdata_dt)
+plotdata_dt[, variable := factor(use_vars, levels = use_vars)]
+
+ggplot(plotdata_dt) +
+      geom_point(aes(x = variable, y = mean)) +
+      geom_errorbar(aes(x = variable, y = mean, ymin = `10%`, ymax = `90%`), width = 0) +
+      expand_limits(y = 0) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+      xlab("Parameter") +
+      ylab("Value")
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
 \begin{frame}[fragile]
+
+<<lgm_stan_sanity_1988, echo=FALSE, results='show'>>=
+ggplot() +
+  geom_line(aes(x = Var2, y = value, group = Var1)
+           ,data = melt(extract(lgm_1_stanfit)$loss_sample[,1,])
+           ,alpha = 0.01) +
+  geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+           ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1988]
+           ,colour = 'red') +
+  geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+           ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1988]
+           ,colour = 'blue') +
+  expand_limits(y = 0) +
+  ggtitle("Plot of 1988 Year Loss Development Against Posterior Distribution") +
+  xlab("Time") +
+  ylab("Loss")
+@
 
 
 \end{frame}
@@ -462,25 +547,22 @@ ggplot(lgm_1_monitor) +
 
 \begin{frame}[fragile]
 
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]
+<<lgm_stan_sanity_1993, echo=FALSE, results='show'>>=
+ggplot() +
+  geom_line(aes(x = Var2, y = value, group = Var1)
+           ,data = melt(extract(lgm_1_stanfit)$loss_sample[,6,])
+           ,alpha = 0.01) +
+  geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+           ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1993]
+           ,colour = 'red') +
+  geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+           ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1993]
+           ,colour = 'blue') +
+  expand_limits(y = 0) +
+  ggtitle("Plot of 1993 Year Loss Development Against Posterior Distribution") +
+  xlab("Time") +
+  ylab("Loss")
+@
 
 
 \end{frame}
@@ -492,6 +574,39 @@ ggplot(lgm_1_monitor) +
 
 \begin{frame}[fragile]
 
+<<lgm_stan_prediction_1993, echo=FALSE, results='show'>>=
+plot_sanity <- ggplot() +
+    geom_line(aes(x = Var2, y = value, group = Var1)
+             ,data = melt(extract(lgm_1_stanfit)$loss_sample[,6,])
+             ,alpha = 0.01) +
+    geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+             ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1993]
+             ,colour = 'red') +
+    geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+              ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1993]
+              ,colour = 'blue') +
+    scale_y_continuous(labels = dollar, limits = c(0,40000)) +
+    ggtitle("Plot of 1993 Year Loss Development") +
+    xlab("Time") +
+    ylab("Loss")
+
+plot_predict <- ggplot() +
+    geom_line(aes(x = Var2, y = value, group = Var1)
+             ,data = melt(extract(lgm_1_stanfit)$loss_prediction[,6,])
+             ,alpha = 0.01) +
+    geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+             ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1993]
+             ,colour = 'red') +
+    geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+              ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1993]
+              ,colour = 'blue') +
+    scale_y_continuous(labels = dollar, limits = c(0,40000)) +
+    ggtitle("Plot of 1993 Year Loss Prediction") +
+    xlab("Time") +
+    ylab("Loss")
+
+grid.arrange(plot_sanity, plot_predict, ncol = 2)
+@
 
 \end{frame}
 
@@ -502,38 +617,43 @@ ggplot(lgm_1_monitor) +
 
 \begin{frame}[fragile]
 
+<<lgm_stan_prediction_1997, echo=FALSE, results='show'>>=
+plot_sanity <- ggplot() +
+    geom_line(aes(x = Var2, y = value, group = Var1)
+             ,data = melt(extract(lgm_1_stanfit)$loss_sample[,10,])
+             ,alpha = 0.01) +
+    geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+             ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1997]
+             ,colour = 'red') +
+    geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+              ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1997]
+              ,colour = 'blue') +
+    scale_y_continuous(labels = dollar, limits = c(0,70000)) +
+    ggtitle("Plot of 1997 Year Loss Development") +
+    xlab("Time") +
+    ylab("Loss")
+
+plot_predict <- ggplot() +
+    geom_line(aes(x = Var2, y = value, group = Var1)
+             ,data = melt(extract(lgm_1_stanfit)$loss_prediction[,10,])
+             ,alpha = 0.01) +
+    geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+             ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1997]
+             ,colour = 'red') +
+    geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+              ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1997]
+              ,colour = 'blue') +
+    scale_y_continuous(labels = dollar, limits = c(0,70000)) +
+    expand_limits(y = 0) +
+    ggtitle("Plot of 1997 Year Loss Prediction") +
+    xlab("Time") +
+    ylab("Loss")
+
+grid.arrange(plot_sanity, plot_predict, ncol = 2)
+@
 
 \end{frame}
 
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]
-
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]
-
-
-\end{frame}
 
 
 %%%
@@ -550,6 +670,233 @@ ggplot(lgm_1_monitor) +
 %%%
 
 \begin{frame}[fragile]{Model Iteration}
+
+How might we expand this model?
+
+\vspace{3mm}
+
+Allow $\omega$ and $\theta$ to be part of the hierarchy:
+
+\begin{eqnarray*}
+\omega &\to& \omega_{\text{Y}} \\
+\theta &\to& \theta_{\text{Y}}
+\end{eqnarray*}
+
+\vspace{3mm}
+
+Each Accident Year has individual $(\omega_{\text{Y}}, \theta_{\text{Y}})$ with
+\begin{eqnarray*}
+\omega_{\text{Y}} &\sim& \text{Lognormal}(\mu_{\omega}, \sigma_{\omega}) \\
+\theta_{\text{Y}} &\sim& \text{Lognormal}(\mu_{\theta}, \sigma_{\theta}) \\
+ & & \\
+\mu_{\omega}    &\sim& \text{Normal}(0, 1)\\
+\sigma_{\omega} &\sim& \text{Lognormal}(-3, 0.1)\\
+\mu_{\theta}    &\sim& \text{Normal}(0, 1)\\
+\sigma_{\theta} &\sim& \text{Lognormal}(-3, 0.1)
+\end{eqnarray*}
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Individual Parameters - $\omega$}
+
+<<mi_stan_1_run, echo=FALSE, results='hide', error=FALSE, warning=FALSE, message=FALSE>>=
+ss_dt <- ppauto_ss_dt[grcode == 43]
+
+cohort_dt <- ss_dt[, .(maxtime = max(devlag), premium = unique(premium)), by = accyear]
+cohort_dt[, cohort_id := .I]
+
+lst_standata <- list(growthmodel_id = 1   # Use weibull rather than loglogistic
+                    ,n_data         = ss_dt[, .N]
+                    ,n_time         = ss_dt[, length(unique(devlag))]
+                    ,n_cohort       = cohort_dt[, .N]
+                    ,cohort_id      = match(ss_dt$accyear, cohort_dt$accyear)
+                    ,t_value        = ss_dt[, sort(unique(devlag))]
+                    ,t_idx          = ss_dt[, match(devlag, sort(unique(devlag)))]
+                    ,premium        = cohort_dt$premium
+                    ,loss           = ss_dt$cumloss
+                    ,cohort_maxtime = cohort_dt$maxtime
+                    )
+
+#set.seed(142) # Setting the seed in the hopes the error is an initialisation one
+mi_1_stanfit <- stan('losscurves_singlesep.stan'
+                    ,data    = lst_standata
+                    ,iter    = 500
+                    ,chains  = 8
+                    ,control = list('adapt_delta' = 0.95)
+                    ,verbose = TRUE
+                     )
+
+@
+
+<<mi_stan_1_traceplots_p1, echo=FALSE, results='show', out.height='6cm'>>=
+traceplot(mi_1_stanfit, par = c('omega','mu_omega_exp','sd_omega')) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Individual Parameters - $\theta$}
+
+<<mi_stan_1_traceplots_p2, echo=FALSE, results='show', out.height='6cm'>>=
+traceplot(mi_1_stanfit, par = c('theta','mu_theta_exp','sd_theta')) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Individual Parameters - $\text{LR}$}
+
+<<mi_stan_1_traceplots_p3, echo=FALSE, results='show', out.height='6cm'>>=
+traceplot(mi_1_stanfit, par = c('LR','mu_LR_exp','sd_LR')) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Problems with the Model}
+
+\begin{itemize}
+\item Trouble with code
+\item Divergent transitions --- had to raise \texttt{adapt\_delta}
+\item Would not rely on output
+\item Data is very sparse for later Accident Years
+\item May revisit once other insurers added
+\end{itemize}
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Convergence Diagnostics}
+
+<<mi_stan_1_diagostics, echo=FALSE, results='show', out.height='7cm'>>=
+# Plot of convergence statistics
+mi_1_draws   <- extract(mi_1_stanfit, permuted = FALSE, inc_warmup = TRUE)
+mi_1_monitor <- as.data.frame(monitor(mi_1_draws
+                                     ,probs = c(0.025, 0.1, 0.25, 0.5, 0.75, 0.9, 0.975)
+                                     ,print = FALSE))
+mi_1_monitor$Parameter <- as.factor(gsub("\\[.*]", "", rownames(mi_1_monitor)))
+
+ggplot(mi_1_monitor) +
+    aes(x = Parameter, y = Rhat, color = Parameter) +
+    geom_jitter(height = 0, width = 0.5, show.legend = FALSE) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+    ylab(expression(hat(italic(R))))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+<<mi_stan_1_parameters, echo=FALSE, results='show', out.height='6cm'>>=
+use_vars <- c("mu_omega_exp", "sd_omega"
+             ,"mu_theta_exp", "sd_theta"
+             ,"mu_LR_exp", "sd_LR"
+             ,"LR[1]", "LR[2]", "LR[3]", "LR[4]", "LR[5]"
+             ,"LR[6]", "LR[7]", "LR[8]", "LR[9]", "LR[10]"
+             ,"loss_sd"
+              )
+
+plotdata_dt <- mi_1_monitor[use_vars, c('mean', '10%', '50%', '90%')]
+
+setDT(plotdata_dt)
+plotdata_dt[, variable := factor(use_vars, levels = use_vars)]
+
+ggplot(plotdata_dt) +
+      geom_point(aes(x = variable, y = mean)) +
+      geom_errorbar(aes(x = variable, y = mean, ymin = `10%`, ymax = `90%`), width = 0) +
+      expand_limits(y = 0) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+      xlab("Parameter") +
+      ylab("Value")
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Multiple Insurers}
+
+Use hierarchical model for multiple insurers
+
+\vspace{3mm}
+
+Each insurer gets $\text{LR}_{\text{I}}$
+
+\vspace{3mm}
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
 
 
 \end{frame}
@@ -570,11 +917,41 @@ ggplot(lgm_1_monitor) +
 %%%
 
 \begin{frame}[fragile]{Posterior Predictive Checks}
-
-
+\begin{center}
+\includegraphics[height=6cm]{caution_jazz_hands.jpg}
+\end{center}
 \end{frame}
 
 
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Posterior Predictive Checks}
+
+Getting more and more emphasis
+
+\vspace{3mm}
+
+Used to assess data aspects not modelled well
+
+\vspace{3mm}
+
+Use sample to generate `fake' data to compare
+
+\vspace{3mm}
+
+Can also be used to generate predictions from data
+
+\vspace{3mm}
+
+No hard and fast rules
+
+\vspace{3mm}
+
+Need to think of checks for loss curves
+
+\end{frame}
 
 
 %%%
