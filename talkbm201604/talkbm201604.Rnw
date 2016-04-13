@@ -25,7 +25,7 @@ opts_knit$set(root.dir = ".")
 opts_chunk$set(fig.path = './')
 opts_chunk$set(fig.align = 'center')
 opts_chunk$set(out.width  = '11cm')
-opts_chunk$set(out.height =  '6cm')
+opts_chunk$set(out.height =  '7cm')
 
 opts_chunk$set(size = 'scriptsize')
 
@@ -333,10 +333,10 @@ ggplot(data = plot_dt) +
 
 \begin{frame}[fragile]{}
 
-Start with the Loglogistic Model
+Start with the Weibull model
 
 \[
-g(t; \; \omega, \theta) = 1 - \exp\left( - \left(\frac{t}{\theta}\right)^\omega \right)
+g(t; \; \omega, \theta) = \frac{t^\omega}{t^\omega + \theta^\omega}
 \]
 
 \vspace{3mm}
@@ -415,7 +415,7 @@ ss_dt <- ppauto_ss_dt[grcode == 43]
 cohort_dt <- ss_dt[, .(maxtime = max(devlag), premium = unique(premium)), by = accyear]
 cohort_dt[, cohort_id := .I]
 
-lst_standata <- list(growthmodel_id = 1   # Use weibull rather than loglogistic
+lst_standata <- list(growthmodel_id = 1   # Use weibull model
                     ,n_data         = ss_dt[, .N]
                     ,n_time         = ss_dt[, length(unique(devlag))]
                     ,n_cohort       = cohort_dt[, .N]
@@ -711,7 +711,7 @@ ss_dt <- ppauto_ss_dt[grcode == 43]
 cohort_dt <- ss_dt[, .(maxtime = max(devlag), premium = unique(premium)), by = accyear]
 cohort_dt[, cohort_id := .I]
 
-lst_standata <- list(growthmodel_id = 1   # Use weibull rather than loglogistic
+lst_standata <- list(growthmodel_id = 0   # Use weibull rather than loglogistic
                     ,n_data         = ss_dt[, .N]
                     ,n_time         = ss_dt[, length(unique(devlag))]
                     ,n_cohort       = cohort_dt[, .N]
@@ -723,12 +723,11 @@ lst_standata <- list(growthmodel_id = 1   # Use weibull rather than loglogistic
                     ,cohort_maxtime = cohort_dt$maxtime
                     )
 
-#set.seed(142) # Setting the seed in the hopes the error is an initialisation one
 mi_1_stanfit <- stan('losscurves_singlesep.stan'
                     ,data    = lst_standata
                     ,iter    = 500
                     ,chains  = 8
-                    ,control = list('adapt_delta' = 0.95)
+                    ,control = list('adapt_delta' = 0.99)
                     ,verbose = TRUE
                      )
 
@@ -766,24 +765,6 @@ traceplot(mi_1_stanfit, par = c('theta','mu_theta_exp','sd_theta')) +
 traceplot(mi_1_stanfit, par = c('LR','mu_LR_exp','sd_LR')) +
     theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
 @
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]{Problems with the Model}
-
-\begin{itemize}
-\item Trouble with code
-\item Divergent transitions --- had to raise \texttt{adapt\_delta}
-\item Would not rely on output
-\item Data is very sparse for later Accident Years
-\item May revisit once other insurers added
-\end{itemize}
-
 
 \end{frame}
 
@@ -848,16 +829,60 @@ ggplot(plotdata_dt) +
 %%%  New Frame
 %%%
 
+\begin{frame}[fragile]{Problems with the Model}
+
+\begin{itemize}
+\item Trouble with code
+\item Divergent transitions --- had to raise \texttt{adapt\_delta}
+\item Would not rely on output
+\item Data is very sparse for later Accident Years
+\item May revisit once other insurers added
+\end{itemize}
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
 \begin{frame}[fragile]{Multiple Insurers}
 
 Use hierarchical model for multiple insurers
 
 \vspace{3mm}
 
-Each insurer gets $\text{LR}_{\text{I}}$
+Each insurer gets own set of loss ratios and growth curves:
+
+\begin{eqnarray*}
+\text{LR} &\to& \text{LR}_{\text{I}, \text{Y}} \\
+\omega    &\to& \omega_{\text{I}} \\
+\theta    &\to& \theta_{\text{I}}
+\end{eqnarray*}
 
 \vspace{3mm}
 
+Put hierarchy on top of this
+
+\vspace{3mm}
+
+Start with 15 insurers
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Multiple Insurers}
+
+<<mi_stan_2_file, echo=FALSE, results='show', comment=''>>=
+stanfile <- 'losscurves_multiple.stan'
+
+cat(readLines(stanfile)[87:116], sep = "\n")
+@
 
 \end{frame}
 
@@ -868,6 +893,52 @@ Each insurer gets $\text{LR}_{\text{I}}$
 
 \begin{frame}[fragile]
 
+<<mi_stan_2_run, echo=FALSE, results='hide', error=FALSE, warning=FALSE, message=FALSE>>=
+grcodes    <- ppauto_dt[, .(pos_prem = all(EarnedPremDIR_B > 0)), by = GRCODE][pos_prem == TRUE, GRCODE]
+use_grcode <- grcodes[1:15]
+
+multi_dt <- ppauto_dt[DevelopmentYear < 1998 &
+                      GRCODE %in% use_grcode, .(grcode    = GRCODE
+                                               ,accyear   = AccidentYear
+                                               ,premium   = EarnedPremDIR_B
+                                               ,devlag    = DevelopmentLag
+                                               ,cumloss   = CumPaidLoss_B
+                                               ,lossratio = CumPaidLoss_B / EarnedPremDIR_B
+                                                )]
+
+cohort_dt <- multi_dt[, .(maxtime = max(devlag), premium = unique(premium)), by = .(grcode, accyear)]
+cohort_dt[, cohort_id := .I]
+
+lst_standata <- list(growthmodel_id = 1   # Use weibull
+                    ,n_data         = multi_dt[, .N]
+                    ,n_time         = multi_dt[, length(unique(devlag))]
+                    ,n_cohort       = cohort_dt[, length(unique(accyear))]
+                    ,n_org          = cohort_dt[, length(unique(grcode))]
+                    ,n_cohortdata   = cohort_dt[, .N]
+                    ,cohort_id      = match(multi_dt$accyear, unique(cohort_dt$accyear))
+                    ,org_id         = match(multi_dt$grcode, unique(cohort_dt$grcode))
+                    ,t_value        = multi_dt[, sort(unique(devlag))]
+                    ,t_idx          = multi_dt[, match(devlag, sort(unique(devlag)))]
+                    ,premium        = multi_dt$premium
+                    ,loss           = multi_dt$cumloss
+                    ,cohort_maxtime = cohort_dt$maxtime
+                    )
+
+mi_2_stanfit <- stan(stanfile
+                    ,data    = lst_standata
+                    ,iter    = 500
+                    ,chains  = 8
+                    ,verbose = TRUE
+                     )
+
+
+@
+
+<<mi_stan_2_traceplots_p1, echo=FALSE, results='show', out.height='6cm'>>=
+traceplot(mi_2_stanfit, par = c('omega')) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+@
+
 
 \end{frame}
 
@@ -878,15 +949,10 @@ Each insurer gets $\text{LR}_{\text{I}}$
 
 \begin{frame}[fragile]
 
-
-\end{frame}
-
-
-%%%
-%%%  New Frame
-%%%
-
-\begin{frame}[fragile]
+<<mi_stan_2_traceplots_p2, echo=FALSE, results='show', out.height='6cm'>>=
+traceplot(mi_2_stanfit, par = c('theta')) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+@
 
 
 \end{frame}
@@ -898,9 +964,68 @@ Each insurer gets $\text{LR}_{\text{I}}$
 
 \begin{frame}[fragile]
 
+<<mi_stan_2_diagostics, echo=FALSE, results='show', out.height='7cm'>>=
+# Plot of convergence statistics
+mi_2_draws   <- extract(mi_2_stanfit, permuted = FALSE, inc_warmup = TRUE)
+mi_2_monitor <- as.data.frame(monitor(mi_2_draws
+                                     ,probs = c(0.025, 0.1, 0.25, 0.5, 0.75, 0.9, 0.975)
+                                     ,print = FALSE))
+mi_2_monitor$Parameter <- as.factor(gsub("\\[.*]", "", rownames(mi_2_monitor)))
+
+ggplot(mi_2_monitor) +
+    aes(x = Parameter, y = Rhat, color = Parameter) +
+    geom_jitter(height = 0, width = 0.5, show.legend = FALSE) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+    ylab(expression(hat(italic(R))))
+@
 
 \end{frame}
 
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+Huge amount of parameters, so check interesting subset
+
+<<mi_stan_2_parameters, echo=FALSE, results='show', out.height='6cm'>>=
+plotdata_dt <- mi_2_monitor[, c('mean', '10%', '50%', '90%')]
+
+setDT(plotdata_dt)
+plotdata_dt[, variable := factor(rownames(mi_2_monitor)
+                                ,levels = rownames(mi_2_monitor))]
+
+ggplot(plotdata_dt[grep("hyper|sd_LR|_exp", variable)]) +
+      geom_point(aes(x = variable, y = mean)) +
+      geom_errorbar(aes(x = variable, y = mean, ymin = `10%`, ymax = `90%`), width = 0) +
+      expand_limits(y = 0) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+      xlab("Parameter") +
+      ylab("Value")
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Model Checking}
+
+Promising on first pass
+
+\vspace{3mm}
+
+Lots of things going on
+
+\vspace{3mm}
+
+How do we check and understand model?
+
+\end{frame}
 
 
 %%%
@@ -929,29 +1054,140 @@ Each insurer gets $\text{LR}_{\text{I}}$
 
 \begin{frame}[fragile]{Posterior Predictive Checks}
 
-Getting more and more emphasis
-
-\vspace{3mm}
-
-Used to assess data aspects not modelled well
-
-\vspace{3mm}
-
-Use sample to generate `fake' data to compare
-
-\vspace{3mm}
-
-Can also be used to generate predictions from data
-
-\vspace{3mm}
-
-No hard and fast rules
-
-\vspace{3mm}
-
-Need to think of checks for loss curves
+\begin{itemize}
+\item Getting more and more emphasis
+\item Used to assess data aspects not modelled well
+\item Use sample to generate `fake' data to compare
+\item Can also be used to generate predictions from data (clunky)
+\item No hard and fast rules
+\item How can we check our loss curve output?
+\end{itemize}
 
 \end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{LR Range}
+
+\textbf{Question:} Does model capture $\text{LR}$ range well?
+
+\vspace{3mm}
+
+For each sample, track min/max of $\text{LR}$
+
+\vspace{1mm}
+
+Compare actual min/max LR with distributions (devlag $\geq$ 8 years)
+
+\vspace{1mm}
+
+<<mi_stan_2_ppc, echo=FALSE, results='show', out.height='5cm'>>=
+minmax_dt <- multi_dt[, .SD[devlag == max(devlag)], by = .(grcode, accyear)][
+    ,.SD[devlag == .BY$devlag, .(minlr = min(lossratio), maxlr = max(lossratio))], by = devlag]
+
+ppc_dt <- multi_dt[, .SD[devlag == max(devlag)], by = .(grcode, accyear)][
+    devlag >= 8, .(minlr = min(lossratio)
+                  ,maxlr = max(lossratio))]
+
+min_plot <- ggplot() +
+    geom_density(aes(x = extract(mi_2_stanfit)$ppc_minLR)) +
+    geom_line(aes(x = ppc_dt$minlr, y = c(0, 30)), colour = 'red') +
+    scale_x_continuous(limits = c(0,0.4)) +
+    xlab("Minimum Loss Ratio")
+
+max_plot <- ggplot() +
+    geom_density(aes(x = extract(mi_2_stanfit)$ppc_maxLR)) +
+    geom_line(aes(x = ppc_dt$maxlr, y = c(0, 30)), colour = 'red') +
+    scale_x_continuous(limits = c(1.35,1.5)) +
+    xlab("Maximum Loss Ratio")
+
+grid.arrange(min_plot, max_plot, ncol = 2)
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{LR Range}
+
+\begin{itemize}
+\item Better than expected
+\item Max/Min very sample-dependent
+\item May be worth considering quantiles
+\item Data a little too aggregated perhaps
+\end{itemize}
+
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
+\textbf{Question:} Does model capture time to final development well?
+
+\vspace{3mm}
+
+For each sample, observe time at which $\texttt{gf}$ exceeds $0.98$
+
+\vspace{1mm}
+
+Take 25\%/75\% intervals of time for each insurer, compare to data
+
+\vspace{3mm}
+
+<<mi_stan_2_ppc_2, echo=FALSE, results='show', out.height='5cm'>>=
+median_time <- apply(extract(mi_2_stanfit)$t_098, 1, median)
+
+maxloss_dt <- multi_dt[,.SD[devlag == max(devlag)]
+                       ,by = .(grcode, accyear)
+                       ][, .(grcode, accyear, totloss = cumloss)]
+
+lagdata_dt <- merge(multi_dt, maxloss_dt, by = c("grcode", "accyear"))
+lagdata_dt <- lagdata_dt[accyear <= 1990][, .(grcode, accyear, premium, devlag, cumloss, totloss, gf = cumloss / totloss)]
+lagdata_dt <- lagdata_dt[, .SD[gf > 0.98], by = grcode][, .(minlag = min(devlag)), by = grcode]
+
+ppc_dt <- data.table(t(apply(extract(mi_2_stanfit)$t_098, 2, function(x) quantile(x, probs = c(0.1, 0.5, 0.9)))))
+
+ppc_dt    [, grcode := factor(use_grcode, levels = use_grcode)]
+lagdata_dt[, grcode := factor(grcode, levels = grcode)]
+
+ggplot() +
+    geom_errorbar(aes(x = grcode, y = `50%`, ymin = `10%`, ymax = `90%`), data = ppc_dt, width = 0) +
+    geom_point(aes(x = grcode, y = `50%`), data = ppc_dt) +
+    geom_point(aes(x = grcode, y = minlag), data = lagdata_dt, colour = 'red') +
+    xlab("GRCODE") +
+    ylab("Lag Time to 0.98 Development")
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Further Iterations}
+
+\begin{itemize}
+\item Need better PPCs
+\item Further nesting for Insurer and Accident Year
+\item Look across product lines
+\item Try ADVI to help with iteration
+\end{itemize}
+
+\end{frame}
+
 
 
 %%%
@@ -969,6 +1205,29 @@ Need to think of checks for loss curves
 
 \begin{frame}[fragile]{Conclusions}
 
+\begin{itemize}
+\item Alternative to Chain Ladder
+\item Allows interesting views into data
+\item Data source used is crude
+\item More work definitely required!
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Further Work}
+
+\begin{itemize}
+\item Try out ADVI on the models
+\item Incorporate different $\omega$ and $\theta$
+\item Generate fake data to try new approaches
+\item Add hierarchy of product lines
+\item Write-up and contribute as Stan Case Study
+\end{itemize}
 
 \end{frame}
 
