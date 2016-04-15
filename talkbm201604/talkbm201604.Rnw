@@ -275,7 +275,9 @@ ggplot(data = plotdata_dt) +
     geom_line(aes(x = dev, y = value, colour = label)) +
     scale_y_continuous(labels = dollar) +
     facet_wrap(~AccYear, scales = 'free') +
-    theme(axis.text.x = element_text(angle = 45, vjust = 0.5))
+    theme(axis.text.x = element_text(angle = 45, vjust = 0.5)) +
+    xlab("Development Time") +
+    ylab("Loss Amount")
 @
 
 \end{frame}
@@ -924,12 +926,18 @@ lst_standata <- list(growthmodel_id = 1   # Use weibull
                     ,cohort_maxtime = cohort_dt$maxtime
                     )
 
-mi_2_stanfit <- stan(stanfile
-                    ,data    = lst_standata
-                    ,iter    = 500
-                    ,chains  = 8
-                    ,verbose = TRUE
-                     )
+mi_2_stanmodel <- stan_model(stanfile, verbose = TRUE)
+
+mi_2_stanvb  <- vb(mi_2_stanmodel
+                  ,data = lst_standata
+                   )
+
+mi_2_stanfit <- sampling(mi_2_stanmodel
+                        ,data    = lst_standata
+                        ,iter    = 500
+                        ,chains  = 8
+                        ,verbose = TRUE
+                         )
 
 
 @
@@ -1094,13 +1102,13 @@ ppc_dt <- multi_dt[, .SD[devlag == max(devlag)], by = .(grcode, accyear)][
 
 min_plot <- ggplot() +
     geom_density(aes(x = extract(mi_2_stanfit)$ppc_minLR)) +
-    geom_line(aes(x = ppc_dt$minlr, y = c(0, 30)), colour = 'red') +
+    geom_line(aes(x = ppc_dt$minlr, y = c(0,40)), colour = 'red') +
     scale_x_continuous(limits = c(0,0.4)) +
     xlab("Minimum Loss Ratio")
 
 max_plot <- ggplot() +
     geom_density(aes(x = extract(mi_2_stanfit)$ppc_maxLR)) +
-    geom_line(aes(x = ppc_dt$maxlr, y = c(0, 30)), colour = 'red') +
+    geom_line(aes(x = ppc_dt$maxlr, y = c(0,40)), colour = 'red') +
     scale_x_continuous(limits = c(1.35,1.5)) +
     xlab("Maximum Loss Ratio")
 
@@ -1166,6 +1174,7 @@ ggplot() +
     geom_errorbar(aes(x = grcode, y = `50%`, ymin = `10%`, ymax = `90%`), data = ppc_dt, width = 0) +
     geom_point(aes(x = grcode, y = `50%`), data = ppc_dt) +
     geom_point(aes(x = grcode, y = minlag), data = lagdata_dt, colour = 'red') +
+    expand_limits(y = 0) +
     xlab("GRCODE") +
     ylab("Lag Time to 0.98 Development")
 @
@@ -1209,7 +1218,7 @@ ggplot() +
 \item Alternative to Chain Ladder
 \item Allows interesting views into data
 \item Data source used is crude
-\item More work definitely required!
+\item More work required!
 \end{itemize}
 
 \end{frame}
@@ -1223,9 +1232,9 @@ ggplot() +
 
 \begin{itemize}
 \item Try out ADVI on the models
-\item Incorporate different $\omega$ and $\theta$
-\item Generate fake data to try new approaches
-\item Add hierarchy of product lines
+\item Incorporate different $\omega$ and $\theta$ priors
+\item Generate fake data to try new approaches (change-point for example)
+\item Add hierarchy of product lines to model
 \item Write-up and contribute as Stan Case Study
 \end{itemize}
 
