@@ -619,6 +619,49 @@ grid.arrange(plot_sanity, plot_predict, ncol = 2)
 
 \begin{frame}[fragile]
 
+<<lgm_stan_prediction_1995, echo=FALSE, results='show'>>=
+plot_sanity <- ggplot() +
+    geom_line(aes(x = Var2, y = value, group = Var1)
+             ,data = melt(extract(lgm_1_stanfit)$loss_sample[,8,])
+             ,alpha = 0.01) +
+    geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+             ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1995]
+             ,colour = 'red') +
+    geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+              ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1995]
+              ,colour = 'blue') +
+    scale_y_continuous(labels = dollar, limits = c(0,50000)) +
+    ggtitle("Plot of 1995 Year Loss Development") +
+    xlab("Time") +
+    ylab("Loss")
+
+plot_predict <- ggplot() +
+    geom_line(aes(x = Var2, y = value, group = Var1)
+             ,data = melt(extract(lgm_1_stanfit)$loss_prediction[,8,])
+             ,alpha = 0.01) +
+    geom_line(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+             ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1995]
+             ,colour = 'red') +
+    geom_point(aes(x = DevelopmentLag, y = CumPaidLoss_B)
+              ,data = ppauto_dt[GRCODE == 43][AccidentYear == 1995]
+              ,colour = 'blue') +
+    scale_y_continuous(labels = dollar, limits = c(0,50000)) +
+    ggtitle("Plot of 1995 Year Loss Prediction") +
+    xlab("Time") +
+    ylab("Loss")
+
+grid.arrange(plot_sanity, plot_predict, ncol = 2)
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]
+
 <<lgm_stan_prediction_1997, echo=FALSE, results='show'>>=
 plot_sanity <- ggplot() +
     geom_line(aes(x = Var2, y = value, group = Var1)
