@@ -130,58 +130,58 @@ calculate.mu.prior <- function(mu, theta) {
 }
 
 
-generate.coin.data <- function(theta, toss.count) {
-    data.dt <- data.table(theta = theta, N = toss.count)
+generate_trial_data <- function(theta, trial_count) {
+    data_dt <- data.table(theta = theta, N = trial_count)
 
-    data.dt <- data.dt[, .(success = rbinom(N, size = N, prob = theta), trials = N), by = .I]
+    data_dt <- data_dt[, .(success = rbinom(N, size = N, prob = theta), trials = N), by = .I]
 
-    data.dt[, coin.id := .I]
+    data_dt[, test_id := .I]
 
-    return(data.dt[, .(coin.id, success, trials)])
+    return(data_dt[, .(test_id, success, trials)])
 }
 
 
-generate.hierarchical.coin.data <- function(mu = 0.5, K = 20, coins = 5, total.tosses = 250) {
+generate_hierarchical_binomial_data <- function(mu = 0.5, K = 20, tests = 5, total_trials = 250) {
 
-    toss.per.coin <- round(total.tosses / coins, 0)
+    trials_per_test <- round(total_trials / tests, 0)
 
-    theta.vals  <- rbeta(coins, mu * K, (1 - mu) * K)
+    theta_vals  <- rbeta(tests, mu * K, (1 - mu) * K)
 
-    data.dt <- data.table(theta = theta.vals, N = toss.per.coin)
-    data.dt <- data.dt[, .(success = rbinom(N, size = N, prob = theta), trials = N), by = .I]
+    data_dt <- data.table(theta = theta_vals, N = trials_per_test)
+    data_dt <- data_dt[, .(success = rbinom(N, size = N, prob = theta), trials = N), by = .I]
 
-    data.dt[, coin.id := .I]
+    data_dt[, test_id := .I]
 
-    return(data.dt)
+    return(data_dt)
 }
 
 
-generate.multiple.mint.data <- function(mu = c(0.48, 0.51, 0.47, 0.51, 0.53)
-                                       ,K  = c(1000,  750,  500, 1500, 4000)
-                                       ,coin.mean =  50, coin.sd = 10
-                                       ,toss.mean = 250, toss.sd = 50) {
+generate_multiple_hier_trial_data <- function(mu = c(0.48, 0.51, 0.47, 0.51, 0.53)
+                                             ,K  = c(1000,  750,  500, 1500, 4000)
+                                             ,test_mean =  50, test_sd = 10
+                                             ,trial_mean = 250, trial_sd = 50) {
 
-    mint.count <- length(mu)
-    coin.count <- round(rnorm(mint.count, coin.mean, coin.sd), 0)
+    test_count <- length(mu)
+    test_count  <- round(rnorm(test_count, test_mean, test_sd), 0)
 
-    mint.dt <- data.table(mint.id = 1:mint.count, mu, K, coin.count)
+    binomdata_dt <- data.table(test_id = 1:test_count, mu, K, test_count)
 
-    mint.dt <- mint.dt[, {
-        theta = rbeta(coin.count, mu * K, (1 - mu) * K)
+    binomdata_dt <- binomdata_dt[, {
+        theta = rbeta(test_count, mu * K, (1 - mu) * K)
 
-        .(mu = mu, K = K, coin.count = coin.count, theta = theta)
-    }, by = mint.id]
+        .(mu = mu, K = K, test_count = test_count, theta = theta)
+    }, by = test_id]
 
-    mint.dt[, toss.count := round(rnorm(.N, toss.mean, toss.sd), 0)]
-    mint.dt[, coin.id := .I]
+    binomdata_dt[, trial_count := round(rnorm(.N, trial_mean, trial_sd), 0)]
+    binomdata_dt[, test_id := .I]
 
-    mint.dt <- mint.dt[, {
-        success = rbinom(1, size = toss.count, prob = theta)
+    binomdata_dt <- binomdata_dt[, {
+        success = rbinom(1, size = trial_count, prob = theta)
 
-        .(mint.id = mint.id, mu = mu, K = K, coin.count = coin.count
-         ,theta = theta, toss.count = toss.count, success = success)
+        .(test_id = test_id, mu = mu, K = K, test_count = test_count
+         ,theta = theta, trial_count = trial_count, success = success)
 
-    }, by = coin.id]
+    }, by = test_id]
 
-    return(mint.dt[, .(mint.id, mu, K, coin.count, coin.id, theta, toss.count, success)])
+    return(binomdata_dt[, .(test_id, mu, K, test_count, test_id, theta, trial_count, success)])
 }

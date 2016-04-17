@@ -54,7 +54,7 @@ Most of content of this workshop is based on ``Doing Bayesian Data
 Analysis'' by John Kruschke.
 
 \begin{center}
-  \url{https://sites.google.com/site/doingbayesiandataanalysis/}.
+\url{https://sites.google.com/site/doingbayesiandataanalysis/}.
 \end{center}
 
 
@@ -63,7 +63,7 @@ Another excellent book is ``Data Analysis Using Regression and
 Multilevel/Hierarchical Models'' by Gelman and Hill
 
 \begin{center}
-  \url{http://www.stat.columbia.edu/~gelman/arm/}.
+\url{http://www.stat.columbia.edu/~gelman/arm/}.
 \end{center}
 
 
@@ -72,13 +72,17 @@ Another excellent book is ``Bayesian Data Analysis'' by Gelman,
 Carlin, Stern, Dunson, Vehtari, and Rubin
 
 \begin{center}
-  \url{http://www.stat.columbia.edu/~gelman/book/}.
+\url{http://www.stat.columbia.edu/~gelman/book/}.
 \end{center}
 
-
 \worksheetbreak
+Finally, I highly recommend the book ``Statistical Rethinking'' by
+Richard McElreath. It teaches basic statistical principles from a
+Bayesian perspective.
 
-
+\begin{center}
+\url{http://xcelab.net/rm/statistical-rethinking/}
+\end{center}
 
 
 
@@ -531,24 +535,26 @@ The Gamma distribution has two parameters controlling it, the
 \emph{rate} and the \emph{shape}, and we set both these values so that
 our prior is broad across the possible values for $\kappa$.
 
+\worksheetbreak
+[[COINTOSS CHANGE]]
 
 \worksheetexercise The Stan file for the fully Bayesian model is in
-\texttt{singlemint\_\-full.stan}. Using the model specified in this
-file with the data contained in \texttt{singlemint\_\-twocoin.rds} to
+\texttt{binarytrial\_\-full.stan}. Using the model specified in this
+file with the data contained in \texttt{binarytrial\_\-twotest.rds} to
 sample from the prior and posterior distributions.
 
 \worksheetexercise How does using a fully Bayesian model change the
 inferences we make on the parameters of the model based on the data?
 
-\worksheetexercise Create a new dataset for five coins with different
-counts of coin tosses for each coin. Using different values of
-$\theta$ for each coin, but have them be relatively similar.
+\worksheetexercise Create a new dataset for five trials with different
+counts of trials for each test. Using different values of $\theta$ for
+each test, but have them be relatively similar.
 
 \worksheetexercise Run the fully Bayesian model on your data. Make
 inferences on the posterior distribution. How do these inferences
-match up with the knowledge you already have from generating the data.
+match up with the knowledge you already have from generating the data?
 
-\worksheetexercise Create another dataset for the five coins. The
+\worksheetexercise Create another dataset for the five tests. The
 dataset should be similar to the previous one, but this time use very
 different values for $\theta$.
 
@@ -558,57 +564,56 @@ in light of how the data was generated?
 
 \worksheetexercise Use the supplied function The accompanying code
 file contain the function
-\texttt{generate.\-hierarchical.\-coin.\-data()}. This function will
-generate coin toss data for coins generated from a mint with $\mu$ and
-$\kappa$, and for a varying number of coins and total coin tosses. Use
-this function to generate coin toss data for for 5 coins and 50 tosses
-and then for 50 coins and 5 tosses. The code has been vectorised, so
-make sure you understand how it works.
+\texttt{generate\_\-hierarchical\_\-binomial\_\-data()}. This function
+will generate binomial data for tests generated from a category with
+$\mu$ and $\kappa$, and for a varying number of tests and trials. Use
+this function to generate binomial data for 5 tests and 50 trials and
+then for 50 tests and 5 trials. The code has been vectorised, so make
+sure you understand how it works.
 
 \worksheetexercise Use the full Bayesian model with both datasets to
 generate the posterior distributions for the various parameters
 associated with both datasets. Examine the posterior distributions to
 decide which dataset is better for making inferences on the mean value
 of the mint $\mu$. Does your answer make sense? What conclusions can
-we draw about the tradeoff between the number of coins versus the
-number tosses per coin in this case? How do you think this can be
-generalised?
+we draw about the tradeoff between the number of tests versus the
+trials per test in this case? How might this be generalised?
 
 
 
 %%%
 %%%
-%%% SECTION: Expanding the Hierarchy: Multiple Mints
+%%% SECTION: Expanding the Hierarchy: Multiple Categories
 %%%
 %%%
 
 \pagebreak
-\worksheetsection{Expanding the Hierarchy: Multiple Mints}
+\worksheetsection{Expanding the Hierarchy: Multiple Categories}
 
 \noindent
 While the methods employed in the previous section work fine, a more
-`Bayesian' approach would be to incorporate the mint data into the
-model, rather than running a separate run for each mint. As you
+`Bayesian' approach would be to incorporate the category data into the
+model, rather than running a separate run for each one. As you
 imagine, this is especially true if there are a large number of
 separate entities at the highest hierarchy of the model.
 
 \worksheetbreak
-Incorporating the mint data for each coin is relatively simple --- we
-just need to index by $\mu$ and $\kappa$ for each mint, as shown in
+Incorporating the category data for each coin is relatively simple --- we
+just need to index by $\mu$ and $\kappa$ for each category, as shown in
 Figure \ref{fig2}.
 
 \begin{figure}[h]
 \begin{center}
 \includegraphics[height=10cm]{hierarchical_multiplemint_multiplecoin.png}
 \caption{\label{fig2}
-Graphical Representation of the Multiple Mint, Multiple Coin Hierarchical
+Graphical Representation of the Multiple Category, Multiple Tests Hierarchical
 model}
 \end{center}
 \end{figure}
 
 
 \worksheetbreak
-For the purposes of estimating and inferring on mint-quality, we are
+For the purposes of estimating and inferring on category-quality, we are
 looking for coins that are as fair as possible i.e. have a $\theta$ as
 close to $0.50$ as possible, and can do so as consistently as
 possible, i.e. the variance of the $\theta$ values for the coins is as
@@ -616,8 +621,9 @@ low as possible.
 
 
 \worksheetexercise Generate data using the supplied funtion
-\texttt{generate.multiple.mint.data} for 5 mints. You can choose your
-own input parameters or work with the supplied defaults.
+\texttt{generate\_multiple\_hier\_trial\_data} for 5 categories. You
+can choose your own input parameters or work with the supplied
+defaults.
 
 \worksheetexercise Use simple density estimation and summary
 statistics to get a quick estimate of the quality of the mints.
@@ -626,7 +632,7 @@ statistics to get a quick estimate of the quality of the mints.
 estimates for the various $\mu$ and $K$ for each mint.
 
 \worksheetexercise Rerun the sampler, but now use the file in
-\texttt{multiplemint\_lognormal\_k.stan}, which puts a lognormal prior
+\texttt{multicat\_lognormal\_k.stan}, which puts a lognormal prior
 on the value of $K$. Compare the output to the previous model that
 uses a Gamma prior for $K$.
 

@@ -5,108 +5,108 @@ source("lib.R");
 ##### Exercise 6.1
 #####
 
-smtc.dt <- readRDS("singlemint_twocoin.rds")
+bttt_dt <- readRDS("binarytrial_twotest.rds")
 
-stan.file <- 'singlemint_full.stan'
+stan_file <- 'binarytrial_full.stan'
 
-warmup.count <- 250
-sample.count <- 1000
-chain.count  <- 8
+warmup_count <- 250
+sample_count <- 1000
+chain_count  <- 8
 
-stan.data.lst <- list(n_coins = smtc.dt[, length(unique(coin.id))]
-                     ,trials  = smtc.dt$trials
-                     ,success = smtc.dt$success
+stan_data_lst <- list(n_coins = bttt_dt[, length(unique(trial_id))]
+                     ,trials  = bttt_dt$trials
+                     ,success = bttt_dt$success
                      ,priorShape = 10
                      ,priorRate  = 1
                       )
 
-coin.full.stanmodel <- stan_model(stan.file, verbose = TRUE)
+bttt_full_stanmodel <- stan_model(stan_file, verbose = TRUE)
 
 
-coin.full.stanfit <- sampling(coin.full.stanmodel
-                             ,data      = stan.data.lst
+bttt_full_stanfit <- sampling(bttt_full_stanmodel
+                             ,data      = stan_data_lst
                              ,algorithm = "NUTS"
-                             ,warmup    = warmup.count
-                             ,iter      = warmup.count + sample.count
-                             ,chains    = chain.count
+                             ,warmup    = warmup_count
+                             ,iter      = warmup_count + sample_count
+                             ,chains    = chain_count
                              ,verbose   = TRUE
                               )
 
-traceplot(coin.full.stanfit) + expand_limits(y = c(0,1))
+traceplot(bttt_full_stanfit) + expand_limits(y = c(0,1))
 
 
 #####
 ##### Exercise 6.3
 #####
 
-coin5.dt <- generate.coin.data(c(0.4, 0.45, 0.50, 0.45, 0.55)
-                              ,c(50,   100,   75,  125,  150))
+trial5_dt <- generate_trial_data(c(0.4, 0.45, 0.50, 0.45, 0.55)
+                                ,c( 50,  100,   75,  125,  150))
 
-stan.data.lst <- list(n_coins = coin5.dt[, length(unique(coin.id))]
-                     ,trials  = coin5.dt$trials
-                     ,success = coin5.dt$success
+stan_data_lst <- list(n_tests    = trial5_dt[, length(unique(test_id))]
+                     ,trials     = trial5_dt$trials
+                     ,success    = trial5_dt$success
                      ,priorShape = 10
                      ,priorRate  = 1
                       )
 
-coin.tossvar.stanmodel <- stan_model(stan.file, verbose = TRUE)
+trial_var_stanmodel <- stan_model(stan_file, verbose = TRUE)
 
 
-coin.tossvar.stanfit <- sampling(coin.tossvar.stanmodel
-                                ,data      = stan.data.lst
-                                ,algorithm = "NUTS"
-                                ,warmup    = warmup.count
-                                ,iter      = warmup.count + sample.count
-                                ,chains    = chain.count
-                                ,verbose   = TRUE
-                                 )
+trial_var_stanfit <- sampling(trial_var_stanmodel
+                             ,data      = stan_data_lst
+                             ,algorithm = "NUTS"
+                             ,warmup    = warmup_count
+                             ,iter      = warmup_count + sample_count
+                             ,chains    = chain_count
+                             ,verbose   = TRUE
+                              )
 
-traceplot(coin.tossvar.stanfit) + expand_limits(y = c(0,1))
+traceplot(trial_var_stanfit) + expand_limits(y = c(0,1))
 
 
 #####
 ##### Exercise 6.7
 #####
 
-coin_05.dt <- generate.hierarchical.coin.data(coins = 5)
-coin_50.dt <- generate.hierarchical.coin.data(coins = 50)
+binomial_05_dt <- generate_hierarchical_binomial_data(tests = 5)
+binomial_50_dt <- generate_hierarchical_binomial_data(tests = 50)
 
-coin.alt.stanmodel <- stan_model(stan.file, verbose = TRUE)
+binomial_alt_stanmodel <- stan_model(stan_file, verbose = TRUE)
 
-stan.data.lst <- list(n_coins = coin_05.dt[, length(unique(coin.id))]
-                     ,trials  = coin_05.dt$trials
-                     ,success = coin_05.dt$success
+stan_data_lst <- list(n_tests = binomial_05_dt[, length(unique(test_id))]
+                     ,trials  = binomial_05_dt$trials
+                     ,success = binomial_05_dt$success
                      ,priorShape = 10
                      ,priorRate  = 1
                       )
 
-coin.var05.stanfit <- sampling(coin.alt.stanmodel
-                              ,data      = stan.data.lst
-                              ,algorithm = "NUTS"
-                              ,warmup    = warmup.count
-                              ,iter      = warmup.count + sample.count
-                              ,chains    = chain.count
-                              ,verbose   = TRUE
-                               )
+binomial_var05_stanfit <- sampling(binomial_alt_stanmodel
+                                  ,data      = stan_data_lst
+                                  ,algorithm = "NUTS"
+                                  ,warmup    = warmup_count
+                                  ,iter      = warmup_count + sample_count
+                                  ,chains    = chain_count
+                                  ,verbose   = TRUE
+                                   )
 
-traceplot(coin.var05.stanfit) + expand_limits(y = c(0,1))
+traceplot(binomial_var05_stanfit) + expand_limits(y = c(0,1))
 
 
 
-stan.data.lst <- list(n_coins = coin_50.dt[, length(unique(coin.id))]
-                     ,trials  = coin_50.dt$trials
-                     ,success = coin_50.dt$success
+stan_data_lst <- list(n_tests = binomial_50_dt[, length(unique(test_id))]
+                     ,trials  = binomial_50_dt$trials
+                     ,success = binomial_50_dt$success
                      ,priorShape = 10
                      ,priorRate  = 1
                       )
 
-coin.var50.stanfit <- sampling(coin.alt.stanmodel
-                              ,data      = stan.data.lst
+binomial_var50_stanfit <- sampling(binomial_alt_stanmodel
+                              ,data      = stan_data_lst
                               ,algorithm = "NUTS"
-                              ,warmup    = warmup.count
-                              ,iter      = warmup.count + sample.count
-                              ,chains    = chain.count
+                              ,warmup    = warmup_count
+                              ,iter      = warmup_count + sample_count
+                              ,chains    = chain_count
                               ,verbose   = TRUE
                                )
 
-traceplot(coin.var50.stanfit) + expand_limits(y = c(0,1))
+traceplot(binomial_var50_stanfit) + expand_limits(y = c(0,1))
