@@ -7,17 +7,17 @@ source("lib.R");
 
 set.seed(42)
 
-mint.mu <- c(0.48, 0.51, 0.47, 0.51, 0.53)
-mint.K  <- c(1000,  750,  500, 1500, 4000)
+prod_mu <- c(0.18, 0.11, 0.13, 0.16, 0.15)
+prod_K  <- c( 200,  250,  150,  200,  400)
 
-coin.mean <-  50
-coin.sd   <-  10
+design_mean <-  50
+design_sd   <-  10
 
-toss.mean <- 250
-toss.sd   <-  50
+trial_mean <- 250
+trial_sd   <-  50
 
-multiple.dt  <- generate.multiple.mint.data(mint.mu, mint.K, coin.mean, coin.sd, toss.mean, toss.sd)
-inputdata.dt <- multiple.dt[, .(mint.id, coin.id, toss.count, success)]
+multiple_dt  <- generate_multiple_hier_trial_data(prod_mu, prod_K, design_mean, design_sd, trial_mean, trial_sd)
+inputdata_dt <- multiple_dt[, .(prod_id = cat_id, design_id = trial_id, trial_count, success)]
 
 
 #####
@@ -30,31 +30,31 @@ inputdata.dt <- multiple.dt[, .(mint.id, coin.id, toss.count, success)]
 ##### Exercise 7.3
 #####
 
-stan.file <- 'multiplemint_hierarchical.stan'
+stan_file <- 'multicat_hierarchical.stan'
 
-warmup.count <- 250
-sample.count <- 250
-chain.count  <- 8
+warmup_count <- 250
+sample_count <- 250
+chain_count  <- 8
 
-multiplemint.stanmodel <- stan_model(stan.file, verbose = TRUE)
+multipleprod_stanmodel <- stan_model(stan_file, verbose = TRUE)
 
-stan.data.lst <- list(n_mints  = inputdata.dt[, length(unique(mint.id))]
-                     ,n_coins  = inputdata.dt[, length(unique(coin.id))]
-                     ,trials   = inputdata.dt$toss.count
-                     ,success  = inputdata.dt$success
-                     ,mint_id  = inputdata.dt$mint.id
+stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
+                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+                     ,trials     = inputdata_dt$trial_count
+                     ,success    = inputdata_dt$success
+                     ,prod_id    = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
                      ,priorB     = 2
                       )
 
-multiplemint.stanfit <- sampling(multiplemint.stanmodel
-                                ,data      = stan.data.lst
+multipleprod_stanfit <- sampling(multipleprod_stanmodel
+                                ,data      = stan_data_lst
                                 ,algorithm = "NUTS"
-                                ,warmup    = warmup.count
-                                ,iter      = warmup.count + sample.count
-                                ,chains    = chain.count
+                                ,warmup    = warmup_count
+                                ,iter      = warmup_count + sample_count
+                                ,chains    = chain_count
                                 ,verbose   = TRUE
                                  )
 
@@ -63,31 +63,31 @@ multiplemint.stanfit <- sampling(multiplemint.stanmodel
 ##### Exercise 7.4
 #####
 
-stan.file <- 'multiplemint_lognormal_k.stan'
+stan_file <- 'multicat_lognormal_k.stan'
 
-warmup.count <- 250
-sample.count <- 1000
-chain.count  <- 8
+warmup_count <- 250
+sample_count <- 1000
+chain_count  <- 8
 
-multiplemint.lognorm.stanmodel <- stan_model(stan.file, verbose = TRUE)
+multipleprod_lognorm_stanmodel <- stan_model(stan_file, verbose = TRUE)
 
-stan.data.lst <- list(n_mints  = inputdata.dt[, length(unique(mint.id))]
-                     ,n_coins  = inputdata.dt[, length(unique(coin.id))]
-                     ,trials   = inputdata.dt$toss.count
-                     ,success  = inputdata.dt$success
-                     ,mint_id  = inputdata.dt$mint.id
+stan_data_lst <- list(n_prods   = inputdata_dt[, length(unique(prod_id))]
+                     ,n_designs = inputdata_dt[, length(unique(design_id))]
+                     ,trials    = inputdata_dt$trial_count
+                     ,success   = inputdata_dt$success
+                     ,prod_id   = inputdata_dt$prod_id
                      ,priorMean = 8
                      ,priorSD   = 0.5
                      ,priorA    = 2
                      ,priorB    = 2
                       )
 
-multiplemint.lognorm.stanfit <- sampling(multiplemint.lognorm.stanmodel
-                                        ,data      = stan.data.lst
+multipleprod_lognorm_stanfit <- sampling(multipleprod_lognorm_stanmodel
+                                        ,data      = stan_data_lst
                                         ,algorithm = "NUTS"
-                                        ,warmup    = warmup.count
-                                        ,iter      = warmup.count + sample.count
-                                        ,chains    = chain.count
+                                        ,warmup    = warmup_count
+                                        ,iter      = warmup_count + sample_count
+                                        ,chains    = chain_count
                                         ,verbose   = TRUE
                                          )
 
@@ -96,36 +96,36 @@ multiplemint.lognorm.stanfit <- sampling(multiplemint.lognorm.stanmodel
 ##### Exercise 7.5
 #####
 
-warmup.count <- 250
-sample.count <- 250
-chain.count  <- 8
+warmup_count <- 250
+sample_count <- 250
+chain_count  <- 8
 
-coin.mean <- 500
-coin.sd   <-  50
+design_mean <- 500
+design_sd   <-  50
 
-toss.mean <- 1000
-toss.sd   <-   50
+toss_mean <- 1000
+toss_sd   <-   50
 
-multiple.more.dt <- generate.multiple.mint.data(mint.mu, mint.K, coin.mean, coin.sd, toss.mean, toss.sd)
-inputdata.dt <- multiple.more.dt[, .(mint.id, coin.id, toss.count, success)]
+multiple_more_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
+inputdata_dt     <- multiple_more_dt[, .(prod_id, design_id, toss_count, success)]
 
-stan.data.lst <- list(n_mints  = inputdata.dt[, length(unique(mint.id))]
-                     ,n_coins  = inputdata.dt[, length(unique(coin.id))]
-                     ,trials   = inputdata.dt$toss.count
-                     ,success  = inputdata.dt$success
-                     ,mint_id  = inputdata.dt$mint.id
+stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
+                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+                     ,trials     = inputdata_dt$toss_count
+                     ,success    = inputdata_dt$success
+                     ,prod_id    = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
                      ,priorB     = 2
                       )
 
-multiplemint.more.stanfit <- sampling(multiplemint.stanmodel
-                                     ,data      = stan.data.lst
+multipleprod_more_stanfit <- sampling(multipleprod_stanmodel
+                                     ,data      = stan_data_lst
                                      ,algorithm = "NUTS"
-                                     ,warmup    = warmup.count
-                                     ,iter      = warmup.count + sample.count
-                                     ,chains    = chain.count
+                                     ,warmup    = warmup_count
+                                     ,iter      = warmup_count + sample_count
+                                     ,chains    = chain_count
                                      ,verbose   = TRUE
                                       )
 
@@ -134,61 +134,61 @@ multiplemint.more.stanfit <- sampling(multiplemint.stanmodel
 ##### Exercise 7.6
 #####
 
-coin.mean <- 500
-coin.sd   <-  50
+design_mean <- 500
+design_sd   <-  50
 
-toss.mean <- 250
-toss.sd   <-  50
+toss_mean <- 250
+toss_sd   <-  50
 
-multiple.lowtoss.dt <- generate.multiple.mint.data(mint.mu, mint.K, coin.mean, coin.sd, toss.mean, toss.sd)
-inputdata.dt <- multiple.lowtoss.dt[, .(mint.id, coin.id, toss.count, success)]
+multiple_lowtoss_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
+inputdata_dt     <- multiple_lowtoss_dt[, .(prod_id, design_id, toss_count, success)]
 
-stan.data.lst <- list(n_mints  = inputdata.dt[, length(unique(mint.id))]
-                     ,n_coins  = inputdata.dt[, length(unique(coin.id))]
-                     ,trials   = inputdata.dt$toss.count
-                     ,success  = inputdata.dt$success
-                     ,mint_id  = inputdata.dt$mint.id
+stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
+                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+                     ,trials     = inputdata_dt$toss_count
+                     ,success    = inputdata_dt$success
+                     ,prod_id    = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
                      ,priorB     = 2
                       )
 
-multiplemint.lowtoss.stanfit <- sampling(multiplemint.stanmodel
-                                        ,data      = stan.data.lst
+multipleprod_lowtoss_stanfit <- sampling(multipleprod_stanmodel
+                                        ,data      = stan_data_lst
                                         ,algorithm = "NUTS"
-                                        ,warmup    = warmup.count
-                                        ,iter      = warmup.count + sample.count
-                                        ,chains    = chain.count
+                                        ,warmup    = warmup_count
+                                        ,iter      = warmup_count + sample_count
+                                        ,chains    = chain_count
                                         ,verbose   = TRUE
                                          )
 
 
-coin.mean <- 250
-coin.sd   <-  50
+design.mean <- 250
+design.sd   <-  50
 
 toss.mean <- 1000
 toss.sd   <-   50
 
-multiple.lowcoin.dt <- generate.multiple.mint.data(mint.mu, mint.K, coin.mean, coin.sd, toss.mean, toss.sd)
-inputdata.dt <- multiple.lowcoin.dt[, .(mint.id, coin.id, toss.count, success)]
+multiple_lowdesign_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
+inputdata_dt          <- multiple_lowdesign_dt[, .(prod_id, design_id, toss_count, success)]
 
-stan.data.lst <- list(n_mints  = inputdata.dt[, length(unique(mint.id))]
-                     ,n_coins  = inputdata.dt[, length(unique(coin.id))]
-                     ,trials   = inputdata.dt$toss.count
-                     ,success  = inputdata.dt$success
-                     ,mint_id  = inputdata.dt$mint.id
+stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
+                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+                     ,trials     = inputdata_dt$toss_count
+                     ,success    = inputdata_dt$success
+                     ,prod_id    = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
                      ,priorB     = 2
                       )
 
-multiplemint.lowcoin.stanfit <- sampling(multiplemint.stanmodel
-                                        ,data      = stan.data.lst
+multipleprod_lowdesign_stanfit <- sampling(multipleprod_stanmodel
+                                        ,data      = stan_data_lst
                                         ,algorithm = "NUTS"
-                                        ,warmup    = warmup.count
-                                        ,iter      = warmup.count + sample.count
-                                        ,chains    = chain.count
+                                        ,warmup    = warmup_count
+                                        ,iter      = warmup_count + sample_count
+                                        ,chains    = chain_count
                                         ,verbose   = TRUE
                                          )

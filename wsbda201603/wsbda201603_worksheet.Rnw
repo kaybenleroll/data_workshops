@@ -535,8 +535,6 @@ The Gamma distribution has two parameters controlling it, the
 \emph{rate} and the \emph{shape}, and we set both these values so that
 our prior is broad across the possible values for $\kappa$.
 
-\worksheetbreak
-[[COINTOSS CHANGE]]
 
 \worksheetexercise The Stan file for the fully Bayesian model is in
 \texttt{binarytrial\_\-full.stan}. Using the model specified in this
@@ -588,61 +586,85 @@ trials per test in this case? How might this be generalised?
 %%%
 
 \pagebreak
-\worksheetsection{Expanding the Hierarchy: Multiple Categories}
+\worksheetsection{Switching Focus: Online Clickthrough Rates}
 
 \noindent
-While the methods employed in the previous section work fine, a more
-`Bayesian' approach would be to incorporate the category data into the
-model, rather than running a separate run for each one. As you
-imagine, this is especially true if there are a large number of
-separate entities at the highest hierarchy of the model.
+Coins and coin tosses are a good place to start with binomial trials,
+but suffer from a major weakness. There is no such thing as a biased
+coin really. It is very hard to do. In many cases, manipulating the
+output of a coin toss is better served by practice at the mechanics of
+doing a coin flip.
 
 \worksheetbreak
-Incorporating the category data for each coin is relatively simple --- we
-just need to index by $\mu$ and $\kappa$ for each category, as shown in
+For that reason, we will switch the topic of analysis: we will now
+analyse clickthrough rates of online ads. The click-through rate (CTR)
+for an ad is the ratio of the people that click on an ad versus the
+number of people that were shown the ad. CTRs vary wildly depending on
+the circumstance, and ranging from $1e-6$ (1 click per million views)
+to $0.2$.
+
+\worksheetbreak
+Switching focus allows us to do something more realistic and
+interesting, helping making everything more concrete in our minds. Our
+`coins' now become a particular ad design, with multiple views and
+clicks of that design, and those designs are grouped into different
+products. The goal of the analysis is to get a sense of the
+effectiveness of the various ad designs and products, judging
+performance on the CTR.
+
+\worksheetbreak
+While the methods employed in the previous section work fine, a more
+`Bayesian' approach would be to incorporate the product data into the
+model, rather than running a separate run for each one. As you
+imagine, this is especially true if there are a large number of
+separate entities at the highest hierarchy of the model. Splitting the
+data by product will lead to a large number of models
+
+\worksheetbreak
+Incorporating the product data for each ad is relatively simple --- we
+just need to index by $\mu$ and $\kappa$ for each product, as shown in
 Figure \ref{fig2}.
 
 \begin{figure}[h]
 \begin{center}
 \includegraphics[height=10cm]{hierarchical_multiplemint_multiplecoin.png}
 \caption{\label{fig2}
-Graphical Representation of the Multiple Category, Multiple Tests Hierarchical
+Graphical Representation of the Binomial Trials Hierarchical
 model}
 \end{center}
 \end{figure}
 
 
 \worksheetbreak
-For the purposes of estimating and inferring on category-quality, we are
-looking for coins that are as fair as possible i.e. have a $\theta$ as
-close to $0.50$ as possible, and can do so as consistently as
-possible, i.e. the variance of the $\theta$ values for the coins is as
-low as possible.
-
+For the purposes of estimating and inferring on ad-quality, we are
+looking for ads that are as successful as possible i.e. have a
+$\theta$ as close to $1.00$ as possible, and can do so as consistently
+as possible, i.e. the variance of the $\theta$ values for the ads is
+as low as possible.
 
 \worksheetexercise Generate data using the supplied funtion
-\texttt{generate\_multiple\_hier\_trial\_data} for 5 categories. You
+\texttt{generate\_multiple\_hier\_trial\_data} for 5 products. You
 can choose your own input parameters or work with the supplied
 defaults.
 
 \worksheetexercise Use simple density estimation and summary
-statistics to get a quick estimate of the quality of the mints.
+statistics to get a quick estimate of the quality of the products.
 
-\worksheetexercise Use the supplied multiple mint Stan model to get
-estimates for the various $\mu$ and $K$ for each mint.
+\worksheetexercise Use the supplied hierarchical Stan model to get
+estimates for the various $\mu$ and $K$ for each product.
 
 \worksheetexercise Rerun the sampler, but now use the file in
-\texttt{multicat\_lognormal\_k.stan}, which puts a lognormal prior
-on the value of $K$. Compare the output to the previous model that
-uses a Gamma prior for $K$.
+\texttt{multicat\_lognormal\_k.stan}, which puts a lognormal prior on
+the value of $K$. Compare the output to the previous model that uses a
+Gamma prior for $K$.
 
-\worksheetexercise Make a larger dataset, using more coins per mint
-and more tosses per coin, and rerun the samplers with this data. How
-does it affect the inferences?
+\worksheetexercise Make a larger dataset, using more designs per
+product and more views per design, and rerun the samplers with this
+data. How does it affect the inferences?
 
-\worksheetexercise Vary both the number of coins per mint and the
-number of tosses per coin to determine which has the biggest effect on
-inference on $K$.
+\worksheetexercise Vary both the number of designs per product and the
+number of views per design to determine which has the biggest effect
+on inference on $K$.
 
 
 %%%
@@ -667,8 +689,8 @@ level questions about your problem and then see if there is a way to
 quantify that question. You then compare quantities from your data to
 the generated quantities produced by the Stan model.
 
-\worksheetexercise Using our hierarchical mint model, what quantities
-might help us assess the quality of the mint? Think about ways in
+\worksheetexercise Using our hierarchical model, what quantities might
+help us assess the quality of the product ads? Think about ways in
 which we might encapsulate that in the data?
 
 \worksheetexercise Using the \texttt{generated quantities} block in
@@ -711,7 +733,7 @@ output and our conclusions?
 \begin{center}
 \includegraphics{hierarchical_mint_linking.png}
 \caption{\label{fig3}
-Graphical Representation of Hierarchical Model for Linking Mints}
+Graphical Representation of Hierarchical Model for Adding Hierarchies}
 \end{center}
 \end{figure}
 

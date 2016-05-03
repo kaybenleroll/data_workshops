@@ -38,15 +38,15 @@ lgm_1_stanmodel <- stan_model('losscurves_single.stan', verbose = TRUE)
 
 lgm_1_stanfit <- sampling(lgm_1_stanmodel
                          ,data    = lst_standata
-                         ,iter    = 500
+                         ,iter    = 1000
                          ,chains  = 8
                          ,verbose = TRUE
                           )
 
-solv2_sample <- sapply(1:100, function(idx) {
+solv2_sample <- sapply(1:200, function(idx) {
     temp_fit <- sampling(lgm_1_stanmodel
                         ,data    = lst_standata
-                        ,iter    = 500
+                        ,iter    = 1000
                         ,chains  = 8
                         ,verbose = TRUE
                          )

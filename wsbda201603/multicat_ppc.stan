@@ -1,10 +1,10 @@
 data {
-  int n_mints;
-  int n_coins;
+  int n_cats;
+  int n_trials;
 
-  int trials[n_coins];
-  int success[n_coins];
-  int mint_id[n_coins];
+  int trials[n_trials];
+  int success[n_trials];
+  int mint_id[n_trials];
 
   real priorShape;
   real priorRate;
@@ -15,18 +15,18 @@ data {
 
 
 parameters {
-  real<lower=0,upper=1> mu[n_mints];
-  real<lower=0> K[n_mints];
+  real<lower=0,upper=1> mu[n_cats];
+  real<lower=0> K[n_cats];
 
-  real<lower=0,upper=1> theta[n_coins];
+  real<lower=0,upper=1> theta[n_trials];
 }
 
 
 transformed parameters {
-  real a[n_mints];
-  real b[n_mints];
+  real a[n_cats];
+  real b[n_cats];
 
-  for(j in 1:n_mints) {
+  for(j in 1:n_cats) {
     a[j] <- mu[j] * K[j];
     b[j] <- (1.0 - mu[j]) * K[j];
   }
@@ -34,12 +34,12 @@ transformed parameters {
 
 
 model {
-  for(i in 1:n_coins) {
+  for(i in 1:n_trials) {
     success[i] ~ binomial(trials[i], theta[i]);
     theta[i]   ~ beta(a[mint_id[i]], b[mint_id[i]]);
   }
 
-  for(j in 1:n_mints) {
+  for(j in 1:n_cats) {
     mu[j] ~ beta(priorA, priorB);
     K[j]  ~ gamma(priorShape, priorRate);
   }

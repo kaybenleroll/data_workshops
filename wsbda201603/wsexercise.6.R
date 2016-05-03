@@ -13,7 +13,7 @@ warmup_count <- 250
 sample_count <- 1000
 chain_count  <- 8
 
-stan_data_lst <- list(n_coins = bttt_dt[, length(unique(trial_id))]
+stan_data_lst <- list(n_tests = bttt_dt[, length(unique(trial_id))]
                      ,trials  = bttt_dt$trials
                      ,success = bttt_dt$success
                      ,priorShape = 10

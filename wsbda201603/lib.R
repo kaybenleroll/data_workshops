@@ -156,32 +156,33 @@ generate_hierarchical_binomial_data <- function(mu = 0.5, K = 20, tests = 5, tot
 }
 
 
-generate_multiple_hier_trial_data <- function(mu = c(0.48, 0.51, 0.47, 0.51, 0.53)
-                                             ,K  = c(1000,  750,  500, 1500, 4000)
-                                             ,test_mean =  50, test_sd = 10
+generate_multiple_hier_trial_data <- function(mu = c(0.18, 0.11, 0.13, 0.16, 0.15)
+                                             ,K  = c( 200,  250,  150,  200,  400)
+                                             ,cat_mean   =  50, cat_sd   = 10
                                              ,trial_mean = 250, trial_sd = 50) {
 
-    test_count <- length(mu)
-    test_count  <- round(rnorm(test_count, test_mean, test_sd), 0)
+    cat_num   <- length(mu)
+    cat_count <- round(rnorm(cat_num, cat_mean, cat_sd), 0)
 
-    binomdata_dt <- data.table(test_id = 1:test_count, mu, K, test_count)
+    binomdata_dt <- data.table(cat_id = 1:cat_num, mu, K, cat_count)
 
     binomdata_dt <- binomdata_dt[, {
-        theta = rbeta(test_count, mu * K, (1 - mu) * K)
+        theta = rbeta(cat_count, mu * K, (1 - mu) * K)
 
-        .(mu = mu, K = K, test_count = test_count, theta = theta)
-    }, by = test_id]
+        .(mu = mu, K = K, cat_count = cat_count, theta = theta)
+    }, by = cat_id]
 
     binomdata_dt[, trial_count := round(rnorm(.N, trial_mean, trial_sd), 0)]
-    binomdata_dt[, test_id := .I]
 
     binomdata_dt <- binomdata_dt[, {
         success = rbinom(1, size = trial_count, prob = theta)
 
-        .(test_id = test_id, mu = mu, K = K, test_count = test_count
-         ,theta = theta, trial_count = trial_count, success = success)
+        .(mu = mu, K = K, cat_count = cat_count, theta = theta
+         ,trial_count = trial_count, success = success)
 
-    }, by = test_id]
+    }, by = cat_id]
 
-    return(binomdata_dt[, .(test_id, mu, K, test_count, test_id, theta, trial_count, success)])
+    binomdata_dt[, trial_id := .I]
+
+    return(binomdata_dt[, .(cat_id, mu, K, cat_count, trial_id, theta, trial_count, success)])
 }
