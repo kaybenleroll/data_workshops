@@ -4,7 +4,7 @@ data {
 
   int trials[n_trials];
   int success[n_trials];
-  int mint_id[n_trials];
+  int cat_id[n_trials];
 
   real priorMean;
   real priorSD;
@@ -36,7 +36,7 @@ transformed parameters {
 model {
   for(i in 1:n_trials) {
     success[i] ~ binomial(trials[i], theta[i]);
-    theta[i]   ~ beta(a[mint_id[i]], b[mint_id[i]]);
+    theta[i]   ~ beta(a[cat_id[i]], b[cat_id[i]]);
   }
 
   for(j in 1:n_cats) {

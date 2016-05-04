@@ -38,11 +38,11 @@ chain_count  <- 8
 
 multipleprod_stanmodel <- stan_model(stan_file, verbose = TRUE)
 
-stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
-                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
+                     ,n_trials   = inputdata_dt[, length(unique(design_id))]
                      ,trials     = inputdata_dt$trial_count
                      ,success    = inputdata_dt$success
-                     ,prod_id    = inputdata_dt$prod_id
+                     ,cat_id     = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
@@ -71,11 +71,11 @@ chain_count  <- 8
 
 multipleprod_lognorm_stanmodel <- stan_model(stan_file, verbose = TRUE)
 
-stan_data_lst <- list(n_prods   = inputdata_dt[, length(unique(prod_id))]
-                     ,n_designs = inputdata_dt[, length(unique(design_id))]
+stan_data_lst <- list(n_cats    = inputdata_dt[, length(unique(prod_id))]
+                     ,n_trials  = inputdata_dt[, length(unique(design_id))]
                      ,trials    = inputdata_dt$trial_count
                      ,success   = inputdata_dt$success
-                     ,prod_id   = inputdata_dt$prod_id
+                     ,cat_id    = inputdata_dt$prod_id
                      ,priorMean = 8
                      ,priorSD   = 0.5
                      ,priorA    = 2
@@ -109,11 +109,11 @@ toss_sd   <-   50
 multiple_more_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
 inputdata_dt     <- multiple_more_dt[, .(prod_id, design_id, toss_count, success)]
 
-stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
-                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
+                     ,n_trials   = inputdata_dt[, length(unique(design_id))]
                      ,trials     = inputdata_dt$toss_count
                      ,success    = inputdata_dt$success
-                     ,prod_id    = inputdata_dt$prod_id
+                     ,cat_id     = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
@@ -143,11 +143,11 @@ toss_sd   <-  50
 multiple_lowtoss_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
 inputdata_dt     <- multiple_lowtoss_dt[, .(prod_id, design_id, toss_count, success)]
 
-stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
-                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
+                     ,n_trials   = inputdata_dt[, length(unique(design_id))]
                      ,trials     = inputdata_dt$toss_count
                      ,success    = inputdata_dt$success
-                     ,prod_id    = inputdata_dt$prod_id
+                     ,cat_id     = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
@@ -173,11 +173,11 @@ toss.sd   <-   50
 multiple_lowdesign_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
 inputdata_dt          <- multiple_lowdesign_dt[, .(prod_id, design_id, toss_count, success)]
 
-stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
-                     ,n_designs  = inputdata_dt[, length(unique(design_id))]
+stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
+                     ,n_trials   = inputdata_dt[, length(unique(design_id))]
                      ,trials     = inputdata_dt$toss_count
                      ,success    = inputdata_dt$success
-                     ,prod_id    = inputdata_dt$prod_id
+                     ,cat_id     = inputdata_dt$prod_id
                      ,priorShape = 1.1
                      ,priorRate  = 0.0011
                      ,priorA     = 2
@@ -185,10 +185,10 @@ stan_data_lst <- list(n_prods    = inputdata_dt[, length(unique(prod_id))]
                       )
 
 multipleprod_lowdesign_stanfit <- sampling(multipleprod_stanmodel
-                                        ,data      = stan_data_lst
-                                        ,algorithm = "NUTS"
-                                        ,warmup    = warmup_count
-                                        ,iter      = warmup_count + sample_count
-                                        ,chains    = chain_count
-                                        ,verbose   = TRUE
-                                         )
+                                          ,data      = stan_data_lst
+                                          ,algorithm = "NUTS"
+                                          ,warmup    = warmup_count
+                                          ,iter      = warmup_count + sample_count
+                                          ,chains    = chain_count
+                                          ,verbose   = TRUE
+                                           )
