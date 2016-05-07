@@ -44,3 +44,23 @@ model {
     K[j]  ~ gamma(priorShape, priorRate);
   }
 }
+
+generated quantities {
+  real mintheta[n_cats];
+  real maxtheta[n_cats];
+
+  for(j in 1:n_cats) {
+    mintheta[j] <- 1.0;
+    maxtheta[j] <- 0.0;
+  }
+
+  for(i in 1:n_trials) {
+    if(mintheta[cat_id[i]] > theta[i]) {
+      mintheta[cat_id[i]] <- theta[i];
+    }
+
+    if(maxtheta[cat_id[i]] < theta[i]) {
+      maxtheta[cat_id[i]] <- theta[i];
+    }
+  }
+}

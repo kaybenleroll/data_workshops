@@ -1,4 +1,4 @@
-source("lib.R");
+source("lib.R")
 
 
 #####
@@ -7,7 +7,7 @@ source("lib.R");
 
 set.seed(42)
 
-prod_mu <- c(0.18, 0.11, 0.13, 0.16, 0.15)
+prod_mu <- c(0.08, 0.11, 0.09, 0.11, 0.10)
 prod_K  <- c( 200,  250,  150,  200,  400)
 
 design_mean <-  50
@@ -44,7 +44,7 @@ stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
                      ,success    = inputdata_dt$success
                      ,cat_id     = inputdata_dt$prod_id
                      ,priorShape = 1.1
-                     ,priorRate  = 0.0011
+                     ,priorRate  = 0.011
                      ,priorA     = 2
                      ,priorB     = 2
                       )

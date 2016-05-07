@@ -156,7 +156,7 @@ generate_hierarchical_binomial_data <- function(mu = 0.5, K = 20, tests = 5, tot
 }
 
 
-generate_multiple_hier_trial_data <- function(mu = c(0.18, 0.11, 0.13, 0.16, 0.15)
+generate_multiple_hier_trial_data <- function(mu = c(0.08, 0.11, 0.09, 0.11, 0.10)
                                              ,K  = c( 200,  250,  150,  200,  400)
                                              ,cat_mean   =  50, cat_sd   = 10
                                              ,trial_mean = 250, trial_sd = 50) {
@@ -175,7 +175,8 @@ generate_multiple_hier_trial_data <- function(mu = c(0.18, 0.11, 0.13, 0.16, 0.1
     binomdata_dt[, trial_count := round(rnorm(.N, trial_mean, trial_sd), 0)]
 
     binomdata_dt <- binomdata_dt[, {
-        success = rbinom(1, size = trial_count, prob = theta)
+        success <- mapply(
+            function(ip, ic) rbinom(1, size = ic, prob = ip), theta, trial_count)
 
         .(mu = mu, K = K, cat_count = cat_count, theta = theta
          ,trial_count = trial_count, success = success)
