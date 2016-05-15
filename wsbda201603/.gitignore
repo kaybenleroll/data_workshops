@@ -1,2 +1,3 @@
 .RData
 *.tex
+*_stanfit.rds

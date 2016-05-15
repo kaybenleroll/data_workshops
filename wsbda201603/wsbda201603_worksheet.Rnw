@@ -39,6 +39,22 @@
 
 \maketitle
 
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+opts_knit$set(root.dir = ".");
+
+opts_chunk$set(fig.path = './');
+opts_chunk$set(fig.align = 'center');
+opts_chunk$set(out.width  = '18cm');
+opts_chunk$set(out.height = '10cm');
+
+opts_chunk$set(size = 'scriptsize');
+
+
+library(data.table);
+library(ggplot2);
+@
+
+
 
 \noindent
 \begin{center}
@@ -535,6 +551,72 @@ The Gamma distribution has two parameters controlling it, the
 \emph{rate} and the \emph{shape}, and we set both these values so that
 our prior is broad across the possible values for $\kappa$.
 
+\worksheetbreak
+The Gamma distribution is the conjugate prior for a Poisson
+distribution, and is analagous to the role that the Beta distribution
+holds for a binomial likelihood. An intuitive way of thinking about a
+particular Gamma distribution is to think of it as the distribution of
+the Poisson count rate when we observe \emph{rate} events in
+\emph{shape} units of time. Thus, the ratio of the two is the mean of
+the distribution,
+
+\[ \lambda = \frac{\text{\emph{rate}}}{\text{\emph{shape}}} \]
+
+\noindent
+and the spread of the distribution is determined by the sizes of the
+\emph{shape} or the \emph{rate}.
+
+\worksheetbreak
+As always, graphs make this much clearer, so we show comparisons for
+the Beta and Gamma distributions
+
+<<beta_distrib_comparison, echo=TRUE, results='show'>>=
+theta_seq <- seq(0, 1, by = 0.001)
+
+beta_05_05 <- dbeta(theta_seq,  5,  5)
+beta_50_50 <- dbeta(theta_seq, 50, 50)
+
+plot_dt <- rbind(data.table(label   = 'Beta(5,5)'
+                           ,theta   = theta_seq
+                           ,density = beta_05_05)
+                ,data.table(label   = 'Beta(50,50)'
+                           ,theta   = theta_seq
+                           ,density = beta_50_50))
+
+ggplot(plot_dt) +
+    geom_line(aes(x = theta, y = density, colour = label)) +
+    xlab(expression(theta)) +
+    ylab("Probability Density") +
+    ggtitle("PDFs of the Beta(5,5) and Beta(50,50) Distributions")
+@
+
+\worksheetbreak
+So now we look at the Gamma distribution.
+
+<<gamma_distrib_comparison, echo=TRUE, results='show'>>=
+x_seq <- seq(0, 20, by = 0.01)
+
+gamma_010_01 <- dgamma(x_seq, shape =  10, rate =  1)
+gamma_100_10 <- dgamma(x_seq, shape = 100, rate = 10)
+
+plot_dt <- rbind(data.table(label   = 'Gamma(10,1)'
+                           ,x       = x_seq
+                           ,density = gamma_010_01)
+                ,data.table(label   = 'Gamma(100,10)'
+                           ,x       = x_seq
+                           ,density = gamma_100_10))
+
+ggplot(plot_dt) +
+    geom_line(aes(x = x, y = density, colour = label)) +
+    xlab(expression(x)) +
+    ylab("Probability Density") +
+    ggtitle("PDFs of the Gamma(10,1) and Gamma(100,10) Distributions")
+@
+
+\worksheetbreak
+Like the Beta distribution, the larger the size of the parameters, the
+tighter the distribution around the mean.
+
 
 \worksheetexercise The Stan file for the fully Bayesian model is in
 \texttt{binarytrial\_\-full.stan}. Using the model specified in this
@@ -654,9 +736,9 @@ statistics to get a quick estimate of the quality of the products.
 estimates for the various $\mu$ and $K$ for each product.
 
 \worksheetexercise Rerun the sampler, but now use the file in
-\texttt{multicat\_lognormal\_k.stan}, which puts a lognormal prior on
-the value of $K$. Compare the output to the previous model that uses a
-Gamma prior for $K$.
+\texttt{multipleprod\_lognormal\_k.stan}, which puts a lognormal prior
+on the value of $K$. Compare the output to the previous model that
+uses a Gamma prior for $K$.
 
 \worksheetexercise Make a larger dataset, using more designs per
 product and more views per design, and rerun the samplers with this

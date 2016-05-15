@@ -30,7 +30,7 @@ inputdata_dt <- multiple_dt[, .(prod_id = cat_id, design_id = trial_id, trial_co
 ##### Exercise 7.3
 #####
 
-stan_file <- 'multicat_hierarchical.stan'
+stan_file <- 'multipleprod_hierarchical.stan'
 
 warmup_count <- 250
 sample_count <- 250
@@ -58,12 +58,18 @@ multipleprod_stanfit <- sampling(multipleprod_stanmodel
                                 ,verbose   = TRUE
                                  )
 
+if(exists("save_rds_files")) saveRDS(multipleprod_stanfit, file = 'cached_data/multipleprod_stanfit.rds', compress = 'xz')
+
+monitor(multipleprod_stanfit, probs = c(0.1,0.5,0.9))
+traceplot(multipleprod_stanfit, pars = c("mu", "theta", "K")) + expand_limits(y = c(0,1))
+
+
 
 #####
 ##### Exercise 7.4
 #####
 
-stan_file <- 'multicat_lognormal_k.stan'
+stan_file <- 'multipleprod_lognormal_k.stan'
 
 warmup_count <- 250
 sample_count <- 1000
@@ -91,6 +97,11 @@ multipleprod_lognorm_stanfit <- sampling(multipleprod_lognorm_stanmodel
                                         ,verbose   = TRUE
                                          )
 
+if(exists("save_rds_files")) saveRDS(multipleprod_lognorm_stanfit, file = 'cached_data/multipleprod_lognorm_stanfit.rds', compress = 'xz')
+
+monitor(multipleprod_lognorm_stanfit, probs = c(0.1,0.5,0.9))
+traceplot(multipleprod_lognorm_stanfit, pars = c("mu", "theta", "K")) + expand_limits(y = c(0,1))
+
 
 #####
 ##### Exercise 7.5
@@ -106,7 +117,7 @@ design_sd   <-  50
 toss_mean <- 1000
 toss_sd   <-   50
 
-multiple_more_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
+multiple_more_dt <- generate_multiple_hier_trial_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
 inputdata_dt     <- multiple_more_dt[, .(prod_id, design_id, toss_count, success)]
 
 stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
@@ -129,6 +140,11 @@ multipleprod_more_stanfit <- sampling(multipleprod_stanmodel
                                      ,verbose   = TRUE
                                       )
 
+if(exists("save_rds_files")) saveRDS(multipleprod_more_stanfit, file = 'cached_data/multipleprod_more_stanfit.rds', compress = 'xz')
+
+monitor(multipleprod_more_stanfit, probs = c(0.1,0.5,0.9))
+traceplot(multipleprod_more_stanfit, pars = c("mu", "theta", "K")) + expand_limits(y = c(0,1))
+
 
 #####
 ##### Exercise 7.6
@@ -140,7 +156,7 @@ design_sd   <-  50
 toss_mean <- 250
 toss_sd   <-  50
 
-multiple_lowtoss_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
+multiple_lowtoss_dt <- generate_multiple_hier_trial_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
 inputdata_dt     <- multiple_lowtoss_dt[, .(prod_id, design_id, toss_count, success)]
 
 stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
@@ -163,6 +179,12 @@ multipleprod_lowtoss_stanfit <- sampling(multipleprod_stanmodel
                                         ,verbose   = TRUE
                                          )
 
+if(exists("save_rds_files")) saveRDS(multipleprod_lowtoss_stanfit, file = 'cached_data/multipleprod_lowtoss_stanfit.rds', compress = 'xz')
+
+monitor(multipleprod_lowtoss_stanfit, probs = c(0.1,0.5,0.9))
+traceplot(multipleprod_lowtoss_stanfit, pars = c("mu", "theta", "K")) + expand_limits(y = c(0,1))
+
+
 
 design.mean <- 250
 design.sd   <-  50
@@ -170,7 +192,7 @@ design.sd   <-  50
 toss.mean <- 1000
 toss.sd   <-   50
 
-multiple_lowdesign_dt <- generate_multiple_prod_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
+multiple_lowdesign_dt <- generate_multiple_hier_trial_data(prod_mu, prod_K, design_mean, design_sd, toss_mean, toss_sd)
 inputdata_dt          <- multiple_lowdesign_dt[, .(prod_id, design_id, toss_count, success)]
 
 stan_data_lst <- list(n_cats     = inputdata_dt[, length(unique(prod_id))]
@@ -192,3 +214,8 @@ multipleprod_lowdesign_stanfit <- sampling(multipleprod_stanmodel
                                           ,chains    = chain_count
                                           ,verbose   = TRUE
                                            )
+
+if(exists("save_rds_files")) saveRDS(multipleprod_lowdesign_stanfit, file = 'cached_data/multipleprod_lowdesign_stanfit.rds', compress = 'xz')
+
+monitor(multipleprod_lowdesign_stanfit, probs = c(0.1,0.5,0.9))
+traceplot(multipleprod_lowdesign_stanfit, pars = c("mu", "theta", "K")) + expand_limits(y = c(0,1))
