@@ -98,8 +98,10 @@ binomial_var050_stanfit <- sampling(binomial_alt_stanmodel
 if(exists("save_rds_files")) saveRDS(binomial_var050_stanfit, file = 'cached_data/binomial_var050_stanfit.rds', compress = 'xz')
 
 monitor(binomial_var050_stanfit, probs = c(0.1,0.5,0.9))
-traceplot(binomial_var050_stanfit, pars = c("mu", "K")) + expand_limits(y = c(0,1))
 
+traceplot(binomial_var050_stanfit, pars = c("mu", "K")) +
+    expand_limits(y = c(0,1)) +
+    ggtitle("Stan Output for 500 Coins, 50 Tosses - (mu = 0.5, K = 20)")
 
 
 standata_lst <- list(n_tests = binomial_500_dt[, length(unique(test_id))]
@@ -121,4 +123,6 @@ binomial_var500_stanfit <- sampling(binomial_alt_stanmodel
 if(exists("save_rds_files")) saveRDS(binomial_var500_stanfit, file = 'cached_data/binomial_var500_stanfit.rds', compress = 'xz')
 
 monitor(binomial_var500_stanfit, probs = c(0.1,0.5,0.9))
-traceplot(binomial_var500_stanfit, pars = c("mu", "K")) + expand_limits(y = c(0,1))
+traceplot(binomial_var500_stanfit, pars = c("mu", "K")) +
+    expand_limits(y = c(0,1)) +
+    ggtitle("Stan Output for 50 Coins, 250 Tosses - (mu = 0.5, K = 20)")
