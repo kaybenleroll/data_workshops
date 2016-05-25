@@ -123,6 +123,23 @@ ggplot(data = plotdata_dt) +
 %%%  New Frame
 %%%
 
+\begin{frame}[fragile]{Stan}
+
+
+<<stan_code, echo=FALSE>>=
+stantext <- readLines("binarytrial_full.stan")
+
+cat(stantext[18:39], sep = "\n")
+@
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
 \begin{frame}[fragile]{Hierarchial Models}
 
 <<calc_hier_sample, echo=FALSE, results='hide', message=FALSE, warning=FALSE>>=
