@@ -1,0 +1,872 @@
+\documentclass[8pt]{beamer}
+
+\usepackage{graphicx}
+\usepackage{eurosym}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{mathabx}
+
+
+\usetheme[compress]{Berlin}
+
+
+\title{Probabilitistic Graphical Models for Fraud and Anomaly Detection in Insurance}
+\author{Mick Cooney\\ michael.cooney@applied.ai}
+\date{6 July 2016}
+
+<<setoptions, include=TRUE, echo=FALSE, cache=FALSE, results='hide'>>=
+options(width = 100)
+
+opts_knit$set(root.dir = ".")
+
+opts_chunk$set(fig.path = './')
+opts_chunk$set(fig.align = 'center')
+opts_chunk$set(out.width  = '11cm')
+opts_chunk$set(out.height =  '7cm')
+
+opts_chunk$set(verbose = TRUE)
+
+opts_chunk$set(size = 'footnotesize')
+
+set.seed(42)
+@
+
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+dev_mode(TRUE)
+
+library(ggplot2)
+library(data.table)
+library(scales)
+library(gridExtra)
+
+library(gRain)
+
+@
+
+<<load_data, echo=FALSE, results='hide'>>=
+@
+
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+
+
+\begin{frame}
+
+\begin{center}
+\Large
+How to Build a Model with No Data and No Domain Knowledge...
+\end{center}
+
+\end{frame}
+
+
+
+
+
+%%%
+%%%  Section: Introduction
+%%%
+
+\section{Introduction}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Structure of Talk}
+
+\begin{itemize}
+    \item Conditional Dependence, Independence and Bayesian Networks
+    \item The Sprinkler Network
+    \item Medical Non-disclosure
+    \item Building a Model
+    \item Expanding the Model
+    \item Beyond Bayesian Networks
+    \item Summary
+\end{itemize}
+\end{frame}
+
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Cond Probability}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Conditional Probability}
+
+Probability of 2D6 totalling 11?
+
+\vspace{3mm}
+
+\begin{center}
+$(5,6)$ or $(6,5)$
+\end{center}
+
+\vspace{3mm}
+
+\[ P(T = 11) = \frac{2}{36} = 0.05556 \]
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Conditional Probability}
+
+Probability of 2D6 totalling 11 if first dice is 5?
+
+\vspace{3mm}
+
+\begin{center}
+$(5,6)$
+\end{center}
+
+\vspace{3mm}
+
+\[ P(T = 11 | D_1 = 5) = \frac{5}{6} = 0.8333 \]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Conditional Dependence and Independence}
+
+Three variables, $A$, $B$, $C$:
+
+\vspace{3mm}
+
+\begin{center}
+$A$ and $B$ are independent
+
+$C$ depends on $A$
+
+$C$ depends on $B$
+\end{center}
+
+\vspace{3mm}
+
+What happens if we learn information about $C$?
+
+\vspace{3mm}
+
+\begin{center}
+$A$ and $B$ are \emph{conditionally dependent} on $C$.
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{2D6 Example}
+
+Define variables $D_1$, $D_2$ and $T$.
+
+\vspace{3mm}
+
+$D_1$ and $D_2$ are independent, $T$ depends on both
+
+\vspace{3mm}
+
+What happens to $D_2$ if $T = 7$, $D_1 = 4$?
+
+\vspace{3mm}
+
+\[
+P(D_2 = X) =
+\begin{cases}
+  1 \text{ iff } X = 3\\
+  0 \text{ otherwise}
+\end{cases}
+\]
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{2D6}
+
+$T = 9$
+
+\vspace{3mm}
+
+$P(D_2):$
+
+\begin{tabular}{cccccc}
+1 & 2 &   3 &   4 & 5 & 6\\
+0 & 0 & 0.5 & 0.5 & 0 & 0
+\end{tabular}
+
+\vspace{3mm}
+
+$P(D_1):$
+
+\begin{tabular}{cccccc}
+1 & 2 & 3 & 4 &   5 &   6\\
+0 & 0 & 0 & 0 & 0.5 & 0.5
+\end{tabular}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Conditional Independence}
+
+Now suppose we have $T$ as before, but define
+
+\[
+X_1 =
+\begin{cases}
+  1 \text{ iff } T \text{ even}\\
+  0 \text{ otherwise}
+\end{cases}
+\]
+
+and
+
+\[
+X_2 =
+\begin{cases}
+  1 \text{ iff } T >= 9\\
+  0 \text{ otherwise}
+\end{cases}
+\]
+
+\vspace{3mm}
+
+\begin{center}
+$T$ NOT KNOWN, $X_1 \not\bot X_2$ \hspace{1cm} $T$ KNOWN, $X_1 \bot X_2$
+
+\vspace{3mm}
+
+$X_1$ and $X_2$ are \emph{conditionally independent} on $T$
+
+\vspace{3mm}
+
+Probabilistic Graphical Models represent structural dependence amongst variables
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Bayesian Networks}
+
+PGM where graph is a \emph{directed, acyclic graph} (DAG):
+
+<<sprinkler_graph, echo=FALSE, cache=FALSE, results='hide', fig.align='center', out.height='6cm'>>=
+yn <- c("yes", "no")
+
+sprinkler_cptlist <- compileCPT(list(
+    cptable(~Rain,                        levels = yn, values = c(2, 8))
+   ,cptable(~Sprinkler + Rain,            levels = yn, values = c(1, 99, 4, 6))
+   ,cptable(~wetGrass + Rain + Sprinkler, levels = yn, values = c(99, 1, 8, 2, 9, 1, 0, 1))
+    ))
+
+sprinkler_grain <- grain(sprinkler_cptlist)
+
+plot(sprinkler_grain)
+@
+
+Dependencies represented via \emph{Conditional Probability Tables} (CPTs)
+
+
+\end{frame}
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Sprinkler}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{The Sprinkler Network}
+
+<<sprinkler_graph_data, echo=FALSE, cache=FALSE, results='hide', out.height='6cm'>>=
+plot(sprinkler_grain)
+@
+
+Variables: (R)aining, (S)prinkler, wet(G)rass
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{The Sprinkler Network}
+
+<<sprinkler_graph_cpt, echo=TRUE, cache=FALSE, results='show'>>=
+print(sprinkler_grain$cptlist$Rain)
+
+ftable(sprinkler_grain$cptlist$Sprinkler, row.vars = 'Rain')
+
+ftable(sprinkler_grain$cptlist$wetGrass, row.vars = c('Rain', 'Sprinkler'))
+@
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Some Questions}
+
+What is the probability of the grass being wet?
+
+<<sprinkler_graph_calc1, echo=TRUE, cache=FALSE, results='show'>>=
+querygrain(sprinkler_grain, nodes = 'wetGrass')$wetGrass
+@
+
+\vspace{2mm}
+
+If the grass is wet, what is the probability that it is raining?
+
+<<sprinkler_graph_calc2, echo=TRUE, cache=FALSE, results='show'>>=
+querygrain(sprinkler_grain, evidence = list(wetGrass = 'yes'), nodes = 'Rain')$Rain
+@
+
+\vspace{2mm}
+
+If the grass is dry, what is the probability that the sprinker is on?
+
+<<sprinkler_graph_calc3, echo=TRUE, cache=FALSE, results='show'>>=
+querygrain(sprinkler_grain, evidence = list(wetGrass = 'no'), nodes = 'Sprinkler')$Sprinkler
+@
+
+\end{frame}
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Nondisclosure}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Medical Non-disclosure}
+
+\begin{itemize}
+    \item Life/Health Insurance
+    \item Questionnaire
+    \item Disclosure / Non-disclosure
+    \item Medical Examination
+\end{itemize}
+
+\vspace{6mm}
+
+\begin{center}
+Focus exams on risky areas
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Problems}
+
+Doing Outlier / Anomaly Detection:
+
+\vspace{3mm}
+
+\begin{itemize}
+    \item Data is sparse/missing
+    \item Lack of output variables
+    \item Low incidence rate
+    \item Semi-supervised Learning
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Anomaly/Outlier Detection}
+
+\begin{center}
+\includegraphics[height=6cm]{sherlock_picture.jpg}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Anomaly/Outlier Detection}
+
+\begin{center}
+\includegraphics[height=6cm]{clouseau_picture.jpg}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Anomaly/Outlier Detection}
+
+\begin{center}
+\includegraphics[height=6cm]{gadget_picture.jpg}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Anomaly/Outlier Detection}
+
+\begin{itemize}
+    \item Full automation difficult
+    \item False positives
+    \item Filter instead
+    \item Human intuition
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Model}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Build a Model}
+
+\begin{center}
+\emph{We want a model which, given the data observed in the policy
+  application, allows us to estimate the probability of a subsequent
+  medical exam changing the underwriting decision on the policy.}
+
+\vspace{3mm}
+
+\emph{The model should incorporate our assumptions of the process and
+  be as simple as possible.}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Consequences}
+
+\begin{itemize}
+    \item Applicant may be unaware
+    \item Is the nondisclosure relevant?
+    \item Is the juice worth the squeeze?
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Consequences}
+
+Consider 3 conditions:
+
+\begin{description}
+    \item[(S)moker:] Smoker, Quitter, Non-smoker
+    \item[(B)MI:] Normal, Overweight, Obese
+    \item[Family (H)istory:] None, HeartDisease
+\end{description}
+
+\vspace{6mm}
+
+Conditions have related aspects:
+
+\begin{description}
+    \item[T] True state
+    \item[D] Declared state
+    \item[S] Seriousness of condition's impact on decision
+\end{description}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Medical Exam Network}
+
+<<underwriting_network, echo=FALSE, cache=FALSE, results='show'>>=
+hn <- cptable(~HN
+             ,values = c(0.01, 0.99)
+             ,levels = c("Dishonest", "Honest"))
+
+ts <- cptable(~TS
+             ,values = c(0.60, 0.20, 0.20)
+             ,levels = c("Nonsmoker", "Quitter", "Smoker"))
+
+tb <- cptable(~TB
+             ,values = c(0.75, 0.20, 0.05)
+             ,levels = c("None", "Overweight", "Obese"))
+
+th <- cptable(~TH
+             ,values = c(0.95, 0.05)
+             ,levels = c("None", "HeartDisease"))
+
+
+ds <- cptable(~DS | HN + TS
+             ,values = c(1.00, 0.00, 0.00  # (HN = D, TS = N)
+                        ,1.00, 0.00, 0.00  # (HN = H, TS = N)
+                        ,0.50, 0.40, 0.10  # (HN = D, TS = Q)
+                        ,0.05, 0.80, 0.15  # (HN = H, TS = Q)
+                        ,0.30, 0.40, 0.30  # (HN = D, TS = S)
+                        ,0.00, 0.10, 0.90  # (HN = H, TS = S)
+                         )
+             ,levels = c("Nonsmoker", "Quitter", "Smoker"))
+
+db <- cptable(~DB | HN + TB
+             ,values = c(0.95, 0.05, 0.00  # (HN = D, TB = NM)
+                        ,0.90, 0.10, 0.00  # (HN = H, TB = NM)
+                        ,0.30, 0.70, 0.30  # (HN = D, TB = OW)
+                        ,0.10, 0.80, 0.10  # (HN = H, TB = OW)
+                        ,0.00, 0.10, 0.90  # (HN = D, TB = OB)
+                        ,0.00, 0.10, 0.90  # (HN = H, TB = OB)
+                         )
+             ,levels = c("Normal", "Overweight", "Obese"))
+
+dh <- cptable(~DH | HN + TH
+             ,values = c(0.90, 0.10        # (HN = D, TH = N)
+                        ,0.90, 0.10        # (HN = H, TH = N)
+                        ,0.50, 0.50        # (HN = D, TH = H)
+                        ,0.10, 0.90        # (HN = H, TH = H)
+                         )
+             ,levels = c("None", "HeartDisease"))
+
+
+ss <- cptable(~SS | TS + DS
+              ,values = c(0.05, 0.95        # (TS = N, DS = N)
+                         ,0.35, 0.65        # (TS = Q, DS = N)
+                         ,0.95, 0.05        # (TS = S, DS = N)
+                         ,0.01, 0.99        # (TS = N, DS = Q)
+                         ,0.10, 0.90        # (TS = Q, DS = Q)
+                         ,0.40, 0.60        # (TS = S, DS = Q)
+                         ,0.01, 0.99        # (TS = N, DS = S)
+                         ,0.05, 0.95        # (TS = Q, DS = S)
+                         ,0.10, 0.90        # (TS = S, DS = S)
+                          )
+              ,levels = c("Serious", "NotSerious"))
+
+sb <- cptable(~SB | TB + DB
+              ,values = c(0.01, 0.99        # (TB = NM, DB = NM)
+                         ,0.30, 0.70        # (TB = OW, DB = NM)
+                         ,0.50, 0.50        # (TB = OB, DB = NM)
+                         ,0.01, 0.99        # (TB = NM, DB = OW)
+                         ,0.05, 0.95        # (TB = OW, DB = OW)
+                         ,0.30, 0.70        # (TB = OB, DB = OW)
+                         ,0.01, 0.99        # (TB = NM, DB = OB)
+                         ,0.05, 0.95        # (TB = OW, DB = OB)
+                         ,0.10, 0.90        # (TB = OB, DB = OB)
+                          )
+              ,levels = c("Serious", "NotSerious"))
+
+sh <- cptable(~SH | TH + DH
+              ,values = c(0.01, 0.99        # (TH = N, DH = N)
+                         ,0.60, 0.40        # (TH = H, DH = N)
+                         ,0.20, 0.80        # (TH = N, DH = H)
+                         ,0.10, 0.90        # (TH = H, DH = H)
+                          )
+              ,levels = c("Serious", "NotSerious"))
+
+
+m  <- cptable(~ M | SS + SB + SH
+              ,values = c(0.99, 0.01        # (SS = S, SB = S, SH = S)
+                         ,0.90, 0.10        # (SS = N, SB = S, SH = S)
+                         ,0.95, 0.05        # (SS = S, SB = N, SH = S)
+                         ,0.85, 0.15        # (SS = N, SB = N, SH = S)
+                         ,0.85, 0.15        # (SS = S, SB = S, SH = N)
+                         ,0.60, 0.40        # (SS = N, SB = S, SH = N)
+                         ,0.60, 0.40        # (SS = S, SB = N, SH = N)
+                         ,0.10, 0.90        # (SS = N, SB = N, SH = N)
+                          )
+              ,levels = c("Medical", "NoMedical"))
+
+
+underwriting_grain <- grain(compileCPT(list(hn
+                                           ,ts, tb, th
+                                           ,ds, db, dh
+                                           ,ss, sb, sh
+                                           ,m)))
+
+plot(underwriting_grain)
+@
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Bad Teacher Syndrome}
+
+\begin{center}
+\includegraphics[height=6cm]{bueller_teacher.jpg}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<underwriting_network_plot, echo=FALSE, cache=FALSE, results='show'>>=
+plot(underwriting_grain)
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+<<heart_data, echo=TRUE, result='show'>>=
+print(underwriting_grain$cptlist$TH)
+
+ftable(underwriting_grain$cptlist$DH, row.vars = c('HN', 'TH'))
+
+ftable(underwriting_grain$cptlist$SH, row.vars = c('TH', 'DH'))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Medical Exam}
+
+<<heart_data_medical, echo=TRUE, results='markup', size='normalsize'>>=
+ftable(underwriting_grain$cptlist$M, row.vars = c('SS', 'SB', 'SH'))
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{}
+
+What is the unconditional probability of a medical exam finding something?
+
+<<underwriting_q1, echo=TRUE, results='markup', size='normalsize'>>=
+querygrain(underwriting_grain, nodes = 'M')$M
+@
+
+Too high?
+
+\vspace{3mm}
+
+Ignores business processes --- may be reasonable
+
+\vspace{3mm}
+
+Lack of domain knowledge $\rightarrow$ probably flawed
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Assess the Model}
+
+Declares a clean bill of health
+$(DS = \text{Nonsmoker}$, $DB = \text{Normal}$,
+$DH = \text{None})$?
+
+<<underwriting_q2, echo=TRUE, results='markup', size='footnotesize'>>=
+querygrain(underwriting_grain, nodes = 'M'
+          ,evidence = list(DS = 'Nonsmoker'
+                          ,DB = 'Normal'
+                          ,DH = 'None'))$M
+@
+
+\vspace{3mm}
+
+Declares history of heart disease?
+$(DH = \text{HeartDisease})$?
+
+<<underwriting_q3, echo=TRUE, results='markup', size='footnotesize'>>=
+querygrain(underwriting_grain, nodes = 'M'
+          ,evidence = list(DS = 'Nonsmoker'
+                          ,DB = 'Normal'
+                          ,DH = 'HeartDisease'))$M
+@
+
+
+\end{frame}
+
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Expand}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Expanding the Model}
+
+
+
+\end{frame}
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Beyond}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Beyond Bayesian Networks}
+
+
+
+\end{frame}
+
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Summary}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Conclusions}
+
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Get In Touch}
+\begin{center}
+Mick Cooney
+
+\href{mailto:michael.cooney@applied.ai}{michael.cooney@applied.ai}\\
+
+\vspace{3mm}
+
+Slides and code available on GitHub:\\
+
+\footnotesize
+\url{https://www.github.com/kaybenleroll/dublin_r_workshops}
+\end{center}
+\end{frame}
+
+
+\end{document}
