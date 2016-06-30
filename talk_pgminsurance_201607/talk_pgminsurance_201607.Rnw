@@ -1,4 +1,4 @@
-\documentclass[8pt]{beamer}
+\documentclass[11pt]{beamer}
 
 \usepackage{graphicx}
 \usepackage{eurosym}
@@ -27,7 +27,7 @@ opts_chunk$set(out.height =  '7cm')
 
 opts_chunk$set(verbose = TRUE)
 
-opts_chunk$set(size = 'footnotesize')
+opts_chunk$set(size = 'tiny')
 
 set.seed(42)
 @
@@ -112,13 +112,13 @@ How to Build a Model with No Data and No Domain Knowledge...
 
 Probability of 2D6 totalling 11?
 
-\vspace{3mm}
+%\vspace{3mm}
 
 \begin{center}
 $(5,6)$ or $(6,5)$
 \end{center}
 
-\vspace{3mm}
+%\vspace{3mm}
 
 \[ P(T = 11) = \frac{2}{36} = 0.05556 \]
 
@@ -133,13 +133,13 @@ $(5,6)$ or $(6,5)$
 
 Probability of 2D6 totalling 11 if first dice is 5?
 
-\vspace{3mm}
+%\vspace{3mm}
 
 \begin{center}
 $(5,6)$
 \end{center}
 
-\vspace{3mm}
+%\vspace{3mm}
 
 \[ P(T = 11 | D_1 = 5) = \frac{5}{6} = 0.8333 \]
 
@@ -155,7 +155,7 @@ $(5,6)$
 
 Three variables, $A$, $B$, $C$:
 
-\vspace{3mm}
+%\vspace{3mm}
 
 \begin{center}
 $A$ and $B$ are independent
@@ -165,11 +165,11 @@ $C$ depends on $A$
 $C$ depends on $B$
 \end{center}
 
-\vspace{3mm}
+%\vspace{3mm}
 
 What happens if we learn information about $C$?
 
-\vspace{3mm}
+%\vspace{3mm}
 
 \begin{center}
 $A$ and $B$ are \emph{conditionally dependent} on $C$.
@@ -251,11 +251,7 @@ X_1 =
   1 \text{ iff } T \text{ even}\\
   0 \text{ otherwise}
 \end{cases}
-\]
-
-and
-
-\[
+\;
 X_2 =
 \begin{cases}
   1 \text{ iff } T >= 9\\
@@ -268,7 +264,7 @@ X_2 =
 \begin{center}
 $T$ NOT KNOWN, $X_1 \not\bot X_2$ \hspace{1cm} $T$ KNOWN, $X_1 \bot X_2$
 
-\vspace{3mm}
+\vspace{6mm}
 
 $X_1$ and $X_2$ are \emph{conditionally independent} on $T$
 
@@ -286,9 +282,10 @@ Probabilistic Graphical Models represent structural dependence amongst variables
 
 \begin{frame}[fragile]{Bayesian Networks}
 
+\scriptsize
 PGM where graph is a \emph{directed, acyclic graph} (DAG):
 
-<<sprinkler_graph, echo=FALSE, cache=FALSE, results='hide', fig.align='center', out.height='6cm'>>=
+<<sprinkler_graph, echo=FALSE, cache=FALSE, results='hide', fig.align='center', out.height='5cm'>>=
 yn <- c("yes", "no")
 
 sprinkler_cptlist <- compileCPT(list(
@@ -323,7 +320,7 @@ Dependencies represented via \emph{Conditional Probability Tables} (CPTs)
 
 \begin{frame}[fragile]{The Sprinkler Network}
 
-<<sprinkler_graph_data, echo=FALSE, cache=FALSE, results='hide', out.height='6cm'>>=
+<<sprinkler_graph_data, echo=FALSE, cache=FALSE, results='hide', out.height='5cm'>>=
 plot(sprinkler_grain)
 @
 
@@ -358,25 +355,15 @@ ftable(sprinkler_grain$cptlist$wetGrass, row.vars = c('Rain', 'Sprinkler'))
 \begin{frame}[fragile]{Some Questions}
 
 What is the probability of the grass being wet?
-
 <<sprinkler_graph_calc1, echo=TRUE, cache=FALSE, results='show'>>=
 querygrain(sprinkler_grain, nodes = 'wetGrass')$wetGrass
 @
 
-\vspace{2mm}
+\vspace{3mm}
 
 If the grass is wet, what is the probability that it is raining?
-
 <<sprinkler_graph_calc2, echo=TRUE, cache=FALSE, results='show'>>=
 querygrain(sprinkler_grain, evidence = list(wetGrass = 'yes'), nodes = 'Rain')$Rain
-@
-
-\vspace{2mm}
-
-If the grass is dry, what is the probability that the sprinker is on?
-
-<<sprinkler_graph_calc3, echo=TRUE, cache=FALSE, results='show'>>=
-querygrain(sprinkler_grain, evidence = list(wetGrass = 'no'), nodes = 'Sprinkler')$Sprinkler
 @
 
 \end{frame}
@@ -397,17 +384,8 @@ querygrain(sprinkler_grain, evidence = list(wetGrass = 'no'), nodes = 'Sprinkler
 
 \begin{frame}[fragile]{Medical Non-disclosure}
 
-\begin{itemize}
-    \item Life/Health Insurance
-    \item Questionnaire
-    \item Disclosure / Non-disclosure
-    \item Medical Examination
-\end{itemize}
-
-\vspace{6mm}
-
 \begin{center}
-Focus exams on risky areas
+\includegraphics[height=6cm]{disclosure_form.jpg}
 \end{center}
 
 \end{frame}
@@ -421,13 +399,13 @@ Focus exams on risky areas
 
 Doing Outlier / Anomaly Detection:
 
-\vspace{3mm}
+%\vspace{3mm}
 
 \begin{itemize}
-    \item Data is sparse/missing
-    \item Lack of output variables
-    \item Low incidence rate
-    \item Semi-supervised Learning
+  \item Data is sparse/missing
+  \item Lack of output variables
+  \item Low incidence rate
+  \item Semi-supervised Learning
 \end{itemize}
 
 \end{frame}
@@ -437,7 +415,7 @@ Doing Outlier / Anomaly Detection:
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{Anomaly/Outlier Detection}
+\begin{frame}[fragile]{Fraud Detection}
 
 \begin{center}
 \includegraphics[height=6cm]{sherlock_picture.jpg}
@@ -450,7 +428,7 @@ Doing Outlier / Anomaly Detection:
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{Anomaly/Outlier Detection}
+\begin{frame}[fragile]{Fraud Detection}
 
 \begin{center}
 \includegraphics[height=6cm]{clouseau_picture.jpg}
@@ -463,7 +441,7 @@ Doing Outlier / Anomaly Detection:
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{Anomaly/Outlier Detection}
+\begin{frame}[fragile]{Fraud Detection}
 
 \begin{center}
 \includegraphics[height=6cm]{gadget_picture.jpg}
@@ -476,14 +454,15 @@ Doing Outlier / Anomaly Detection:
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{Anomaly/Outlier Detection}
+\begin{frame}[fragile]{Fraud Detection}
 
-\begin{itemize}
-    \item Full automation difficult
-    \item False positives
-    \item Filter instead
-    \item Human intuition
-\end{itemize}
+\begin{center}
+Full automation difficult!
+
+\vspace{6mm}
+
+Create filter instead
+\end{center}
 
 \end{frame}
 
@@ -524,9 +503,9 @@ Doing Outlier / Anomaly Detection:
 \begin{frame}[fragile]{Consequences}
 
 \begin{itemize}
-    \item Applicant may be unaware
-    \item Is the nondisclosure relevant?
-    \item Is the juice worth the squeeze?
+  \item Applicant may be unaware
+  \item Is the nondisclosure relevant?
+  \item Is the juice worth the squeeze?
 \end{itemize}
 
 \end{frame}
@@ -538,22 +517,20 @@ Doing Outlier / Anomaly Detection:
 
 \begin{frame}[fragile]{Consequences}
 
-Consider 3 conditions:
-
+Conditions:
 \begin{description}
-    \item[(S)moker:] Smoker, Quitter, Non-smoker
-    \item[(B)MI:] Normal, Overweight, Obese
-    \item[Family (H)istory:] None, HeartDisease
+  \item[(S)moker:] Smoker, Quitter, Non-smoker
+  \item[(B)MI:] Normal, Overweight, Obese
+  \item[Family (H)istory:] None, HeartDisease
 \end{description}
 
 \vspace{6mm}
 
-Conditions have related aspects:
-
+Aspects:
 \begin{description}
-    \item[T] True state
-    \item[D] Declared state
-    \item[S] Seriousness of condition's impact on decision
+  \item[T] True state
+  \item[D] Declared state
+  \item[S] Seriousness of condition's impact on decision
 \end{description}
 
 \end{frame}
@@ -722,7 +699,7 @@ ftable(underwriting_grain$cptlist$SH, row.vars = c('TH', 'DH'))
 
 \begin{frame}[fragile]{Medical Exam}
 
-<<heart_data_medical, echo=TRUE, results='markup', size='normalsize'>>=
+<<heart_data_medical, echo=TRUE, results='markup', size='footnotesize'>>=
 ftable(underwriting_grain$cptlist$M, row.vars = c('SS', 'SB', 'SH'))
 @
 
@@ -741,15 +718,15 @@ What is the unconditional probability of a medical exam finding something?
 querygrain(underwriting_grain, nodes = 'M')$M
 @
 
+\vspace{3mm}
+
+\begin{center}
 Too high?
 
 \vspace{3mm}
 
-Ignores business processes --- may be reasonable
-
-\vspace{3mm}
-
-Lack of domain knowledge $\rightarrow$ probably flawed
+Probably flawed
+\end{center}
 
 \end{frame}
 
@@ -771,7 +748,14 @@ querygrain(underwriting_grain, nodes = 'M'
                           ,DH = 'None'))$M
 @
 
-\vspace{3mm}
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Assess the Model}
 
 Declares history of heart disease?
 $(DH = \text{HeartDisease})$?
@@ -803,6 +787,81 @@ querygrain(underwriting_grain, nodes = 'M'
 
 \begin{frame}[fragile]{Expanding the Model}
 
+Current model built by guessing CPTs
+
+\vspace{3mm}
+
+Use Data?
+
+\vspace{3mm}
+
+CPTs assist this - subsets of variables available
+
+\vspace{3mm}
+
+Bootstrap to assess calculation validity?
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Expanding Variable Levels}
+
+Add states/levels to variables -- \texttt{HeartDisease}?
+
+\vspace{3mm}
+
+Limitations:
+
+\begin{itemize}
+  \item Model separately?
+  \item CPT specification complicated
+  \item More data
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Add Variables}
+
+Add variables to model
+
+\vspace{3mm}
+
+\begin{itemize}
+  \item Family history?
+  \item Work on honesty modelling
+  \item Split exam types
+\end{itemize}
+
+\vspace{3mm}
+
+Potential for bias
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Further Uses}
+
+\begin{itemize}
+  \item Underwriting fraud for car insurance
+  \item Claims fraud
+  \item Product recommendations
+  \item Problematic customers
+  \item Regulatory issues
+\end{itemize}
 
 
 \end{frame}
@@ -823,7 +882,36 @@ querygrain(underwriting_grain, nodes = 'M'
 
 \begin{frame}[fragile]{Beyond Bayesian Networks}
 
+Require categorical variables
 
+\vspace{3mm}
+
+Binning continuous data loses information
+
+\vspace{3mm}
+
+\begin{itemize}
+  \item Markov Random Fields
+  \item Chain graphs
+  \item Conditional Random Fields
+\end{itemize}
+
+\vspace{3mm}
+
+Semi-supervised Learning
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{One Last Thing...}
+
+\begin{center}
+\includegraphics[height=6cm]{outlier_graphical.png}
+\end{center}
 
 \end{frame}
 
@@ -844,7 +932,13 @@ querygrain(underwriting_grain, nodes = 'M'
 
 \begin{frame}[fragile]{Conclusions}
 
-
+\begin{itemize}
+  \item Classification very difficult
+  \item Highly speculative -- nowhere near production-ready
+  \item Use as filter -- no automation
+  \item Outputs often counter-intuitive
+  \item Work unfinished - lots more avenues to explore
+\end{itemize}
 
 \end{frame}
 
@@ -859,7 +953,7 @@ Mick Cooney
 
 \href{mailto:michael.cooney@applied.ai}{michael.cooney@applied.ai}\\
 
-\vspace{3mm}
+\vspace{6mm}
 
 Slides and code available on GitHub:\\
 
