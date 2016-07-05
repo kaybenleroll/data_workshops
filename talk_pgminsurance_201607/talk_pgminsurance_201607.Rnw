@@ -6,6 +6,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 %\usepackage{mathabx}
+\usepackage{epsdice}
 
 
 \usetheme[compress]{Berlin}
@@ -66,6 +67,31 @@ How to Build a Model with No Data and No Domain Knowledge...
 \end{frame}
 
 
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Obligatory Cliches}
+
+\begin{center}
+\begin{minipage}[h]{5cm}
+\begin{center}
+\includegraphics[height=3cm]{datascience_venndiagram.png}
+\end{center}
+\end{minipage}
+\begin{minipage}[h]{5cm}
+\begin{center}
+\includegraphics[height=3cm]{bit_tunnel.jpg}
+\end{center}
+\end{minipage}
+
+\vspace{10mm}
+
+\textit{``All models are wrong, but some are useful.''} - George Box
+
+\end{center}
+
+\end{frame}
 
 
 
@@ -112,13 +138,20 @@ How to Build a Model with No Data and No Domain Knowledge...
 
 Probability of 2D6 totalling 11?
 
-%\vspace{3mm}
+\vspace{3mm}
 
 \begin{center}
-$(5,6)$ or $(6,5)$
+\Huge
+\epsdice{5} \epsdice{6}
+
+\normalsize
+or
+
+\Huge
+\epsdice{6} \epsdice{5}
 \end{center}
 
-%\vspace{3mm}
+\vspace{3mm}
 
 \[ P(T = 11) = \frac{2}{36} = 0.05556 \]
 
@@ -133,15 +166,15 @@ $(5,6)$ or $(6,5)$
 
 Probability of 2D6 totalling 11 if first dice is 5?
 
-%\vspace{3mm}
+\vspace{3mm}
 
 \begin{center}
-$(5,6)$
+\Huge\epsdice{5} \; $\rightarrow$ \; \Huge\epsdice{6}
 \end{center}
 
-%\vspace{3mm}
+\vspace{3mm}
 
-\[ P(T = 11 | D_1 = 5) = \frac{5}{6} = 0.8333 \]
+\[ P(T = 11 | D_1 = 5) = \frac{1}{6} = 0.1667 \]
 
 
 \end{frame}
@@ -155,24 +188,24 @@ $(5,6)$
 
 Three variables, $A$, $B$, $C$:
 
-%\vspace{3mm}
+\vspace{3mm}
 
 \begin{center}
-$A$ and $B$ are independent
+$A$, $B$ independent
 
 $C$ depends on $A$
 
 $C$ depends on $B$
 \end{center}
 
-%\vspace{3mm}
+\vspace{3mm}
 
-What happens if we learn information about $C$?
+Learn information for $C$?
 
-%\vspace{3mm}
+\vspace{3mm}
 
 \begin{center}
-$A$ and $B$ are \emph{conditionally dependent} on $C$.
+$A$ and $B$ \emph{conditionally dependent} given $C$.
 \end{center}
 
 \end{frame}
@@ -184,25 +217,21 @@ $A$ and $B$ are \emph{conditionally dependent} on $C$.
 
 \begin{frame}[fragile]{2D6 Example}
 
-Define variables $D_1$, $D_2$ and $T$.
+Define variables $D_1$, $D_2$ and $T$:
+
+\[ T = D_1 + D_2 \]
 
 \vspace{3mm}
 
-$D_1$ and $D_2$ are independent, $T$ depends on both
+$D_1$ and $D_2$ independent, $T$ depends on both.
 
-\vspace{3mm}
+\vspace{10mm}
 
-What happens to $D_2$ if $T = 7$, $D_1 = 4$?
+$D_1$ if $T = 7$, $D_1 = 4$?
 
-\vspace{3mm}
-
-\[
-P(D_2 = X) =
-\begin{cases}
-  1 \text{ iff } X = 3\\
-  0 \text{ otherwise}
-\end{cases}
-\]
+\begin{center}
+$P(D_2 = 3) = 1$
+\end{center}
 
 
 \end{frame}
@@ -212,27 +241,40 @@ P(D_2 = X) =
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{2D6}
+\begin{frame}[fragile]{2D6 Example}
 
-$T = 9$
+Fix $T = 9$:
 
-\vspace{3mm}
+%\vspace{3mm}
 
-$P(D_2):$
-
+\begin{center}
+$P(D_1) = $
 \begin{tabular}{cccccc}
-1 & 2 &   3 &   4 & 5 & 6\\
+\epsdice{1} & \epsdice{2} & \epsdice{3} & \epsdice{4} & \epsdice{5} & \epsdice{6}\\
 0 & 0 & 0.5 & 0.5 & 0 & 0
 \end{tabular}
 
 \vspace{3mm}
 
-$P(D_1):$
+induces
 
+\vspace{3mm}
+
+$P(D_2) = $
 \begin{tabular}{cccccc}
-1 & 2 & 3 & 4 &   5 &   6\\
+\epsdice{1} & \epsdice{2} & \epsdice{3} & \epsdice{4} & \epsdice{5} & \epsdice{6}\\
 0 & 0 & 0 & 0 & 0.5 & 0.5
 \end{tabular}
+
+\vspace{3mm}
+
+because
+
+\Large
+\epsdice{3} $\rightarrow$ \epsdice{6}
+
+\epsdice{4} $\rightarrow$ \epsdice{5}
+\end{center}
 
 \end{frame}
 
@@ -243,7 +285,11 @@ $P(D_1):$
 
 \begin{frame}[fragile]{Conditional Independence}
 
-Now suppose we have $T$ as before, but define
+Still have $T = D_1 + D_2$
+
+\vspace{3mm}
+
+Define new variables:
 
 \[
 X_1 =
@@ -261,15 +307,27 @@ X_2 =
 
 \vspace{3mm}
 
+\begin{eqnarray*}
+T \text{ not known } &\Rightarrow& X_1, X_2 \text{ dependent}\\
+T \text{ known }     &\Rightarrow& X_1, X_2 \text{ independent}
+\end{eqnarray*}
+
+%\vspace{6mm}
+
 \begin{center}
-$T$ NOT KNOWN, $X_1 \not\bot X_2$ \hspace{1cm} $T$ KNOWN, $X_1 \bot X_2$
+$X_1$ and $X_2$ are \emph{conditionally independent} given $T$
+\end{center}
 
-\vspace{6mm}
+\end{frame}
 
-$X_1$ and $X_2$ are \emph{conditionally independent} on $T$
 
-\vspace{3mm}
+%%%
+%%%  New Frame
+%%%
 
+\begin{frame}[fragile]{Conditional Independence}
+
+\begin{center}
 Probabilistic Graphical Models represent structural dependence amongst variables
 \end{center}
 
@@ -280,10 +338,46 @@ Probabilistic Graphical Models represent structural dependence amongst variables
 %%%  New Frame
 %%%
 
+\begin{frame}[fragile]{Conditional Independence}
+
+<<chestclinic_example, echo=FALSE, cache=FALSE, results='show'>>=
+yn   <- c("yes","no")
+
+a    <- cptable(~asia,                  values=c(1,99),            levels=yn)
+t_a  <- cptable(~tub + asia,            values=c(5,95,1,99),       levels=yn)
+s    <- cptable(~smoke,                 values=c(5,5),             levels=yn)
+l_s  <- cptable(~lung + smoke,          values=c(1,9,1,99),        levels=yn)
+b_s  <- cptable(~bronc + smoke,         values=c(6,4,3,7),         levels=yn)
+x_e  <- cptable(~xray + either,         values=c(98,2,5,95),       levels=yn)
+d_be <- cptable(~dysp + bronc + either, values=c(9,1,7,3,8,2,1,9), levels=yn)
+e_lt <- ortable(~either + lung + tub,                              levels=yn)
+
+chestclinic_grain <- grain(compileCPT(list(a, t_a, s, l_s, b_s, e_lt, x_e, d_be)))
+
+plot(chestclinic_grain)
+@
+
+\end{frame}
+
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Sprinkler}
+
+
+%%%
+%%%  New Frame
+%%%
+
 \begin{frame}[fragile]{Bayesian Networks}
 
 \scriptsize
-PGM where graph is a \emph{directed, acyclic graph} (DAG):
+PGM with \emph{directed, acyclic graph} (DAG):
 
 <<sprinkler_graph, echo=FALSE, cache=FALSE, results='hide', fig.align='center', out.height='5cm'>>=
 yn <- c("yes", "no")
@@ -299,19 +393,10 @@ sprinkler_grain <- grain(sprinkler_cptlist)
 plot(sprinkler_grain)
 @
 
-Dependencies represented via \emph{Conditional Probability Tables} (CPTs)
+\emph{Conditional Probability Tables} (CPTs)
 
 
 \end{frame}
-
-
-%%%
-%%%
-%%%  Section:
-%%%
-%%%
-
-\section{Sprinkler}
 
 
 %%%
@@ -397,16 +482,19 @@ querygrain(sprinkler_grain, evidence = list(wetGrass = 'yes'), nodes = 'Rain')$R
 
 \begin{frame}[fragile]{Problems}
 
-Doing Outlier / Anomaly Detection:
+Data sparse / missing
 
-%\vspace{3mm}
+\vspace{3mm}
 
-\begin{itemize}
-  \item Data is sparse/missing
-  \item Lack of output variables
-  \item Low incidence rate
-  \item Semi-supervised Learning
-\end{itemize}
+Partially missing output variable
+
+\vspace{3mm}
+
+Low base-rate problem
+
+\vspace{3mm}
+
+Semi-supervised learning
 
 \end{frame}
 
@@ -461,7 +549,7 @@ Full automation difficult!
 
 \vspace{6mm}
 
-Create filter instead
+Create filter instead --- triage cases
 \end{center}
 
 \end{frame}
@@ -502,11 +590,9 @@ Create filter instead
 
 \begin{frame}[fragile]{Consequences}
 
-\begin{itemize}
-  \item Applicant may be unaware
-  \item Is the nondisclosure relevant?
-  \item Is the juice worth the squeeze?
-\end{itemize}
+\begin{center}
+\includegraphics[height=6cm]{littlefinger.jpg}
+\end{center}
 
 \end{frame}
 
@@ -515,7 +601,7 @@ Create filter instead
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{Consequences}
+\begin{frame}[fragile]{Getting Started}
 
 Conditions:
 \begin{description}
@@ -667,9 +753,9 @@ plot(underwriting_grain)
 %%%  New Frame
 %%%
 
-\begin{frame}[fragile]{}
+\begin{frame}[fragile]{Conditional Independence}
 
-<<underwriting_network_plot, echo=FALSE, cache=FALSE, results='show'>>=
+<<underwriting_plot, echo=FALSE, cache=FALSE, results='show'>>=
 plot(underwriting_grain)
 @
 
@@ -765,6 +851,25 @@ querygrain(underwriting_grain, nodes = 'M'
           ,evidence = list(DS = 'Nonsmoker'
                           ,DB = 'Normal'
                           ,DH = 'HeartDisease'))$M
+@
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Assess the Model}
+
+Clean bill of health --- are they dishonest?
+
+<<underwriting_q4, echo=TRUE, results='markup', size='footnotesize'>>=
+querygrain(underwriting_grain, nodes = 'HN'
+          ,evidence = list(DS = 'Nonsmoker'
+                          ,DB = 'Normal'
+                          ,DH = 'None'))$HN
 @
 
 
@@ -947,6 +1052,53 @@ Semi-supervised Learning
 %%%  New Frame
 %%%
 
+\begin{frame}[fragile]{Further Resources}
+
+\begin{center}
+\begin{minipage}[h]{5cm}
+
+\begin{center}
+\includegraphics[height=3cm]{graphicalmodels_cover.jpg}
+
+\scriptsize
+``\href{http://www.springer.com/us/book/9781461422983}{Graphical Models with R}''\\
+S\o ren H\o jsgaard.
+\end{center}
+\end{minipage}
+\begin{minipage}[h]{5cm}
+
+\begin{center}
+\includegraphics[height=3cm]{pgm_cover.jpg}
+
+\scriptsize
+``\href{http://pgm.stanford.edu/}{Probabalistic Graphical Models: Principles and Techniques}''\\
+Koller and Friedman
+\end{center}
+\end{minipage}
+\end{center}
+
+
+\vspace{3mm}
+
+\scriptsize
+Package Vignettes:
+\href{https://cran.r-project.org/web/packages/gRain/index.html}{\texttt{gRain}}
+and
+\href{https://cran.r-project.org/web/packages/gRbase/index.html}{\texttt{gRbase}}
+
+\vspace{3mm}
+
+\scriptsize
+Coursera: Probabilistic Graphical Models
+\url{https://www.coursera.org/course/pgm}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
 \begin{frame}[fragile]{Get In Touch}
 \begin{center}
 Mick Cooney
@@ -959,7 +1111,18 @@ Slides and code available on GitHub:\\
 
 \footnotesize
 \url{https://www.github.com/kaybenleroll/dublin_r_workshops}
+
+\vspace{6mm}
+
+Blogpost Series:
+\tiny
+\url{http://blog.applied.ai/probabilistic-graphical-models-for-fraud-detection-part-1}
+\tiny
+\url{http://blog.applied.ai/probabilistic-graphical-models-for-fraud-detection-part-2}
+\tiny
+\url{http://blog.applied.ai/probabilistic-graphical-models-for-fraud-detection-part-3}
 \end{center}
+
 \end{frame}
 
 
