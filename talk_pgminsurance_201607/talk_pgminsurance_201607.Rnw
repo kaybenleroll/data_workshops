@@ -5,7 +5,6 @@
 \usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{amssymb}
-%\usepackage{mathabx}
 \usepackage{epsdice}
 
 
@@ -81,13 +80,26 @@ How to Build a Model with No Data and No Domain Knowledge...
 \end{minipage}
 \begin{minipage}[h]{5cm}
 \begin{center}
-\includegraphics[height=3cm]{bit_tunnel.jpg}
+\includegraphics[height=3cm,width=5cm]{bit_tunnel.jpg}
 \end{center}
 \end{minipage}
 
-\vspace{10mm}
+\vspace{5mm}
 
-\textit{``All models are wrong, but some are useful.''} - George Box
+\begin{minipage}[h]{5cm}
+\begin{center}
+\textit{``All models are wrong, but some are useful.''}
+
+- George Box
+\end{center}
+\end{minipage}
+\begin{minipage}[h]{5cm}
+\begin{center}
+\textit{``Data is the new gold.''}
+
+- Some Marketing Chancer
+\end{center}
+\end{minipage}
 
 \end{center}
 

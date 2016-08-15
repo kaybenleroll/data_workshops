@@ -1,4 +1,5 @@
 .RData
+.Rhistory
 *.tex
 *_stanfit.rds
 *.pdf

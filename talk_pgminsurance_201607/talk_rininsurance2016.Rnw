@@ -1,0 +1,625 @@
+\documentclass[11pt]{beamer}
+
+\usepackage{graphicx}
+\usepackage{eurosym}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{epsdice}
+
+
+\usetheme[compress]{Boadilla}
+
+
+\title{Probabilitistic Graphical Models for Detecting Underwriting Fraud}
+\author{Mick Cooney\\ michael.cooney@applied.ai}
+\date{11 July 2016}
+
+<<setoptions, include=TRUE, echo=FALSE, cache=FALSE, results='hide'>>=
+options(width = 100)
+options(digits = 2)
+
+opts_knit$set(root.dir = ".")
+
+opts_chunk$set(fig.path = './')
+opts_chunk$set(fig.align = 'center')
+opts_chunk$set(out.width  = '11cm')
+opts_chunk$set(out.height =  '7cm')
+
+opts_chunk$set(verbose = TRUE)
+
+opts_chunk$set(size = 'normalsize')
+
+set.seed(42)
+@
+
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+dev_mode(TRUE)
+
+library(ggplot2)
+library(data.table)
+library(scales)
+library(gridExtra)
+
+library(gRain)
+
+@
+
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+
+
+\begin{frame}
+
+\begin{center}
+\Large
+How to Build a Model with No Data and No Domain Knowledge...
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  Section: Introduction
+%%%
+
+\section{Introduction}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Structure of Talk}
+
+\Large
+\begin{center}
+Medical Non-disclosure
+
+\vspace{3mm}
+Bayesian Networks
+
+\vspace{3mm}
+Building the Model
+
+\vspace{3mm}
+Conclusions
+
+\end{center}
+
+\end{frame}
+
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Nondisclosure}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Medical Non-disclosure}
+
+\begin{center}
+\includegraphics[height=6cm]{disclosure_form.jpg}
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Problems}
+
+\begin{center}
+\Large
+Data sparse / missing
+
+\vspace{3mm}
+
+Partially missing output variable
+
+\vspace{3mm}
+
+Low base-rate problem
+
+\vspace{3mm}
+
+Semi-supervised learning
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Fraud Detection}
+
+\begin{center}
+\Large
+Full automation difficult!
+
+\vspace{6mm}
+
+Create filter instead --- triage cases
+\end{center}
+
+\end{frame}
+
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Model}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Build a Model}
+
+\begin{center}
+\emph{We want a model which, given the data observed in the policy
+  application, allows us to estimate the probability of a subsequent
+  medical exam changing the underwriting decision on the policy.}
+
+\vspace{3mm}
+
+\emph{The model should incorporate our assumptions of the process and
+  be as simple as possible.}
+
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Is the Juice Worth the Squeeze?}
+
+\begin{center}
+\includegraphics[height=6cm]{littlefinger.jpg}
+
+\vspace{3mm}
+
+Probabilistic Graphical Model?
+\end{center}
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Bayesian Networks}
+
+\scriptsize
+PGM with \emph{directed, acyclic graph} (DAG):
+
+<<sprinkler_graph, echo=FALSE, cache=FALSE, results='hide', fig.align='center', out.height='5cm'>>=
+yn <- c("yes", "no")
+
+sprinkler_cptlist <- compileCPT(list(
+    cptable(~Rain,                        levels = yn, values = c(2, 8))
+   ,cptable(~Sprinkler + Rain,            levels = yn, values = c(1, 99, 4, 6))
+   ,cptable(~wetGrass + Rain + Sprinkler, levels = yn, values = c(99, 1, 8, 2, 9, 1, 0, 1))
+    ))
+
+sprinkler_grain <- grain(sprinkler_cptlist)
+
+plot(sprinkler_grain)
+@
+
+Variables: (R)aining, (S)prinkler, wet(G)rass
+
+\vspace{3mm}
+
+\emph{Conditional Probability Tables} (CPTs)
+
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Some Questions}
+
+What is the probability of the grass being wet?
+<<sprinkler_graph_calc1, echo=TRUE, cache=FALSE, results='show'>>=
+querygrain(sprinkler_grain, nodes = 'wetGrass')$wetGrass
+@
+
+\vspace{3mm}
+
+If the grass is wet, what is the probability that it is raining?
+<<sprinkler_graph_calc2, echo=TRUE, cache=FALSE, results='show'>>=
+querygrain(sprinkler_grain
+          ,evidence = list(wetGrass = 'yes')
+          ,nodes = 'Rain')$Rain
+@
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Getting Started}
+
+Conditions:
+\begin{itemize}
+  \item \textbf{(S)moker}: Smoker, Quitter, Non-smoker
+  \item \textbf{(B)MI}: Normal, Overweight, Obese
+  \item \textbf{Family (H)istory}: None, HeartDisease
+\end{itemize}
+
+\vspace{6mm}
+
+Aspects:
+\begin{itemize}
+  \item \textbf{T}: True state
+  \item \textbf{D}: Declared state
+  \item \textbf{S}: Seriousness of condition's impact on decision
+\end{itemize}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Medical Exam Network}
+
+\begin{minipage}[h]{7.5cm}
+<<underwriting_network, echo=FALSE, cache=FALSE, results='show', out.width='7.5cm'>>=
+hn <- cptable(~HN
+             ,values = c(0.01, 0.99)
+             ,levels = c("Dishonest", "Honest"))
+
+ts <- cptable(~TS
+             ,values = c(0.60, 0.20, 0.20)
+             ,levels = c("Nonsmoker", "Quitter", "Smoker"))
+
+tb <- cptable(~TB
+             ,values = c(0.75, 0.20, 0.05)
+             ,levels = c("None", "Overweight", "Obese"))
+
+th <- cptable(~TH
+             ,values = c(0.95, 0.05)
+             ,levels = c("None", "HeartDisease"))
+
+
+ds <- cptable(~DS | HN + TS
+             ,values = c(1.00, 0.00, 0.00  # (HN = D, TS = N)
+                        ,1.00, 0.00, 0.00  # (HN = H, TS = N)
+                        ,0.50, 0.40, 0.10  # (HN = D, TS = Q)
+                        ,0.05, 0.80, 0.15  # (HN = H, TS = Q)
+                        ,0.30, 0.40, 0.30  # (HN = D, TS = S)
+                        ,0.00, 0.10, 0.90  # (HN = H, TS = S)
+                         )
+             ,levels = c("Nonsmoker", "Quitter", "Smoker"))
+
+db <- cptable(~DB | HN + TB
+             ,values = c(0.95, 0.05, 0.00  # (HN = D, TB = NM)
+                        ,0.90, 0.10, 0.00  # (HN = H, TB = NM)
+                        ,0.30, 0.70, 0.30  # (HN = D, TB = OW)
+                        ,0.10, 0.80, 0.10  # (HN = H, TB = OW)
+                        ,0.00, 0.10, 0.90  # (HN = D, TB = OB)
+                        ,0.00, 0.10, 0.90  # (HN = H, TB = OB)
+                         )
+             ,levels = c("Normal", "Overweight", "Obese"))
+
+dh <- cptable(~DH | HN + TH
+             ,values = c(0.90, 0.10        # (HN = D, TH = N)
+                        ,0.90, 0.10        # (HN = H, TH = N)
+                        ,0.50, 0.50        # (HN = D, TH = H)
+                        ,0.10, 0.90        # (HN = H, TH = H)
+                         )
+             ,levels = c("None", "HeartDisease"))
+
+
+ss <- cptable(~SS | TS + DS
+              ,values = c(0.05, 0.95        # (TS = N, DS = N)
+                         ,0.35, 0.65        # (TS = Q, DS = N)
+                         ,0.95, 0.05        # (TS = S, DS = N)
+                         ,0.01, 0.99        # (TS = N, DS = Q)
+                         ,0.10, 0.90        # (TS = Q, DS = Q)
+                         ,0.40, 0.60        # (TS = S, DS = Q)
+                         ,0.01, 0.99        # (TS = N, DS = S)
+                         ,0.05, 0.95        # (TS = Q, DS = S)
+                         ,0.10, 0.90        # (TS = S, DS = S)
+                          )
+              ,levels = c("Serious", "NotSerious"))
+
+sb <- cptable(~SB | TB + DB
+              ,values = c(0.01, 0.99        # (TB = NM, DB = NM)
+                         ,0.30, 0.70        # (TB = OW, DB = NM)
+                         ,0.50, 0.50        # (TB = OB, DB = NM)
+                         ,0.01, 0.99        # (TB = NM, DB = OW)
+                         ,0.05, 0.95        # (TB = OW, DB = OW)
+                         ,0.30, 0.70        # (TB = OB, DB = OW)
+                         ,0.01, 0.99        # (TB = NM, DB = OB)
+                         ,0.05, 0.95        # (TB = OW, DB = OB)
+                         ,0.10, 0.90        # (TB = OB, DB = OB)
+                          )
+              ,levels = c("Serious", "NotSerious"))
+
+sh <- cptable(~SH | TH + DH
+              ,values = c(0.01, 0.99        # (TH = N, DH = N)
+                         ,0.60, 0.40        # (TH = H, DH = N)
+                         ,0.20, 0.80        # (TH = N, DH = H)
+                         ,0.10, 0.90        # (TH = H, DH = H)
+                          )
+              ,levels = c("Serious", "NotSerious"))
+
+
+m  <- cptable(~ M | SS + SB + SH
+              ,values = c(0.99, 0.01        # (SS = S, SB = S, SH = S)
+                         ,0.90, 0.10        # (SS = N, SB = S, SH = S)
+                         ,0.95, 0.05        # (SS = S, SB = N, SH = S)
+                         ,0.85, 0.15        # (SS = N, SB = N, SH = S)
+                         ,0.85, 0.15        # (SS = S, SB = S, SH = N)
+                         ,0.60, 0.40        # (SS = N, SB = S, SH = N)
+                         ,0.60, 0.40        # (SS = S, SB = N, SH = N)
+                         ,0.10, 0.90        # (SS = N, SB = N, SH = N)
+                          )
+              ,levels = c("Medical", "NoMedical"))
+
+
+underwriting_grain <- grain(compileCPT(list(hn
+                                           ,ts, tb, th
+                                           ,ds, db, dh
+                                           ,ss, sb, sh
+                                           ,m)))
+
+plot(underwriting_grain)
+@
+\end{minipage}
+\begin{minipage}[h]{4cm}
+\scriptsize
+\begin{itemize}
+  \item $HN$: Honesty
+  \item $TS$: True Smoking
+  \item $DS$: Decl Smoking
+  \item $SS$: Serious Smoking
+  \item $TB$: True BMI
+  \item $DB$: Decl BMI
+  \item $SB$: Serious BMI
+  \item $TH$: True History
+  \item $DH$: Decl History
+  \item $SH$: Serious History
+  \item $M$: Medical Chance
+\end{itemize}
+\end{minipage}
+
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Assess}
+
+What is the unconditional probability of a medical exam finding something?
+
+<<underwriting_q1, echo=TRUE, results='markup', size='normalsize'>>=
+querygrain(underwriting_grain, nodes = 'M')$M
+@
+
+\vspace{3mm}
+
+\begin{center}
+Too high?
+
+\vspace{3mm}
+
+Probably flawed
+\end{center}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Assess the Model}
+
+Declares a clean bill of health
+$(DS = \text{Nonsmoker}$, $DB = \text{Normal}$,
+$DH = \text{None})$?
+
+<<underwriting_q2, echo=TRUE, results='markup', size='normalsize'>>=
+querygrain(underwriting_grain, nodes = 'M'
+          ,evidence = list(DS = 'Nonsmoker'
+                          ,DB = 'Normal'
+                          ,DH = 'None'))$M
+@
+
+\end{frame}
+
+
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Expand}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Expanding the Model}
+
+\begin{center}
+\Large
+Guessed CPTs --- use data?
+
+\vspace{3mm}
+
+CPTs assist this - subsets of variables available
+
+\vspace{3mm}
+
+Bootstrap to validate?
+
+\vspace{3mm}
+
+Add states/levels to variables -- \texttt{HeartDisease}?
+
+\vspace{3mm}
+
+Add variables: Family History, Medical Exams, Honesty?
+\end{center}
+
+
+\end{frame}
+
+
+%%%
+%%%
+%%%  Section:
+%%%
+%%%
+
+\section{Summary}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Conclusions}
+
+\Large
+
+\begin{itemize}
+  \item Classification very difficult
+  \item Highly speculative -- nowhere near production-ready
+  \item Use as filter -- no automation
+  \item Outputs often counter-intuitive
+  \item Work unfinished - lots more avenues to explore
+\end{itemize}
+
+\vspace{3mm}
+Other areas: Claims fraud, product recommendations, regulatory issues
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Further Resources}
+
+\begin{center}
+\begin{minipage}[h]{5cm}
+
+\begin{center}
+\includegraphics[height=3cm]{graphicalmodels_cover.jpg}
+
+\scriptsize
+``\href{http://www.springer.com/us/book/9781461422983}{Graphical Models with R}''\\
+S\o ren H\o jsgaard.
+\end{center}
+\end{minipage}
+\begin{minipage}[h]{5cm}
+
+\begin{center}
+\includegraphics[height=3cm]{pgm_cover.jpg}
+
+\scriptsize
+``\href{http://pgm.stanford.edu/}{Probabalistic Graphical Models: Principles and Techniques}''\\
+Koller and Friedman
+\end{center}
+\end{minipage}
+\end{center}
+
+
+\vspace{3mm}
+
+\scriptsize
+Package Vignettes:
+\href{https://cran.r-project.org/web/packages/gRain/index.html}{\texttt{gRain}}
+and
+\href{https://cran.r-project.org/web/packages/gRbase/index.html}{\texttt{gRbase}}
+
+\vspace{3mm}
+
+\scriptsize
+Coursera: Probabilistic Graphical Models
+\url{https://www.coursera.org/course/pgm}
+
+\end{frame}
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Get In Touch}
+\begin{center}
+Mick Cooney
+
+\href{mailto:michael.cooney@applied.ai}{michael.cooney@applied.ai}\\
+
+\vspace{6mm}
+
+Slides and code available on GitHub:\\
+
+\footnotesize
+\url{https://www.github.com/kaybenleroll/dublin_r_workshops}
+
+\vspace{6mm}
+
+Blogpost Series:
+
+\tiny
+\url{http://blog.applied.ai/probabilistic-graphical-models-for-fraud-detection-part-1}
+\tiny
+\url{http://blog.applied.ai/probabilistic-graphical-models-for-fraud-detection-part-2}
+\tiny
+\url{http://blog.applied.ai/probabilistic-graphical-models-for-fraud-detection-part-3}
+\end{center}
+
+\end{frame}
+
+
+\end{document}
