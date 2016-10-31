@@ -1,0 +1,108 @@
+---
+title: "So You Want to Data Science?"
+author: Mick Cooney
+date: 1 November 2016
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+---
+
+```{r knit_opts, include=FALSE}
+rm(list = ls())
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,fig.width  = 11
+                     ,fig.height =  8)
+
+library(tidyverse)
+library(data.table)
+library(dtplyr)
+
+library(ggplot2)
+
+options(width = 80L)
+```
+
+
+## Mick Cooney
+
+Physics
+
+Quant Finance
+
+Statistics
+
+Computer Programming
+
+
+## In the Last 18 Months...
+
+
+- Lapse Modelling -- Survival Analysis
+- Geospatial Modelling -- PostgreSQL / PostGIS
+- Customer Segmentation -- Hierarchical Clustering
+- Mortality Swaps -- MonteCarlo simulation
+- Underwriting Fraud -- Bayesian Networks
+- Data Generation -- Life Insurance / Car Insurance
+- Car Insurance Pricing -- GLMs / MonteCarlo simulation
+- Reinsurance Loss Modelling -- Hierarchical Modelling / Stan
+- Email Analysis -- NLP / LDA
+
+
+## Some Predictions
+
+- Catastrophe Modelling
+- Uplift Modelling / Marketing Evaluation
+- Lapse Modelling (Churn)
+- Mortality Modelling
+- Risk Modelling and Reserving
+- Fraud Investigation
+- Internal Communications
+- Compliance
+
+
+## Suggested Learning
+
+- Linear Algebra
+- Statistics
+- Computer Programming
+- Source Control
+- Linear Models
+- Tree-based Learning
+
+
+## Suggested Activities
+
+| | |
+|:-:|:-:|
+|![](meetup_presentation.png)|![](kaggle_presentation.png)|
+|![](github_presentation.png)|![](stackoverflow_presentation.png)|
+
+
+## Help Everyone You Can!
+
+
+
+## Where to Learn
+
+| | |
+|:-:|:-:|
+|![](coursera_presentation.png)|![](khan_academy_presentation.png)|
+|![](youtube_presentation.png)|![](mitocw_presentation.png)|
+
+
+## Get in Touch!
+
+mickcooney@gmail.com
+
+GitHub: <http://www.github.com/kaybenleroll>
+
+
+##
+
+... but experience tells me you probably won't
+
+(and that's okay)
