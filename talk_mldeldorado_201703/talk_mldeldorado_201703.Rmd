@@ -1,0 +1,132 @@
+---
+title: "El Dorado"
+subtitle: "A Data Science Competition"
+author: "Mick Cooney"
+date: "March 27, 2017"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+
+options(width = 90L)
+```
+
+
+# Background
+
+## Dublin R - May 2016
+
+![](img/patoreilly.jpg)
+
+"Anyone can fit an elephant"
+
+
+---
+
+Regularisation
+
+\
+
+L1, L2, ElasticNet
+
+
+---
+
+![](img/porel_island.png)
+
+Island with gold reserves $\rightarrow$ Predict deposits
+
+
+---
+
+![](img/light_bulb.png)
+
+---
+
+Never a good thing
+
+---
+
+![](img/pint.jpg)
+
+
+---
+
+"That would be really cool!"
+
+\
+
+"You should definitely do that"
+
+
+---
+
+"So how are you thinking of generating the data..."
+
+
+# The El Dorado Competition
+
+## Basic Idea
+
+Bid for mining rights
+
+\
+
+Extraction Costs
+
+\
+
+\[
+\text{Score} = \text{Start} - \text{Bids Paid} + \text{Sales} - \text{Extraction Costs}
+\]
+
+\
+
+Richest person wins
+
+---
+
+## Design Goals
+
+Emphasise Prediction Use
+
+Prediction Accuracy Less Important
+
+Something for everyone
+
+
+## Game Design
+
+
+
+
+
+# Logistics
+
+## Generating Data
+
+
+## Managing Submissions
+
+
+
+# Results
+
+
+
+
+
+
