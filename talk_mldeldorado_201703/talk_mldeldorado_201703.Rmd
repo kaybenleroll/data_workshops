@@ -41,6 +41,8 @@ auction_data_tbl <- read_csv("data/auction_parcels.csv")
 
 ![](img/patoreilly.jpg)
 
+Pat O'Reilly - AllState
+
 "Anyone can fit an elephant"
 
 
@@ -162,7 +164,7 @@ How do I generate data?
 
 ---
 
-![](img/dougal_orig.jpg)
+![](img/dougal.jpg)
 
 ---
 
@@ -192,7 +194,11 @@ $$
 Tested with simple models
 
 
-## Managing Submissions
+## Submissions
+
+\
+
+5,000 parcels in training set
 
 \
 
@@ -200,23 +206,145 @@ Team submits bids for each parcel
 
 \
 
-
 ```{r show_sample_bids, echo=FALSE}
 read_lines('data/sample_bid_short.csv') %>%
     cat(sep = '\n')
 ```
 
+---
+
+Simple Shiny app
+
+\
+
+CSV upload with time stamp
+
+\
+
+Buggy as hell - didn't work at all
+
+
+---
+
+Manual submissions - emails
+
+---
+
+Never again!
+
+---
+
+12 submissions
+
+---
+
+![](img/success_baby.jpg)
 
 
 # Results
+
+## Results Night
+
+\
+
+Facebook, mid-September 2016
+
+\
+
+7-8 teams
+
+\
+
+Most teams single person
+
+---
+
+Speakers described approach (5-10 mins)
+
+\
+
+Clustering, Cersei Lannister, Qlik
+
+\
+
+Mini-competitions
+
+---
+
+Hospital
+
+
+## Final Scores
+
+\
+
+
+* 3rd Place (54,468,017)
+* 2nd Place (55,418,322)
+* 1st Place (96,020,955)
+
+---
+
+### Winning Approach
+
+\
+
+Unsophisticated model
+
+\
+
+Use variables to predict unknown variables to then predict gold
+
+\
+
+Focus on most profitable parcels
+
+\
+
+Overspend on auctions
+
+---
+
+
+![](img/stephen_redmond.jpg)
+
+
 
 
 # The Future
 
 
-## The Cannonball Run
+## The Cannonball Run Competition
+
+\
+
+Pricing car insurance
+
+\
+
+Competitive quotes
+
+\
+
+Most money wins
+
+---
+
+Coming Soon to an Internet Near You!
 
 
+## Any Questions?
 
+\
 
+mickcooney@gmail.com
 
+\
+
+michael.cooney@barnett-waddingham.co.uk
+
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops
+
+(talk_mldeldorado_201703)
