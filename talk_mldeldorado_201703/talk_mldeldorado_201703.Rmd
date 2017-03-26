@@ -20,8 +20,18 @@ knitr::opts_chunk$set(tidy  = FALSE
                      ,fig.width  = 11)
 
 library(tidyverse)
+library(cowplot)
 
 options(width = 90L)
+```
+
+
+```{r load_data, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+height_mean      <- 400
+
+island_data_tbl  <- read_csv("data/island_data.csv")
+sample_data_tbl  <- read_csv("data/sample_data.csv")
+auction_data_tbl <- read_csv("data/auction_parcels.csv")
 ```
 
 
@@ -81,50 +91,130 @@ Never a good thing
 
 ## Basic Idea
 
-Bid for mining rights
-
-\
-
-Extraction Costs
-
-\
-
-\[
-\text{Score} = \text{Start} - \text{Bids Paid} + \text{Sales} - \text{Extraction Costs}
-\]
-
-\
-
-Richest person wins
+```{r plot_elevation_data, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+ggplot(island_data_tbl) +
+    geom_tile(aes(x = Easting, y = Northing, fill = elevation)) +
+    scale_fill_gradient2(low = 'blue', mid = 'green', high = 'brown', midpoint = height_mean)
+```
 
 ---
 
+Mine gold, make profit
+
+\
+
+Bid price, extraction costs, profit margins
+
+
+
 ## Design Goals
 
-Emphasise Prediction Use
+\
 
-Prediction Accuracy Less Important
+Emphasise use of prediction, accuracy less important
+
+\
 
 Something for everyone
 
+---
 
-## Game Design
+Vickrey auction: Highest bidder wins, pays second highest price
+
+\
+
+Easy to understand, code, fast to run
+
+---
+
+Harder to 'game'
+
+---
+
+Starting capital
+
+\
+
+50 parcels of land, sequential auctions
 
 
+---
+
+\[
+\text{Score} = \text{Start} - \text{Bids Paid} - \text{Extraction Costs} + \text{Sales}
+\]
 
 
 
 # Logistics
 
+
+
 ## Generating Data
+
+\
+
+Online datasets pointless
+
+\
+
+How do I generate data?
+
+---
+
+![](img/dougal_orig.jpg)
+
+---
+
+Make it up!
+
+---
+
+Hard to reverse engineer
+
+\
+
+No 'true' model
+
+---
+
+2D Gaussian Processes
+
+\
+
+$$
+150 \times 150 = 22,500 \; \text{land parcels}
+$$
+
+
+---
+
+Tested with simple models
 
 
 ## Managing Submissions
+
+\
+
+Team submits bids for each parcel
+
+\
+
+
+```{r show_sample_bids, echo=FALSE}
+read_lines('data/sample_bid_short.csv') %>%
+    cat(sep = '\n')
+```
 
 
 
 # Results
 
+
+# The Future
+
+
+## The Cannonball Run
 
 
 
