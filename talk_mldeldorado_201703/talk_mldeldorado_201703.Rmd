@@ -311,12 +311,33 @@ Overspend on auctions
 
 
 
-# The Future
+# Wrapping Up
+
+## What I Learned
+
+\
+
+I am bad at web code
+
+\
+
+It was a lot of fun
+
+\
+
+Definitely want to do it again
+
+---
+
+On that note ...
 
 
 ## The Cannonball Run Competition
 
-\
+![](img/cannonball_run.jpg)
+
+
+---
 
 Pricing car insurance
 
