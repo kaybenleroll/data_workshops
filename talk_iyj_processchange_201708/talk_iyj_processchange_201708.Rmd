@@ -1,0 +1,458 @@
+---
+title: "Monitoring Process Change with Bayesian Methods"
+subtitle: "Insurely You're Joking"
+author: "Mick Cooney"
+date: "2017-08-21"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(purrr)
+library(scales)
+library(xts)
+library(cowplot)
+
+
+options(width = 80L
+       ,warn  = 1)
+
+set.seed(42)
+```
+
+# Introduction
+
+## Structure of Talk
+
+\
+
+
+* Discussion of Problem
+* Bayesian analysis and the Beta distribution
+* Adding layers of noise
+* Distribution distances and f-divergences
+
+
+## Problem Discussion
+
+\
+
+Not Change-point analysis
+
+\
+
+Measure change effect
+
+\
+
+Signal vs noise
+
+---
+
+Want generic technique
+
+
+## Sales-call Conversions
+
+\
+
+Binary outcome (0 or 1)
+
+\
+
+Monthly summaries
+
+\
+
+Sales due to faster turnaround
+
+
+---
+
+```{r generate_theta_data, echo=TRUE}
+generate_process_rates <- function(mu0 = 0.10, sd0 = 0.03, mu1 = 0.15, sd1 = 0.03,
+                                   start_date  = as.Date("2010-01-01"),
+                                   end_date    = as.Date("2015-03-01"),
+                                   change_date = as.Date("2014-01-01")) {
+
+    month_vector <- as.yearmon(seq(start_date, end_date, by = "month"))
+    switch_month <- as.yearmon(change_date)
+
+    switch_idx <- match(switch_month, month_vector)
+
+    pre_rate  <- rnorm(switch_idx - 1, mu0, sd0)
+    post_rate <- rnorm(length(month_vector) - switch_idx + 1, mu1, sd1)
+
+    rate_tbl <- data_frame(rate_date       = as.Date(month_vector)
+                          ,underlying_rate = c(pre_rate, post_rate))
+
+    return(rate_tbl)
+}
+```
+
+---
+
+```{r plot_process_rate, echo=FALSE}
+plot_rate_tbl <- generate_process_rates(mu0 = 0.10, sd0 = 0.02, mu1 = 0.15, sd1 = 0.03)
+
+ggplot(plot_rate_tbl) +
+    geom_line(aes(x = rate_date, y = underlying_rate)) +
+    expand_limits(y = 0) +
+    xlab('Date') +
+    ylab('Conversion Rate') +
+    ggtitle("Plot of Time-Series of Conversion Rates")
+```
+
+
+
+# Bayesian Analysis
+
+## Bayes Rule
+
+\
+
+$$
+P(A | B) = \frac{P(B|A) P(A)}{P(B)}
+$$
+
+## Continuous Form
+
+\
+
+$$
+p(\theta | D) \propto \int p(D | \theta) \, p(\theta) \ d\theta
+$$
+
+\
+
+where
+
+\
+
+\begin{eqnarray*}
+p(\theta)     &=& \text{Prior distribution for $\theta$} \\
+p(D | \theta) &=& \text{Probability of seeing data $D$ given value $\theta$} \\
+p(\theta | D) &=& \text{Posterior distribution for $\theta$}
+\end{eqnarray*}
+
+
+## Binomial Likelihood
+
+\
+
+Single trial:
+
+$$
+p(y|\theta) = \theta^y (1 - \theta)^{1-y}
+$$
+
+---
+
+$n$ trials, $k$ successes:
+
+$$
+p(k | \theta) = \binom{n}{k} \, \theta^k (1 - \theta)^{n-k}
+$$
+
+---
+
+### Beta Distribution
+
+\
+
+$$
+p(\theta) = Beta(\alpha, \beta)
+$$
+
+\
+
+$$
+p(\theta | D) = Beta(\alpha + k, \beta + n - k)
+$$
+
+---
+
+```{r plot_beta_distributions, echo=FALSE}
+theta_seq <- seq(0, 1, by = 0.001)
+
+p1 <- ggplot() +
+    geom_line(aes(x = theta_seq, y = dbeta(theta_seq, 1, 1))) +
+    xlab(expression(theta)) +
+    ylab("Probability Density") +
+    ggtitle("Beta(1, 1) Density")
+
+p2 <- ggplot() +
+    geom_line(aes(x = theta_seq, y = dbeta(theta_seq, 5, 5))) +
+    xlab(expression(theta)) +
+    ylab("Probability Density") +
+    ggtitle("Beta(5, 5) Density")
+
+p3 <- ggplot() +
+    geom_line(aes(x = theta_seq, y = dbeta(theta_seq, 10, 10))) +
+    xlab(expression(theta)) +
+    ylab("Probability Density") +
+    ggtitle("Beta(10, 10) Density")
+
+p4 <- ggplot() +
+    geom_line(aes(x = theta_seq, y = dbeta(theta_seq, 5, 15))) +
+    xlab(expression(theta)) +
+    ylab("Probability Density") +
+    ggtitle("Beta(5, 15) Density")
+
+plot_grid(p1, p2, p3, p4, ncol = 2)
+```
+
+
+---
+
+```{r generate_beta_plots, echo=FALSE}
+generate_beta_plot_data <- function(a, b, label = NULL) {
+    theta     <- seq(0, 1, by = 0.0001)
+    prob_dens <- dbeta(theta, a, b)
+
+    beta_data_tbl <- data_frame(theta = theta
+                               ,prob_dens = prob_dens)
+    
+    if(!is.null(label)) { beta_data_tbl <- beta_data_tbl %>% mutate(label = label) }
+    
+    return(beta_data_tbl)
+}
+
+
+data1_tbl <- generate_beta_plot_data(2, 2)
+data2_tbl <- generate_beta_plot_data(10, 10)
+data3_tbl <- generate_beta_plot_data(100, 100)
+
+plotdata_tbl = list(`Beta(2, 2)`   = data1_tbl
+                   ,`Beta(10, 10)` = data2_tbl
+                   ,`Beta(100, 100)` = data3_tbl) %>%
+    bind_rows(.id = 'label')
+
+ggplot(plotdata_tbl) +
+    geom_line(aes(x = theta, y = prob_dens, colour = label)) +
+    xlab(expression(theta)) +
+    ylab("Probability Density") +
+    ggtitle("Comparison Density Plot for Beta Distribution")
+```
+
+
+# Attacking the Problem
+
+## First Attempt
+
+\
+
+Generate data
+
+\
+
+Calculate yearly posterior distributions
+
+\
+
+Graph it
+
+---
+
+```{r generate_count_data, echo=FALSE}
+generate_counts <- function(rate_tbl, month_count) {
+    rate_tbl <- rate_tbl %>%
+        mutate(month_count      = month_count
+              ,conversion_count = map2_int(month_count, underlying_rate, rbinom, n = 1)
+              ,conversion_rate  = conversion_count / month_count
+        )
+
+    return(rate_tbl)
+}
+
+fixed_rate_data_tbl  <- generate_process_rates(mu0 = 0.10, mu1 = 0.15, sd0 = 0, sd1 = 0)
+fixed_count_data_tbl <- generate_counts(set_conversion_rate_data_tbl, month_count = 500)
+```
+
+```{r plot_conversion_rate_data, echo=FALSE}
+plot_tbl <- fixed_count_data_tbl %>%
+    select(-month_count, -conversion_count) %>%
+    gather('rate_type','rate', -rate_date)
+
+fixed_rate_lineplot <- ggplot(plot_tbl) +
+    geom_line(aes(x = rate_date, y = rate, colour = rate_type)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Rate") +
+    ggtitle("Plot of Underlying and Observed Rates (Fixed Call Count)")
+
+fixed_rate_lineplot %>% plot
+```
+
+---
+
+```{r plot_yearly_distributions, echo=FALSE, warning=FALSE, message=FALSE}
+generate_yearly_data <- function(rate_tbl) {
+    year_tbl <- rate_tbl %>%
+        group_by(data_year = format(rate_date, '%Y')) %>%
+        summarise(a = sum(conversion_count)
+                 ,b = sum(month_count - conversion_count)
+                ) %>%
+        mutate(cuml_a  = cumsum(a) + 1
+              ,cuml_b  = cumsum(b) + 1
+              ,distrib = pmap(list(cuml_a, cuml_b, data_year), generate_beta_plot_data)
+                )
+    
+    distrib_tbl <- year_tbl$distrib %>% bind_rows
+
+    return(distrib_tbl)
+}
+
+fixed_yearly_data_tbl <- generate_yearly_data(fixed_count_data_tbl) %>%
+    rename(year = label)
+
+fixed_yearly_distribplot <- ggplot(fixed_yearly_data_tbl) +
+    geom_line(aes(x = theta, y = prob_dens, colour = year)) +
+    scale_x_continuous(limits = c(0.075, 0.125)) +
+    xlab(expression(theta)) +
+    ylab("Prob Density") +
+    ggtitle("Comparison Density Plot for Data Years (Fixed Call Count)")
+
+fixed_yearly_distribplot %>% plot
+```
+
+
+## Randomise Monthly Calls
+
+\
+
+Had 500 calls per month
+
+\
+
+Treat as Poisson process
+
+\
+
+$$
+C \sim Pois(500)
+$$
+
+---
+
+```{r generate_call_count_noise, echo=FALSE}
+noise_month_rate_tbl  <- generate_process_rates(mu0 = 0.10, mu1 = 0.15, sd0 = 0, sd1 = 0)
+
+n_month <- noise_month_rate_tbl %>% nrow
+
+noise_month_count_tbl  <- generate_counts(noise_month_rate_tbl, month_count = rpois(n_month, 500))
+noise_month_yearly_tbl <- generate_yearly_data(noise_month_count_tbl) %>%
+    rename(year = label)
+```
+
+```{r plot_noise_month_conversion_rates, echo=FALSE}
+plot_tbl <- noise_month_count_tbl %>%
+    select(-month_count, -conversion_count) %>%
+    gather('rate_type','rate', -rate_date)
+
+noise_month_lineplot <- ggplot(plot_tbl) +
+    geom_line(aes(x = rate_date, y = rate, colour = rate_type)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Rate") +
+    ggtitle("Plot of Underlying and Observed Rates (Noisy Call Count)")
+
+noise_month_lineplot %>% plot
+```
+
+---
+
+```{r compare_fixed_noise_lineplots, echo=FALSE}
+plot_grid(fixed_rate_lineplot, noise_month_lineplot, nrow = 2)
+```
+
+---
+
+```{r plot_noise_yearly_distributions, echo=FALSE, warning=FALSE}
+noise_month_yearly_distribplot <- ggplot(noise_month_yearly_tbl) +
+    geom_line(aes(x = theta, y = prob_dens, colour = year)) +
+    scale_x_continuous(limits = c(0.075, 0.125)) +
+    xlab(expression(theta)) +
+    ylab("Prob Density") +
+    ggtitle("Comparison Density Plot for Data Years (Noisy Call Count)")
+
+noise_month_yearly_distribplot %>% plot
+```
+
+---
+
+```{r compare_fixed_noise_distribplots, echo=FALSE, warning=FALSE}
+plot_grid(fixed_yearly_distribplot, noise_month_yearly_distribplot, nrow = 2)
+```
+
+---
+
+```{r compare_fixed_noise_2x2, echo=FALSE, warning=FALSE}
+plot_grid(fixed_rate_lineplot
+         ,noise_month_lineplot
+         ,fixed_yearly_distribplot
+         ,noise_month_yearly_distribplot
+         ,nrow = 2)
+```
+
+
+## Stochastic Conversion Rate
+
+\
+
+Add noise to the underlying rate?
+
+\
+
+
+---
+
+```{r generate_stochastic_rate_data, echo=FALSE}
+stoc_rate_tbl  <- generate_process_rates(mu0 = 0.10, mu1 = 0.15, sd0 = 0.02, sd1 = 0.02)
+
+n_month <- stoc_rate_tbl %>% nrow
+
+stoc_count_tbl <- generate_counts(stoc_rate_tbl, month_count = rpois(n_month, 500))
+stoc_yearly_tbl <- generate_yearly_data(stoc_count_tbl) %>%
+    rename(year = label)
+```
+
+```{r plot_stoc_conversion_rates, echo=FALSE}
+plot_tbl <- stoc_count_tbl %>%
+    select(-month_count, -conversion_count) %>%
+    gather('rate_type','rate', -rate_date)
+
+stoc_lineplot <- ggplot(plot_tbl) +
+    geom_line(aes(x = rate_date, y = rate, colour = rate_type)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Rate") +
+    ggtitle("Plot of Underlying and Observed Rates (Stochastic Rate)")
+
+stoc_lineplot %>% plot
+```
+
+---
+
+```{r plot_stoc_yearly_distributions, echo=FALSE, warning=FALSE}
+stoc_yearly_distribplot <- ggplot(stoc_yearly_tbl) +
+    geom_line(aes(x = theta, y = prob_dens, colour = year)) +
+    scale_x_continuous(limits = c(0.075, 0.125)) +
+    xlab(expression(theta)) +
+    ylab("Prob Density") +
+    ggtitle("Comparison Density Plot for Data Years (Stochastic Rate)")
+
+stoc_yearly_distribplot %>% plot
+```
+
