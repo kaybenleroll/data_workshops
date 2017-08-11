@@ -1515,7 +1515,10 @@ Hopefully reasonable
 
 \
 
-If
+Check before full MC assessment
+
+
+---
 
 ```{r model_validation_oos, echo=FALSE}
 valid_tbl <- trainpolicies_tbl %>%
