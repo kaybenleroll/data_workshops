@@ -14,7 +14,7 @@ output:
 ---
 
 ```{r knit_opts, include = FALSE}
-rm(list = ls())
+rm(list = ls()); gc()
 
 knitr::opts_chunk$set(tidy  = FALSE
                      ,cache = FALSE
@@ -36,32 +36,10 @@ options(width = 80L
        ,warn  = 1
         )
 
+source("custom_functions.R")
 
-clean_names <- function(colnames) {
-    colnames <- gsub(" ",        "_", colnames)
-    colnames <- gsub("/",        "_", colnames)
-    colnames <- gsub("\\.",      "_", colnames)
-    colnames <- gsub("\\-",      "_", colnames)
-    colnames <- gsub("'",         "", colnames)
-    colnames <- gsub("`",         "", colnames)
-    colnames <- gsub("\\(",       "", colnames)
-    colnames <- gsub("\\)",       "", colnames)
-    colnames <- gsub("\\?",       "", colnames)
-    colnames <- gsub("\\%",       "", colnames)
-    colnames <- gsub("\u2019",    "", colnames)
-    colnames <- gsub("\u20AC", "EUR", colnames)
 
-    colnames <- colnames %>%
-        gsub('(.)([A-Z][a-z]+)',  '\\1_\\2', .) %>%
-        gsub('([a-z0-9])([A-Z])', '\\1_\\2', .) %>%
-        tolower
-
-    colnames <- gsub("__+", "_", colnames)
-
-    return(colnames)
-}
-
-fill_na_values <- function(x) ifelse(is.na(x), 0, x)
+set.seed(42)
 ```
 
 # Background
@@ -418,15 +396,9 @@ Power-law scaling
 ```{r fit_power_law, echo=FALSE}
 logsize <- seq(0, 7, by = 0.1)
 
-claimsize_count <- function(claimsize, claimdata_tbl) {
-    claimdata_tbl %>%
-        filter(claim_amount >= 10^claimsize) %>%
-        nrow
-}
-
 powerlaw_tbl <- data_frame(
     logsize = logsize
-   ,count   = map_int(logsize, claimsize_count, claimdata_tbl = claim_tbl)
+   ,count   = map_int(logsize, powerlaw_claimsize_count, claimdata_tbl = claim_tbl)
 )
 
 ggplot(powerlaw_tbl) +
@@ -1002,35 +974,8 @@ Compare to observed counts
 usedata_tbl <- policy_tbl %>%
     sample_n(20000)
 
-create_crossval_assessment <- function(train, valid) {
-    valid_tbl <- valid %>% as_data_frame
-    
-    observed_valid_count <- valid_tbl %>%
-        summarise(total_claims = sum(claim_nb)) %>%
-        pull(total_claims)
 
-    model_glm <- glm(claim_nb ~ gas + cat_driver_age
-                    ,offset = log(exposure)
-                    ,data   = train %>% as_data_frame
-                    ,family = poisson
-    )
-
-    claim_rates <- predict(model_glm
-                          ,newdata = valid %>% as_data_frame
-                          ,type = 'response')
-        
-    predicted_claim_count <- rpois(1000, claim_rates %>% sum)
-
-    cuml_prob <- ecdf(predicted_claim_count)(observed_valid_count)
-    
-    assess_lst <- list(
-        observed_count  = observed_valid_count
-       ,predicted_count = predicted_claim_count
-       ,cuml_prob       = cuml_prob
-    )
-}
-
-crossval_tbl <- modelr::crossv_mc(usedata_tbl, 12, 0.25, id = 'fold_id') %>%
+crossval_tbl <- crossv_mc(usedata_tbl, 12, 0.25, id = 'fold_id') %>%
     mutate(assess    = map2(train, test, create_crossval_assessment)
           ,observed  = map_int(assess, 'observed_count')
           ,predicted = map(assess, 'predicted_count')
@@ -1246,40 +1191,10 @@ Use predictive checks as before
 ```{r assess_claimfrequency_model, echo=FALSE}
 assessment_count <- 12
 
-create_claimrate_assessment <- function(train, valid) {
-    model_glm <- glm(claim_count ~ gas + cat_driver_age + car_age + density +
-                                   cat_driver_age:gas
-                    ,offset = log(exposure)
-                    ,data   = train %>% as_data_frame
-                    ,family = poisson
-    )
-
-    valid_tbl <- valid %>% as_data_frame
-    
-    observed_valid_count <- valid_tbl %>%
-        summarise(total_claims = sum(claim_count)) %>%
-        pull(total_claims)
-
-    claim_rates <- predict(model_glm
-                          ,newdata = valid_tbl
-                          ,type = 'response')
-        
-    predicted_claim_count <- rpois(1000, claim_rates %>% sum)
-
-    cuml_prob <- ecdf(predicted_claim_count)(observed_valid_count)
-    
-    assess_lst <- list(
-        observed_count  = observed_valid_count
-       ,predicted_count = predicted_claim_count
-       ,cuml_prob       = cuml_prob
-    )
-}
-
-
-claimfreq_assessment_tbl <- modelr::crossv_mc(trainpolicies_tbl
-                                             ,assessment_count
-                                             ,test = 0.25
-                                             ,id = 'fold_id') %>%
+claimfreq_assessment_tbl <- crossv_mc(trainpolicies_tbl
+                                     ,assessment_count
+                                     ,test = 0.25
+                                     ,id = 'fold_id') %>%
     mutate(assess    = map2(train, test, create_claimrate_assessment)
           ,observed  = map_int(assess, 'observed_count')
           ,predicted = map(assess, 'predicted_count')
@@ -1298,7 +1213,6 @@ ggplot(plot_tbl) +
     ylab("Count") +
     ggtitle("Claim Count Assessment Plot for Claim Frequency Model") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
-
 ```
 
 ---
@@ -1413,36 +1327,6 @@ Takes policy table, produces price quotes
 ---
 
 ```{r create_premium_quoter_function, echo=FALSE}
-create_pricing_function <- function(claimrate_model_glm
-                                   ,claimsize_model_glm
-                                   ,largeloss_charge
-                                   ,quote_ratio) {
-
-    price_function <- function(policy_tbl) {
-        claim_rates <- predict(claimrate_model_glm
-                              ,newdata = policy_tbl
-                              ,type = 'response')
-
-        claim_sizes <- predict(claimsize_model_glm
-                              ,newdata = policy_tbl
-                              ,type = 'response')
-
-        expect_price <- claim_rates * claim_sizes
-        risk_premium <- expect_price + largeloss_charge
-        
-        price_tbl <- data_frame(
-            expect_price     = expect_price
-           ,largeloss_charge = largeloss_charge
-           ,risk_premium     = risk_premium
-           ,quote_price      = risk_premium * (1 + quote_ratio)
-        )
-        
-        return(price_tbl)
-    }
-
-    return(price_function)
-}
-
 premium_quoter <- create_pricing_function(
     claimrate_model_glm = model_02_glm
    ,claimsize_model_glm = claimsize_glm
@@ -1527,7 +1411,7 @@ Sanity-check for our approach
 train_validation_tbl <- usedata_tbl %>%
     mutate(claim_rate   = predict(model_02_glm,  newdata = usedata_tbl, type = 'response')
           ,claim_amount = predict(claimsize_glm, newdata = usedata_tbl, type = 'response')
-          ,claim_counts = map(claim_rate, function(l) rpois(5000, l))
+          ,claim_counts = map(claim_rate, function(l) rpois(1000, l))
           ,claim_costs  = map2(claim_amount, claim_counts, `*`)
            )
 
@@ -1589,7 +1473,7 @@ valid_tbl <- trainpolicies_tbl %>%
 oos_validation_tbl <- valid_tbl %>%
     mutate(claim_rate   = predict(model_02_glm,  newdata = valid_tbl, type = 'response')
           ,claim_amount = predict(claimsize_glm, newdata = valid_tbl, type = 'response')
-          ,claim_counts = map(claim_rate, function(l) rpois(5000, l))
+          ,claim_counts = map(claim_rate, function(l) rpois(1000, l))
           ,claim_costs  = map2(claim_amount, claim_counts, `*`)
            )
 
@@ -1684,3 +1568,8 @@ Email: mickcooney@gmail.com
 GitHub: https://github.com/kaybenleroll/dublin_r_workshops
 
 
+```{r clean_data, echo=FALSE}
+rm(model_01_glm, claimfreq_assessment_tbl, train_validation_tbl)
+
+gc()
+```
