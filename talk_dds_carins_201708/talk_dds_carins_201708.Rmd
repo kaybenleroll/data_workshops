@@ -987,14 +987,6 @@ Split train / validation set
 
 \
 
-Use bootstrap on training data
-
-\
-
-Use `gas` and `cat_driver_age` model
-
-\
-
 Distribution of claim counts for validation
 
 \
@@ -1005,48 +997,50 @@ Compare to observed counts
 ---
 
 ```{r simulate_claim_counts, echo=FALSE}
-train_tbl <- policy_tbl %>%
-    sample_n(10000)
+usedata_tbl <- policy_tbl %>%
+    sample_n(20000)
 
-valid_tbl <- policy_tbl %>%
-    anti_join(train_tbl, by = 'policy_id') %>%
-    sample_n(1000)
+create_crossval_assessment <- function(train, valid) {
+    valid_tbl <- valid %>% as_data_frame
+    
+    observed_valid_count <- valid_tbl %>%
+        summarise(total_claims = sum(claim_nb)) %>%
+        pull(total_claims)
 
-observed_claim_count <- valid_tbl %>%
-    summarise(total_claims = sum(claim_nb)) %>%
-    pull(total_claims)
-
-create_bootstrap_prediction <- function(train_tbl) {
     model_glm <- glm(claim_nb ~ gas + cat_driver_age
                     ,offset = log(exposure)
-                    ,data   = train_tbl %>% as_data_frame
+                    ,data   = train %>% as_data_frame
                     ,family = poisson
     )
-    
-    bootstrap_predict <- function(data_tbl) {
-        claim_rates <- predict(model_glm, newdata = data_tbl, type = 'response')
+
+    claim_rates <- predict(model_glm
+                          ,newdata = valid %>% as_data_frame
+                          ,type = 'response')
         
-        rpois(100, sum(claim_rates))
-    }
-    
-    return(bootstrap_predict)
+    predicted_claim_count <- rpois(1000, claim_rates %>% sum)
+
+    assess_lst <- list(
+        observed_count  = observed_valid_count
+       ,predicted_count = predicted_claim_count
+    )
 }
 
-bootstrap_tbl <- modelr::bootstrap(train_tbl, 100) %>%
-    mutate(predict_func     = map(strap, create_bootstrap_prediction)
-          ,predict_claims   = invoke_map(predict_func, data_tbl = valid_tbl)
+crossval_tbl <- modelr::crossv_mc(usedata_tbl, 12, 0.25) %>%
+    mutate(assess    = map2(train, test, create_crossval_assessment)
+          ,observed  = map_int(assess, 'observed_count')
+          ,predicted = map(assess, 'predicted_count')
            )
 
-claim_count_sample <- bootstrap_tbl %>%
-    pull(predict_claims) %>%
-    unlist
-
-ggplot() +
-    geom_histogram(aes(x = claim_count_sample), bins = 50) +
-    geom_vline(aes(xintercept = observed_claim_count), colour = 'red') +
-    xlab("Sampled Claim Count") +
-    ylab("Count") +
-    ggtitle("Observed vs Expected Distribution for Claim Counts")
+# claim_count_sample <- bootstrap_tbl %>%
+#     pull(predict_claims) %>%
+#     unlist
+# 
+# ggplot() +
+#     geom_histogram(aes(x = claim_count_sample), bins = 50) +
+#     geom_vline(aes(xintercept = observed_claim_count), colour = 'red') +
+#     xlab("Sampled Claim Count") +
+#     ylab("Count") +
+#     ggtitle("Observed vs Expected Distribution for Claim Counts")
 ```
 
 ---
@@ -1194,7 +1188,7 @@ Use predictive checks as before
 ---
 
 ```{r assess_claimfrequency_model, echo=FALSE}
-assessment_count <- 20
+assessment_count <- 12
 bootstrap_count  <- 20
 sample_count     <- 100
 
@@ -1237,11 +1231,23 @@ calculate_assessment_cumlprob <- function(train_tbl, valid_tbl) {
         pull(predict_claims) %>%
         unlist
     
-    ecdf(claim_count_sample)(observed_claim_count)
+    cuml_prob <- ecdf(claim_count_sample)(observed_claim_count)
+
+    assess_plot <- ggplot() +
+        geom_histogram(aes(x = claim_count_sample), bins = 50) +
+        geom_vline(aes(xintercept = observed_claim_count), colour = 'red') +
+        xlab("Count of Claims") +
+        ylab("Count")
+    
+    return(list(cuml_prob   = cuml_prob
+               ,assess_plot = assess_plot)
+           )
 }
 
 assessment_tbl <- modelr::crossv_mc(trainpolicies_tbl, assessment_count, test = 0.25) %>%
-    mutate(cuml_prob = map2_dbl(train, test, calculate_assessment_cumlprob))
+    mutate(assess    = map2(train, test, calculate_assessment_cumlprob)
+          ,cuml_prob = map_dbl(assess, 'cuml_prob')
+           )
 
 
 ggplot(assessment_tbl) +
