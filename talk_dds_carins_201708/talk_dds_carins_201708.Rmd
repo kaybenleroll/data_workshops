@@ -470,16 +470,21 @@ Definitely want finite $\mu$...
 ---
 
 
-```{r plot_power_law_scaling, echo=FALSE, fig.height=7, fig.width=11}
+```{r calculate_power_law_scaling, echo=TRUE}
 pl_tbl <- powerlaw_tbl %>%
     filter(logsize >= 3, count > 0) %>%
     mutate(logcount  = log(count))
 
 pl_lm <- lm(logcount ~ logsize, data = pl_tbl)
+```
 
+```{r show_powerlaw_factors, echo=FALSE}
 pl_lm %>% tidy %>% (knitr::kable)
 
-pl_scaling <- pl_lm %>% tidy %>% filter(term == 'logsize') %>% pull(estimate)
+pl_scaling <- pl_lm %>%
+    tidy %>%
+    filter(term == 'logsize') %>%
+    pull(estimate)
 ```
 
 \
@@ -575,15 +580,15 @@ Combines multiple forms of regression
 
 \
 
-Assuming claims occur as Poisson process
+Assume Poisson process
 
 \
 
-Regression predicts poisson rate for policy
+Predict per-policy poisson rate
 
 \
 
-Need to investigate variables
+Many possible models
 
 ---
 
@@ -889,9 +894,8 @@ claimgamma_glm <- glm(claim_amount ~ gas + power + car_age
 
 \
 
-#### Model Diagnostics
 
-\
+#### Model Diagnostics
 
 ```{r claims_gamma_glance, echo=FALSE}
 expclaim2_lm %>%
@@ -903,8 +907,6 @@ expclaim2_lm %>%
 ---
 
 #### Model Coefficients
-
-\
 
 ```{r claims_gamma_tidy, echo=FALSE}
 expclaim2_lm %>% tidy %>% (knitr::kable)(digits = 2)
@@ -1019,37 +1021,89 @@ create_crossval_assessment <- function(train, valid) {
         
     predicted_claim_count <- rpois(1000, claim_rates %>% sum)
 
+    cuml_prob <- ecdf(predicted_claim_count)(observed_valid_count)
+    
     assess_lst <- list(
         observed_count  = observed_valid_count
        ,predicted_count = predicted_claim_count
+       ,cuml_prob       = cuml_prob
     )
 }
 
-crossval_tbl <- modelr::crossv_mc(usedata_tbl, 12, 0.25) %>%
+crossval_tbl <- modelr::crossv_mc(usedata_tbl, 12, 0.25, id = 'fold_id') %>%
     mutate(assess    = map2(train, test, create_crossval_assessment)
           ,observed  = map_int(assess, 'observed_count')
           ,predicted = map(assess, 'predicted_count')
+          ,cuml_prob = map_dbl(assess, 'cuml_prob')
            )
 
-# claim_count_sample <- bootstrap_tbl %>%
-#     pull(predict_claims) %>%
-#     unlist
-# 
-# ggplot() +
-#     geom_histogram(aes(x = claim_count_sample), bins = 50) +
-#     geom_vline(aes(xintercept = observed_claim_count), colour = 'red') +
-#     xlab("Sampled Claim Count") +
-#     ylab("Count") +
-#     ggtitle("Observed vs Expected Distribution for Claim Counts")
+plot_tbl <- crossval_tbl %>%
+    unnest(predicted)
+
+ggplot(plot_tbl) +
+    geom_histogram(aes(x = predicted), bins = 25) +
+    geom_vline(aes(xintercept = observed), colour = 'red') +
+    facet_wrap(~ fold_id, ncol = 4) +
+    xlab("Claim Count") +
+    ylab("Count") +
+    ggtitle("Claim Count Assessment Plot for Claim Frequency")
 ```
 
 ---
 
-Get distribution of cumulative probabilities
+Nice for small fold-count
+
+\
+
+Distribution of cumulative probabilities
 
 \
 
 Can extend to full price assessment
+
+
+## Simulation of Claim Size
+
+\
+
+Lack of predictive power in claim severity
+
+\
+
+Still want to capture uncertainty
+
+\
+
+GLM estimates mean of Gamma
+
+---
+
+$$
+X \sim \Gamma(\alpha, \beta)
+$$
+
+\begin{eqnarray*}
+\alpha &=& \text{scale parameter}
+\beta &=&  \text{rate parameter}
+\end{eqnarray*}
+
+---
+
+Want uncertainty
+
+\
+
+Want $(\mu, \text{dispersion}) \to (\alpha, \beta)$
+
+\
+
+
+\begin{eqnarray*}
+\alpha &=& \frac{1}{\text{GLM dispersion}} \\
+\beta  &=& \frac{\alpha}{\mu}
+\end{eqnarray*}
+
+
 
 
 # Building a Premium Quoter
@@ -1065,6 +1119,8 @@ Remove drivers older than 75 years
 Remove cars older than 20 years
 
 ---
+
+Total size of dataset after filters:
 
 ```{r filter_data, echo=FALSE}
 quotepolicy_tbl <- policy_tbl %>%
@@ -1101,7 +1157,7 @@ aggclaims_tbl <- quoteclaim_tbl %>%
 
 attr_combined_tbl <- quotepolicy_tbl %>%
     left_join(aggclaims_tbl, by = 'policy_id') %>%
-    mutate(claim_count = fill_na_values(claim_count)
+    mutate(claim_count = fill_na_values(claim_count) %>% as.integer
           ,claim_total = fill_na_values(claim_total))
 
 testpolicies_tbl  <- attr_combined_tbl %>%
@@ -1189,73 +1245,60 @@ Use predictive checks as before
 
 ```{r assess_claimfrequency_model, echo=FALSE}
 assessment_count <- 12
-bootstrap_count  <- 20
-sample_count     <- 100
 
-# model_formula <- formula(claim_count ~ gas + cat_driver_age + car_age + density + cat_driver_age:gas)
-# model_x       <- model.matrix(model_formula, trainpolicies_tbl)
-# offset        <- trainpolicies_tbl$exposure %>% log
-# model_y       <- trainpolicies_tbl$claim_count
+create_claimrate_assessment <- function(train, valid) {
+    model_glm <- glm(claim_count ~ gas + cat_driver_age + car_age + density +
+                                   cat_driver_age:gas
+                    ,offset = log(exposure)
+                    ,data   = train %>% as_data_frame
+                    ,family = poisson
+    )
 
-
-calculate_assessment_cumlprob <- function(train_tbl, valid_tbl) {
-    train_tbl <- train_tbl %>% as_data_frame
-    valid_tbl <- valid_tbl %>% as_data_frame
+    valid_tbl <- valid %>% as_data_frame
     
-    observed_claim_count <- valid_tbl %>%
-        summarise(total_claims = sum(claim_nb)) %>%
+    observed_valid_count <- valid_tbl %>%
+        summarise(total_claims = sum(claim_count)) %>%
         pull(total_claims)
 
-    create_bootstrap_prediction <- function(boottrain_tbl) {
-        model_glm <- glm(claim_nb ~ gas + cat_driver_age + car_age + density + cat_driver_age:gas
-                        ,offset = log(exposure)
-                        ,data   = boottrain_tbl
-                        ,family = poisson
-                        )
-    
-        bootstrap_predict <- function(data_tbl) {
-            claim_rates <- predict(model_glm, newdata = data_tbl, type = 'response')
+    claim_rates <- predict(model_glm
+                          ,newdata = valid_tbl
+                          ,type = 'response')
         
-            rpois(sample_count, sum(claim_rates))
-        }
-    
-        return(bootstrap_predict)
-    }
+    predicted_claim_count <- rpois(1000, claim_rates %>% sum)
 
-    bootstrap_tbl <- modelr::bootstrap(train_tbl, bootstrap_count) %>%
-        mutate(predict_func   = map(strap, create_bootstrap_prediction)
-              ,predict_claims = invoke_map(predict_func, data_tbl = valid_tbl)
-                )
-
-    claim_count_sample <- bootstrap_tbl %>%
-        pull(predict_claims) %>%
-        unlist
+    cuml_prob <- ecdf(predicted_claim_count)(observed_valid_count)
     
-    cuml_prob <- ecdf(claim_count_sample)(observed_claim_count)
-
-    assess_plot <- ggplot() +
-        geom_histogram(aes(x = claim_count_sample), bins = 50) +
-        geom_vline(aes(xintercept = observed_claim_count), colour = 'red') +
-        xlab("Count of Claims") +
-        ylab("Count")
-    
-    return(list(cuml_prob   = cuml_prob
-               ,assess_plot = assess_plot)
-           )
+    assess_lst <- list(
+        observed_count  = observed_valid_count
+       ,predicted_count = predicted_claim_count
+       ,cuml_prob       = cuml_prob
+    )
 }
 
-assessment_tbl <- modelr::crossv_mc(trainpolicies_tbl, assessment_count, test = 0.25) %>%
-    mutate(assess    = map2(train, test, calculate_assessment_cumlprob)
+
+claimfreq_assessment_tbl <- modelr::crossv_mc(trainpolicies_tbl
+                                             ,assessment_count
+                                             ,test = 0.25
+                                             ,id = 'fold_id') %>%
+    mutate(assess    = map2(train, test, create_claimrate_assessment)
+          ,observed  = map_int(assess, 'observed_count')
+          ,predicted = map(assess, 'predicted_count')
           ,cuml_prob = map_dbl(assess, 'cuml_prob')
            )
 
+plot_tbl <- claimfreq_assessment_tbl %>%
+    unnest(predicted)
 
-ggplot(assessment_tbl) +
-    geom_histogram(aes(x = cuml_prob), bins = 50) +
-    scale_y_continuous(labels = comma) +
-    xlab("Cumulative Probability of Observed Value") +
+ggplot(plot_tbl) +
+    geom_histogram(aes(x = predicted), bins = 25) +
+    geom_vline(aes(xintercept = observed), colour = 'red') +
+    facet_wrap(~ fold_id, ncol = 4) +
+    scale_x_continuous(labels = comma) +
+    xlab("Claim Count") +
     ylab("Count") +
-    ggtitle("Histogram Plot of Cumulative Probability of Observed Out-of-sample Counts")
+    ggtitle("Claim Count Assessment Plot for Claim Frequency Model") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
 ```
 
 ---
@@ -1297,19 +1340,22 @@ claimsize_glm <- glm(claim_amount ~ cat_driver_age
 
 ## Calculate Large Loss Charge
 
-\
-
-Estimate large-loss rate
-
-```{r estimate_largeloss_rate, echo=TRUE}
+```{r estimate_largeloss_rate, echo=FALSE}
 largeclaim_count <- claim_tbl %>%
     filter(claim_amount >= 25000) %>%
     nrow
 
 largeclaim_prop <- largeclaim_count / (policy_tbl$exposure %>% sum)
-
-print(largeclaim_prop)
 ```
+
+\
+
+Estimate large-loss rate
+
+\
+
+Large losses per unit exposure
+
 
 ---
 
@@ -1331,9 +1377,11 @@ sample_size <- 1000000
 sample_pl <- rpldis(sample_size, xmin = 25000, alpha = pl_scaling)
 
 expected_loss <- sample_pl %>% mean
+
+expected_loss_print <- comma(expected_loss)
 ```
 
-$\mu = `r expected_loss`$
+$\mu = `r expected_loss_print`$
 
 ---
 
@@ -1342,9 +1390,9 @@ Large-loss charge:
 \
 
 ```{r show_largeclaim_data, echo=TRUE}
-expected_loss   %>% print
-largeclaim_prop %>% print
-(largeclaim_prop * expected_loss) %>% print
+expected_loss   %>% round(2) %>% print
+largeclaim_prop %>% round(6) %>% print
+(largeclaim_prop * expected_loss) %>% round(2) %>% print
 ```
 
 
@@ -1414,9 +1462,11 @@ pricing_tbl <- premium_quoter(usedata_tbl) %>%
 ```{r show_premium_table, echo=FALSE}
 pricing_tbl %>%
     select(policy_id, expect_price, largeloss_charge, risk_premium, quote_price) %>%
-    head %>%
+    arrange(policy_id) %>%
+    head(n = 20) %>%
     (knitr::kable)(digits = 2)
 ```
+
 
 # Assess the Pricing
 
@@ -1426,7 +1476,7 @@ Do the premia cover losses?
 
 \
 
-Do the premia give profit?
+Do the premia result in expected profit?
 
 \
 
@@ -1444,6 +1494,10 @@ Simulate claims using poisson model
 \
 
 For each claim, simulate claim size
+
+\
+
+Assign loss-cost to each claim
 
 \
 
@@ -1465,6 +1519,7 @@ For consistency, this *SHOULD* match
 \
 
 Sanity-check for our approach
+
 
 ---
 
@@ -1570,10 +1625,6 @@ ggplot() +
 ```
 
 
-## Bootstrap and MonteCarlo Assessment
-
-
-
 # Future Steps
 
 ## Problems and Shortcomings
@@ -1604,6 +1655,21 @@ Use Bayesian version - `stan_glm`
 \
 
 Improve linear models - GAMs
+
+
+## Further Resources
+
+\
+
+https://github.com/kaybenleroll/carinsurance_pricing
+
+\
+
+http://ijlyttle.github.io/isugg_purrr/presentation.html#(1)
+
+\
+
+
 
 
 
