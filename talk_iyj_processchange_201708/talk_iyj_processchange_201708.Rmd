@@ -922,19 +922,11 @@ calculate_metrics(x_seq, Beta1, Beta3) %>% print(digits = 2)
 
 \
 
-Fix $\mu_1$
+Fix $\mu_1$, prior of 1 year data, $K_1 = 6,000$
 
 \
 
-Have 1 year of data as prior, $K_1 = 6,000$
-
-\
-
-Set new $\mu_2$
-
-\
-
-Check distribution:
+Set new $\mu_2$: Check distribution:
 
 \
 
@@ -1087,7 +1079,7 @@ stoc_fdiv_tbl <- stoc_distrib_tbl %>%
 ggplot(stoc_fdiv_tbl) +
     geom_line(aes(x = month_date, y = value)) +
     expand_limits(y = 0) +
-    facet_wrap(~ fdiv, scales = 'free_y') +
+    facet_wrap(~ fdiv, nrow = 2, scales = 'free_y') +
     xlab("Month") +
     ylab("f-divergence Metric") +
     ggtitle("Plot of f-divergence Metrics by Incoming Month")
@@ -1141,7 +1133,7 @@ highbase_fdiv_tbl <- highbase_distrib_tbl %>%
 ggplot(highbase_fdiv_tbl) +
     geom_line(aes(x = month_date, y = value)) +
     expand_limits(y = 0) +
-    facet_wrap(~ fdiv, scales = 'free_y') +
+    facet_wrap(~ fdiv, nrow = 2, scales = 'free_y') +
     xlab("Month") +
     ylab("f-divergence Metric") +
     ggtitle("Plot of f-divergence Metrics by Incoming Month")
