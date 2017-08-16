@@ -127,3 +127,55 @@ create_pricing_function <- function(claimrate_model_glm
     return(price_function)
 }
 
+
+###
+### Quick note on what this function does:
+###
+### For computational efficiency, I calculate the total number of claims
+### required and then use a combination of cumulative sums and indexes to
+### properly allocate out the claim amounts across the simulations.
+###
+calculate_claim_sizes <- function(claim_list, shape, rate) {
+    claim_idx <- claim_list %>% cumsum
+
+    total_claim_count <- claim_list %>% sum
+    claim_amounts     <- rgamma(total_claim_count, shape = shape, rate = rate)
+
+    claim_amount_cumsum <- c(0, claim_amounts %>% cumsum)
+    claim_cumsum        <- claim_amount_cumsum[claim_idx + 1]
+
+    claim_sizes <- c(0, claim_cumsum) %>% diff
+
+    return(claim_sizes)
+}
+
+
+create_claim_simulator <- function(claimfreq_glm, claimsev_glm, n_sim = 1000) {
+
+    generate_claim_simulations <- function(data_tbl, variable_claim_size = TRUE) {
+        simulation_tbl <- data_tbl %>%
+            mutate(claim_rate    = predict(claimfreq_glm, newdata = data_tbl, type = 'response')
+                  ,claim_size_mu = predict(claimsev_glm,  newdata = data_tbl, type = 'response')
+                  ,claim_counts  = map(claim_rate, function(l) rpois(n_sim, l))
+                    )
+
+        if(variable_claim_size) {
+            simulation_tbl <- simulation_tbl %>%
+                mutate(claim_size_shape = MASS::gamma.shape(claimsev_glm)$alpha
+                      ,claim_size_rate  = claim_size_shape / claim_size_mu
+                      ,claim_costs      = map(claim_counts
+                                             ,calculate_claim_sizes
+                                             ,shape = claim_size_shape
+                                             ,rate  = claim_size_rate)
+                )
+        } else {
+            simulation_tbl <- simulation_tbl %>%
+                mutate(claim_costs = map2(claim_counts, claim_size_mu, `*`))
+        }
+    }
+
+    return(generate_claim_simulations)
+}
+
+
+
