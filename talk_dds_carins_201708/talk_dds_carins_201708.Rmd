@@ -28,7 +28,6 @@ library(purrr)
 library(broom)
 library(modelr)
 library(poweRlaw)
-library(mgcv)
 library(cowplot)
 
 
@@ -46,7 +45,10 @@ set.seed(42)
 
 ## Computational Actuarial Science
 
-![](img/computational_actuarial_science_cover.jpg)
+![](img/charpentier_cover.jpg)
+
+
+
 
 
 ## Insurance Business
@@ -240,6 +242,8 @@ Create histograms, bar charts etc
 \
 
 `dataexpks` - data exploration template
+
+
 
 ---
 
@@ -853,7 +857,8 @@ Fit a Gamma?
 ### Gamma GLM
 
 ```{r fit_claims_gamma, echo=TRUE}
-claimgamma_glm <- glm(claim_amount ~ gas + power + car_age
+claimgamma_glm <- glm(claim_amount ~ gas + power + car_age + cat_driver_age +
+                                     cat_driver_age:power
                      ,family = Gamma(link = 'log')
                      ,data   = claimreg_tbl)
 ```
@@ -864,7 +869,7 @@ claimgamma_glm <- glm(claim_amount ~ gas + power + car_age
 #### Model Diagnostics
 
 ```{r claims_gamma_glance, echo=FALSE}
-expclaim2_lm %>%
+claimgamma_glm %>%
     glance %>%
     gather('diagnostic', 'value') %>%
     (knitr::kable)(digits = 2)
@@ -875,7 +880,11 @@ expclaim2_lm %>%
 #### Model Coefficients
 
 ```{r claims_gamma_tidy, echo=FALSE}
-expclaim2_lm %>% tidy %>% (knitr::kable)(digits = 4)
+claimgamma_glm %>%
+    tidy %>%
+    arrange(abs(estimate)) %>%
+    head(n = 20) %>%
+    (knitr::kable)(digits = 4)
 ```
 
 ---
@@ -902,6 +911,7 @@ Best to have low expectations
 rm(expclaim_lm, expclaim2_lm, expmodel2_glm, gas_glm)
 ```
 
+
 # Model Assessment
 
 ## Assessing Frequency Models
@@ -912,7 +922,7 @@ Need method of assessment
 
 \
 
-Can use deviance, AIC, BIC
+Deviance, AIC, BIC
 
 \
 
@@ -924,27 +934,16 @@ Assess model on predicted counts of claims
 
 ---
 
-Use model to calculate claim rate
+Calculate claim rate
 
 \
 
-Use claim rate to simulate claim counts
-
-\
-
-Match simulated counts to data
+Simulate claim counts
 
 \
 
 Observed vs distribution of expected
 
----
-
-Expect good performance in-sample
-
-\
-
-Want indication for out-of-sample
 
 
 ## Simulation of Claim Counts
@@ -965,11 +964,11 @@ Compare to observed counts
 ---
 
 ```{r simulate_claim_counts, echo=FALSE}
-usedata_tbl <- policy_tbl %>%
+sampledata_tbl <- policy_tbl %>%
     sample_n(20000)
 
 
-crossval_tbl <- crossv_mc(usedata_tbl, 12, 0.25, id = 'fold_id') %>%
+crossval_tbl <- crossv_mc(sampledata_tbl, 12, 0.25, id = 'fold_id') %>%
     mutate(assess    = map2(train, test, create_crossval_assessment)
           ,observed  = map_int(assess, 'observed_count')
           ,predicted = map(assess, 'predicted_count')
@@ -1066,7 +1065,7 @@ Use uncertainty at multiple levels
 
 \
 
-Predict per policy claim frequency / severity
+Per policy claim frequency / severity
 
 \
 
@@ -1190,13 +1189,13 @@ testpolicies_tbl  <- attr_combined_tbl %>%
 trainpolicies_tbl <- attr_combined_tbl %>%
     anti_join(testpolicies_tbl, by = 'policy_id') %>%
     arrange(policy_id)
-```
 
----
-
-```{r show_split_sizes, echo=TRUE}
-trainpolicies_tbl %>% nrow
-testpolicies_tbl  %>% nrow
+tribble(
+    ~Dataset, ~Size
+   ,"Train",   trainpolicies_tbl %>% nrow %>% comma 
+   ,"Test",    testpolicies_tbl  %>% nrow %>% comma
+) %>%
+    knitr::kable(align = 'lr')
 ```
 
 ---
@@ -1377,30 +1376,19 @@ $\mu = `r expected_loss_print`$
 
 ---
 
-Large-loss charge:
-
-\
-
-```{r show_largeclaim_data, echo=TRUE}
-expected_loss   %>% round(2) %>% print
-largeclaim_prop %>% round(6) %>% print
-(largeclaim_prop * expected_loss) %>% round(2) %>% print
+```{r show_largeclaim_data, echo=FALSE}
+tribble(
+    ~Quantity,                ~Value
+   ,"Loss Expectation",       expected_loss                     %>% round(2) %>% comma
+   ,"Large Claim Proportion", largeclaim_prop                   %>% sprintf("%8.6f", .)
+   ,"Large-loss Charge",      (largeclaim_prop * expected_loss) %>% round(2) %>% comma
+) %>% knitr::kable(align = c('lr'))
 ```
 
 ---
 
 
 ## Create Premium Quoter Function
-
-\
-
-Use higher-order functions
-
-\
-
-Takes policy table, produces price quotes
-
----
 
 ```{r create_premium_quoter_function, echo=FALSE}
 premium_quoter <- create_pricing_function(
@@ -1413,10 +1401,10 @@ premium_quoter <- create_pricing_function(
 
 
 ```{r calculate_premium_price, echo=FALSE}
-usedata_tbl <- trainpolicies_tbl %>% sample_n(100000)
+sampledata_tbl <- trainpolicies_tbl %>% sample_n(100000)
 
-pricing_tbl <- premium_quoter(usedata_tbl) %>%
-    mutate(policy_id = usedata_tbl$policy_id)
+pricing_tbl <- premium_quoter(sampledata_tbl) %>%
+    mutate(policy_id = sampledata_tbl$policy_id)
 ```
 
 ```{r show_premium_table, echo=FALSE}
@@ -1428,7 +1416,7 @@ pricing_tbl %>%
 ```
 
 
-# Assess the Pricing
+# Pricing Assessment
 
 \
 
@@ -1468,55 +1456,33 @@ Compare paid out losses to collected premia
 
 ### Assess Training Data
 
+```{r construct_train_valid_datasets, echo=FALSE}
+insamp_tbl <- trainpolicies_tbl %>%
+    sample_n(100000) %>%
+    arrange(policy_id)
+
+outsamp_tbl <- trainpolicies_tbl %>%
+    anti_join(insamp_tbl, by = 'policy_id') %>%
+    sample_n(50000) %>%
+    arrange(policy_id)
+
+simulate_claim_data <- create_claim_simulator(model_02_glm, claimsize_glm)
+```
+
 ```{r sanity_check_training, echo=FALSE}
-data_count <- 100000
+insamp_assess_tbl <- simulate_claim_data(insamp_tbl, variable_claim_size = FALSE)
 
-usedata_tbl <- trainpolicies_tbl %>% sample_n(data_count)
-
-train_validation_tbl <- usedata_tbl %>%
-    mutate(claim_rate   = predict(model_02_glm,  newdata = usedata_tbl, type = 'response')
-          ,claim_amount = predict(claimsize_glm, newdata = usedata_tbl, type = 'response')
-          ,claim_counts = map(claim_rate, function(l) rpois(1000, l))
-          ,claim_costs  = map2(claim_amount, claim_counts, `*`)
-           )
+insamp_assess_lst <- construct_model_assessment(insamp_assess_tbl, "In-Sample Data")
 ```
 
 ```{r check_training_data_claim_count, echo=FALSE, fig.height=7.5}
-insamp_sim_claim_count <- train_validation_tbl$claim_counts %>% reduce(`+`)
-insamp_obs_claim_count <- train_validation_tbl$claim_count %>% sum
-
-claimcount_insample_plot <- ggplot() +
-    geom_histogram(aes(x = insamp_sim_claim_count), bins = 50) +
-    geom_vline(aes(xintercept = insamp_obs_claim_count), colour = 'red') +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claims Paid") +
-    ylab("Count") +
-    ggtitle("In-Sample Comparison Plot for Simulated Claim Counts vs Observed"
-           ,subtitle = paste0((data_count %>% comma), " Policies Used")
-            )
-
-claimcount_insample_plot %>% print
+insamp_assess_lst$claimcount_plot %>% print
 ```
 
 ---
 
 ```{r check_training_data_loss_cost, echo=FALSE}
-insamp_sim_loss_amount <- train_validation_tbl$claim_costs %>% reduce(`+`)
-insamp_obs_loss_amount <- train_validation_tbl$claim_total %>% reduce(`+`)
-
-losscost_insample_plot <- ggplot() +
-    geom_histogram(aes(x = insamp_sim_loss_amount), bins = 50) +
-    geom_vline(aes(xintercept = insamp_obs_loss_amount), colour = 'red') +
-    scale_x_continuous(labels = dollar) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claims Paid") +
-    ylab("Count") +
-    ggtitle("In-Sample Comparison Plot for Simulated Loss Costs vs Observed"
-           ,subtitle = paste0((data_count %>% comma), " Policies Used")
-            )
-
-losscost_insample_plot %>% print
+insamp_assess_lst$losscost_plot %>% print
 ```
 
 ---
@@ -1524,157 +1490,98 @@ losscost_insample_plot %>% print
 ### Assess Out-of-Sample Data
 
 ```{r model_validation_oos, echo=FALSE}
-data_count <- 50000
+outsamp_assess_tbl <- simulate_claim_data(outsamp_tbl, variable_claim_size = FALSE)
 
-valid_tbl <- trainpolicies_tbl %>%
-    anti_join(usedata_tbl, by = 'policy_id') %>%
-    sample_n(data_count)
-
-oos_validation_tbl <- valid_tbl %>%
-    mutate(claim_rate   = predict(model_02_glm,  newdata = valid_tbl, type = 'response')
-          ,claim_amount = predict(claimsize_glm, newdata = valid_tbl, type = 'response')
-          ,claim_counts = map(claim_rate, function(l) rpois(1000, l))
-          ,claim_costs  = map2(claim_amount, claim_counts, `*`)
-           )
+outsamp_assess_lst <- construct_model_assessment(outsamp_assess_tbl, "Out-of-Sample Data")
 ```
 
 ```{r check_oos_data_claim_count, echo=FALSE, fig.height=7.5}
-oos_sim_claim_count <- oos_validation_tbl$claim_counts %>% reduce(`+`)
-oos_obs_claim_count <- oos_validation_tbl$claim_count %>% sum
-
-claimcount_outsample_plot <- ggplot() +
-    geom_histogram(aes(x = oos_sim_claim_count), bins = 50) +
-    geom_vline(aes(xintercept = oos_obs_claim_count), colour = 'red') +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claims Paid") +
-    ylab("Count") +
-    ggtitle("Out-of-Sample Comparison Plot for Simulated Claim Counts vs Observed"
-           ,subtitle = paste0((data_count %>% comma), " Policies Used")
-            )
-
-claimcount_outsample_plot %>% print
+outsamp_assess_lst$claimcount_plot %>% print
 ```
 
 ---
 
 ```{r check_oos_data_loss_cost, echo=FALSE}
-oos_sim_loss_amount <- oos_validation_tbl$claim_costs %>% reduce(`+`)
-oos_obs_loss_amount <- oos_validation_tbl$claim_total %>% reduce(`+`)
-
-losscost_outsample_plot <- ggplot() +
-    geom_histogram(aes(x = oos_sim_loss_amount), bins = 50) +
-    geom_vline(aes(xintercept = oos_obs_loss_amount), colour = 'red') +
-    scale_x_continuous(labels = dollar) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claims Paid") +
-    ylab("Count") +
-    ggtitle("Out-of-Sample Comparison Plot for Simulated Loss Costs vs Observed"
-           ,subtitle = paste0((data_count %>% comma), " Policies Used")
-            )
-
-losscost_outsample_plot %>% print
+outsamp_assess_lst$losscost_plot %>% print
 ```
 
 
 ## Adding Claim Size Variation
 
-```{r simulate_claim_size_insample, echo=FALSE, fig.height=7}
-calculate_claim_sizes <- function(claim_list, shape, rate) {
-    total_claims <- claim_list %>% sum
-    
-    claim_amounts <- rgamma(total_claims, shape = shape, rate = rate)
-    
-    claim_amount_cumsum <- c(0, claim_amounts %>% cumsum)
-    
-    claim_idx <- claim_list %>% cumsum
-    
-    claim_cumsum <- c(0, claim_amount_cumsum[claim_idx + 1])
-    
-    claim_sizes <- claim_cumsum %>% diff
+```{r simulate_claim_size, echo=FALSE}
+insamp_varsize_assess_tbl <- simulate_claim_data(insamp_tbl, variable_claim_size = TRUE)
+insamp_varsize_assess_lst <- construct_model_assessment(insamp_varsize_assess_tbl
+                                                       ,"In-Sample Data - Variable Claim Size")
 
-    return(claim_sizes)
-}
-
-train_claimsize_validation_tbl <- usedata_tbl %>%
-    mutate(claim_rate       = predict(model_02_glm,  newdata = usedata_tbl, type = 'response')
-          ,claim_counts     = map(claim_rate, function(l) rpois(1000, l))
-          ,claim_size_mu    = predict(claimsize_glm, newdata = usedata_tbl, type = 'response')
-          ,claim_size_shape = MASS::gamma.shape(claimsize_glm)$alpha
-          ,claim_size_rate  = claim_size_shape / claim_size_mu
-          ,claim_costs      = map(claim_counts, calculate_claim_sizes, shape = claim_size_shape, rate = claim_size_rate)
-           )
+outsamp_varsize_assess_tbl <- simulate_claim_data(outsamp_tbl, variable_claim_size = TRUE)
+outsamp_varsize_assess_lst <- construct_model_assessment(outsamp_varsize_assess_tbl
+                                                        ,"Out-of-Sample Data - Variable Claim Size")
 ```
 
-```{r check_simulate_claim_size_insample, echo=FALSE, fig.height=7.5}
-insamp_varsize_sim_loss_amount <- train_claimsize_validation_tbl$claim_costs %>% reduce(`+`)
-insamp_varsize_obs_loss_amount <- train_claimsize_validation_tbl$claim_total %>% reduce(`+`)
-
-losscost_varsize_insample_plot <- ggplot() +
-    geom_histogram(aes(x = insamp_varsize_sim_loss_amount), bins = 50) +
-    geom_vline(aes(xintercept = insamp_varsize_obs_loss_amount), colour = 'red') +
-    scale_x_continuous(labels = dollar) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claims Paid") +
-    ylab("Count") +
-    ggtitle("In-Sample Comparison Plot for Random Claim Size Simulated Loss Costs vs Observed"
-           ,subtitle = paste0((usedata_tbl %>% nrow %>% comma), " Policies Used")
-            )
-
-losscost_varsize_insample_plot %>% print
+```{r simulate_claim_size_insample_plot, echo=FALSE, fig.height=7}
+insamp_varsize_assess_lst$losscost_plot %>% print
 ```
 
 ---
 
 ```{r check_simulate_claim_size_oos, echo=FALSE}
-oos_claimsize_validation_tbl <- valid_tbl %>%
-    mutate(claim_rate       = predict(model_02_glm,  newdata = valid_tbl, type = 'response')
-          ,claim_size_mu    = predict(claimsize_glm, newdata = valid_tbl, type = 'response')
-          ,claim_size_shape = MASS::gamma.shape(claimsize_glm)$alpha
-          ,claim_size_rate  = claim_size_shape / claim_size_mu
-          ,claim_counts     = map(claim_rate, function(l) rpois(1000, l))
-          ,claim_costs      = map(claim_counts, calculate_claim_sizes, shape = claim_size_shape, rate = claim_size_rate)
-           )
-
-insamp_varsize_sim_loss_amount <- oos_claimsize_validation_tbl$claim_costs %>% reduce(`+`)
-insamp_varsize_obs_loss_amount <- oos_claimsize_validation_tbl$claim_total %>% reduce(`+`)
-
-losscost_varsize_outsample_plot <- ggplot() +
-    geom_histogram(aes(x = insamp_varsize_sim_loss_amount), bins = 50) +
-    geom_vline(aes(xintercept = insamp_varsize_obs_loss_amount), colour = 'red') +
-    scale_x_continuous(labels = dollar) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claims Paid") +
-    ylab("Count") +
-    ggtitle("Out-of-Sample Comparison Plot for Random Claim Size Simulated Loss Costs vs Observed"
-           ,subtitle = paste0((valid_tbl %>% nrow %>% comma), " Policies Used")
-            )
-
-losscost_varsize_outsample_plot %>% print
+outsamp_varsize_assess_lst$losscost_plot %>% print
 ```
 
 ---
 
 ```{r show_all_plot, echo=FALSE}
-plot_grid(losscost_insample_plot +
+plot_grid(insamp_assess_lst$losscost_plot  +
               ggtitle("In-Sample, Fixed Claim Size"
-                     ,subtitle = losscost_insample_plot$labels$subtitle)
-         ,losscost_outsample_plot +
+                     ,subtitle = insamp_assess_lst$losscost_plot$labels$subtitle)
+         ,outsamp_assess_lst$losscost_plot +
              ggtitle("Out-of-Sample, Fixed Claim Size"
-                     ,subtitle = losscost_outsample_plot$labels$subtitle)
-         ,losscost_varsize_insample_plot  +
+                    ,subtitle = outsamp_assess_lst$losscost_plot$labels$subtitle)
+         ,insamp_varsize_assess_lst$losscost_plot  +
              ggtitle("In-Sample, Variable Claim Size"
-                     ,subtitle = losscost_varsize_insample_plot$labels$subtitle)
-         ,losscost_varsize_outsample_plot +
+                    ,subtitle = insamp_varsize_assess_lst$losscost_plot$labels$subtitle)
+         ,outsamp_varsize_assess_lst$losscost_plot +
              ggtitle("Out-of-Sample, Variable Claim Size"
-                     ,subtitle = losscost_varsize_outsample_plot$labels$subtitle)
+                    ,subtitle = outsamp_varsize_assess_lst$losscost_plot$labels$subtitle)
          ,ncol = 2
           )
-
 ```
 
+## Assess Pricing
+
+```{r construct_premium_quoter_function, echo=FALSE}
+premium_quoter <- create_pricing_function(
+    claimrate_model_glm = model_02_glm
+   ,claimsize_model_glm = claimsize_glm
+   ,largeloss_charge    = largeclaim_prop * expected_loss
+   ,quote_ratio         = 0.35
+)
+
+insamp_pricing_tbl <- premium_quoter(insamp_tbl)
+insamp_pricing_assess_tbl <- insamp_assess_tbl %>%
+    inner_join(insamp_pricing_tbl, by = 'policy_id')
+
+insamp_pricing_assess_lst <- construct_pricing_assessment(insamp_pricing_assess_tbl
+                                                         ,'In-Sample Attritional Pricing Comparison')
 
 
+outsamp_pricing_tbl <- premium_quoter(outsamp_tbl)
+outsamp_pricing_assess_tbl <- outsamp_assess_tbl %>%
+    inner_join(outsamp_pricing_tbl, by = 'policy_id')
+
+outsamp_pricing_assess_lst <- construct_pricing_assessment(outsamp_pricing_assess_tbl
+                                                          ,'Out-of-Sample Attritional Pricing Comparison')
+```
+
+```{r plot_insample_pricing_assessment, echo=FALSE, fig.height=7}
+insamp_pricing_assess_lst$assess_plot %>% print
+```
+
+---
+
+```{r plot_outsample_pricing_assessment, echo=FALSE}
+outsamp_pricing_assess_lst$assess_plot %>% print
+```
 
 
 # Future Steps
@@ -1709,7 +1616,17 @@ Use Bayesian version - `stan_glm`
 Improve linear models - GAMs
 
 
+
 ## Further Resources
+
+\
+
+
+------------------------------- ------------------------- -------------------------- ------------------------------  
+![](img/charpentier_splash.png) ![](img/frees_splash.png) ![](img/dejong_splash.png) ![](img/gelmanhill_splash.png)
+------------------------------- ------------------------- -------------------------- ------------------------------
+
+---
 
 \
 
@@ -1721,7 +1638,7 @@ http://ijlyttle.github.io/isugg_purrr/presentation.html#(1)
 
 \
 
-
+https://github.com/DublinLearningGroup/dataexpks
 
 
 
@@ -1735,4 +1652,8 @@ Email: mickcooney@gmail.com
 
 GitHub: https://github.com/kaybenleroll/dublin_r_workshops
 
+
+```{r remove_variables, include=FALSE}
+rm(claimfreq_assessment_tbl, insamp_assess_tbl, outsamp_assess_tbl); gc()
+```
 

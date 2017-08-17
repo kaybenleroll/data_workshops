@@ -98,11 +98,13 @@ create_claimrate_assessment <- function(train, valid) {
 
 
 create_pricing_function <- function(claimrate_model_glm
-                                    ,claimsize_model_glm
-                                    ,largeloss_charge
-                                    ,quote_ratio) {
+                                   ,claimsize_model_glm
+                                   ,largeloss_charge
+                                   ,quote_ratio) {
 
     price_function <- function(policy_tbl) {
+        policy_id <- policy_tbl$policy_id
+
         claim_rates <- predict(claimrate_model_glm
                                ,newdata = policy_tbl
                                ,type = 'response')
@@ -115,10 +117,11 @@ create_pricing_function <- function(claimrate_model_glm
         risk_premium <- expect_price + largeloss_charge
 
         price_tbl <- data_frame(
-            expect_price     = expect_price
-            ,largeloss_charge = largeloss_charge
-            ,risk_premium     = risk_premium
-            ,quote_price      = risk_premium * (1 + quote_ratio)
+            policy_id        = policy_id
+           ,expect_price     = expect_price
+           ,largeloss_charge = largeloss_charge
+           ,risk_premium     = risk_premium
+           ,quote_price      = risk_premium * (1 + quote_ratio)
         )
 
         return(price_tbl)
@@ -150,15 +153,30 @@ calculate_claim_sizes <- function(claim_list, shape, rate) {
 }
 
 
-create_claim_simulator <- function(claimfreq_glm, claimsev_glm, n_sim = 1000) {
+###
+### This function creates a claim simulation function based on the various
+### models provided to it (assuming a glm)
+###
+create_claim_simulator <- function(claimfreq_glm
+                                  ,claimsev_glm
+                                  ,largeloss_freq    = NULL
+                                  ,largeloss_scaling = NULL) {
 
-    generate_claim_simulations <- function(data_tbl, variable_claim_size = TRUE) {
+    generate_claim_simulations <- function(data_tbl
+                                          ,n_sim = 1000
+                                          ,variable_claim_size = TRUE
+                                          ,model_large_losses  = TRUE) {
+
+        ### We first predict the mean for the claim rate and claim size
+        ### Then we simulate claim counts for each policy
         simulation_tbl <- data_tbl %>%
             mutate(claim_rate    = predict(claimfreq_glm, newdata = data_tbl, type = 'response')
                   ,claim_size_mu = predict(claimsev_glm,  newdata = data_tbl, type = 'response')
                   ,claim_counts  = map(claim_rate, function(l) rpois(n_sim, l))
                     )
 
+        ### If we want variable claim size, we simulate from a gamma distribution
+        ### using the parameters as given from the GLM
         if(variable_claim_size) {
             simulation_tbl <- simulation_tbl %>%
                 mutate(claim_size_shape = MASS::gamma.shape(claimsev_glm)$alpha
@@ -172,10 +190,99 @@ create_claim_simulator <- function(claimfreq_glm, claimsev_glm, n_sim = 1000) {
             simulation_tbl <- simulation_tbl %>%
                 mutate(claim_costs = map2(claim_counts, claim_size_mu, `*`))
         }
+
+
+        ### If we include large losses, we proceed in a similar way for the
+        ### the attritional piece - simplified by the fact that all policies
+        ### are treated the same.
+        if(model_large_losses & !is.null(largeloss_freq) & !is.null(largeloss_scaling)) {
+
+        }
+
+        return(simulation_tbl)
     }
 
     return(generate_claim_simulations)
 }
 
+
+construct_assessment_plot <- function(sim_vals, obs_val, title, subtitle) {
+    assessment_plot <- ggplot() +
+        geom_histogram(aes(x = sim_vals), bins = 50) +
+        geom_vline(aes(xintercept = obs_val), colour = 'red') +
+        scale_x_continuous(labels = comma) +
+        scale_y_continuous(labels = comma) +
+        xlab("Simulation Value") +
+        ylab("Count") +
+        ggtitle(title, subtitle = subtitle)
+
+    return(assessment_plot)
+}
+
+
+construct_model_assessment <- function(data_tbl, title_prefix) {
+    sim_claim_count <- data_tbl$claim_counts %>% reduce(`+`)
+    obs_claim_count <- data_tbl$claim_count %>% sum
+
+    plot_title    <- paste0(title_prefix, " Comparison Plot for Simulated Claim Counts vs Observed")
+    plot_subtitle <- paste0((data_tbl %>% nrow %>% comma), " Policies Used")
+
+    claimcount_plot <- construct_assessment_plot(sim_claim_count
+                                                ,obs_claim_count
+                                                ,plot_title
+                                                ,plot_subtitle)
+
+
+
+    sim_loss_amount <- data_tbl$claim_costs %>% reduce(`+`)
+    obs_loss_amount <- data_tbl$claim_total %>% reduce(`+`)
+
+    plot_title    <- paste0(title_prefix, " Comparison Plot for Simulated Loss Cost vs Observed")
+    plot_subtitle <- paste0((data_tbl %>% nrow %>% comma), " Policies Used")
+
+    losscost_plot <- construct_assessment_plot(sim_loss_amount
+                                              ,obs_loss_amount
+                                              ,plot_title
+                                              ,plot_subtitle)
+
+    losscost_plot <- losscost_plot +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+
+    assess_lst <- list(
+        sim_claim_count = sim_claim_count
+       ,obs_claim_count = obs_claim_count
+       ,claimcount_plot = claimcount_plot
+       ,sim_loss_amount = sim_loss_amount
+       ,obs_loss_amount = obs_loss_amount
+       ,losscost_plot   = losscost_plot
+    )
+
+    return(assess_lst)
+}
+
+
+construct_pricing_assessment <- function(data_tbl, title_prefix) {
+    sim_loss_amount <- data_tbl$claim_costs  %>% reduce(`+`)
+    premium_charged <- data_tbl$expect_price %>% sum
+
+    plot_title    <- paste0(title_prefix, " Comparison Plot for Simulated Loss Cost vs Premium Charged")
+    plot_subtitle <- paste0((data_tbl %>% nrow %>% comma), " Policies Used")
+
+    assess_plot <- construct_assessment_plot(sim_loss_amount
+                                            ,premium_charged
+                                            ,plot_title
+                                            ,plot_subtitle
+                                             )
+
+
+    assess_lst <- list(
+        sim_loss_amount = sim_loss_amount
+       ,premium_charged = premium_charged
+       ,assess_plot     = assess_plot
+    )
+
+    return(assess_lst)
+}
 
 
