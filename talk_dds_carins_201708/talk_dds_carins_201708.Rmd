@@ -457,6 +457,8 @@ pl_scaling <- pl_lm %>%
     tidy %>%
     filter(term == 'logsize') %>%
     pull(estimate)
+
+pl_scaling <- -pl_scaling
 ```
 
 \
@@ -1365,7 +1367,7 @@ Use to estimate mean of distribution
 ```{r generate_power_law, echo=FALSE}
 sample_size <- 1000000
 
-sample_pl <- rpldis(sample_size, xmin = 25000, alpha = pl_scaling)
+sample_pl <- rplcon(sample_size, xmin = 25000, alpha = pl_scaling)
 
 expected_loss <- sample_pl %>% mean
 
