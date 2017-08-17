@@ -153,6 +153,24 @@ calculate_claim_sizes <- function(claim_list, shape, rate) {
 }
 
 
+calculate_largeloss_claims <- function(claim_list, scaling) {
+    claim_idx <- claim_list %>% cumsum
+
+    total_claim_count <- claim_list %>% sum
+    claim_amounts     <- rgamma(total_claim_count, shape = shape, rate = rate)
+
+    claim_amount_cumsum <- c(0, claim_amounts %>% cumsum)
+    claim_cumsum        <- claim_amount_cumsum[claim_idx + 1]
+
+    claim_sizes <- c(0, claim_cumsum) %>% diff
+
+    return(claim_sizes)
+}
+
+
+
+
+
 ###
 ### This function creates a claim simulation function based on the various
 ### models provided to it (assuming a glm)
@@ -196,6 +214,15 @@ create_claim_simulator <- function(claimfreq_glm
         ### the attritional piece - simplified by the fact that all policies
         ### are treated the same.
         if(model_large_losses & !is.null(largeloss_freq) & !is.null(largeloss_scaling)) {
+            simulation_tbl <- simulation %>%
+                mutate(largeloss_freq       = largeloss_freq
+                      ,largeloss_claimcount = map(largeloss_freq, function(l) rpois(n_sim, l))
+                      ,largeloss_claimsize  = map(largeloss_claimcount
+                                                 ,calculate_largeloss_claims
+                                                 ,largeloss_scaling
+                                                  )
+                )
+
 
         }
 
