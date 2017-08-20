@@ -50,7 +50,6 @@ set.seed(42)
 
 
 
-
 ## Insurance Business
 
 \
