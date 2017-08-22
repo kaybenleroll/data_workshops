@@ -42,3 +42,30 @@ options(width = 80L
 ## A Data Science Competition
 
 ![](img/cannonball_run.jpg)
+
+## Proposed Setup
+
+\
+
+Generated car insurance data
+
+\
+
+Policy quote submissions
+
+\
+
+Auctioning system
+
+\
+
+Most money wins
+
+
+## Wrinkles
+
+
+
+
+
+

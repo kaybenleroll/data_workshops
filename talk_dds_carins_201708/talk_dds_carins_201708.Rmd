@@ -13,7 +13,7 @@ output:
       slideNumber: true
 ---
 
-```{r knit_opts, include = FALSE}
+```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
 rm(list = ls()); gc()
 
 knitr::opts_chunk$set(tidy  = FALSE
@@ -202,7 +202,7 @@ names(policy_tbl) <- policy_tbl %>% names %>% clean_names
 names(claim_tbl)  <- claim_tbl  %>% names %>% clean_names
 ```
 
-```{r combine_policies_claims, echo=TRUE}
+```{r combine_policies_claims, echo=FALSE}
 policy_claims_tbl <- claim_tbl %>%
     group_by(policy_id) %>%
     summarise(claim_count = n()
@@ -213,11 +213,7 @@ combined_tbl <- policy_tbl %>%
     mutate(claim_count = ifelse(is.na(claim_count), 0, claim_count)
           ,claim_total = ifelse(is.na(claim_total), 0, claim_total)
            )
-```
 
----
-
-```{r combined_table, echo=FALSE}
 combined_tbl %>% head %>% (knitr::kable)(digits = 2)
 ```
 
@@ -334,6 +330,18 @@ ggplot(combined_tbl) +
     ggtitle("Histogram of Car Age")
 ```
 
+---
+
+### region
+
+```{r explore_region, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(combined_tbl) +
+    geom_bar(aes(x = region)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Region") +
+    ylab("Policy Count") +
+    ggtitle("Barplot of Region")
+```
 
 
 
@@ -449,6 +457,9 @@ pl_tbl <- powerlaw_tbl %>%
 pl_lm <- lm(logcount ~ logsize, data = pl_tbl)
 ```
 
+\
+
+
 ```{r show_powerlaw_factors, echo=FALSE}
 pl_lm %>% tidy %>% (knitr::kable)
 
@@ -460,7 +471,7 @@ pl_scaling <- pl_lm %>%
 pl_scaling <- -pl_scaling
 ```
 
-\
+---
 
 Finite $\mu$, non-finite $\text{Var}(x)$
 
@@ -719,11 +730,98 @@ expmodel2_glm %>% tidy %>% (knitr::kable)(digits = 4)
 
 ---
 
+### The "Secret Weapon"
+
+\
+
+Andrew Gelman
+
+\
+
+Train model on data splits
+
+\
+
+Plot parameters together
+
+---
+
+```{r region_barplot_redux, echo=FALSE}
+ggplot(combined_tbl) +
+    geom_bar(aes(x = region)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Region") +
+    ylab("Policy Count") +
+    ggtitle("Barplot of Region")
+```
+
+---
+
+```{r calculate_secretweapon_data, echo=FALSE}
+secretweapon_tbl <- policy_tbl %>%
+    split(.$region) %>%
+    map(~ glm(claim_nb ~ gas + cat_driver_age + car_age + density +
+                         cat_driver_age:gas
+             ,offset = log(exposure)
+             ,family = poisson
+             ,data = .)) %>%
+    map(tidy) %>%
+    bind_rows(.id = 'region')
+```
+
+```{r plot_secretweapon_params_all, echo=FALSE, fig.height=7.5}
+ggplot(secretweapon_tbl) +
+    geom_point(aes(x = region, y = estimate)) +
+    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
+    expand_limits(y = 0) +
+    facet_wrap(~term, scales='free_y') +
+    xlab("Region") +
+    ylab("Parameter Value") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+```
+
+---
+
+```{r plot_secretweapon_parameters_1, echo=FALSE}
+first_params <- c("(Intercept)"
+                 ,"car_age"
+                 ,"cat_driver_age(17,22]"
+                 ,"cat_driver_age(22,26]"
+                 ,"cat_driver_age(42,74]"
+                 ,"cat_driver_age(74,Inf]"
+                  )
+
+ggplot(secretweapon_tbl %>% filter(term %in% first_params)) +
+    geom_point(aes(x = region, y = estimate)) +
+    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
+    expand_limits(y = 0) +
+    facet_wrap(~term, scales='free_y') +
+    xlab("Region") +
+    ylab("Parameter Value") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+---
+
+```{r plot_secretweapon_parameters_2, echo=FALSE, fig.height=7.5}
+ggplot(secretweapon_tbl %>% filter(!term %in% first_params)) +
+    geom_point(aes(x = region, y = estimate)) +
+    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
+    expand_limits(y = 0) +
+    facet_wrap(~term, scales='free_y') +
+    xlab("Region") +
+    ylab("Parameter Value") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+---
+
 Still just exploration
 
 \
 
-Will decide on final model later
+Decide on final model later
 
 
 ## Modelling Claim Size
@@ -1467,11 +1565,17 @@ outsamp_tbl <- trainpolicies_tbl %>%
     sample_n(50000) %>%
     arrange(policy_id)
 
-simulate_claim_data <- create_claim_simulator(model_02_glm, claimsize_glm)
+simulate_claim_data <- create_claim_simulator(claimfreq_glm     = model_02_glm
+                                             ,claimsev_glm      = claimsize_glm
+                                             ,largeloss_freq    = largeclaim_prop
+                                             ,largeloss_scaling = pl_scaling )
 ```
 
 ```{r sanity_check_training, echo=FALSE}
-insamp_assess_tbl <- simulate_claim_data(insamp_tbl, variable_claim_size = FALSE)
+insamp_assess_tbl <- simulate_claim_data(insamp_tbl
+                                        ,variable_claim_size = FALSE
+                                        ,model_large_losses  = TRUE
+                                        )
 
 insamp_assess_lst <- construct_model_assessment(insamp_assess_tbl, "In-Sample Data")
 ```
@@ -1491,7 +1595,10 @@ insamp_assess_lst$losscost_plot %>% print
 ### Assess Out-of-Sample Data
 
 ```{r model_validation_oos, echo=FALSE}
-outsamp_assess_tbl <- simulate_claim_data(outsamp_tbl, variable_claim_size = FALSE)
+outsamp_assess_tbl <- simulate_claim_data(outsamp_tbl
+                                         ,variable_claim_size = FALSE
+                                         ,model_large_losses = TRUE
+                                            )
 
 outsamp_assess_lst <- construct_model_assessment(outsamp_assess_tbl, "Out-of-Sample Data")
 ```
@@ -1548,7 +1655,7 @@ plot_grid(insamp_assess_lst$losscost_plot  +
           )
 ```
 
-## Assess Pricing
+## Assess Attritional Pricing
 
 ```{r construct_premium_quoter_function, echo=FALSE}
 premium_quoter <- create_pricing_function(
@@ -1584,6 +1691,12 @@ insamp_pricing_assess_lst$assess_plot %>% print
 outsamp_pricing_assess_lst$assess_plot %>% print
 ```
 
+## Assess Large-loss Pricing
+
+
+
+
+
 
 # Future Steps
 
@@ -1591,22 +1704,21 @@ outsamp_pricing_assess_lst$assess_plot %>% print
 
 \
 
-GLMs simplistic, may need overdispersed models
+Simplistic distributions, overdispersed models?
 
 \
 
-Need more validation / testing
+More validation / testing
 
 \
 
-Claims prediction needs work
+Claim size models need work
+
 
 
 ## Future Improvements
 
-\
-
-Perform more thorough testing
+Improved validation
 
 \
 

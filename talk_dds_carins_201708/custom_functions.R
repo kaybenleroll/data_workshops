@@ -89,8 +89,8 @@ create_claimrate_assessment <- function(train, valid) {
 
     assess_lst <- list(
         observed_count  = observed_valid_count
-        ,predicted_count = predicted_claim_count
-        ,cuml_prob       = cuml_prob
+       ,predicted_count = predicted_claim_count
+       ,cuml_prob       = cuml_prob
     )
 
     return(assess_lst)
@@ -157,7 +157,7 @@ calculate_largeloss_claims <- function(claim_list, scaling) {
     claim_idx <- claim_list %>% cumsum
 
     total_claim_count <- claim_list %>% sum
-    claim_amounts     <- rgamma(total_claim_count, shape = shape, rate = rate)
+    claim_amounts     <- rplcon(total_claim_count, xmin = 25000, alpha = scaling)
 
     claim_amount_cumsum <- c(0, claim_amounts %>% cumsum)
     claim_cumsum        <- claim_amount_cumsum[claim_idx + 1]
@@ -214,7 +214,7 @@ create_claim_simulator <- function(claimfreq_glm
         ### the attritional piece - simplified by the fact that all policies
         ### are treated the same.
         if(model_large_losses & !is.null(largeloss_freq) & !is.null(largeloss_scaling)) {
-            simulation_tbl <- simulation %>%
+            simulation_tbl <- simulation_tbl %>%
                 mutate(largeloss_freq       = largeloss_freq
                       ,largeloss_claimcount = map(largeloss_freq, function(l) rpois(n_sim, l))
                       ,largeloss_claimsize  = map(largeloss_claimcount
@@ -222,8 +222,6 @@ create_claim_simulator <- function(claimfreq_glm
                                                  ,largeloss_scaling
                                                   )
                 )
-
-
         }
 
         return(simulation_tbl)
