@@ -42,14 +42,14 @@ create_crossval_assessment <- function(train, valid) {
         pull(total_claims)
 
     model_glm <- glm(claim_nb ~ gas + cat_driver_age
-                     ,offset = log(exposure)
-                     ,data   = train %>% as_data_frame
-                     ,family = poisson
+                    ,offset = log(exposure)
+                    ,data   = train %>% as_data_frame
+                    ,family = poisson
     )
 
     claim_rates <- predict(model_glm
-                           ,newdata = valid %>% as_data_frame
-                           ,type = 'response')
+                          ,newdata = valid %>% as_data_frame
+                          ,type = 'response')
 
     predicted_claim_count <- rpois(1000, claim_rates %>% sum)
 
@@ -57,8 +57,8 @@ create_crossval_assessment <- function(train, valid) {
 
     assess_lst <- list(
         observed_count  = observed_valid_count
-        ,predicted_count = predicted_claim_count
-        ,cuml_prob       = cuml_prob
+       ,predicted_count = predicted_claim_count
+       ,cuml_prob       = cuml_prob
     )
 
     return(assess_lst)
@@ -67,10 +67,10 @@ create_crossval_assessment <- function(train, valid) {
 
 create_claimrate_assessment <- function(train, valid) {
     model_glm <- glm(claim_count ~ gas + cat_driver_age + car_age + density +
-                         cat_driver_age:gas
-                     ,offset = log(exposure)
-                     ,data   = train %>% as_data_frame
-                     ,family = poisson
+                                   cat_driver_age:gas
+                    ,offset = log(exposure)
+                    ,data   = train %>% as_data_frame
+                    ,family = poisson
     )
 
     valid_tbl <- valid %>% as_data_frame
@@ -106,12 +106,12 @@ create_pricing_function <- function(claimrate_model_glm
         policy_id <- policy_tbl$policy_id
 
         claim_rates <- predict(claimrate_model_glm
-                               ,newdata = policy_tbl
-                               ,type = 'response')
+                              ,newdata = policy_tbl
+                              ,type = 'response')
 
         claim_sizes <- predict(claimsize_model_glm
-                               ,newdata = policy_tbl
-                               ,type = 'response')
+                              ,newdata = policy_tbl
+                              ,type = 'response')
 
         expect_price <- claim_rates * claim_sizes
         risk_premium <- expect_price + largeloss_charge

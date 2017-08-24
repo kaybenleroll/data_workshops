@@ -62,10 +62,4 @@ Auctioning system
 Most money wins
 
 
-## Wrinkles
-
-
-
-
-
 

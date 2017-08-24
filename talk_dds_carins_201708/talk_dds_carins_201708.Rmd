@@ -388,14 +388,6 @@ ggplot(combined_tbl) +
 
 \
 
-Large losses very random
-
-\
-
-Treat like natural disasters
-
-\
-
 Power-law scaling
 
 ---
@@ -425,10 +417,6 @@ ggplot(powerlaw_tbl %>% filter(logsize >= 3)) +
     ylab('Log of Claim Count') +
     ggtitle("Fitted Scaling for Large Claim Sizes")
 ```
-
----
-
-Looks reasonable
 
 ---
 
@@ -520,9 +508,11 @@ Use mean loss to calculate flat charge
 
 # Generalized Linear Models
 
+
 ## Basic Concept
 
 \
+
 
 \begin{eqnarray*}
 E(\mathbf{Y})          &=& \mu = g^{-1}(\text{X} \beta) \\
@@ -562,17 +552,11 @@ Combines multiple forms of regression
 
 ## Modelling Claim Rate
 
-\
-
-Assume Poisson process
 
 \
 
 Predict per-policy poisson rate
 
-\
-
-Many possible models
 
 ---
 
@@ -621,35 +605,7 @@ ggplot(claimrate_driverage_tbl) +
 
 ---
 
-Relationship clearly not linear
-
-\
-
-Could categorise driver age
-
-\
-
-Information loss
-
-\
-
-Use GAM instead
-
----
-
-HOWEVER
-
----
-
-Simpler to categorise
-
-\
-
-Will do that here
-
-\
-
-David Leadbetter
+Non-linear relationship
 
 ---
 
@@ -760,7 +716,7 @@ ggplot(combined_tbl) +
 ```{r calculate_secretweapon_data, echo=FALSE}
 secretweapon_tbl <- policy_tbl %>%
     split(.$region) %>%
-    map(~ glm(claim_nb ~ gas + cat_driver_age + car_age + density +
+    map(~ glm(claim_nb ~ cat_driver_age + gas + car_age + density +
                          cat_driver_age:gas
              ,offset = log(exposure)
              ,family = poisson
@@ -778,18 +734,19 @@ ggplot(secretweapon_tbl) +
     xlab("Region") +
     ylab("Parameter Value") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
-
 ```
 
 ---
 
 ```{r plot_secretweapon_parameters_1, echo=FALSE}
+secretweapon_tbl <- secretweapon_tbl %>%
+    filter(!grepl("driver_age\\(74", term))
+
 first_params <- c("(Intercept)"
-                 ,"car_age"
+                 ,"gasRegular"
                  ,"cat_driver_age(17,22]"
                  ,"cat_driver_age(22,26]"
                  ,"cat_driver_age(42,74]"
-                 ,"cat_driver_age(74,Inf]"
                   )
 
 ggplot(secretweapon_tbl %>% filter(term %in% first_params)) +
@@ -815,13 +772,6 @@ ggplot(secretweapon_tbl %>% filter(!term %in% first_params)) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
----
-
-Still just exploration
-
-\
-
-Decide on final model later
 
 
 ## Modelling Claim Size
@@ -832,7 +782,7 @@ Claim size always positive
 
 \
 
-Look at distribution of log of claims
+Take logs?
 
 ---
 
@@ -864,7 +814,7 @@ expclaim_lm <- lm(log(claim_amount) ~ gas + power + car_age
 expclaim_lm %>%
     glance %>%
     gather('diagnostic', 'value') %>%
-    (knitr::kable)(digits = 2)
+    (knitr::kable)(digits = 4)
 ```
 
 ---
@@ -872,7 +822,7 @@ expclaim_lm %>%
 #### Model Coefficients
 
 ```{r model_log_claims_tidy, echo=FALSE}
-expclaim_lm %>% tidy %>% (knitr::kable)(digits = 4)
+expclaim_lm %>% tidy %>% (knitr::kable)(digits = 2)
 ```
 
 ---
@@ -1017,23 +967,7 @@ rm(expclaim_lm, expclaim2_lm, expmodel2_glm, gas_glm)
 
 \
 
-Need method of assessment
-
-\
-
 Deviance, AIC, BIC
-
-\
-
-Prefer more direct metric
-
----
-
-Assess model on predicted counts of claims
-
----
-
-Calculate claim rate
 
 \
 
@@ -1049,15 +983,11 @@ Observed vs distribution of expected
 
 \
 
-Split train / validation set
+Observed vs Predicted
 
 \
 
-Distribution of claim counts for validation
-
-\
-
-Compare to observed counts
+In-Sample and Out-of-Sample
 
 
 ---
@@ -1088,30 +1018,19 @@ ggplot(plot_tbl) +
 
 ---
 
-Nice for small fold-count
+Small fold-count
 
 \
 
-Distribution of cumulative probabilities
+Cumulative probabilities
 
-\
-
-Can extend to full price assessment
 
 
 ## Simulation of Claim Size
 
 \
 
-Lack of predictive power in claim severity
-
-\
-
-Still want to capture uncertainty
-
-\
-
-GLM estimates mean of Gamma
+GLM Gamma fit?
 
 ---
 
@@ -1128,11 +1047,8 @@ $$
 
 ---
 
-Want uncertainty $\implies$ simulate from Gamma distribution
 
-\
-
-Need $(\mu, \text{dispersion}) \to (\alpha, \beta)$
+To simulate need $(\alpha, \beta)$
 
 \
 
@@ -1143,19 +1059,12 @@ Need $(\mu, \text{dispersion}) \to (\alpha, \beta)$
 \end{eqnarray*}
 
 
+
 ## Assessment Approach
 
 \
 
-Train / validation split
-
-\
-
-Fit model on each split
-
-\
-
-Use uncertainty at multiple levels
+Layers of uncertainty
 
 
 ---
@@ -1169,10 +1078,6 @@ Per policy claim frequency / severity
 \
 
 Distribution of predicted vs observed
-
----
-
-Not much capture of uncertainty
 
 ---
 
@@ -1190,13 +1095,6 @@ Average claim size
 
 Multiply to calculate simulated loss cost
 
----
-
-Claim size very noisy
-
-\
-
-Likely to underestimate variance
 
 ---
 
@@ -1213,15 +1111,6 @@ Simulate claim size from prediction
 \
 
 Multiply through for loss calculation
-
----
-
-More involved computation
-
-\
-
-Reasonable estimate of uncertainty / variance
-
 
 
 
@@ -1397,7 +1286,7 @@ What about claim size?
 
 ---
 
-Models little use
+VERY noisy...
 
 ---
 
@@ -1440,11 +1329,7 @@ largeclaim_prop <- largeclaim_count / (policy_tbl$exposure %>% sum)
 
 \
 
-Estimate large-loss rate
-
-\
-
-Large losses per unit exposure
+Estimate large losses per unit exposure
 
 
 ---
@@ -1536,19 +1421,15 @@ Can we test attritional and large claims separately?
 
 \
 
-Simulate claims using poisson model
+Claim rate
 
 \
 
-For each claim, simulate claim size
+Claim size
 
 \
 
-Assign loss-cost to each claim
-
-\
-
-Compare paid out losses to collected premia
+Loss cost
 
 
 ---
@@ -1691,10 +1572,54 @@ insamp_pricing_assess_lst$assess_plot %>% print
 outsamp_pricing_assess_lst$assess_plot %>% print
 ```
 
+
 ## Assess Large-loss Pricing
 
+---
 
+### In-Sample Prediction
 
+```{r assess_largeloss_insamp_pricing, echo=FALSE, fig.height=7.5}
+obs_ll_loss <- claim_tbl %>%
+    semi_join(insamp_pricing_assess_tbl, by = 'policy_id') %>%
+    filter(claim_amount > 25000) %>%
+    pull(claim_amount) %>%
+    sum
+
+sim_ll_loss <- insamp_pricing_assess_tbl$largeloss_claimsize %>% reduce(`+`)
+
+ggplot() +
+    geom_histogram(aes(x = sim_ll_loss), bins = 50) +
+    geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Simulated Loss Cost") +
+    ylab("Simulation Count") +
+    ggtitle("In-Sample Plot of Simulated Large Losses vs Observed")
+```
+
+---
+
+### Out-of-Sample Prediction
+
+```{r assess_largeloss_outsamp_pricing, echo=FALSE, fig.height=7.5}
+obs_ll_loss <- claim_tbl %>%
+    semi_join(outsamp_pricing_assess_tbl, by = 'policy_id') %>%
+    filter(claim_amount > 25000) %>%
+    pull(claim_amount) %>%
+    sum
+
+sim_ll_loss <- outsamp_pricing_assess_tbl$largeloss_claimsize %>% reduce(`+`)
+
+ggplot() +
+    geom_histogram(aes(x = sim_ll_loss), bins = 50) +
+    geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Simulated Loss Cost") +
+    ylab("Simulation Count") +
+    ggtitle("Out-of-Sample Plot of Simulated Large Losses vs Observed")
+```
 
 
 
@@ -1719,6 +1644,10 @@ Claim size models need work
 ## Future Improvements
 
 Improved validation
+
+\
+
+Large-loss assessment
 
 \
 
