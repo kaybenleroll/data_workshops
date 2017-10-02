@@ -258,6 +258,10 @@ ggplot() +
 
 ---
 
+![](img/gazza_tears.jpg)
+
+---
+
 Coherent approach
 
 \
@@ -276,3 +280,6 @@ Thank You!!!
 
 mickcooney@gmail.com
 
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops
