@@ -1,6 +1,6 @@
 ---
 title: "The Benefits of Bayes"
-subtitle: "Dublin InsTech"
+subtitle: "InsurTech Ireland"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "2017-10-05"
 output:
