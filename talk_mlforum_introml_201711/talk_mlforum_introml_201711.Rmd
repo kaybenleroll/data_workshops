@@ -1,0 +1,477 @@
+---
+title: "An Introduction to Machine Learning for Quants"
+subtitle: "ML Forum 2017"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2017-10-05"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(ISLR)
+library(MASS)
+library(cowplot)
+library(broom)
+library(rattle)
+
+
+options(width = 80L
+       ,warn  = 1)
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,warning = FALSE
+                     ,message = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+
+set.seed(42)
+```
+
+# Introduction
+
+
+## Who Am I?
+
+
+
+## Layout
+
+\
+
+What is ML?
+ 
+\
+
+Survey of ML
+
+\
+
+Model Validation
+
+
+
+# What is Machine Learning?
+
+---
+
+Different meanings
+
+
+## Terminology
+
+\
+
+Machine Learning
+
+\
+
+Artificial Intelligence
+
+\
+
+Statistical Learning
+
+\
+
+Applied Statistics
+
+---
+
+Historical context important
+
+\
+
+ML primarily from CS / EE
+
+
+---
+
+'Engineering' mentality
+
+
+## Data Format
+
+\
+
+Tabular based
+
+\
+
+
+```{r show_sample_table, echo=FALSE}
+Default %>% head(n = 15)
+```
+
+---
+
+Exchangeability
+
+
+
+## Predictive Focus
+
+\
+
+Focused on predictive accuracy
+
+\
+
+De-emphasised inference / uncertainty / explainability
+
+
+---
+
+Discoverability of model parameters
+
+---
+
+Example of linear models
+
+
+## Production
+
+\
+
+Scaling issues
+
+\
+
+Automated ML pipelines
+
+\
+
+Software engineering
+
+
+
+# Supervised Learning
+
+---
+
+Labelled data
+
+\
+
+\begin{eqnarray*}
+\text{Discrete output}   &\rightarrow& \text{Categorisation}   \\
+\text{Continuous output} &\rightarrow& \text{Regression}
+\end{eqnarray*}
+
+
+## Overfitting
+
+```{r create_overfit_data, echo=FALSE}
+overfit_data_tbl <- tribble(
+    ~x,    ~y,  ~row_type
+   ,-4,    -2,    'train'
+   ,-3,     0,    'train'
+   ,-2,     1,    'train'
+   ,-1,     2,    'train'
+   , 0,     1,    'train'
+   , 1,     2,    'train'
+   , 2,    -1,     'test'
+   , 4,     1,    'train'
+)
+
+train_tbl <- overfit_data_tbl %>% filter(row_type == 'train')
+test_tbl  <- overfit_data_tbl %>% filter(row_type == 'test')
+
+
+fit_poly <- function(p_n) {
+    lm(y ~ poly(x, p_n), data = train_tbl)
+}
+
+create_predict_table <- function(fit_lm) {
+    new_y <- predict(fit_lm, newdata = overfit_data_tbl)
+    
+    overfit_data_tbl <- overfit_data_tbl %>%
+        mutate(predict_val = new_y)
+}
+
+
+overfit_struct_tbl <- data_frame(poly_order = 1:6) %>%
+    mutate(poly_fit = map(poly_order, fit_poly)
+          ,fit_data = map(poly_fit, create_predict_table)
+           )
+
+overfit_plotdata_tbl <- overfit_struct_tbl %>%
+    dplyr::select(poly_order, fit_data) %>%
+    unnest()
+
+ggplot(overfit_plotdata_tbl) +
+    geom_point(aes(x = x, y = y, colour = row_type)) +
+    geom_line(aes(x = x, y = predict_val), colour = 'red') +
+    facet_wrap(~poly_order)
+```
+
+### Bias-Variance Tradeoff
+
+```{r generate_bias_variance_data, echo=TRUE}
+poly_coefs <- rnorm(10, 0, 0.5)
+poly_ords  <- seq_along(poly_coefs) - 1
+
+calc_poly_val <- function(x) {
+    poly_mat <- sapply(poly_ords, function(iter) x^iter)
+    
+    poly_val <- (poly_mat %*% poly_coefs)[,1]
+    
+    return(poly_val)
+}
+
+
+n_data <- 1200
+x_vals <- rnorm(n_data, 0, 0.5)
+y_vals <- calc_poly_val(x_vals) + rnorm(n_data, 0, 1)
+
+
+bias_var_tbl <- data_frame(x = x_vals, y = y_vals) %>%
+    mutate(row_type = c(rep('train', 1000), rep('test', 200)))
+
+ggplot(bias_var_tbl) +
+    geom_point(aes(x = x, y = y, colour = row_type))
+```
+
+---
+
+```{r show_bias_variance_metric, echo=FALSE}
+model_poly <- 1:25
+
+fit_poly <- function(poly_order) {
+    lm(y ~ poly(x, poly_order), data = bias_var_tbl %>% filter(row_type == 'train'))
+}
+
+calc_poly_sumsq <- function(model_lm) {
+    test_tbl <- bias_var_tbl %>%
+        filter(row_type == 'test')
+    
+    model_predict <- predict(model_lm, newdata = test_tbl)
+    
+    model_sumsq <- test_tbl %>% 
+        mutate(predict = model_predict) %>%
+        summarise(sum_sq = sum(y - model_predict)^2) %>%
+        pull(sum_sq)
+
+    return(model_sumsq)
+}
+
+
+bias_var_struct_tbl <- data_frame(poly_order = model_poly) %>%
+    mutate(model_fitlm = map(poly_order, fit_poly)
+          ,model_sumsq = map_dbl(model_fitlm, calc_poly_sumsq)
+           )    
+
+ggplot(bias_var_struct_tbl %>% filter(poly_order >= 4)) +
+    geom_line(aes(x = poly_order, y = model_sumsq)) +
+    expand_limits(y = 0) +
+    xlab('Polynomial Order') +
+    ylab('Out-of-Sample RSS')
+```
+
+---
+
+\begin{eqnarray*}
+\text{Bias}     &=& \text{under-complexity error}  \\
+\text{Variance} &=& \text{over-complexity error}
+\end{eqnarray*}
+
+
+## Linear Models
+
+\
+
+
+$$
+y = \beta_0 + \beta_1 \phi_1(X_1) + ... + \beta_n \phi_n(X_n) + \epsilon
+$$
+\
+
+Linear in parameters $\beta$
+
+---
+
+```{r generate_linear_model, echo=FALSE}
+n_points <- 1000
+
+x <- runif(n_points, -10, 10)
+y <- 0.5 + (2 * x) + (0.05 * x * x) + rnorm(n_points, 0, 3)
+```
+
+
+```{r show_linear_model, echo=FALSE}
+simple_1_tbl <- lm(y ~ x) %>%
+    augment() %>%
+    arrange(x)
+
+ggplot(simple_1_tbl) +
+    geom_point(aes(x = x, y = y)) +
+    geom_line(aes(x = x, y = .fitted), colour = 'red', size = 1) +
+    xlab('Feature') +
+    ylab('Target')
+```
+
+---
+
+```{r show_linear_model_2, echo=FALSE}
+simple_2_tbl <- lm(y ~ x + I(x^2)) %>%
+    augment() %>%
+    arrange(x)
+
+ggplot(simple_2_tbl) +
+    geom_point(aes(x = x, y = y)) +
+    geom_line(aes(x = x, y = .fitted), colour = 'red', size = 1) +
+    xlab('Feature') +
+    ylab('Target')
+```
+
+
+## Tree Methods
+
+\
+
+
+---
+
+```{r show_sample_table_2, echo=FALSE}
+Default %>% head(n = 15)
+```
+
+---
+
+```{r plot_default_tree, echo=FALSE}
+default_tree <- rpart(default ~ student + balance + income
+                     ,data   = Default
+                     ,method = 'class'
+                      )
+
+fancyRpartPlot(default_tree
+              ,main = 'Decision Tree for the Credit Default Dataset'
+              ,sub  = ''
+               )
+```
+
+---
+
+Simple to understand
+
+\
+
+Highly explainable
+
+\
+
+Prone to overfitting
+
+
+### Random Forest
+
+\
+
+Ensemble of trees
+
+\
+
+Aggregate low-bias trees to reduce variance
+
+---
+
+Sample of rows, constrain splits
+
+\
+
+Self-tuning (mostly)
+
+
+### Boosting
+
+\
+
+Ensemble of trees
+
+\
+
+Aggregate low-variance trees to reduce bias
+
+\
+
+Tuning more involved
+
+
+## Kernel Methods
+
+\
+
+Uses \emph{kernel functions}
+
+\
+
+Avoids co-ordinate transforms
+
+
+### Support Vector Machines (SVM)
+
+\
+
+Geometric method
+
+\
+
+Divides 'feature space' into regions
+
+---
+
+```{r student_svm_plot, echo=FALSE}
+svm_data_tbl <- list(data_frame(label = 'class_a', x = rnorm(1000, 1, 0.5), y = rnorm(1000,  1, 0.5))
+                    ,data_frame(label = 'class_b', x = rnorm(1000, 3, 0.5), y = rnorm(1000, -1, 0.5))
+                     ) %>%
+    bind_rows() %>%
+    mutate(label = factor(label))
+
+sample_svm <- svm(label ~ x + y, data = svm_data_tbl)
+
+plot(sample_svm, data = svm_data_tbl, x ~ y)
+```
+
+### Gaussian Processes
+
+
+## Neural Networks
+
+
+# Unsupervised Learning
+
+## Clustering
+
+## Anomaly Detection
+
+## Dimensionality Reduction
+
+
+# Natural Language Processing
+
+
+# Summary
+
+
+
+
+---
+
+Thank You!!!
+
+\
+
+mickcooney@gmail.com
+
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops
