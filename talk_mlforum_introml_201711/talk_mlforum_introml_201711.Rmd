@@ -20,6 +20,7 @@ library(ISLR)
 library(MASS)
 library(cowplot)
 library(broom)
+library(rpart)
 library(rattle)
 library(e1071)
 library(nnet)
@@ -45,6 +46,17 @@ set.seed(42)
 
 ## Who Am I?
 
+\
+
+Former quant
+
+\
+
+Statistical Volatility Arbitrage
+
+\
+
+Options on equities and equity indexes
 
 
 ## Layout
@@ -610,7 +622,11 @@ ggplot(use_data_tbl) +
 
 ---
 
-![img/census_cluster.png]()
+### Real-world Example
+
+
+![](img/dublin_census_clustering.png)
+
 
 
 ## Dimensionality Reduction
