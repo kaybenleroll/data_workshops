@@ -422,6 +422,10 @@ Ensemble of trees
 
 Aggregate low-variance trees to reduce bias
 
+---
+
+Probably most performant approach
+
 \
 
 Tuning more involved
@@ -637,7 +641,7 @@ Many variables (sometimes thousands)
 
 \
 
-Correlated / Dependent / Useless
+Correlated / dependent / useless
 
 
 ---
@@ -660,9 +664,27 @@ ggplot() +
     ylab("Dim 2")
 ```
 
+---
+
+Reduce dimensionality without losing information
+
+
 
 
 # Natural Language Processing
+
+\
+
+More and more prevalent
+
+\
+
+Supervised / Unsupervised / Semi-supervised
+
+\
+
+Google Translate
+
 
 
 # Summary
