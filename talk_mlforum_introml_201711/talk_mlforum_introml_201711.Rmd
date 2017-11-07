@@ -34,7 +34,7 @@ knitr::opts_chunk$set(tidy  = FALSE
                      ,cache = FALSE
                      ,warning = FALSE
                      ,message = FALSE
-                     ,fig.height =  8
+                     ,fig.height =  7
                      ,fig.width  = 11)
 
 
@@ -52,7 +52,7 @@ Former quant
 
 \
 
-Statistical Volatility Arbitrage
+Statistical volatility arbitrage
 
 \
 
@@ -71,7 +71,7 @@ Survey of ML
 
 \
 
-Model Validation
+Miscellanea
 
 
 
@@ -137,11 +137,11 @@ Exchangeability
 
 \
 
-Focused on predictive accuracy
+Predictive accuracy
 
 \
 
-De-emphasised inference / uncertainty / explainability
+De-emphasises inference / uncertainty / explainability
 
 
 ---
@@ -168,21 +168,7 @@ Automated ML pipelines
 Software engineering
 
 
-
-# Supervised Learning
-
----
-
-Labelled data
-
-\
-
-$$
-\begin{eqnarray*}
-\text{Discrete output}   &\rightarrow& \text{Categorisation}   \\
-\text{Continuous output} &\rightarrow& \text{Regression}
-\end{eqnarray*}
-$$
+# Model Validation
 
 ## Overfitting
 
@@ -303,6 +289,37 @@ ggplot(bias_var_struct_tbl %>% filter(poly_order >= 4)) +
 \end{eqnarray*}
 
 
+## Cross-validation
+
+\
+
+Training-test split
+
+\
+
+$k$-fold
+
+\
+
+Train-validation-test split
+
+
+# Supervised Learning
+
+---
+
+Labelled data
+
+\
+
+$$
+\begin{eqnarray*}
+\text{Discrete output}   &\rightarrow& \text{Categorisation}   \\
+\text{Continuous output} &\rightarrow& \text{Regression}
+\end{eqnarray*}
+$$
+
+
 ## Linear Models
 
 \
@@ -311,6 +328,7 @@ ggplot(bias_var_struct_tbl %>% filter(poly_order >= 4)) +
 $$
 y = \beta_0 + \beta_1 \phi_1(X_1) + ... + \beta_n \phi_n(X_n) + \epsilon
 $$
+
 \
 
 Linear in parameters $\beta$
@@ -646,7 +664,7 @@ Correlated / dependent / useless
 
 ---
 
-### Principle Component Analysis
+### PCA / SVD
 
 ```{r create_pca_data, echo=FALSE}
 Sigma <- diag(c(1, 2)) %*% matrix(c(1, 0.7, 0.7, 2), 2) %*% diag(c(1,2))
@@ -675,7 +693,7 @@ Reduce dimensionality without losing information
 
 \
 
-More and more prevalent
+More prevalent
 
 \
 
@@ -685,6 +703,37 @@ Supervised / Unsupervised / Semi-supervised
 
 Google Translate
 
+
+## Latent Dirichlet Allocation (LDA)
+
+\
+
+Unsupervised (clustering)
+
+\
+
+Topic modelling
+
+\
+
+Lots of functionality
+
+
+## word2vec
+
+\
+
+Words as vectors
+
+\
+
+Semantic meaning
+
+\
+
+$$
+\text{King} - \text{Male} + \text{Female} \approx \text{Queen}
+$$
 
 
 # Summary
