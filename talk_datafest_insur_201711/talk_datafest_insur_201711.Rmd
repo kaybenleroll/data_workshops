@@ -1,0 +1,177 @@
+---
+title: "Insurance: A New Frontier for Data Science"
+subtitle: "DataFest 2017"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2017-11-15"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(cowplot)
+
+options(width = 80L
+       ,warn  = 1)
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,warning = FALSE
+                     ,message = FALSE
+                     ,fig.height =  7
+                     ,fig.width  = 11)
+
+
+set.seed(42)
+```
+
+# Insurance
+
+## What is Insurance?
+
+\
+
+Distribution of risk
+
+\
+
+Historical origins
+
+
+---
+
+Car
+
+\
+
+Employer's Liability / Worker's Compensation
+
+\
+
+Property
+
+\
+
+Marine
+
+
+# Insurance Industry
+
+## Classifications
+
+\
+
+Life
+
+\
+
+General (P&C)
+
+\
+
+Health
+
+\
+
+Reinsurance
+
+
+---
+
+Risk
+
+\
+
+Management
+
+\
+
+Pricing
+
+
+## Actuarial Science
+
+\
+
+
+
+
+
+# Interesting Problems
+
+## Customer Lapse
+
+\
+
+Life insurance
+
+\
+
+High expenses
+
+\
+
+Early lapses unprofitable
+
+\
+
+Censored data
+
+
+## Speciality Lines
+
+\
+
+Lloyd's of London
+
+\
+
+Poor data quality
+
+\
+
+Small datasets ($\sim 5,000$) policies
+
+
+## Data Quality Solutions
+
+\
+
+Pathological systems
+
+\
+
+Multiple policy and claim administration
+
+\
+
+Information extraction
+
+
+
+
+
+
+# Summary
+
+
+
+
+---
+
+Thank You!!!
+
+\
+
+mickcooney@gmail.com
+
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops

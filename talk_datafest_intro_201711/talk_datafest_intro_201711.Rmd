@@ -1,0 +1,129 @@
+---
+title: "An Introduction to Probability using Simulation"
+subtitle: "DataFest 2017"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2017-11-15"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(scales)
+library(purrr)
+library(cowplot)
+
+options(width = 80L
+       ,warn  = 1)
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,warning = FALSE
+                     ,message = FALSE
+                     ,fig.height =  7
+                     ,fig.width  = 11)
+
+
+set.seed(42)
+```
+
+# Probability
+
+
+
+# Law of Large Numbers
+
+\
+
+
+$$
+\lim_{n \to \infty} \frac{1}{N} \sum f(X_n) \to E[f(X)]
+$$
+
+---
+
+```{r lln_norm_identity_data, echo=TRUE}
+N <- 2^(0:25)
+
+x_vals <- rnorm(max(N), 0, 1)
+
+y_vals <- map_dbl(N, function(i) mean(x_vals[1:i]))
+```
+
+---
+
+```{r lln_norm_identity_plot, echo=FALSE}
+ggplot() +
+    geom_line(aes(x = N, y = y_vals)) +
+    scale_x_log10(labels = comma) +
+    xlab("Sample Size") +
+    ylab("Average Value")
+```
+
+---
+
+$$
+f(X) = x^2
+$$
+
+---
+
+```{r lln_norm_xsq_data, echo=TRUE}
+x_vals <- rnorm(max(N), 0, 1)
+
+y_vals <- map_dbl(N, function(i) mean((x_vals[1:i])^2))
+```
+
+---
+
+```{r lln_norm_xsq_plot, echo=FALSE}
+ggplot() +
+    geom_line(aes(x = N, y = y_vals)) +
+    scale_x_log10(labels = comma) +
+    xlab("Sample Size") +
+    ylab("Average Value")
+```
+
+---
+
+```{r create_expectation_function, echo=TRUE}
+
+
+
+```
+
+
+# Bayes Rule
+
+
+# Curse of Dimensionality
+
+
+# Central Limit Theorem
+
+
+
+
+# Summary
+
+
+
+
+---
+
+Thank You!!!
+
+\
+
+mickcooney@gmail.com
+
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops
