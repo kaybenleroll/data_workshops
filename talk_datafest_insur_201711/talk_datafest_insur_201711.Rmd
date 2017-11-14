@@ -1,6 +1,6 @@
 ---
 title: "Insurance: A New Frontier for Data Science"
-subtitle: "DataFest 2017"
+subtitle: "DataFest Tbilisi 2017"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "2017-11-15"
 output:
@@ -148,7 +148,7 @@ Data present, not accessible
 
 ---
 
-![](img/crazypills_orig.jpg)
+![](img/crazypills.jpg)
 
 
 
@@ -156,6 +156,14 @@ Data present, not accessible
 # Summary
 
 
+## Further Reading
+
+\
+
+
+------------------------------- ------------------------- -------------------------- ------------------------------  
+![](img/charpentier_splash.png) ![](img/frees_splash.png) ![](img/dejong_splash.png) ![](img/gelmanhill_splash.png)
+------------------------------- ------------------------- -------------------------- ------------------------------
 
 
 ---
