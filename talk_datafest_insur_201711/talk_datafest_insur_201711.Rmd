@@ -32,18 +32,39 @@ knitr::opts_chunk$set(tidy  = FALSE
 set.seed(42)
 ```
 
+
+# Motivation
+
+---
+
+*It ain't what you don't know that kills you... It's what you know for sure
+but just ain't so.*
+
+\
+
+Mark Twain
+
+---
+
+*It is difficult to get a man to understand something when his salary depends
+upon his not understanding it*
+
+\
+
+Upton C. Sinclair
+
+
+---
+
+*The problems with quotes on the internet is that you often cannot trust them*
+
+\
+
+Vladimir Lenin
+
+
+
 # Insurance
-
-## What is Insurance?
-
-\
-
-Distribution of risk
-
-\
-
-Historical origins
-
 
 ---
 
@@ -62,11 +83,8 @@ Property
 Marine
 
 
-# Insurance Industry
+---
 
-## Classifications
-
-\
 
 Life
 
@@ -83,42 +101,19 @@ Health
 Reinsurance
 
 
+
+# Why Data Science?
+
+\
+
+VERY interesting problems
+
 ---
 
-Risk
+Low hanging fruit
 
-\
-
-Management
-
-\
-
-Pricing
-
-
-## Actuarial Science
-
-\
-
-
-
-
-
-# Interesting Problems
 
 ## Customer Lapse
-
-\
-
-Life insurance
-
-\
-
-High expenses
-
-\
-
-Early lapses unprofitable
 
 \
 
@@ -129,32 +124,20 @@ Censored data
 
 \
 
-Lloyd's of London
+Poor data quality / small size
 
-\
-
-Poor data quality
-
-\
-
-Small datasets ($\sim 5,000$) policies
 
 
 ## Data Quality Solutions
 
 \
 
-Pathological systems
-
-\
-
-Multiple policy and claim administration
-
-\
-
-Information extraction
+Data present, not accessible
 
 
+---
+
+![](img/crazypills_orig.jpg)
 
 
 
