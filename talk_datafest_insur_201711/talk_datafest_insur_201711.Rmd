@@ -37,14 +37,21 @@ set.seed(42)
 
 ---
 
-*It ain't what you don't know that kills you... It's what you know for sure
-but just ain't so.*
+![](img/marktwain.jpg)
+
+\
+
+*It ain't what you don't know that kills you... It's what      
+you know for sure but just ain't so.*                          
+
 
 \
 
 Mark Twain
 
 ---
+
+![](img/uptonsinclair.jpg)
 
 *It is difficult to get a man to understand something when his salary depends
 upon his not understanding it*
@@ -56,7 +63,10 @@ Upton C. Sinclair
 
 ---
 
-*The problems with quotes on the internet is that you often cannot trust them*
+![](img/vladimirlenin.jpg)
+
+*The problem with finding quotes on the internet is that you often cannot
+trust them*
 
 \
 
@@ -111,6 +121,7 @@ VERY interesting problems
 ---
 
 Low hanging fruit
+
 
 
 ## Customer Lapse
