@@ -1,6 +1,6 @@
 ---
 title: "An Introduction to Probability using Simulation"
-subtitle: "DataFest 2017"
+subtitle: "DataFest Tbilisi 2017"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "2017-11-15"
 output:
@@ -39,7 +39,7 @@ set.seed(42)
 
 
 $$
-\lim_{n \to \infty} \frac{1}{N} \sum f(X_n) \to E[f(X)]
+\lim_{n \to \infty} \frac{1}{N} \sum f(X_n) p(X_n) \to E[f(X)]
 $$
 
 ```{r lln_norm_identity_data, echo=TRUE}
@@ -152,6 +152,59 @@ ggplot(sim_sq_tbl) +
     scale_x_log10(labels = comma) +
     xlab('Sample Size') +
     ylab('Expectation')
+```
+
+# Expected Value
+
+```{r roll_d6, echo=TRUE}
+n_roll <- 10000
+
+onedice <- sample(1:6, n_roll, replace = TRUE)
+
+ggplot() +
+    geom_histogram(aes(x = onedice), bins = 6) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(onedice)
+
+twodice_indiv <- matrix(sample(1:6, 2 * n_roll, replace = TRUE), ncol = 2)
+twodice <- rowSums(twodice_indiv)
+
+ggplot() +
+    geom_histogram(aes(x = onedice), bins = 12) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(twodice)
+
+
+threedice_indiv <- matrix(sample(1:6, 3 * n_roll, replace = TRUE), ncol = 3)
+threedice <- rowSums(threedice_indiv)
+
+ggplot() +
+    geom_histogram(aes(x = threedice), bins = 16) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(threedice)
+
+
+drop_lowest <- function(x) x %>% sort(decreasing = TRUE) %>% .[1:3] %>% sum
+
+topthree_indiv <- matrix(sample(1:6, 4 * n_roll, replace = TRUE), ncol = 4)
+topthree <- apply(topthree_indiv, 1, drop_lowest)
+
+ggplot() +
+    geom_histogram(aes(x = topthree), bins = 16) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(topthree)
 ```
 
 
@@ -483,6 +536,7 @@ clt_lowpois_data_tbl <- data_frame(vals = map(clt_count, function(i) rowMeans(da
 ggplot(clt_lowpois_data_tbl) +
     geom_histogram(aes(x = vals), bins = 50) +
     facet_wrap(~size) +
+    scale_y_continuous(labels = comma) +
     xlab("Mean of Sample") +
     ylab("Count")
 
@@ -492,11 +546,6 @@ clt_lowpois_data_tbl %>%
     ungroup %>%
     mutate(clt_sd = sqrt(0.05) / sqrt(size))
 ```
-
-
-
-
-# Summary
 
 
 
