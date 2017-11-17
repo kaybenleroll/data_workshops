@@ -1,0 +1,193 @@
+.bayes * h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500
+}
+
+.bayes * h4 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500
+}
+
+.bayes * .form-group {
+    margin: 0 0 30px
+}
+
+.bayes * .form-title {
+    margin: 20px
+}
+
+.bayes * .form-group-title {
+    padding: 10px 20px;
+    color: #212121;
+    border-bottom: 1px solid #ffffff
+}
+
+.bayes * .form-buttons {
+    padding: 15px;
+    text-align: center
+}
+
+.bayes * fieldset {
+    margin: 0;
+    padding: 0 10px 0 20px;
+    border: none;
+    border-bottom: 1px solid #E9E9E9;
+    overflow: hidden;
+    cursor: pointer
+}
+
+.bayes * fieldset:hover {
+    background: #F7F7F7
+}
+
+.bayes * label {
+    display: block;
+    float: left;
+    width: 82px;
+    line-height: 40px;
+    font-size: 14px;
+    cursor: pointer
+}
+
+.bayes * input {
+    font-family: 'Helvetica Neue', sans-serif
+}
+
+.bayes * input[type=number] {
+    padding: 5px 0 5px 5px;
+    margin: 0;
+    width: 95px;
+    float: left;
+    font-size: 15px;
+    background: 0 0;
+    box-sizing: border-box;
+    text-align: right;
+    border: none;
+    line-height: 30px;
+    cursor: pointer
+}
+
+.bayes * input[type=submit] {
+    border-radius: 3px;
+    padding: 10px 15px;
+    background: #F7F7F7;
+    border: 1px solid #E9E9E9;
+    font-weight: 500;
+    cursor: pointer;
+    color: #000;
+    font-size: 13px;
+    display: inline-block
+}
+
+.bayes * input[type=submit]:hover {
+    color: #555
+}
+
+.bayes * input[type=submit]:active {
+    position: relative;
+    top: 1px
+}
+
+.bayes * input:focus {
+    outline: 0
+}
+
+.bayes * .wrapper {
+    margin: 10px auto;
+    width: 960px;
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box
+}
+
+.bayes * .content,
+.bayes * .sidebar {
+    box-sizing: border-box
+}
+
+.bayes * .sidebar {
+    width: 210px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    background: #FFF;
+    height: 100%;
+    border-radius: 3px 0 0 3px;
+    border-right: 3px solid #F7F7F7
+}
+
+.bayes * .form-group-title.control:before,
+.bayes * .form-group-title.test:before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 100px;
+    margin-right: 5px;
+    position: relative;
+    top: -1px
+}
+
+.bayes * .form-group-title.control:before {
+    background: #007AFF
+}
+
+/*
+.bayes * .form-group-title.test:before {
+    background: #E93A5E
+}
+*/
+
+.bayes * .content {
+    width: 960px;
+    padding: 20px;
+    margin-left: 210px;
+    background: #FCFCFC;
+    border-radius: 0 3px 3px 0
+}
+
+.bayes * .chart {
+    margin: 10px 0 0
+}
+
+.bayes * .chart-title {
+    text-align: center;
+    margin-bottom: 5px
+}
+
+.bayes * .chart-description {
+    font-size: 13px;
+    text-align: center;
+    margin: 0 0 20px;
+    color: #999
+}
+
+.bayes * .chart text {
+    font-size: 12px
+}
+
+.bayes * .tick line {
+    stroke: #C9C9C9
+}
+
+.bayes * .axis path {
+    stroke: #27344B;
+    stroke-width: 1px;
+    shape-rendering: crispEdges;
+    fill: none
+}
+
+#pdfplot #controlLine,
+#pdfplot #testLine {
+    opacity: .95
+}
+
+#pdfplot #testLine {
+    fill: #E93A5E
+}
+
+#pdfplot #controlLine {
+    fill: #007AFF
+}
