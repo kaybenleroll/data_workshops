@@ -1,7 +1,7 @@
 ---
 title: "Data, Big or Otherwise, in the Insurance Industry"
 author: "Mick Cooney <mcooney@agrippadataconsulting.com>"
-date: "16 January 2018"
+date: "12 January 2018"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -83,7 +83,6 @@ You (Probably) Do Not Have a Big Data Problem
 
 ![Hadley Image](img/hadley_wickham.png)
 
-\
 
 Hadley Wickham
 
@@ -154,6 +153,35 @@ $\sim$ 1% of problems
 
 # What Does Big Data Mean?
 
+---
+
+Various definitions
+
+\
+
+Generally bigger than one machine
+
+
+## Cynical Definition
+
+\
+
+Big Data is a marketing term used by salespeople to extract large sums of money
+from companies.
+
+
+## Circular Definition
+
+\
+
+A big data problem is one where big data solutions work best
+
+
+## Practical Definition
+
+\
+
+Software infrastructure to assist in the processing and use of large datasets
 
 
 
@@ -201,6 +229,17 @@ Claim data poor quality
 
 ### Estimating Claims Reserves
 
+\
+
+Estimate total claim amounts
+
+\
+
+Data sparse
+
+\
+
+Chain Ladder often ineffective
 
 ---
 
@@ -208,7 +247,11 @@ Claim data poor quality
 
 \
 
-Data censored
+Exposure data aggregated
+
+\
+
+Partial view of claims (censored)
 
 
 ---
@@ -241,9 +284,53 @@ Customer segmentation
 Survival analysis
 
 
+
 ## Other Problems
 
+\
 
+Less 'actuarial'
+
+
+---
+
+### Marketing Campaigns
+
+\
+
+Limited marketing budget
+
+\
+
+Optimise call list
+
+---
+
+### Underwriting Fraud
+
+\
+
+Most data missing
+
+\
+
+Find fraudulent or misleading applications
+
+---
+
+### Internal Operations
+
+\
+
+COmmunications data, emails
+
+\
+
+Identify bottlenecks
+
+\
+
+Improve customer turnaround
 
 
 
@@ -292,12 +379,6 @@ Survival analysis
 |![](img/github_presentation.png)|![](img/stackoverflow_presentation.png)|
 
 
----
-
-Help Everyone You Can!
-
-
-
 ## Where to Learn
 
 \
@@ -307,6 +388,13 @@ Help Everyone You Can!
 |:-:|:-:|
 |![](img/coursera_presentation.png)|![](img/khan_academy_presentation.png)|
 |![](img/youtube_presentation.png)|![](img/mitocw_presentation.png)|
+
+
+---
+
+Help everyone you can!
+
+
 
 
 # Thank You
