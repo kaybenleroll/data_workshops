@@ -38,6 +38,8 @@ A confession
 
 # Who Am I?
 
+---
+
 Physics
 
 Quant Finance
@@ -45,6 +47,10 @@ Quant Finance
 Statistics
 
 Computer Programming
+
+---
+
+Nerd
 
 
 ## The Last Three Years...
@@ -84,7 +90,9 @@ You (Probably) Do Not Have a Big Data Problem
 ![Hadley Image](img/hadley_wickham.png)
 
 
-Hadley Wickham
+Hadley Wickham's Interview with a Data Scientist
+
+Peadar Coyle
 
 ---
 
@@ -166,8 +174,8 @@ Generally bigger than one machine
 
 \
 
-Big Data is a marketing term used by salespeople to extract large sums of money
-from companies.
+"Big Data" is a marketing term used by salespeople to extract large sums of
+money from companies with a severe case of FOMO.
 
 
 ## Circular Definition
@@ -287,9 +295,9 @@ Survival analysis
 
 ## Other Problems
 
-\
+---
 
-Less 'actuarial'
+Less traditionally 'actuarial'
 
 
 ---
@@ -322,7 +330,7 @@ Find fraudulent or misleading applications
 
 \
 
-COmmunications data, emails
+Communications data, emails
 
 \
 
