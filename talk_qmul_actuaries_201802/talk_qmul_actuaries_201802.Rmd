@@ -1,0 +1,413 @@
+---
+title: "Data, Big or Otherwise, in the Insurance Industry"
+author: "Mick Cooney <mcooney@agrippadataconsulting.com>"
+date: "12 January 2018"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+---
+
+```{r knit_opts, include=FALSE}
+rm(list = ls())
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,fig.width  = 11
+                     ,fig.height =  8)
+
+library(tidyverse)
+library(scales)
+
+options(width = 80L
+       ,warn  = 1 
+        )
+```
+
+
+# Who Am I?
+
+---
+
+Physics
+
+Quant Finance
+
+Statistics
+
+Computer Programming
+
+---
+
+Nerd
+
+
+![](img/maurice_moss.png)
+
+
+
+## The Last Three Years...
+
+\
+
+
+- Lapse Modelling -- Survival analysis
+- Geospatial Modelling -- PostgreSQL / PostGIS
+- Customer Segmentation -- Hierarchical clustering
+- Mortality Swaps -- MonteCarlo simulation
+- Underwriting Fraud -- Bayesian networks
+- Data Generation -- Life/Motor/Captive/Employer/Corporate
+- Car Insurance Pricing -- GLMs / MonteCarlo simulation
+- Reinsurance Loss Modelling -- Bayesian Hierarchical / Stan
+- Email Analysis -- NLP / LDA
+- Property Insurance Loss Costing -- Stan / Boosting / Dataviz
+
+
+
+
+# What is (Big) Data?
+
+
+## Dirty Little Secret
+
+\
+
+
+You (Probably) Do Not Have a Big Data Problem
+
+
+
+
+## Sizes of Data
+
+![Hadley Image](img/hadley_wickham.png)
+
+
+Hadley Wickham's Interview with a Data Scientist
+
+Peadar Coyle
+
+---
+
+### Three Data Sizes
+
+\
+
+In-Memory
+
+\
+
+On-Disk
+
+\
+
+Multi-Disk
+
+
+
+## Three Problem Sizes
+
+\
+
+Sampleable Problems
+
+\
+
+Parallelisable Problems
+
+\
+
+Irreducible Problems
+
+---
+
+### Sampleable Problems
+
+\
+
+$\sim$ 90% of problems
+
+\
+
+
+---
+
+### Parallelisable Problems
+
+\
+
+$\sim$ 9% of problems
+
+\
+
+
+
+---
+
+### Irreducible Problems
+
+\
+
+$\sim$ 1% of problems
+
+
+
+# What Does Big Data Mean?
+
+---
+
+Various definitions
+
+\
+
+Generally bigger than one machine
+
+
+## Cynical Definition
+
+\
+
+"Big Data" is a marketing term used by salespeople to extract large sums of
+money from companies with a severe case of FOMO.
+
+
+## Circular Definition
+
+\
+
+A big data problem is one where big data solutions work best
+
+
+## Practical Definition
+
+\
+
+Software infrastructure to assist in the processing and use of large datasets
+
+
+
+
+# Data in Insurance
+
+---
+
+Most classic insurance problems are small data
+
+
+## Actuarial Problems
+
+\
+
+Pricing
+
+\
+
+Reserving
+
+\
+
+Capital Modelling
+
+
+---
+
+### Loss-Costing DNF Business
+
+\
+
+5-10k Policies
+
+\
+
+SoV data can be large
+
+\
+
+Claim data poor quality
+
+
+---
+
+### Estimating Claims Reserves
+
+\
+
+Estimate total claim amounts
+
+\
+
+Data sparse
+
+\
+
+Chain Ladder often ineffective
+
+---
+
+### ICT Pricing
+
+\
+
+Exposure data aggregated
+
+\
+
+Partial view of claims (censored)
+
+
+---
+
+### Cost of Guarantees
+
+\
+
+With-profit Funds
+
+\
+
+Quant finance
+
+\
+
+MonteCarlo simulation
+
+
+---
+
+### Estimating Lapse Risk
+
+\
+
+Customer segmentation
+
+\
+
+Survival analysis
+
+
+
+## Other Problems
+
+---
+
+Less traditionally 'actuarial'
+
+
+---
+
+### Marketing Campaigns
+
+\
+
+Limited marketing budget
+
+\
+
+Optimise call list
+
+---
+
+### Underwriting Fraud
+
+\
+
+Most data missing
+
+\
+
+Find fraudulent or misleading applications
+
+---
+
+### Internal Operations
+
+\
+
+Communications data, emails
+
+\
+
+Identify bottlenecks
+
+\
+
+Improve customer turnaround
+
+
+
+
+
+## Some Predictions
+
+\
+
+
+- Catastrophe Modelling
+- Uplift Modelling / Marketing Evaluation
+- Lapse Modelling (Churn)
+- Mortality Modelling
+- Risk Modelling and Reserving
+- Fraud Investigation
+- Internal Communications
+- Compliance
+
+
+
+
+# Getting Started
+
+## Suggested Learning
+
+\
+
+
+- SQL
+- Linear Algebra
+- Statistics
+- Computer Programming
+- Source Control
+- Linear Models
+- Tree-based Models
+
+
+## Suggested Activities
+
+\
+
+
+| | |
+|:-:|:-:|
+|![](img/meetup_presentation.png)|![](img/kaggle_presentation.png)|
+|![](img/github_presentation.png)|![](img/stackoverflow_presentation.png)|
+
+
+## Where to Learn
+
+\
+
+
+| | |
+|:-:|:-:|
+|![](img/coursera_presentation.png)|![](img/khan_academy_presentation.png)|
+|![](img/youtube_presentation.png)|![](img/mitocw_presentation.png)|
+
+
+---
+
+Help everyone you can!
+
+
+
+
+# Thank You
+
+## Get in Touch
+
+\
+
+
+mcooney@agrippadataconsulting.com
+
+GitHub: <http://www.github.com/kaybenleroll>
+
