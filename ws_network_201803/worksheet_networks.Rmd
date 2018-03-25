@@ -1,0 +1,506 @@
+---
+title: "Dublin Data Science Workshop on the Statistical Analysis of Networks"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, March 26 2018"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+  word_document:
+    toc: yes
+  pdf_document: default
+---
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(scales)
+library(cowplot)
+
+library(ggnetwork)
+library(igraph)
+library(igraphdata)
+library(sand)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+```
+
+
+
+# Introduction to Network Data
+
+## Example Networks
+
+### Florentine Marriage Data
+
+```{r load_florentine_data, echo=TRUE}
+data(flo, package = 'network')
+
+florence_igraph <- graph_from_adjacency_matrix(flo, mode = 'undirected')
+
+plot(florence_igraph)
+```
+
+We can use the package `ggnetwork` to allow us to plot networks within `ggplot2`
+
+```{r plot_florentine_ggnetwork, echo=TRUE}
+ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+```{r show_graph_details, echo=TRUE}
+### Show graph vertices
+V(florence_igraph)
+
+
+### Show graph edges
+E(florence_igraph)
+```
+
+
+To help access the edgelist in a more usable form we convert the edgelist to a
+matrix, showing the origin and destination nodes.
+
+```{r show_florence_edgelist, echo=TRUE}
+get.edgelist(florence_igraph)
+```
+
+We also want to look at the adjacency matrix for this network
+
+```{ show_florence_adjacency, echo=TRUE}
+get.adjacency(florence_igraph)
+```
+
+The elements of a graph can all have attributes:
+
+```{r show_element_attributes, echo=TRUE}
+igraph::list.graph.attributes(florence_igraph)
+
+igraph::list.vertex.attributes(florence_igraph)
+
+igraph::list.edge.attributes(florence_igraph)
+```
+
+
+Subgraphs are subsets of graphs that are part of the whole.
+
+```{r show_florence_subgraph, echo=TRUE}
+family_keep <- c('Medici', 'Barbadori', 'Ridolfi','Tornabuoni','Pazzi'
+                ,'Salviati', 'Albizzi', 'Guadagni')
+
+florence_subgraph <- induced_subgraph(florence_igraph, family_keep)
+
+ggplot(florence_subgraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+### US Airport Data
+
+```{r load_usairport_data, echo=TRUE}
+data(USairports)
+
+
+### Show graph vertices
+V(USairports)
+
+
+### Show graph edges
+E(USairports)
+```
+
+This is a much larger network, and visualising it is likely going to be a mess,
+but we will try anyway.
+
+```{r plot_usairport_data, echo=TRUE}
+ggplot(USairports, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+Yeah, it is a mess.
+
+We will try again with a small subgraph, using just 5 nodes
+
+```{r plot_usairport_subgraph, echo=TRUE}
+usairport_subgraph <- induced_subgraph(USairports, 1:10)
+
+ggplot(usairport_subgraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+Now that we have seen this network, we look at what additional information is
+here.
+
+```{r show_element_attributes_usairports, echo=TRUE}
+igraph::list.graph.attributes(USairports)
+
+igraph::list.vertex.attributes(USairports)
+
+igraph::list.edge.attributes(USairports)
+```
+
+We see that the edges in particular now have a number of attributes. We access
+them through `edge_attr()`
+
+```{r list_airport_edge_attributes, echo=TRUE}
+edge_attr(USairports) %>%
+    as_tibble()
+```
+
+### Lazega Lawyers Network
+
+```{r load_lazega_data, echo=TRUE}
+data(lazega)
+
+lazega <- lazega %>% upgrade_graph()  # Data is in deprecated format.
+
+
+### Show graph vertices
+V(lazega)
+
+
+### Show graph edges
+E(lazega)
+```
+
+
+```{r plot_lazega_data, echo=TRUE}
+ggplot(lazega, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+```
+
+```{r show_element_attributes_lazega, echo=TRUE}
+igraph::list.graph.attributes(lazega)
+
+igraph::list.vertex.attributes(lazega)
+
+igraph::list.edge.attributes(lazega)
+```
+
+We see that the vertices have the attributes but the edges have none.
+
+```{r show_lazega_edge_attr, echo=TRUE}
+vertex_attr(lazega) %>%
+    as_tibble()
+```
+
+
+### Exercises
+
+  1. Read in the network data contained in the file `NetScience.net`.
+  1. Visualise the network using both base `plot` and `ggplot2`.
+  1. Investigate the vertex and edge attributes.
+  1. Is this graph directed or undirected?
+  1. How many edges and vertices does it have?
+  1. Is it a simple graph?
+ 
+
+
+## Visualising Network Data
+
+Plotting network data is not automatic - mathematical concepts allow us to
+convert network topology into a form amenable to plotting.
+
+```{r plot_florence_graph, echo=TRUE}
+plot_1 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+plot_2 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+plot_3 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+plot_4 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+
+plot_grid(plot_1, plot_2, plot_3, plot_4, ncol = 2)
+```
+
+### Creating Layouts
+
+To plot graphs visually, we need a way to transform the graphs into 2D
+coordinates. A number of layout algorithms exist.
+
+To show the differences, we plot the Florentine network using a number of
+different layout algorithms.
+
+```{r plot_florence_fr, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'fruchtermanreingold')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using Fruchterman-Reingold Layout') +
+    theme_blank()
+```
+
+
+```{r plot_florence_spring, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'spring')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using Spring Layout') +
+    theme_blank()
+```
+
+
+```{r plot_florence_mds, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'mds')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using MDS Layout') +
+    theme_blank()
+```
+
+
+
+### Exercises
+
+  1. Produce similar visualisations as appropriate for the other graphs.
+  1. Investigate alternative layout algorithms for the Florentine network.
+  1. Try those layouts on the other network data.
+  
+  
+
+# Network Statistics
+
+## Network Degree
+
+### Degree of Vertex
+
+The *degree* of a vertex is the count of connections from that vertex.
+
+We now look at the distribution of vertex degree for the Florentine network:
+
+
+```{r plot_florentine_degree_distribution, echo=TRUE}
+ggplot() +
+    geom_bar(aes(x = igraph::degree(florence_igraph))) +
+    xlab("Vertex Degree") +
+    ylab("Count of Degrees")
+```
+
+### Average Neighbour Degree
+
+Another interesting quantity is the average degree of all the neighbours of
+each vertex.
+
+```{r plot_degree_knn, echo=TRUE}
+flor_knn <- graph.knn(florence_igraph)$knn
+
+flor_knn_tbl <- data_frame(family = names(flor_knn)
+                          ,degree = igraph::degree(florence_igraph)
+                          ,knn    = flor_knn
+                           )
+
+
+ggplot(flor_knn_tbl) +
+    geom_text(aes(x = degree, y = knn, label = family)) +
+    expand_limits(y = 0) +
+    xlab("Vertex Degree") +
+    ylab("KNN Degree")
+```
+
+
+### Exercises
+
+  1. Produce the degree distribution for the other networks
+  1. Calaculate the average neighbour degree distribution for the other networks
+  1. What can we infer about the importance of a vertex from these values?
+
+
+
+
+## Measures of Centrality
+
+### Between-ness Centrality
+
+Between-ness measures how often a vertex comes between two other vertices in
+the graph.
+
+$$
+c_B(\nu) = \sum_{s \neq t \neq \nu \in V} \frac{\sigma(s, t | \nu)}{\sigma(s,t)}
+$$
+
+where $\sigma(s, t| \nu)$ is the count of shortest paths between $s$ and $t$
+that goes through $\nu$ and $\sigma(s, t)$ is the total number of shortest
+paths between $s$ and $t$.
+
+We now calculate the between-ness centrality for each vertex in the Florence
+marriage network
+
+```{r florence_graph_betweenness, echo=TRUE}
+florence_betweenness <- florence_igraph %>%
+    (igraph::betweenness)() %>%
+    sort(decreasing = TRUE)
+
+ggplot() +
+    geom_col(aes(x = names(florence_betweenness), y = florence_betweenness)) +
+    xlab("Family") +
+    ylab("Between-ness") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+### Closeness Centrality
+
+Closeness centrality is measure of the distance of the vertex from other
+vertices in the graph.
+
+$$
+c_{Cl}(\nu) = \frac{1}{\sum_{u \in V} \text{dist}(u, \nu)}
+$$
+
+
+
+```{r florence_graph_closeness, echo=TRUE}
+florence_closeness <- florence_igraph %>%
+    (igraph::closeness)() %>%
+    sort(decreasing = TRUE)
+
+ggplot() +
+    geom_col(aes(x = names(florence_closeness), y = florence_closeness)) +
+    xlab("Family") +
+    ylab("Closeness") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+
+### Eigenvector Centrality
+
+Eigenvector centrality is a class of centrality measures based on linear
+systems derived from the graph.
+
+The most common of these are the eigenvectors of the adjacency matrix produced
+from the graph.
+
+The key idea here is that vertices which are 'central' in the network are so
+due to their neighbours being 'central'. This concept is inherently implicit
+in nature and so is calculated via linear algebra means.
+
+
+```{r florence_graph_eigenvector, echo=TRUE}
+florence_eigencent <- florence_igraph %>%
+    igraph::eigen_centrality() %>%
+    .$vector %>%
+    sort(decreasing = TRUE)
+
+ggplot() +
+    geom_col(aes(x = names(florence_eigencent), y = florence_eigencent)) +
+    xlab("Family") +
+    ylab("Eigenvector Centrality") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+### Exercises
+
+  1. Calculate the centrality measures for the other networks
+
+
+## Network Cohesion
+
+### Cliques
+
+```{r plot_clique_distribution, echo=TRUE}
+clique_size <- florence_igraph %>%
+    cliques %>%
+    map_int(length)
+
+ggplot() +
+    geom_bar(aes(x = clique_size)) +
+    xlab("Clique Size") +
+    ylab("Count")
+```
+
+
+### Clustering Co-efficient / Transitivity
+
+The transitivity of the network is a measure of the 'density' of connections
+in the network. It is the ratio of triangles in the network to possible
+triangles.
+
+Local transitivity does the same for all triangles contain the vertex.
+
+```{r calculate_transitivities, echo=TRUE}
+florence_igraph %>%
+    transitivity()
+
+florence_igraph %>%
+    transitivity(type = 'local', vids = c('Strozzi', 'Guadagni', 'Medici'))
+```
+
+### Shortest Paths
+
+The shortest path measures are measures of the size and connectivity of the
+graph
+
+```{r show_distance_stats, echo=TRUE}
+florence_igraph %>% mean_distance()
+
+florence_igraph %>% diameter()
+```
+
+## Graph Partitioning
+
+```{r partition_florence_graph, echo=TRUE}
+florence_partition <- cluster_fast_greedy(florence_igraph)
+
+florence_partition %>% str()
+```
+
+## Assortativity
+
+
+
+
+# Random Graph Models
+
+## Erdos-Renyi Graph Models
+
+
+## Generalised Random Graph Models
+
+
+## Small World Models
+
+
+## Preferential Attachment Models
+
+
+# Statistical Models for Graphs
+
