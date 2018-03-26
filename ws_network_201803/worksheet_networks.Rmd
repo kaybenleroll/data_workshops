@@ -42,7 +42,34 @@ set.seed(42)
 
 # Introduction to Network Data
 
+All materials for this workshop is available in my standard GitHub repo:
+
+https://github.com/kaybenleroll/dublin_r_workshops
+
+
+![book cover](img/sand_cover.jpg)
+
+
+The content of this workshop is based on the book "Statistical Analysis of
+Network Data with R" by Kolaczyk and Csardi. The data from this book is
+available from CRAN via the package `sand` and there is a GitHub repo for the
+code in the book also:
+
+https://github.com/kolaczyk/sand
+
+
+Additional ideas and elements and concepts were
+taken from the Coursera course "Social and Economic Networks" taught by
+Matthew O. Jackson
+
+https://www.coursera.org/learn/social-economic-networks
+
+
 ## Example Networks
+
+In this workshop we are going to use three different networks as reference
+datasets to illustrate the concepts we discuss.
+
 
 ### Florentine Marriage Data
 
@@ -137,10 +164,10 @@ ggplot(USairports, aes(x = x, y = y, xend = xend, yend = yend)) +
 
 Yeah, it is a mess.
 
-We will try again with a small subgraph, using just 5 nodes
+We will try again with a small subgraph, using just 15 nodes
 
 ```{r plot_usairport_subgraph, echo=TRUE}
-usairport_subgraph <- induced_subgraph(USairports, 1:10)
+usairport_subgraph <- induced_subgraph(USairports, 1:15)
 
 ggplot(usairport_subgraph, aes(x = x, y = y, xend = xend, yend = yend)) +
     geom_edges() +
@@ -285,6 +312,12 @@ ggplot(ggnetwork(florence_igraph, layout = 'mds')
     theme_blank()
 ```
 
+We save the FR layout for future plotting so that all plots looks the same
+
+
+```{r create_florentine_layout, echo=TRUE}
+florentine_fr_layout <- ggnetwork(florence_igraph, 'fruchternmanreingold')
+```
 
 
 ### Exercises
@@ -477,15 +510,139 @@ florence_igraph %>% diameter()
 
 ## Graph Partitioning
 
+### Hierarchical Partitioning
+
 ```{r partition_florence_graph, echo=TRUE}
 florence_partition <- cluster_fast_greedy(florence_igraph)
+
+florence_partition %>% print
 
 florence_partition %>% str()
 ```
 
+We can now replot the network but colour each of the nodes by their cluster
+membership.
+
+
+```{r show_florentine_hier_cluster_membership, echo=TRUE}
+hier_label_tbl <- data_frame(
+    vertex.names = V(florence_igraph) %>% names()
+   ,cluster_hier = florence_partition %>% membership() %>% as.character()
+)
+
+florentine_plot_layout <- florentine_fr_layout %>%
+    merge(hier_label_tbl, by = 'vertex.names')
+
+cluster_hier_plot <- ggplot(florentine_plot_layout
+                           ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_nodelabel(aes(label = vertex.names, fill = cluster_hier)) +
+    theme_blank()
+
+cluster_hier_plot %>% plot()
+```
+
+
+### Spectral Partitioning
+
+We can use more direct linear algebra routines to partition the graph. To do
+this we construct the 'graph Laplacian' from the degrees of each vertex and
+its adjacency matrix.
+
+$$
+\mathbf{L} = \mathbf{D} - \mathbf{A}
+$$
+
+By analysing the eigenvalues and eigenvectors of this matrix, and recursively
+applying splits to the graphs based on the size of the eigenvalues, we break
+this network into pieces.
+
+
+```{r show_florentine_laplacian, echo=TRUE}
+florency_laplacian <- laplacian_matrix(florence_igraph)
+
+flor_laplac_eigen <- eigen(florency_laplacian)
+
+flor_laplac_eigen %>% print(digits = 2)
+```
+
+We look at the eigenvalues ranked in order.
+
+```{r plot_laplacian_values, echo=TRUE}
+ggplot() +
+    geom_line(aes(x = seq_along(flor_laplac_eigen$values)
+                 ,y = flor_laplac_eigen$values)) +
+    expand_limits(y = 0) +
+    xlab("Eigenvalue Ranking") +
+    ylab("Eigenvalue")
+```
+
+We now cluster using these spectral methods
+
+```{r show_florentine_spec_cluster_membership, echo=TRUE}
+florence_spec_partition <- florence_igraph %>%
+    cluster_leading_eigen()
+
+spec_label_tbl <- data_frame(
+    vertex.names = V(florence_igraph) %>% names()
+   ,cluster_spec = florence_spec_partition %>% membership() %>% as.character()
+)
+
+florentine_plot_layout <- florentine_fr_layout %>%
+    merge(spec_label_tbl, by = 'vertex.names')
+
+cluster_spec_plot <- ggplot(florentine_plot_layout
+                           ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_nodelabel(aes(label = vertex.names, fill = cluster_spec)) +
+    theme_blank()
+
+cluster_spec_plot %>% plot()
+```
+
+We plot the two groupings beside each other to compare them.
+
+```{r compare_cluster_plot, echo=TRUE}
+plot_grid(cluster_hier_plot, cluster_spec_plot, ncol = 2)
+```
+
+
+### Exercises
+
+  1. Run the clustering algorithms for the other network data.
+
+
 ## Assortativity
 
+*Assortativity* is a measure, analogous to correlation, that measures the
+tendency for nodes will similar properties to connect to one another.
 
+The Florentine marriage data is a little unusual in that it does not contain
+any properties on the vertices or edges, but assortativity in degree can be
+calculated - measuring the tendency for high degree nodes to connect to one
+another)
+
+```{r calculate_florentine_degree_assortativity, echo=TRUE}
+assortativity_degree(florence_igraph)
+```
+
+There are slightly different calculations for assortativity, depending on
+whether the attribute is numerical or categorical.
+
+To test this, we will add the hierarchical clustering ID from the previous
+section to the Florentine graph and then measure the assortivity associated
+with that attribute.
+
+```{r calculate_floretine_cluster_assortativity, echo=TRUE}
+assortativity_nominal(florence_igraph, membership(florence_partition))
+
+assortativity_nominal(florence_igraph, membership(florence_spec_partition))
+```
+
+### Exercises
+
+  1. Calculate the assortativity of membership for Florentine data as binary membership.
+  1. Calculate the assortativity for the other networks.
 
 
 # Random Graph Models
