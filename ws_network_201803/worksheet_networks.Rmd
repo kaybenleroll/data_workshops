@@ -104,23 +104,23 @@ To help access the edgelist in a more usable form we convert the edgelist to a
 matrix, showing the origin and destination nodes.
 
 ```{r show_florence_edgelist, echo=TRUE}
-get.edgelist(florence_igraph)
+as_edgelist(florence_igraph)
 ```
 
 We also want to look at the adjacency matrix for this network
 
 ```{ show_florence_adjacency, echo=TRUE}
-get.adjacency(florence_igraph)
+as_adjacency_matrix(florence_igraph)
 ```
 
 The elements of a graph can all have attributes:
 
 ```{r show_element_attributes, echo=TRUE}
-igraph::list.graph.attributes(florence_igraph)
+graph_attr_names(florence_igraph)
 
-igraph::list.vertex.attributes(florence_igraph)
+vertex_attr_names(florence_igraph)
 
-igraph::list.edge.attributes(florence_igraph)
+edge_attr_names(florence_igraph)
 ```
 
 
@@ -179,11 +179,11 @@ Now that we have seen this network, we look at what additional information is
 here.
 
 ```{r show_element_attributes_usairports, echo=TRUE}
-igraph::list.graph.attributes(USairports)
+graph_attr_names(USairports)
 
-igraph::list.vertex.attributes(USairports)
+vertex_attr_names(USairports)
 
-igraph::list.edge.attributes(USairports)
+edge_attr_names(USairports)
 ```
 
 We see that the edges in particular now have a number of attributes. We access
@@ -219,11 +219,11 @@ ggplot(lazega, aes(x = x, y = y, xend = xend, yend = yend)) +
 ```
 
 ```{r show_element_attributes_lazega, echo=TRUE}
-igraph::list.graph.attributes(lazega)
+graph_attr_names(lazega)
 
-igraph::list.vertex.attributes(lazega)
+vertex_attr_names(lazega)
 
-igraph::list.edge.attributes(lazega)
+edge_attr_names(lazega)
 ```
 
 We see that the vertices have the attributes but the edges have none.
@@ -316,7 +316,7 @@ We save the FR layout for future plotting so that all plots looks the same
 
 
 ```{r create_florentine_layout, echo=TRUE}
-florentine_fr_layout <- ggnetwork(florence_igraph, 'fruchternmanreingold')
+florentine_fr_layout <- ggnetwork(florence_igraph, 'fruchtermanreingold')
 ```
 
 
@@ -352,7 +352,7 @@ Another interesting quantity is the average degree of all the neighbours of
 each vertex.
 
 ```{r plot_degree_knn, echo=TRUE}
-flor_knn <- graph.knn(florence_igraph)$knn
+flor_knn <- knn(florence_igraph)$knn
 
 flor_knn_tbl <- data_frame(family = names(flor_knn)
                           ,degree = igraph::degree(florence_igraph)
@@ -448,7 +448,7 @@ in nature and so is calculated via linear algebra means.
 
 ```{r florence_graph_eigenvector, echo=TRUE}
 florence_eigencent <- florence_igraph %>%
-    igraph::eigen_centrality() %>%
+    eigen_centrality() %>%
     .$vector %>%
     sort(decreasing = TRUE)
 
@@ -468,6 +468,9 @@ ggplot() +
 ## Network Cohesion
 
 ### Cliques
+
+A *clique* is a 'maximally-connected subgraph', that is, it is a subset of the
+nodes of the graph that are all connected to one another.
 
 ```{r plot_clique_distribution, echo=TRUE}
 clique_size <- florence_igraph %>%
