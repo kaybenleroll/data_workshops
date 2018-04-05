@@ -312,6 +312,15 @@ ggplot(ggnetwork(florence_igraph, layout = 'mds')
     theme_blank()
 ```
 
+```{r plot_florence_circle, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'circle')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using Circular Layout') +
+    theme_blank()
+```
+
 We save the FR layout for future plotting so that all plots looks the same
 
 
@@ -650,16 +659,128 @@ assortativity_nominal(florence_igraph, membership(florence_spec_partition))
 
 # Random Graph Models
 
-## Erdos-Renyi Graph Models
+We now move on to modelling graph data using statistical methods.
+
+To begin, we start with very simple generative processes for graphs,
+investigating how we can use these methods to approximate data we have.
+
+## Traditional Models
+
+We start with basic statistical models where models are produced purely at
+random to match basic measures of graphs such as node and edge count, degree
+distributions and so on.
+
+The building block for these are *Erdos-Renyi* models, probably the simplest
+models we can produce.
 
 
-## Generalised Random Graph Models
+### Erdos-Renyi Graph Models
+
+The simplest random graph model is one where we have a fixed number of nodes
+and have either a fixed count of edges with equally likely probability - the 
+$G(n,m)$ model, or we assign each edge a fixed probability of occurring - the
+$G(n,p)$ model.
+
+We start with the $G(n,m)$ model on a network with 50 nodes so that processing
+and visualisation is fast.
+
+```{r show_gnm_models, echo=TRUE}
+gnmsample_igraph <- sample_gnm(50, 75)
+
+ggplot(ggnetwork(gnmsample_igraph, layout = 'fruchtermanreingold')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('Sample G(n,m) Graph') +
+    theme_blank()
+    
+ggplot(ggnetwork(gnmsample_igraph, layout = 'circle')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('Sample G(n,m) Graph with Circular Layout') +
+    theme_blank()
+
+```
+
+Similarly, we generate a $G(n, p)$ graph.
+
+```{r show_gnp_models, echo=TRUE}
+gnpsample_igraph <- sample_gnp(50, 0.05)
+
+ggplot(ggnetwork(gnpsample_igraph, layout = 'fruchtermanreingold')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('Sample G(n,p) Graph') +
+    theme_blank()
+    
+ggplot(ggnetwork(gnpsample_igraph, layout = 'circle')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('Sample G(n,p) Graph with Circular Layout') +
+    theme_blank()
+```
 
 
-## Small World Models
+### Generalised Random Graph Models
+
+Expanding this concept, we can generate graphs based on more advanced measures
+of the graph, such as the degree distribution.
+
+To show how this works, we create a 50-node graph where each node has a degree between
+1 and 3.
+
+```{r sample_degree_dist_graph, echo=TRUE}
+sample_degreedist <- sample(1:3, 50, replace = TRUE)
+
+degdistsample_igraph <- sample_degseq(sample_degreedist, method = 'simple.no.multiple')
+
+ggplot(ggnetwork(degdistsample_igraph)
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('Sample Degree Distribution Graph') +
+    theme_blank()
+```
+
+More advanced algorithms exist to construct random graphs on other
+characteristics, but most of those rely on Markov Chain Monte Carlo methods
+and are beyond the scope of this workshop.
+
+### Assessing Random Graph Models
+
+Now that we have a few methods for producing these random graphs, the next
+logical issue is assessing how well these models capture aspects of our data.
+
+As an example, we use the Florentine dataset, and produce some random graphs
+that match our data and compare the other measures such as clustering, diameter
+and average path length to what our models produce.
+
+*NOTE:* This code may look a little cryptic and overly-concise at first, as I use
+functional methods to produce the simulations. There is nothing fancy
+happening here, so look up the functions in `purrr` if you get confused.
+
+```{r model_florentine_data, echo=TRUE}
+flor_count_node <- 
 
 
-## Preferential Attachment Models
+```
+
+
+
+## Mechanistic Random Graph Models
+
+### Small World Models
+
+
+
+
+### Preferential Attachment Models
+
+
+## Assessing Models
 
 
 # Statistical Models for Graphs
