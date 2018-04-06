@@ -1,0 +1,340 @@
+---
+title: "Dublin Data Science Workshop on the Statistical Analysis of Networks"
+subtitle: Section 1
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, March 26 2018"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+  word_document:
+    toc: yes
+  pdf_document: default
+---
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(scales)
+library(cowplot)
+
+library(ggnetwork)
+library(igraph)
+library(igraphdata)
+library(sand)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+```
+
+
+
+# Introduction to Network Data
+
+All materials for this workshop is available in my standard GitHub repo:
+
+https://github.com/kaybenleroll/dublin_r_workshops
+
+
+![book cover](img/sand_cover.jpg)
+
+
+The content of this workshop is based on the book "Statistical Analysis of
+Network Data with R" by Kolaczyk and Csardi. The data from this book is
+available from CRAN via the package `sand` and there is a GitHub repo for the
+code in the book also:
+
+https://github.com/kolaczyk/sand
+
+
+Additional ideas and elements and concepts were
+taken from the Coursera course "Social and Economic Networks" taught by
+Matthew O. Jackson
+
+https://www.coursera.org/learn/social-economic-networks
+
+
+## Example Networks
+
+In this workshop we are going to use three different networks as reference
+datasets to illustrate the concepts we discuss.
+
+
+### Florentine Marriage Data
+
+```{r load_florentine_data, echo=TRUE}
+data(flo, package = 'network')
+
+florence_igraph <- graph_from_adjacency_matrix(flo, mode = 'undirected')
+
+plot(florence_igraph)
+```
+
+We can use the package `ggnetwork` to allow us to plot networks within `ggplot2`
+
+```{r plot_florentine_ggnetwork, echo=TRUE}
+ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+```{r show_graph_details, echo=TRUE}
+### Show graph vertices
+V(florence_igraph)
+
+
+### Show graph edges
+E(florence_igraph)
+```
+
+
+To help access the edgelist in a more usable form we convert the edgelist to a
+matrix, showing the origin and destination nodes.
+
+```{r show_florence_edgelist, echo=TRUE}
+as_edgelist(florence_igraph)
+```
+
+We also want to look at the adjacency matrix for this network
+
+```{ show_florence_adjacency, echo=TRUE}
+as_adjacency_matrix(florence_igraph)
+```
+
+The elements of a graph can all have attributes:
+
+```{r show_element_attributes, echo=TRUE}
+graph_attr_names(florence_igraph)
+
+vertex_attr_names(florence_igraph)
+
+edge_attr_names(florence_igraph)
+```
+
+
+Subgraphs are subsets of graphs that are part of the whole.
+
+```{r show_florence_subgraph, echo=TRUE}
+family_keep <- c('Medici', 'Barbadori', 'Ridolfi','Tornabuoni','Pazzi'
+                ,'Salviati', 'Albizzi', 'Guadagni')
+
+florence_subgraph <- induced_subgraph(florence_igraph, family_keep)
+
+ggplot(florence_subgraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+### US Airport Data
+
+```{r load_usairport_data, echo=TRUE}
+data(USairports)
+
+
+### Show graph vertices
+V(USairports)
+
+
+### Show graph edges
+E(USairports)
+```
+
+This is a much larger network, and visualising it is likely going to be a mess,
+but we will try anyway.
+
+```{r plot_usairport_data, echo=TRUE}
+ggplot(USairports, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+Yeah, it is a mess.
+
+We will try again with a small subgraph, using just 15 nodes
+
+```{r plot_usairport_subgraph, echo=TRUE}
+usairport_subgraph <- induced_subgraph(USairports, 1:15)
+
+ggplot(usairport_subgraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+```
+
+Now that we have seen this network, we look at what additional information is
+here.
+
+```{r show_element_attributes_usairports, echo=TRUE}
+graph_attr_names(USairports)
+
+vertex_attr_names(USairports)
+
+edge_attr_names(USairports)
+```
+
+We see that the edges in particular now have a number of attributes. We access
+them through `edge_attr()`
+
+```{r list_airport_edge_attributes, echo=TRUE}
+edge_attr(USairports) %>%
+    as_tibble()
+```
+
+### Lazega Lawyers Network
+
+```{r load_lazega_data, echo=TRUE}
+data(lazega)
+
+lazega <- lazega %>% upgrade_graph()  # Data is in deprecated format.
+
+
+### Show graph vertices
+V(lazega)
+
+
+### Show graph edges
+E(lazega)
+```
+
+
+```{r plot_lazega_data, echo=TRUE}
+ggplot(lazega, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+```
+
+```{r show_element_attributes_lazega, echo=TRUE}
+graph_attr_names(lazega)
+
+vertex_attr_names(lazega)
+
+edge_attr_names(lazega)
+```
+
+We see that the vertices have the attributes but the edges have none.
+
+```{r show_lazega_edge_attr, echo=TRUE}
+vertex_attr(lazega) %>%
+    as_tibble()
+```
+
+
+### Exercises
+
+  1. Read in the network data contained in the file `NetScience.net`.
+  1. Visualise the network using both base `plot` and `ggplot2`.
+  1. Investigate the vertex and edge attributes.
+  1. Is this graph directed or undirected?
+  1. How many edges and vertices does it have?
+  1. Is it a simple graph?
+ 
+
+
+## Visualising Network Data
+
+Plotting network data is not automatic - mathematical concepts allow us to
+convert network topology into a form amenable to plotting.
+
+```{r plot_florence_graph, echo=TRUE}
+plot_1 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+plot_2 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+plot_3 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+plot_4 <- ggplot(florence_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 3) +
+    theme_blank()
+
+
+plot_grid(plot_1, plot_2, plot_3, plot_4, ncol = 2)
+```
+
+### Creating Layouts
+
+To plot graphs visually, we need a way to transform the graphs into 2D
+coordinates. A number of layout algorithms exist.
+
+To show the differences, we plot the Florentine network using a number of
+different layout algorithms.
+
+```{r plot_florence_fr, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'fruchtermanreingold')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using Fruchterman-Reingold Layout') +
+    theme_blank()
+```
+
+
+```{r plot_florence_spring, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'spring')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using Spring Layout') +
+    theme_blank()
+```
+
+
+```{r plot_florence_mds, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'mds')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using MDS Layout') +
+    theme_blank()
+```
+
+```{r plot_florence_circle, echo=TRUE}
+ggplot(ggnetwork(florence_igraph, layout = 'circle')
+      ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    ggtitle('The Florentine Network Using Circular Layout') +
+    theme_blank()
+```
+
+We save the FR layout for future plotting so that all plots looks the same
+
+
+```{r create_florentine_layout, echo=TRUE}
+florentine_fr_layout <- ggnetwork(florence_igraph, 'fruchtermanreingold')
+```
+
+
+### Exercises
+
+  1. Produce similar visualisations as appropriate for the other graphs.
+  1. Investigate alternative layout algorithms for the Florentine network.
+  1. Try those layouts on the other network data.
+  
+  
+

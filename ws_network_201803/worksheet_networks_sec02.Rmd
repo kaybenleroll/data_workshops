@@ -1,0 +1,366 @@
+---
+title: "Dublin Data Science Workshop on the Statistical Analysis of Networks"
+subtitle: Section 2
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, March 26 2018"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+  word_document:
+    toc: yes
+  pdf_document: default
+---
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(scales)
+library(cowplot)
+
+library(ggnetwork)
+library(igraph)
+library(igraphdata)
+library(sand)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+
+
+source('data_setup.R')
+```
+
+
+
+# Network Statistics
+
+## Network Degree
+
+### Degree of Vertex
+
+The *degree* of a vertex is the count of connections from that vertex.
+
+We now look at the distribution of vertex degree for the Florentine network:
+
+
+```{r plot_florentine_degree_distribution, echo=TRUE}
+ggplot() +
+    geom_bar(aes(x = igraph::degree(florence_igraph))) +
+    xlab("Vertex Degree") +
+    ylab("Count of Degrees")
+```
+
+### Average Neighbour Degree
+
+Another interesting quantity is the average degree of all the neighbours of
+each vertex.
+
+```{r plot_degree_knn, echo=TRUE}
+flor_knn <- knn(florence_igraph)$knn
+
+flor_knn_tbl <- data_frame(family = names(flor_knn)
+                          ,degree = igraph::degree(florence_igraph)
+                          ,knn    = flor_knn
+                           )
+
+
+ggplot(flor_knn_tbl) +
+    geom_text(aes(x = degree, y = knn, label = family)) +
+    expand_limits(y = 0) +
+    xlab("Vertex Degree") +
+    ylab("KNN Degree")
+```
+
+
+### Exercises
+
+  1. Produce the degree distribution for the other networks
+  1. Calaculate the average neighbour degree distribution for the other networks
+  1. What can we infer about the importance of a vertex from these values?
+
+
+
+
+## Measures of Centrality
+
+### Between-ness Centrality
+
+Between-ness measures how often a vertex comes between two other vertices in
+the graph.
+
+$$
+c_B(\nu) = \sum_{s \neq t \neq \nu \in V} \frac{\sigma(s, t | \nu)}{\sigma(s,t)}
+$$
+
+where $\sigma(s, t| \nu)$ is the count of shortest paths between $s$ and $t$
+that goes through $\nu$ and $\sigma(s, t)$ is the total number of shortest
+paths between $s$ and $t$.
+
+We now calculate the between-ness centrality for each vertex in the Florence
+marriage network
+
+```{r florence_graph_betweenness, echo=TRUE}
+florence_betweenness <- florence_igraph %>%
+    (igraph::betweenness)() %>%
+    sort(decreasing = TRUE)
+
+ggplot() +
+    geom_col(aes(x = names(florence_betweenness), y = florence_betweenness)) +
+    xlab("Family") +
+    ylab("Between-ness") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+### Closeness Centrality
+
+Closeness centrality is measure of the distance of the vertex from other
+vertices in the graph.
+
+$$
+c_{Cl}(\nu) = \frac{1}{\sum_{u \in V} \text{dist}(u, \nu)}
+$$
+
+
+
+```{r florence_graph_closeness, echo=TRUE}
+florence_closeness <- florence_igraph %>%
+    (igraph::closeness)() %>%
+    sort(decreasing = TRUE)
+
+ggplot() +
+    geom_col(aes(x = names(florence_closeness), y = florence_closeness)) +
+    xlab("Family") +
+    ylab("Closeness") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+
+### Eigenvector Centrality
+
+Eigenvector centrality is a class of centrality measures based on linear
+systems derived from the graph.
+
+The most common of these are the eigenvectors of the adjacency matrix produced
+from the graph.
+
+The key idea here is that vertices which are 'central' in the network are so
+due to their neighbours being 'central'. This concept is inherently implicit
+in nature and so is calculated via linear algebra means.
+
+
+```{r florence_graph_eigenvector, echo=TRUE}
+florence_eigencent <- florence_igraph %>%
+    eigen_centrality() %>%
+    .$vector %>%
+    sort(decreasing = TRUE)
+
+ggplot() +
+    geom_col(aes(x = names(florence_eigencent), y = florence_eigencent)) +
+    xlab("Family") +
+    ylab("Eigenvector Centrality") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+### Exercises
+
+  1. Calculate the centrality measures for the other networks
+
+
+## Network Cohesion
+
+### Cliques
+
+A *clique* is a 'maximally-connected subgraph', that is, it is a subset of the
+nodes of the graph that are all connected to one another.
+
+```{r plot_clique_distribution, echo=TRUE}
+clique_size <- florence_igraph %>%
+    cliques %>%
+    map_int(length)
+
+ggplot() +
+    geom_bar(aes(x = clique_size)) +
+    xlab("Clique Size") +
+    ylab("Count")
+```
+
+
+### Clustering Co-efficient / Transitivity
+
+The transitivity of the network is a measure of the 'density' of connections
+in the network. It is the ratio of triangles in the network to possible
+triangles.
+
+Local transitivity does the same for all triangles contain the vertex.
+
+```{r calculate_transitivities, echo=TRUE}
+florence_igraph %>%
+    transitivity()
+
+florence_igraph %>%
+    transitivity(type = 'local', vids = c('Strozzi', 'Guadagni', 'Medici'))
+```
+
+### Shortest Paths
+
+The shortest path measures are measures of the size and connectivity of the
+graph
+
+```{r show_distance_stats, echo=TRUE}
+florence_igraph %>% mean_distance()
+
+florence_igraph %>% diameter()
+```
+
+## Graph Partitioning
+
+### Hierarchical Partitioning
+
+```{r partition_florence_graph, echo=TRUE}
+florence_partition <- cluster_fast_greedy(florence_igraph)
+
+florence_partition %>% print
+
+florence_partition %>% str()
+```
+
+We can now replot the network but colour each of the nodes by their cluster
+membership.
+
+
+```{r show_florentine_hier_cluster_membership, echo=TRUE}
+hier_label_tbl <- data_frame(
+    vertex.names = V(florence_igraph) %>% names()
+   ,cluster_hier = florence_partition %>% membership() %>% as.character()
+)
+
+florentine_plot_layout <- florentine_fr_layout %>%
+    merge(hier_label_tbl, by = 'vertex.names')
+
+cluster_hier_plot <- ggplot(florentine_plot_layout
+                           ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_nodelabel(aes(label = vertex.names, fill = cluster_hier)) +
+    theme_blank()
+
+cluster_hier_plot %>% plot()
+```
+
+
+### Spectral Partitioning
+
+We can use more direct linear algebra routines to partition the graph. To do
+this we construct the 'graph Laplacian' from the degrees of each vertex and
+its adjacency matrix.
+
+$$
+\mathbf{L} = \mathbf{D} - \mathbf{A}
+$$
+
+By analysing the eigenvalues and eigenvectors of this matrix, and recursively
+applying splits to the graphs based on the size of the eigenvalues, we break
+this network into pieces.
+
+
+```{r show_florentine_laplacian, echo=TRUE}
+florency_laplacian <- laplacian_matrix(florence_igraph)
+
+flor_laplac_eigen <- eigen(florency_laplacian)
+
+flor_laplac_eigen %>% print(digits = 2)
+```
+
+We look at the eigenvalues ranked in order.
+
+```{r plot_laplacian_values, echo=TRUE}
+ggplot() +
+    geom_line(aes(x = seq_along(flor_laplac_eigen$values)
+                 ,y = flor_laplac_eigen$values)) +
+    expand_limits(y = 0) +
+    xlab("Eigenvalue Ranking") +
+    ylab("Eigenvalue")
+```
+
+We now cluster using these spectral methods
+
+```{r show_florentine_spec_cluster_membership, echo=TRUE}
+florence_spec_partition <- florence_igraph %>%
+    cluster_leading_eigen()
+
+spec_label_tbl <- data_frame(
+    vertex.names = V(florence_igraph) %>% names()
+   ,cluster_spec = florence_spec_partition %>% membership() %>% as.character()
+)
+
+florentine_plot_layout <- florentine_fr_layout %>%
+    merge(spec_label_tbl, by = 'vertex.names')
+
+cluster_spec_plot <- ggplot(florentine_plot_layout
+                           ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_nodelabel(aes(label = vertex.names, fill = cluster_spec)) +
+    theme_blank()
+
+cluster_spec_plot %>% plot()
+```
+
+We plot the two groupings beside each other to compare them.
+
+```{r compare_cluster_plot, echo=TRUE}
+plot_grid(cluster_hier_plot, cluster_spec_plot, ncol = 2)
+```
+
+
+### Exercises
+
+  1. Run the clustering algorithms for the other network data.
+
+
+## Assortativity
+
+*Assortativity* is a measure, analogous to correlation, that measures the
+tendency for nodes will similar properties to connect to one another.
+
+The Florentine marriage data is a little unusual in that it does not contain
+any properties on the vertices or edges, but assortativity in degree can be
+calculated - measuring the tendency for high degree nodes to connect to one
+another)
+
+```{r calculate_florentine_degree_assortativity, echo=TRUE}
+assortativity_degree(florence_igraph)
+```
+
+There are slightly different calculations for assortativity, depending on
+whether the attribute is numerical or categorical.
+
+To test this, we will add the hierarchical clustering ID from the previous
+section to the Florentine graph and then measure the assortivity associated
+with that attribute.
+
+```{r calculate_floretine_cluster_assortativity, echo=TRUE}
+assortativity_nominal(florence_igraph, membership(florence_partition))
+
+assortativity_nominal(florence_igraph, membership(florence_spec_partition))
+```
+
+### Exercises
+
+  1. Calculate the assortativity of membership for Florentine data as binary membership.
+  1. Calculate the assortativity for the other networks.
+
+
