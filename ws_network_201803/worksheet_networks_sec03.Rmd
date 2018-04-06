@@ -40,6 +40,8 @@ set.seed(42)
 
 
 source('data_setup.R')
+
+source('custom_functions.R')
 ```
 
 
@@ -143,6 +145,8 @@ and are beyond the scope of this workshop.
 Now that we have a few methods for producing these random graphs, the next
 logical issue is assessing how well these models capture aspects of our data.
 
+#### Florentine Marriage Network
+
 As an example, we use the Florentine dataset, and produce some random graphs
 that match our data and compare the other measures such as clustering, diameter
 and average path length to what our models produce.
@@ -151,25 +155,184 @@ and average path length to what our models produce.
 functional methods to produce the simulations. There is nothing fancy
 happening here, so look up the functions in `purrr` if you get confused.
 
-```{r model_florentine_data, echo=TRUE}
+```{r model_florentine_data_gnm, echo=TRUE}
 n_iter <- 1000
 
 flor_count_node <- gorder(florence_igraph)
 flor_count_edge <- gsize (florence_igraph)
 
 sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
-    mutate(graph    = rerun(n_iter, sample_gnm(n = flor_count_node, flor_count_edge))
-          ,trans    = map_dbl(graph, transitivity)
-          ,diam     = map_dbl(graph, diameter)
-          ,meandist = map_dbl(graph, mean_distance)
-           
+    mutate(graph      = rerun(n_iter, sample_gnm(n = flor_count_node, flor_count_edge))
+          ,trans      = map_dbl(graph, transitivity)
+          ,diam       = map_dbl(graph, diameter)
+          ,meandist   = map_dbl(graph, mean_distance)
+          ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
            )
 
+graph_vals_tbl <- data_frame(
+    parameter = c('trans','diam','meandist', 'max_degree')
+   ,graph_val = c(florence_igraph %>% transitivity
+                 ,florence_igraph %>% diameter
+                 ,florence_igraph %>% mean_distance
+                 ,florence_igraph %>% igraph::degree() %>% max
+                 )
+    )
+
+plot_data_tbl <- sim_data_tbl %>%
+    dplyr::select(-graph) %>%
+    gather('parameter','value', -sim_id)
+
+
+ggplot(plot_data_tbl) +
+    geom_histogram(aes(x = value), bins = 50) +
+    geom_vline(aes(xintercept = graph_val), colour = 'red', data = graph_vals_tbl) +
+    facet_wrap(~parameter, scales = 'free') +
+    scale_y_continuous(label = comma) +
+    xlab('Value') +
+    ylab('Count')
 ```
 
+We do something similar for the G(n,p) model
+
+```{r model_florentine_data_gnp, echo=TRUE}
+n_iter <- 1000
+
+flor_count_node <- gorder(florence_igraph)
+flor_count_edge <- gsize (florence_igraph)
+
+edge_prop <- flor_count_edge / (0.5 * flor_count_node * (flor_count_node-1))
+
+
+sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
+    mutate(graph      = rerun(n_iter, sample_gnp(n = flor_count_node, p = edge_prop))
+          ,trans      = map_dbl(graph, transitivity)
+          ,diam       = map_dbl(graph, diameter)
+          ,meandist   = map_dbl(graph, mean_distance)
+          ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
+           )
+
+graph_vals_tbl <- data_frame(
+    parameter = c('trans','diam','meandist', 'max_degree')
+   ,graph_val = c(florence_igraph %>% transitivity
+                 ,florence_igraph %>% diameter
+                 ,florence_igraph %>% mean_distance
+                 ,florence_igraph %>% igraph::degree() %>% max
+                 )
+    )
+
+plot_data_tbl <- sim_data_tbl %>%
+    dplyr::select(-graph) %>%
+    gather('parameter','value', -sim_id)
+
+
+ggplot(plot_data_tbl) +
+    geom_histogram(aes(x = value), bins = 50) +
+    geom_vline(aes(xintercept = graph_val), colour = 'red', data = graph_vals_tbl) +
+    facet_wrap(~parameter, scales = 'free') +
+    scale_y_continuous(label = comma) +
+    xlab('Value') +
+    ylab('Count')
+```
+
+The $G(n,p)$ model looks very similar, as expected.
+
+Finally, We also try the degree distribution sample
+
+
+```{r model_florentine_data_degreedist, echo=TRUE}
+flor_degdist <- igraph::degree(florence_igraph)
+
+
+sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
+    mutate(graph      = rerun(n_iter, sample_degseq(flor_degdist))
+          ,trans      = map_dbl(graph, transitivity)
+          ,diam       = map_dbl(graph, diameter)
+          ,meandist   = map_dbl(graph, mean_distance)
+          ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
+           )
+
+graph_vals_tbl <- data_frame(
+    parameter = c('trans','diam','meandist', 'max_degree')
+   ,graph_val = c(florence_igraph %>% transitivity
+                 ,florence_igraph %>% diameter
+                 ,florence_igraph %>% mean_distance
+                 ,florence_igraph %>% igraph::degree() %>% max
+                 )
+    )
+
+plot_data_tbl <- sim_data_tbl %>%
+    dplyr::select(-graph) %>%
+    gather('parameter','value', -sim_id)
+
+
+ggplot(plot_data_tbl) +
+    geom_histogram(aes(x = value), bins = 50) +
+    geom_vline(aes(xintercept = graph_val), colour = 'red', data = graph_vals_tbl) +
+    facet_wrap(~parameter, scales = 'free') +
+    scale_y_continuous(label = comma) +
+    xlab('Value') +
+    ylab('Count')
+```
+
+WHile small and useful to illustrate the basics, the Florentine marriage network
+may not be a sound example for the purposes of illustrating the quality of these
+statistical models.
+
+Due to its small size, the number of possible networks with these node and edge
+counts is low, so it is likely that any random graph will agree with it because
+of this.
+
+It is more instructive to try larger networks, and see how effective
+these simple models are at reconstructing them.
+
+*SPOILER ALERT*: They kinda suck at it
+
+
+#### Lazega Network
+
+We now try the above models on the Lazega data
+
+```{r model_lazega_data_gnm, echo=TRUE}
+lazega_count_node <- gorder(lazega_igraph)
+lazega_count_edge <- gsize (lazega_igraph)
+
+run_gnm <- function() sample_gnm(n = lazega_count_node, lazega_count_edge)
+
+lazega_gnm_lst <- run_network_model_assessment(lazega_igraph, run_gnm, n_iter = 1000)
+
+plot(lazega_gnm_lst$assess_plot)
+```
+
+As you can see, the Lazega network is larger than the Florentine network
+(though still small in absolute terms) and we already see that the observed
+values of the network differ from our simulations.
+
+The clustering coefficient in the Lazega network in particular is not well
+captured by the model.
+
+We try the degree distribution model too, and see if that does a better job.
+
+```{r model_lazega_data_degdist, echo=TRUE}
+lazega_degdist <- lazega_igraph %>% igraph::degree()
+
+run_degdist <- function() sample_degseq(lazega_degdist)
+
+lazega_degdist_lst <- run_network_model_assessment(lazega_igraph, run_degdist, n_iter = 1000)
+
+plot(lazega_degdist_lst$assess_plot)
+```
+
+We see similar results to before, but once again the clustering is not well
+captured.
 
 
 ## Mechanistic Random Graph Models
+
+Our basic random graph models do not capture the higher levels of clustering
+observed in real-world networks.
+
+
+
 
 ### Small World Models
 
