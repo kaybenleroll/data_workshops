@@ -1,0 +1,49 @@
+---
+title: "Dublin Data Science Workshop on the Statistical Analysis of Networks"
+subtitle: Section 4
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, March 26 2018"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+  word_document:
+    toc: yes
+  pdf_document: default
+---
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(scales)
+library(cowplot)
+
+library(ggnetwork)
+library(igraph)
+library(igraphdata)
+library(sand)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+
+
+source('data_setup.R')
+
+source('custom_functions.R')
+```
+
+
+# Statistical Models for Graphs
+

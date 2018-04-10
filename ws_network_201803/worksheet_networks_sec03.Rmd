@@ -332,18 +332,115 @@ Our basic random graph models do not capture the higher levels of clustering
 observed in real-world networks.
 
 
-
-
 ### Small World Models
 
+The basic small world model is the Watts-Strogatz model. This creates a lattice
+network of size $N$, connecting all neighbours within a particular path length
+$k$, giving us a total edge count of $Nk$. We then randomly move the edges to
+other nodes with probabiity $p$.
+
+For $p=0$, we have a transitivity value $C(p)$ of
+
+$$
+C(p) = \frac{3(k-2)}{4(k-1)} . (1 - p)^3
+$$
+
+To fit this model to real data, we set $k$ from the edge count, and then fit
+the appropriate $p$ to match our observed transitivity.
+
+
+```{r fit_lazega_watts_strogatz, echo=TRUE}
+lazega_node_count <- lazega_igraph %>% vcount()
+lazega_edge_count <- lazega_igraph %>% ecount()
+lazega_cluster    <- lazega_igraph %>% transitivity()
+
+lazega_k <- (lazega_edge_count / lazega_node_count) %>% ceiling()
+
+
+calc_trans <- function(p_iter) {
+    trans <- rerun(10, sample_smallworld(1, lazega_node_count, lazega_k, p_iter) %>% transitivity) %>%
+        unlist() %>%
+        mean()
+    
+    return(trans)
+}
+
+
+lazega_p <- optimize(function(x) abs(calc_trans(x) - lazega_cluster), c(0.01, 0.2))$minimum
+
+run_ws <- function() sample_smallworld(1, size = lazega_node_count, nei = lazega_k, p = lazega_p) %>%
+                        simplify()
+
+lazega_ws_lst <- run_network_model_assessment(lazega_igraph, run_ws, n_iter = 1000)
+
+plot(lazega_ws_lst$assess_plot)
+```
 
 
 
 ### Preferential Attachment Models
 
+With the preferential attachment model, we add new nodes and weight the
+probability of attachment to existing nodes by the degree of each node.
+
+In the simple model, we use a probability weight as
+
+$$
+P(v_i) = \frac{d_{v_i}}{\sum_{v_j \in V} d_{v_j}}
+$$
+
+As the network grows, we have a 'rich get richer' effect as nodes
+on the network tend to get more and more nodes attached to them.
+
+```{r show_preferential_attachment_graph, echo=TRUE}
+samplepa_igraph <- sample_pa(50, power = 1, m = 1)
+
+samplepa_plot <- ggplot(samplepa_igraph
+                       ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names)) +
+    theme_blank()
+
+samplepa_plot %>% plot()
+```
+
+For the degree distribution, we expect a small number of high degree nodes
+and the rest being low counts.
+
+```{r prefattach_degree_dist, echo=TRUE}
+samplepa_degdist <- igraph::degree(samplepa_igraph)
+
+summary(samplepa_degdist)
+
+ggplot() +
+    geom_histogram(aes(x = samplepa_degdist), bins = 20) +
+    xlab("Degree") +
+    ylab("Node Count")
+```
+
+Asymptotically, the degree distribution tends towards a power law of the form
+
+$$
+P(d) \sim d^{-3}
+$$
+
+Because of this tail effect, we will generate a bigger network and look at the
+degree distribution.
+
+```{r generate_larger_ba_graph, echo=TRUE}
+largepa_degreedist <- sample_pa(1000, power = 1, m = 1) %>%
+    igraph::degree()
+
+summary(largepa_degreedist)
+
+ggplot() +
+    geom_histogram(aes(x = largepa_degreedist), bins = 50) +
+    xlab("Degree") +
+    ylab("Node Count")
+```
+
 
 ## Assessing Models
 
 
-# Statistical Models for Graphs
 
