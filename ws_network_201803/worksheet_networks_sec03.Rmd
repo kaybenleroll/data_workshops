@@ -120,11 +120,11 @@ ggplot(ggnetwork(gnpsample_igraph, layout = 'circle')
 Expanding this concept, we can generate graphs based on more advanced measures
 of the graph, such as the degree distribution.
 
-To show how this works, we create a 45-node graph where each node has a degree between
-1 and 3.
+To show how this works, we create a 50-node graph where each node has a degree between
+1 and 4.
 
 ```{r sample_degree_dist_graph, echo=TRUE}
-sample_degreedist <- sample(1:3, 45, replace = TRUE)
+sample_degreedist <- sample(1:4, 50, replace = TRUE)
 
 degdistsample_igraph <- sample_degseq(sample_degreedist, method = 'simple.no.multiple')
 
@@ -209,14 +209,16 @@ sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
           ,diam       = map_dbl(graph, diameter)
           ,meandist   = map_dbl(graph, mean_distance)
           ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
+          ,n_commun   = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
            )
 
 graph_vals_tbl <- data_frame(
-    parameter = c('trans','diam','meandist', 'max_degree')
+    parameter = c('trans','diam','meandist', 'max_degree', 'n_commun')
    ,graph_val = c(florence_igraph %>% transitivity
                  ,florence_igraph %>% diameter
                  ,florence_igraph %>% mean_distance
                  ,florence_igraph %>% igraph::degree() %>% max
+                 ,florence_igraph %>% cluster_fast_greedy() %>% length()
                  )
     )
 
@@ -244,19 +246,21 @@ flor_degdist <- igraph::degree(florence_igraph)
 
 
 sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
-    mutate(graph      = rerun(n_iter, sample_degseq(flor_degdist))
+    mutate(graph      = rerun(n_iter, sample_degseq(flor_degdist) %>% simplify())
           ,trans      = map_dbl(graph, transitivity)
           ,diam       = map_dbl(graph, diameter)
           ,meandist   = map_dbl(graph, mean_distance)
           ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
+          ,n_commun   = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
            )
 
 graph_vals_tbl <- data_frame(
-    parameter = c('trans','diam','meandist', 'max_degree')
+    parameter = c('trans','diam','meandist', 'max_degree', 'n_commun')
    ,graph_val = c(florence_igraph %>% transitivity
                  ,florence_igraph %>% diameter
                  ,florence_igraph %>% mean_distance
                  ,florence_igraph %>% igraph::degree() %>% max
+                 ,florence_igraph %>% cluster_fast_greedy() %>% length()
                  )
     )
 
@@ -315,7 +319,7 @@ We try the degree distribution model too, and see if that does a better job.
 ```{r model_lazega_data_degdist, echo=TRUE}
 lazega_degdist <- lazega_igraph %>% igraph::degree()
 
-run_degdist <- function() sample_degseq(lazega_degdist)
+run_degdist <- function() sample_degseq(lazega_degdist) %>% simplify()
 
 lazega_degdist_lst <- run_network_model_assessment(lazega_igraph, run_degdist, n_iter = 1000)
 
@@ -393,7 +397,7 @@ As the network grows, we have a 'rich get richer' effect as nodes
 on the network tend to get more and more nodes attached to them.
 
 ```{r show_preferential_attachment_graph, echo=TRUE}
-samplepa_igraph <- sample_pa(50, power = 1, m = 1)
+samplepa_igraph <- sample_pa(50, power = 1, m = 1, directed = FALSE)
 
 samplepa_plot <- ggplot(samplepa_igraph
                        ,aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -427,8 +431,8 @@ $$
 Because of this tail effect, we will generate a bigger network and look at the
 degree distribution.
 
-```{r generate_larger_ba_graph, echo=TRUE}
-largepa_degreedist <- sample_pa(1000, power = 1, m = 1) %>%
+```{r generate_larger_pa_graph, echo=TRUE}
+largepa_degreedist <- sample_pa(1000, power = 1, m = 1, directed = FALSE) %>%
     igraph::degree()
 
 summary(largepa_degreedist)
@@ -440,7 +444,22 @@ ggplot() +
 ```
 
 
-## Assessing Models
+We now look at some basic comparisons of the Preferential Attachment model to
+the Lazega network
+
+```{r fit_lazega_pref_attach, echo=TRUE}
+lazega_node_count <- lazega_igraph %>% vcount()
+
+run_pa <- function() sample_pa(lazega_node_count, power = 1, m = 1, directed = FALSE) %>%
+                        simplify()
+
+lazega_pa_lst <- run_network_model_assessment(lazega_igraph, run_pa, n_iter = 1000)
+
+plot(lazega_pa_lst$assess_plot)
+```
+
+As we see, the transitivity for the Preferential Attachment models tend to be
+very low.
 
 
 

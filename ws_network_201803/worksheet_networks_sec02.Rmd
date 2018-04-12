@@ -62,6 +62,24 @@ ggplot() +
     ylab("Count of Degrees")
 ```
 
+### Edge Density
+
+The *edge density* is the ratio of the edge count on the graph with the total
+possible count of edges on the graph.
+
+From combinatorics, the total possible count of edges is $\frac{N(N-1)}{2}$.
+
+Thus, for a network of order $N_v$ and size $N_e$, the density is given by
+
+$$
+\text{density} = \frac{2 N_v}{N_e (N_e - 1)}
+$$
+
+
+```{r calc_edge_density, echo=TRUE}
+florence_igraph %>% edge_density
+```
+
 ### Average Neighbour Degree
 
 Another interesting quantity is the average degree of all the neighbours of
@@ -175,10 +193,67 @@ ggplot() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
+### Edge Betweenness
+
+Edge betweenness is a similar idea as for between-ness centrality - we want to
+look at which edges are the most influential in the network. 
+
+```{r florence_graph_edge_betweenness, echo=TRUE}
+florence_edge_names <- florence_igraph %>%
+    as_edgelist() %>%
+    as_tibble() %>%
+    mutate(edge_name = paste0(V1, '--', V2)) %>%
+    pull(edge_name)
+
+florence_edge_betweenness <- florence_igraph %>%
+    igraph::edge_betweenness()
+
+florence_edge_between_tbl <- data_frame(
+    edge_names       = florence_edge_names
+   ,edge_betweenness = florence_edge_betweenness
+)
+
+
+ggplot(florence_edge_between_tbl) +
+    geom_col(aes(x = edge_names, y = edge_betweenness)) +
+    xlab("Edge Names") +
+    ylab("Edge Betweenness") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+
+### Line Graphs
+
+Many measures of vertex centrality do not transfer as readily as betweenness
+centrality. For that reason, we can convert a network into a *line graph* - 
+each edge in the original graph becomes a vertex in its line graph and we
+connect two of the 'edge nodes' with an edge if the edge shares a vertex in the
+original.
+
+```{r show_florence_line_graph, echo=TRUE}
+florence_linegraph_igraph <- florence_igraph %>%
+    make_line_graph()
+
+florence_linegraph_igraph <- florence_linegraph_igraph %>%
+    set_vertex_attr(name = 'name', value = florence_edge_names)
+
+
+ggplot(florence_linegraph_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 2) +
+    theme_blank()
+```
+
+We can now use the line graph to discover information about the edges in the
+original graph.
+
 
 ### Exercises
 
   1. Calculate the centrality measures for the other networks
+  2. Construct the line graphs for these networks
+  3. Discover the important edges using the line graphs
 
 
 ## Network Cohesion

@@ -127,12 +127,78 @@ $(document).ready(function () {
 
 <div id="TOC">
 <ul>
-<li><a href="#statistical-models-for-graphs"><span class="toc-section-number">1</span> Statistical Models for Graphs</a></li>
+<li><a href="#exponential-random-graph-models"><span class="toc-section-number">1</span> Exponential Random Graph Models</a><ul>
+<li><a href="#network-characteristics"><span class="toc-section-number">1.1</span> Network Characteristics</a><ul>
+<li><a href="#alternating-k-star-statistic-altkstar"><span class="toc-section-number">1.1.1</span> Alternating k-Star Statistic <code>altkstar</code></a></li>
+<li><a href="#geometrically-weighted-degree-count-gwdegree"><span class="toc-section-number">1.1.2</span> Geometrically-Weighted Degree Count <code>gwdegree</code></a></li>
+<li><a href="#alternating-k-triangles-gwesp"><span class="toc-section-number">1.1.3</span> Alternating k-Triangles <code>gwesp</code></a></li>
+</ul></li>
+<li><a href="#attribute-characteristics"><span class="toc-section-number">1.2</span> Attribute Characteristics</a></li>
+</ul></li>
 </ul>
 </div>
 
-<div id="statistical-models-for-graphs" class="section level1">
-<h1><span class="header-section-number">1</span> Statistical Models for Graphs</h1>
+<div id="exponential-random-graph-models" class="section level1">
+<h1><span class="header-section-number">1</span> Exponential Random Graph Models</h1>
+<p>The previous models we have used served a purpose, but are limited - these approaches are analogous to building models by fitting distributions.</p>
+<p>We now move on to more sophisticated statistical models - Exponential Random Graph Models (ERGMs) in particular. Other approaches exist, such as stochastic block models and latent network models, but we will not have much time to discuss these.</p>
+<p>Suppose we have a graph <span class="math inline">\(G = (V, E)\)</span> - let <span class="math inline">\(Y\)</span> be the adjacency matrix for this graph and <span class="math inline">\(y\)</span> is a particular realisation of this graph.</p>
+<p><span class="math display">\[
+P(Y = y) = \frac{1}{\kappa} \, \exp \left( \sum_H \theta_H g_H(y) \right)
+\]</span></p>
+<p>where</p>
+<ul>
+<li><span class="math inline">\(H\)</span> is a network configuration</li>
+<li><span class="math inline">\(g_H(y)\)</span> is an indicator function for <span class="math inline">\(y\)</span> matching the configuration <span class="math inline">\(H\)</span></li>
+<li><span class="math inline">\(\theta_H\)</span> being non-zero means that <span class="math inline">\(Y_{ij}\)</span> are dependent</li>
+<li><span class="math inline">\(\kappa\)</span> is the normalisation constant</li>
+</ul>
+<p>In simpler terms, we fit the network based on counts of characteristics of the graph such as edges, triangles, stars and anything else we can think of.</p>
+<div id="network-characteristics" class="section level2">
+<h2><span class="header-section-number">1.1</span> Network Characteristics</h2>
+<p>We build our first model from edges - we assume only the presence of edges between nodes is relevant for the creation of the graph.</p>
+<p>The function <code>summary.statistics</code> counts the various configurations in the network.</p>
+<pre class="r"><code>summary.statistics(lazega_network ~ edges)</code></pre>
+<pre><code>## edges 
+##   115</code></pre>
+<p>We now extend this model to see other configuration types including k-stars and so on.</p>
+<pre class="r"><code>summary.statistics(lazega_network ~ edges + kstar(2) + kstar(3) + triangle)</code></pre>
+<pre><code>##    edges   kstar2   kstar3 triangle 
+##      115      926     2681      120</code></pre>
+<p>In practice, adding <span class="math inline">\(k\)</span>-stars directly as characteristics of networks results in poor fits so we instead have an alternative formulation that allows us to fit for all orders of star effects simultaneously. The ones we discuss are all parameterised allowing control over how the characteristics affect the value.</p>
+<div id="alternating-k-star-statistic-altkstar" class="section level3">
+<h3><span class="header-section-number">1.1.1</span> Alternating k-Star Statistic <code>altkstar</code></h3>
+<p><span class="math display">\[
+\text{AKS}_{\lambda}(y) = \sum_{k=2}^{N_v-1} (-1)^k \frac{S_k(y)}{\lambda^{k-2}}
+\]</span> where <span class="math inline">\(S_k(y)\)</span> is the number of <span class="math inline">\(k\)</span>-stars in the graph.</p>
+</div>
+<div id="geometrically-weighted-degree-count-gwdegree" class="section level3">
+<h3><span class="header-section-number">1.1.2</span> Geometrically-Weighted Degree Count <code>gwdegree</code></h3>
+<p><span class="math display">\[
+\text{GWD}_{\gamma}(y) = \sum_{d=0}^{N_v-1} e^{-\gamma d} \, N_d(y)
+\]</span></p>
+<p>where <span class="math inline">\(N_d(y)\)</span> is the number of vertices of degree <span class="math inline">\(d\)</span>.</p>
+</div>
+<div id="alternating-k-triangles-gwesp" class="section level3">
+<h3><span class="header-section-number">1.1.3</span> Alternating k-Triangles <code>gwesp</code></h3>
+<p><span class="math display">\[
+\text{AKT}_{\lambda}(y) = 3T_1 + \sum_{k=2}^{N_v-2} (-1)^{k+1} \frac{T_k(y)}{\lambda^{k-1}}
+\]</span></p>
+<p>where <span class="math inline">\(T_k\)</span> is the number of <span class="math inline">\(k\)</span>-triangles, the set of <span class="math inline">\(k\)</span> individual triangles sharing a common base.</p>
+<p>In our models we use the AKT quantity to match the textbook, but any can be used.</p>
+<pre class="r"><code>summary.statistics(lazega_network ~ edges + gwesp(1, fixed = TRUE))</code></pre>
+<pre><code>##         edges gwesp.fixed.1 
+##       115.000       213.175</code></pre>
+<pre class="r"><code>summary.statistics(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE))</code></pre>
+<pre><code>##    edges triangle gwdegree 
+##    115.0    120.0     79.2</code></pre>
+</div>
+</div>
+<div id="attribute-characteristics" class="section level2">
+<h2><span class="header-section-number">1.2</span> Attribute Characteristics</h2>
+<p>So far we have kept our focus on purely topographic properties of the networks, ignoring the attributes of the edges or vertices.</p>
+<p>It is natural to expect that the existence or not of an edge between two vertices to also depend on the attributes of those vertices. We can incorporate them into our ERGMs as additional terms.</p>
+</div>
 </div>
 
 

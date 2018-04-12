@@ -30,6 +30,8 @@ library(ggnetwork)
 library(igraph)
 library(igraphdata)
 library(sand)
+library(intergraph)
+library(ergm)
 
 
 options(width = 80L
@@ -45,5 +47,116 @@ source('custom_functions.R')
 ```
 
 
-# Statistical Models for Graphs
+# Exponential Random Graph Models
+
+The previous models we have used served a purpose, but are limited - these
+approaches are analogous to building models by fitting distributions.
+
+We now move on to more sophisticated statistical models - Exponential Random
+Graph Models (ERGMs) in particular. Other approaches exist, such as stochastic
+block models and latent network models, but we will not have much time to
+discuss these.
+
+Suppose we have a graph $G = (V, E)$ - let $Y$ be the adjacency matrix for this
+graph and $y$ is a particular realisation of this graph.
+
+$$
+P(Y = y) = \frac{1}{\kappa} \, \exp \left( \sum_H \theta_H g_H(y) \right)
+$$
+
+where
+
+  * $H$ is a network configuration
+  * $g_H(y)$ is an indicator function for $y$ matching the configuration $H$ 
+  * $\theta_H$ being non-zero means that $Y_{ij}$ are dependent
+  * $\kappa$ is the normalisation constant
+
+In simpler terms, we fit the network based on counts of characteristics of the
+graph such as edges, triangles, stars and anything else we can think of.
+
+
+## Network Characteristics
+
+We build our first model from edges - we assume only the presence of edges
+between nodes is relevant for the creation of the graph.
+
+The function `summary.statistics` counts the various configurations in the
+network.
+
+```{r ergm_lazega_edge_counts, echo=TRUE}
+summary.statistics(lazega_network ~ edges)
+```
+
+We now extend this model to see other configuration types including k-stars
+and so on.
+
+```{r ergm_lazega_config_counts, echo=TRUE}
+summary.statistics(lazega_network ~ edges + kstar(2) + kstar(3) + triangle)
+```
+
+In practice, adding $k$-stars directly as characteristics of networks results
+in poor fits so we instead have an alternative formulation that allows us to
+fit for all orders of star effects simultaneously. The ones we discuss are all
+parameterised allowing control over how the characteristics affect the value.
+
+### Alternating k-Star Statistic `altkstar`
+
+$$
+\text{AKS}_{\lambda}(y) = \sum_{k=2}^{N_v-1} (-1)^k \frac{S_k(y)}{\lambda^{k-2}}
+$$
+where $S_k(y)$ is the number of $k$-stars in the graph.
+
+
+### Geometrically-Weighted Degree Count `gwdegree`
+
+$$
+\text{GWD}_{\gamma}(y) = \sum_{d=0}^{N_v-1} e^{-\gamma d} \, N_d(y)
+$$
+
+where $N_d(y)$ is the number of vertices of degree $d$.
+
+### Alternating k-Triangles `gwesp`
+
+$$
+\text{AKT}_{\lambda}(y) = 3T_1 + \sum_{k=2}^{N_v-2} (-1)^{k+1} \frac{T_k(y)}{\lambda^{k-1}}
+$$
+
+where $T_k$ is the number of $k$-triangles, the set of $k$ individual triangles
+sharing a common base.
+
+
+In our models we use the AKT quantity to match the textbook, but any can be
+used.
+
+
+
+```{r ergm_lazega_alt, echo=TRUE}
+summary.statistics(lazega_network ~ edges + gwesp(1, fixed = TRUE))
+
+summary.statistics(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE))
+```
+
+
+## Attribute Characteristics
+
+So far we have kept our focus on purely topographic properties of the networks,
+ignoring the attributes of the edges or vertices.
+
+It is natural to expect that the existence or not of an edge between two
+vertices to also depend on the attributes of those vertices. We can incorporate
+them into our ERGMs as additional terms.
+
+Vertex attributes can influence a graph in two ways: a value on a vertex may
+influence the probability of an edge being connected (analogous to a 'main'
+effect in standard modelling), and the values on both vertices may influence
+the probability (analogous to 'interactions' or 'second-order effects').
+
+These predictors are added to a formula via the `nodemain` and `match` terms.
+
+```{r ergm_lazega_vertex_formula, echo=TRUE}
+summary.statistics(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE) +
+    nodemain('Practice') + match('Office'))
+```
+
+
 
