@@ -159,4 +159,125 @@ summary.statistics(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE
 ```
 
 
+## Fitting ERGMs
+
+To fit these models, we use an MCMC algorithm to calculate the MLE for the
+model. The `ergm()` function performs this optimisation.
+
+### Node Geometry
+
+We start fitting the model with some simple geometries as predictors.
+
+```{r fit_ergm_01, echo=TRUE}
+lazega_01_ergm <- ergm(lazega_network ~ edges + triangles + gwesp(1)
+   ,control = control.ergm(seed = 42)
+)
+
+run_ergm <- function() simulate.ergm(lazega_01_ergm) %>% intergraph::asIgraph()
+
+lazega_01_lst <- run_network_model_assessment(lazega_igraph, run_ergm, n_iter = 1000)
+
+plot(lazega_01_lst$assess_plot)
+```
+
+We have simulated new graphs from this model using `simulate.ergm()` so we
+will produce one and then plot the two beside each other.
+
+```{r plot_simulated_graph, echo=TRUE}
+plot_1 <- ggplot(lazega_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+
+plot_2 <- ggplot(simulate.ergm(lazega_01_ergm), aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_label(aes(label = vertex.names), size = 5) +
+    theme_blank()
+
+
+plot_grid(plot_1, plot_2, ncol = 2)
+```
+
+We will have a look at the degree distribution of the original network and the
+simulated ERGM from it.
+
+```{r plot_degree_dist_simulated_graph_01, echo=TRUE}
+lazega_degdist <- lazega_igraph %>%
+    igraph::degree()
+
+lazega_01_degdist <- simulate.ergm(lazega_01_ergm) %>%
+    intergraph::asIgraph() %>%
+    igraph::degree()
+
+plot_1 <- ggplot() +
+    geom_histogram(aes(x = lazega_degdist), binwidth = 1) +
+    xlab("Degree") +
+    ylab("Count") +
+    ggtitle("Original Network")
+
+plot_2 <- ggplot() +
+    geom_histogram(aes(x = lazega_01_degdist), binwidth = 1) +
+    xlab("Degree") +
+    ylab("Count") +
+    ggtitle("ERGM Simulation")
+
+plot_grid(plot_1, plot_2, ncol = 2)
+```
+
+
+
+### Vertex Attributes
+
+We now want to see the model running with 
+
+```{r fit_ergm_02, echo=TRUE}
+lazega_02_ergm <- ergm(lazega_network ~ edges + triangles +
+    gwesp(1) + nodefactor('Practice') +
+    nodemain('Seniority') + nodematch('Gender') + match('Office')
+   ,control = control.ergm(seed = 42)
+)
+
+
+run_02_ergm <- function() simulate.ergm(lazega_02_ergm) %>% intergraph::asIgraph()
+
+lazega_02_lst <- run_network_model_assessment(lazega_igraph, run_02_ergm, n_iter = 1000)
+
+plot(lazega_02_lst$assess_plot)
+```
+
+
+```{r plot_degree_dist_simulated_graph_02, echo=TRUE}
+lazega_degdist <- lazega_igraph %>%
+    igraph::degree()
+
+lazega_02_degdist <- simulate.ergm(lazega_02_ergm) %>%
+    intergraph::asIgraph() %>%
+    igraph::degree()
+
+plot_1 <- ggplot() +
+    geom_histogram(aes(x = lazega_degdist), binwidth = 1) +
+    xlab("Degree") +
+    ylab("Count") +
+    ggtitle("Lazega")
+
+plot_2 <- ggplot() +
+    geom_histogram(aes(x = lazega_01_degdist), binwidth = 1) +
+    xlab("Degree") +
+    ylab("Count") +
+    ggtitle("Model 01")
+
+plot_3 <- ggplot() +
+    geom_histogram(aes(x = lazega_02_degdist), binwidth = 1) +
+    xlab("Degree") +
+    ylab("Count") +
+    ggtitle("Model 02")
+
+plot_grid(plot_1, plot_2, plot_3, ncol = 3)
+```
+
+
+
+
+
+
 
