@@ -30,6 +30,7 @@ library(ggnetwork)
 library(igraph)
 library(igraphdata)
 library(sand)
+library(ggrepel)
 
 
 options(width = 80L
@@ -95,7 +96,8 @@ flor_knn_tbl <- data_frame(family = names(flor_knn)
 
 
 ggplot(flor_knn_tbl) +
-    geom_text(aes(x = degree, y = knn, label = family)) +
+    geom_point(aes(x = degree, y = knn)) +
+    geom_text_repel(aes(x = degree, y = knn, label = family)) +
     expand_limits(y = 0) +
     xlab("Vertex Degree") +
     ylab("KNN Degree")
