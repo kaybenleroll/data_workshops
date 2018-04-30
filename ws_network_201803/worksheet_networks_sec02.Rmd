@@ -195,6 +195,35 @@ ggplot() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
+
+### Articulation Points (Cutpoints)
+
+Another way of thinking about centrality is a point that joins two components -
+that is, removing the vertex increases the count of components of the graph.
+
+Identifying articulation points may highlight vulnerabilties in the network, or
+help identify key vertices that would otherwise be overlooked in analysis.
+
+
+```{r florence_graph_articulation, echo=TRUE}
+florence_artic <- florence_igraph %>% articulation_points() %>% names()
+
+artic_label_tbl <- data_frame(vertex.names = V(florence_igraph) %>% names()) %>%
+    mutate(is_artic = map_lgl(vertex.names, function(x) x %in% florence_artic))
+
+florentine_plot_layout <- florentine_fr_layout %>%
+    merge(artic_label_tbl, by = 'vertex.names')
+
+florentine_artic_plot <- ggplot(florentine_plot_layout
+                               ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges() +
+    geom_nodelabel(aes(label = vertex.names, fill = is_artic)) +
+    theme_blank(legend.position = 'none')
+
+florentine_artic_plot %>% plot()
+```
+
+
 ### Edge Betweenness
 
 Edge betweenness is a similar idea as for between-ness centrality - we want to
