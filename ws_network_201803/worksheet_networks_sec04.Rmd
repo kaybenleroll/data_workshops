@@ -381,8 +381,6 @@ dixon_model_01_ergm <- ergm(dixon_network ~ edges
    ,control = control.ergm(seed = 421)
 )
 
-mcmc.diagnostics(dixon_model_01_ergm)
-
 
 run_01_ergm <- function() simulate.ergm(dixon_model_01_ergm) %>% intergraph::asIgraph()
 
