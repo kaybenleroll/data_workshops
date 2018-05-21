@@ -470,3 +470,8 @@ assortativity_nominal(florence_igraph, membership(florence_spec_partition))
   1. Calculate the assortativity for the other networks.
 
 
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```

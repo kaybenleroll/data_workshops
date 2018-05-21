@@ -2,7 +2,7 @@
 title: "Dublin Data Science Workshop on the Statistical Analysis of Networks"
 subtitle: "Section 3"
 author: "Mick Cooney <mickcooney@gmail.com>"
-date: "Monday, March 26 2018"
+date: "Monday, April 30 2018"
 output:
   html_document:
     fig_caption: yes
@@ -167,14 +167,18 @@ sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
           ,diam       = map_dbl(graph, diameter)
           ,meandist   = map_dbl(graph, mean_distance)
           ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
+          ,n_comp     = map_dbl(graph, function(x) x %>% count_components)
+          ,n_clust    = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
            )
 
 graph_vals_tbl <- data_frame(
-    parameter = c('trans','diam','meandist', 'max_degree')
+    parameter = c('trans','diam','meandist', 'max_degree', 'n_comp', 'n_clust')
    ,graph_val = c(florence_igraph %>% transitivity
                  ,florence_igraph %>% diameter
                  ,florence_igraph %>% mean_distance
                  ,florence_igraph %>% igraph::degree() %>% max
+                 ,florence_igraph %>% count_components()
+                 ,florence_igraph %>% cluster_fast_greedy() %>% length()
                  )
     )
 
@@ -209,15 +213,17 @@ sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
           ,diam       = map_dbl(graph, diameter)
           ,meandist   = map_dbl(graph, mean_distance)
           ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
-          ,n_commun   = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
+          ,n_comp     = map_dbl(graph, function(x) x %>% count_components)
+          ,n_clust    = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
            )
 
 graph_vals_tbl <- data_frame(
-    parameter = c('trans','diam','meandist', 'max_degree', 'n_commun')
+    parameter = c('trans','diam','meandist', 'max_degree', 'n_comp', 'n_clust')
    ,graph_val = c(florence_igraph %>% transitivity
                  ,florence_igraph %>% diameter
                  ,florence_igraph %>% mean_distance
                  ,florence_igraph %>% igraph::degree() %>% max
+                 ,florence_igraph %>% count_components()
                  ,florence_igraph %>% cluster_fast_greedy() %>% length()
                  )
     )
@@ -251,15 +257,17 @@ sim_data_tbl <- data_frame(sim_id = 1:n_iter) %>%
           ,diam       = map_dbl(graph, diameter)
           ,meandist   = map_dbl(graph, mean_distance)
           ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
-          ,n_commun   = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
+          ,n_comp     = map_dbl(graph, function(x) x %>% count_components)
+          ,n_clust    = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
            )
 
 graph_vals_tbl <- data_frame(
-    parameter = c('trans','diam','meandist', 'max_degree', 'n_commun')
+    parameter = c('trans','diam','meandist', 'max_degree', 'n_comp','n_clust')
    ,graph_val = c(florence_igraph %>% transitivity
                  ,florence_igraph %>% diameter
                  ,florence_igraph %>% mean_distance
                  ,florence_igraph %>% igraph::degree() %>% max
+                 ,florence_igraph %>% count_components()
                  ,florence_igraph %>% cluster_fast_greedy() %>% length()
                  )
     )
@@ -278,7 +286,7 @@ ggplot(plot_data_tbl) +
     ylab('Count')
 ```
 
-WHile small and useful to illustrate the basics, the Florentine marriage network
+While small and useful to illustrate the basics, the Florentine marriage network
 may not be a sound example for the purposes of illustrating the quality of these
 statistical models.
 
@@ -462,4 +470,9 @@ As we see, the transitivity for the Preferential Attachment models tend to be
 very low.
 
 
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```
 

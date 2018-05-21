@@ -337,4 +337,8 @@ florentine_fr_layout <- ggnetwork(florence_igraph, 'fruchtermanreingold')
   1. Try those layouts on the other network data.
   
   
+# R Environment
 
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```

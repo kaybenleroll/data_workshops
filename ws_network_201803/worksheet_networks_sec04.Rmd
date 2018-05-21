@@ -159,12 +159,12 @@ summary.statistics(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE
 ```
 
 
-## Fitting ERGMs
+# Fitting ERGMs
 
 To fit these models, we use an MCMC algorithm to calculate the MLE for the
 model. The `ergm()` function performs this optimisation.
 
-### Node Geometry
+## Node Geometry
 
 We start fitting the model with some simple geometries as predictors.
 
@@ -178,6 +178,8 @@ run_ergm <- function() simulate.ergm(lazega_01_ergm) %>% intergraph::asIgraph()
 lazega_01_lst <- run_network_model_assessment(lazega_igraph, run_ergm, n_iter = 1000)
 
 plot(lazega_01_lst$assess_plot)
+
+summary(lazega_01_ergm)
 ```
 
 We have simulated new graphs from this model using `simulate.ergm()` so we
@@ -226,9 +228,10 @@ plot_grid(plot_1, plot_2, ncol = 2)
 
 
 
-### Vertex Attributes
+## Vertex Attributes
 
-We now want to see the model running with 
+We now want to see the model running with vertex attributes as part of the
+model.
 
 ```{r fit_ergm_02, echo=TRUE}
 lazega_02_ergm <- ergm(lazega_network ~ edges + triangles +
@@ -243,6 +246,8 @@ run_02_ergm <- function() simulate.ergm(lazega_02_ergm) %>% intergraph::asIgraph
 lazega_02_lst <- run_network_model_assessment(lazega_igraph, run_02_ergm, n_iter = 1000)
 
 plot(lazega_02_lst$assess_plot)
+
+summary(lazega_02_ergm)
 ```
 
 
@@ -276,8 +281,213 @@ plot_grid(plot_1, plot_2, plot_3, ncol = 3)
 ```
 
 
+# High-School Network
+
+The `faux.dixon.high` dataset is a simulated dataset modelled from high-school
+friendships. The network is directed, but we fit an undirected version in this
+workshop.
+
+```{r load_dixon_network, echo=TRUE}
+data(faux.dixon.high)
+
+dixon_igraph <- faux.dixon.high %>%
+    asIgraph() %>%
+    as.undirected() %>%
+    simplify()
+
+dixon_network <- dixon_igraph %>%
+    asNetwork()
+
+
+dixon_plot <- ggplot(ggnetwork(dixon_igraph, layout = 'fruchtermanreingold')
+                    ,aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_edges(alpha = 0.2) +
+    geom_nodes(aes(colour = race), size = 3) +
+    ggtitle('The Dixon High-school Network') +
+    theme_blank()
+
+dixon_plot %>% plot()
+```
+
+## Random Graphs Models
+
+Before we try the ERGMs, we will use a few basic random graph models first.
+Models such as these are not able to capture aspects like assortativity, but
+it may be able to generate the topology at least.
+
+### Dixon G(n,m) Model
+
+We start fitting a $G(n,m)$ model, and see how effective we are at capturing
+structure in the model.
+
+```{r fit_dixon_gnm_model, echo=TRUE}
+dixon_count_node <- gorder(dixon_igraph)
+dixon_count_edge <- gsize (dixon_igraph)
+
+run_gnm <- function() sample_gnm(n = dixon_count_node, dixon_count_edge)
+
+dixon_gnm_lst <- run_network_model_assessment(dixon_igraph, run_gnm, n_iter = 1000)
+
+plot(dixon_gnm_lst$assess_plot)
+```
+
+This model cannot account for the network structure at all.
+
+### Dixon Degree-Distribution Model
+
+We try fitting the degree distribution.
+
+```{r fit_dixon_degdist_model, echo=TRUE}
+dixon_degdist <- dixon_igraph %>% igraph::degree()
+
+run_degdist <- function() sample_degseq(dixon_degdist) %>% simplify()
+
+dixon_degdist_lst <- run_network_model_assessment(dixon_igraph, run_degdist, n_iter = 1000)
+
+plot(dixon_degdist_lst$assess_plot)
+```
+
+This model captures the connectedness of the Dixon network in terms of clusters
+and components, but the transitivity and avaerage path length is much lower than
+observed.
+
+
+### Dixon Preferential-Attachment Model
+
+Before moving on to ERGMs, we try a PA model.
+
+```{r fit_dixon_pa_model, echo=TRUE}
+dixon_node_count <- dixon_igraph %>% vcount()
+
+run_pa <- function() sample_pa(dixon_node_count, power = 1, m = 1, directed = FALSE) %>%
+                        simplify()
+
+dixon_pa_lst <- run_network_model_assessment(dixon_igraph, run_pa, n_iter = 1000)
+
+plot(dixon_pa_lst$assess_plot)
+```
 
 
 
+## Dixon ERGMs
+
+### Edges-only ERGM
+
+We now move on to fitting ERGMs with this data, and we start with just basic
+geometries such as edges and $k$-cores. Our first model fits on edges only.
+
+```{r fit_dixon_model_01_ergm, echo=TRUE}
+dixon_model_01_ergm <- ergm(dixon_network ~ edges
+   ,control = control.ergm(seed = 421)
+)
+
+mcmc.diagnostics(dixon_model_01_ergm)
+
+
+run_01_ergm <- function() simulate.ergm(dixon_model_01_ergm) %>% intergraph::asIgraph()
+
+dixon_01_lst <- run_network_model_assessment(dixon_igraph, run_01_ergm, n_iter = 1000)
+
+plot(dixon_01_lst$assess_plot)
+
+summary(dixon_model_01_ergm)
+```
+
+
+### Adding More Geometries
+
+Having tried to the edges as a predictor to the model, we now look to add
+additional geometries.
+
+We start by adding triangles to the model, and checking the diagnostics.
+
+```{r fit_dixon_model_triangle_ergm, echo=TRUE}
+dixon_triangle_ergm <- ergm(dixon_network ~ edges + triangles
+   ,control = control.ergm(seed = 420, MCMLE.maxit = 2)
+)
+
+mcmc.diagnostics(dixon_triangle_ergm)
+```
+
+
+
+
+```{r fit_dixon_model_02_ergm, echo=TRUE}
+# first_dixon_model_02_ergm <- quietly(ergm)(dixon_network ~ edges + gwesp(1.0, fixed=TRUE)
+#    ,control = control.ergm(seed = 422)
+# )
+
+dixon_model_02_ergm <- ergm(dixon_network ~ edges + gwesp(0.1, fixed=TRUE)
+   ,control = control.ergm(seed = 422)
+)
+
+mcmc.diagnostics(dixon_model_02_ergm)
+
+
+run_02_ergm <- function() simulate.ergm(dixon_model_02_ergm) %>% intergraph::asIgraph()
+
+dixon_02_lst <- run_network_model_assessment(dixon_igraph, run_02_ergm, n_iter = 1000)
+
+plot(dixon_02_lst$assess_plot)
+
+summary(dixon_model_02_ergm)
+```
+
+
+### Adding Vertex Attributes
+
+
+```{r fit_dixon_model_03_ergm, echo=TRUE}
+model_03_formula <- formula(
+    dixon_network ~ edges + gwesp(0.1, fixed=TRUE) + absdiff('grade') +
+        nodefactor('race') + nodefactor('grade') + nodefactor('sex')
+)
+
+dixon_model_03_ergm <- ergm(model_03_formula, control = control.ergm(seed = 423))
+
+mcmc.diagnostics(dixon_model_03_ergm)
+
+
+run_03_ergm <- function() simulate.ergm(dixon_model_03_ergm) %>% intergraph::asIgraph()
+
+dixon_03_lst <- run_network_model_assessment(dixon_igraph, run_03_ergm, n_iter = 1000)
+
+plot(dixon_03_lst$assess_plot)
+
+summary(dixon_model_03_ergm)
+```
+
+### Adding Assortativity Features
+
+
+```{r fit_dixon_model_04_ergm, echo=TRUE}
+model_04_formula <- formula(
+    dixon_network ~ edges + gwesp(0.1, fixed=TRUE) + absdiff('grade') +
+        nodefactor('race') + nodefactor('grade') + nodefactor('sex') +
+        nodematch('grade', diff=TRUE) + nodematch('sex', diff=FALSE) +
+        nodematch('race', diff=TRUE) + degree(0:3)
+)
+
+dixon_model_04_ergm <- ergm(model_04_formula, control = control.ergm(seed = 423))
+
+mcmc.diagnostics(dixon_model_04_ergm)
+
+
+run_04_ergm <- function() simulate.ergm(dixon_model_04_ergm) %>% intergraph::asIgraph()
+
+dixon_04_lst <- run_network_model_assessment(dixon_igraph, run_04_ergm, n_iter = 1000)
+
+plot(dixon_04_lst$assess_plot)
+
+summary(dixon_model_04_ergm)
+```
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```
 
 

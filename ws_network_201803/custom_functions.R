@@ -6,15 +6,17 @@ run_network_model_assessment <- function(data_igraph, sample_func, n_iter = 1000
               ,diam       = map_dbl(graph, diameter)
               ,meandist   = map_dbl(graph, mean_distance)
               ,max_degree = map_dbl(graph, function(x) x %>% igraph::degree() %>% max)
-              ,n_commun   = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
+              ,n_comp     = map_dbl(graph, function(x) x %>% count_components)
+              ,n_clust    = map_dbl(graph, function(x) x %>% cluster_fast_greedy() %>% length)
         )
 
     graph_vals_tbl <- data_frame(
-        parameter = c('trans','diam','meandist', 'max_degree', 'n_commun')
+        parameter = c('trans','diam','meandist', 'max_degree', 'n_comp', 'n_clust')
        ,graph_val = c(data_igraph %>% transitivity
                      ,data_igraph %>% diameter
                      ,data_igraph %>% mean_distance
                      ,data_igraph %>% igraph::degree() %>% max
+                     ,data_igraph %>% count_components()
                      ,data_igraph %>% cluster_fast_greedy() %>% length
         )
     )
