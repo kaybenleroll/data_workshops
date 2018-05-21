@@ -2,7 +2,7 @@
 title: "Dublin Data Science Workshop on the Statistical Analysis of Networks"
 subtitle: "Section 4"
 author: "Mick Cooney <mickcooney@gmail.com>"
-date: "Monday, March 26 2018"
+date: "Monday, May 21 2018"
 output:
   html_document:
     fig_caption: yes
@@ -301,7 +301,7 @@ dixon_network <- dixon_igraph %>%
 
 dixon_plot <- ggplot(ggnetwork(dixon_igraph, layout = 'fruchtermanreingold')
                     ,aes(x = x, y = y, xend = xend, yend = yend)) +
-    geom_edges(alpha = 0.2) +
+    geom_edges(alpha = 0.1) +
     geom_nodes(aes(colour = race), size = 3) +
     ggtitle('The Dixon High-school Network') +
     theme_blank()
