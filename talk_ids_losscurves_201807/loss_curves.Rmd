@@ -82,12 +82,14 @@ claimdata_tbl %>% glimpse()
 ---
 
 ```{r plot_total_losses, echo=FALSE}
+use_grcode <- '43'
+
 carrier_full_tbl <- claimdata_tbl %>%
     filter(lob == 'ppauto')
 
 snapshot_tbl <- claimdata_tbl %>%
     filter(lob      == 'ppauto'
-          ,grcode   == '353'
+          ,grcode   == use_grcode
           ,dev_year <  1998
            )
 
@@ -158,8 +160,8 @@ ulr_likelihood_plot %>% plot
 
 
 ```{r calculate_grid_approximation, echo=FALSE, cache=FALSE}
-#dlambda <- 0.05
-#dulr    <- 0.05
+# dlambda <- 0.01
+# dulr    <- 0.01
 dlambda <- 0.05
 dulr    <- 0.05
 
@@ -448,7 +450,7 @@ stan_code[57:69] %>% cat(sep = '\n')
 ```{r stan_data, echo=FALSE}
 modeldata_tbl <- claimdata_tbl %>%
     filter(lob    == 'ppauto'
-          ,grcode == '353')
+          ,grcode == use_grcode)
 
 usedata_tbl <- modeldata_tbl %>%
     filter(dev_year < 1998)
@@ -547,7 +549,7 @@ fitted_curves_tbl <- extract(model_sislob_stanfit)$loss_sample[,1,] %>%
 
 ggplot(snapshot_tbl %>% filter(acc_year == 1988)) +
     geom_line (aes(x = time, y = value, group = iter)
-              ,data = fitted_curves_tbl, alpha = 0.01) +
+              ,data = fitted_curves_tbl, alpha = 0.005) +
     geom_line (aes(x = dev_lag, y = cum_loss), colour = 'red') +
     geom_point(aes(x = dev_lag, y = cum_loss), colour = 'blue') +
     expand_limits(y = 0) +
@@ -566,9 +568,9 @@ predict_cone_tbl <- extract(model_sislob_stanfit)$loss_prediction[,6,] %>%
     gather("timelbl", "value", -iter) %>%
     mutate(time = gsub("V", "", timelbl) %>% as.numeric())
 
-plot_predict <- ggplot(carrier_full_tbl %>% filter(grcode == 43, acc_year == '1993')) +
+plot_predict <- ggplot(carrier_full_tbl %>% filter(grcode == use_grcode, acc_year == '1993')) +
     geom_line (aes(x = time, y = value, group = iter)
-              ,data = predict_cone_tbl, alpha = 0.01) +
+              ,data = predict_cone_tbl, alpha = 0.005) +
     geom_line (aes(x = dev_lag, y = cum_loss), colour = 'red') +
     geom_point(aes(x = dev_lag, y = cum_loss), colour = 'blue') +
     expand_limits(y = 0) +
@@ -589,9 +591,9 @@ predict_cone_tbl <- extract(model_sislob_stanfit)$loss_prediction[,8,] %>%
     gather("timelbl", "value", -iter) %>%
     mutate(time = gsub("V", "", timelbl) %>% as.numeric())
 
-plot_predict <- ggplot(carrier_full_tbl %>% filter(grcode == 43, acc_year == '1995')) +
+plot_predict <- ggplot(carrier_full_tbl %>% filter(grcode == use_grcode, acc_year == '1995')) +
     geom_line (aes(x = time, y = value, group = iter)
-              ,data = predict_cone_tbl, alpha = 0.01) +
+              ,data = predict_cone_tbl, alpha = 0.005) +
     geom_line (aes(x = dev_lag, y = cum_loss), colour = 'red') +
     geom_point(aes(x = dev_lag, y = cum_loss), colour = 'blue') +
     expand_limits(y = 0) +
@@ -627,7 +629,7 @@ ppc_min_lr <- extract(model_sislob_stanfit)$ppc_minLR
 ppc_max_lr <- extract(model_sislob_stanfit)$ppc_maxLR
 
 lr_tbl <- carrier_full_tbl %>%
-    filter(grcode == '353'
+    filter(grcode == use_grcode
           ,dev_lag == 10) %>%
     summarise(min_lr = min(loss_ratio)
              ,max_lr = max(loss_ratio))
@@ -669,14 +671,14 @@ Add up across accounting years
 ```{r plot_total_reserves_ppc, echo=FALSE}
 tckc <- snapshot_tbl %>%
     filter(lob == 'ppauto'
-          ,grcode == '353') %>%
+          ,grcode == use_grcode) %>%
     group_by(acc_year) %>%
     filter(dev_lag == max(dev_lag)) %>%
     pull(cum_loss) %>%
     sum
 
 afc <- carrier_full_tbl %>%
-    filter(grcode == '353') %>%
+    filter(grcode == use_grcode) %>%
     group_by(acc_year) %>%
     filter(dev_lag == max(dev_lag)) %>%
     pull(cum_loss) %>%
@@ -698,6 +700,29 @@ ggplot() +
 
 
 # Conclusion
+
+## Further Iterations
+
+\
+
+Non-constant variance
+
+\
+
+Other functional forms
+
+\
+
+Multiple lines of business
+
+\
+
+Multiple coverholders
+
+
+## Questions
+
+\
 
 Thank You!!!
 
