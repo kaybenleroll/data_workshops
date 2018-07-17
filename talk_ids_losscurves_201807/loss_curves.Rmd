@@ -162,8 +162,8 @@ ulr_likelihood_plot %>% plot
 ```{r calculate_grid_approximation, echo=FALSE, cache=FALSE}
 # dlambda <- 0.01
 # dulr    <- 0.01
-dlambda <- 0.05
-dulr    <- 0.05
+dlambda <- 0.025
+dulr    <- 0.025
 
 l_seq <- seq(0.10, 1.50, by = dlambda)
 u_seq <- seq(0.10, 1.50, by = dulr)
@@ -171,7 +171,7 @@ u_seq <- seq(0.10, 1.50, by = dulr)
 curve_sd <- 0.05
 
 grid_tbl <- crossing(lambda = l_seq, ulr = u_seq) %>%
-    filter(lambda >= 0.4, lambda <= 0.8
+    filter(lambda >= 0.2, lambda <= 0.6
           ,ulr    >= 0.6, ulr    <= 0.8
            ) %>%
     mutate(output   = map2(lambda, ulr, fully_developed_likelihood, sd = curve_sd)
@@ -185,7 +185,7 @@ grid_tbl <- crossing(lambda = l_seq, ulr = u_seq) %>%
 sample_tbl <- grid_tbl %>%
     filter(prob >= quantile(prob, 0.80)) %>%
 #    sample_n(10, weight = prob)
-    sample_n(3, weight = prob)
+    sample_n(5, weight = prob)
 
 grid_approx_plot <- ggplot(grid_tbl) +
     geom_tile   (aes(x = lambda, y = ulr, fill = prob)) +
@@ -709,7 +709,7 @@ Non-constant variance
 
 \
 
-Other functional forms
+Other functional forms (CDFs)
 
 \
 
@@ -718,6 +718,15 @@ Multiple lines of business
 \
 
 Multiple coverholders
+
+---
+
+On that note...
+
+\
+
+https://magesblog.com/post/2018-07-15-hierarchical-loss-reserving-with-growth-cruves-using-brms/
+
 
 
 ## Questions
@@ -730,3 +739,6 @@ Thank You!!!
 
 mickcooney@gmail.com
 
+\
+
+http://mc-stan.org/users/documentation/case-studies/losscurves_casestudy.html
