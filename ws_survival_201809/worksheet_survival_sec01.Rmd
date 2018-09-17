@@ -1,0 +1,73 @@
+---
+title: "Dublin Data Science Workshop on Survival Analysis"
+subtitle: "Section 1"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, September 2018"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+  word_document:
+    toc: yes
+  pdf_document: default
+---
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(scales)
+library(cowplot)
+
+library(ggnetwork)
+library(igraph)
+library(igraphdata)
+library(sand)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+```
+
+
+
+# Introduction
+
+## Workshop Materials
+
+All materials for this workshop is available in my standard GitHub repo:
+
+https://github.com/kaybenleroll/dublin_r_workshops
+
+
+![book cover](img/sand_cover.jpg)
+
+
+The content of this workshop is based on the book "Statistical Analysis of
+Network Data with R" by Kolaczyk and Csardi. The data from this book is
+available from CRAN via the package `sand` and there is a GitHub repo for the
+code in the book also:
+
+https://github.com/kolaczyk/sand
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```
