@@ -1,0 +1,256 @@
+---
+title: "Dublin Data Science Workshop on Survival Analysis"
+subtitle: "Section 2"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, 24 September 2018"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+  pdf_document: default
+---
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(survival)
+library(survminer)
+library(muhaz)
+library(broom)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+
+source('data_setup.R')
+```
+
+
+# Estimations of the Survival Functions
+
+## The Kaplan-Meier Estimator
+
+Kaplan-Meier is the standard method for estimating the survival function of a
+given dataset. Formally, it is defined as follows
+
+$$
+\hat{S}(t) = \prod_{t_i \leq t} (1 - \hat{q}_i) = \prod_{t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)
+$$
+
+where $n_i$ is the number of subjects at risk at time $t$, and $d_i$ is the
+number of individuals who fail at that time.
+
+### Using Kaplan-Meier
+
+In R, we construct KM estimators using the `survfit()` function.
+
+Before we move on to our datasets, we start with a small set of data.
+
+```{r km_estimator_intro, echo=TRUE}
+tt   <- c(7, 6, 6, 5, 2, 4)
+cens <- c(0, 1, 0, 0, 1, 1)
+
+Surv(tt, cens)
+
+sample_tbl <- data_frame(tt = tt, cens = cens)
+
+example_km <- survfit(Surv(tt, cens) ~ 1, data = sample_tbl, conf.type = 'log-log')
+
+plot(example_km)
+```
+
+Basic plotting routines are worth trying, but the `survminer` package has
+specialised plots that use `ggplot2` to create them.
+
+```{r km_estimator_survminer, echo=TRUE}
+ggsurvplot(example_km)
+```
+
+Printing out the 'fitted' object gives us some basic statistics:
+
+```{r km_estimator_print, echo=TRUE}
+example_km %>% print()
+```
+
+We get more details from the `summary()` function:
+
+```{r km_estimator_summary, echo=TRUE}
+example_km %>% summary()
+```
+
+#### Exercises
+
+  1. Construct the KM estimator for the telco churn data
+  1. What is the median survival time for this data?
+  1. What is the mean survival time?
+  1. Repeat the above for the other two datasets.
+
+
+### Follow-up Time
+
+A useful measure may be how long the observation period lasts, something that
+can be subtly difficult to measure.
+
+One method is to switch the censoring labels - that is, we consider the
+original event as a censoring of the observation in the study.
+
+```{r measure_followup_time, echo=TRUE}
+sample_tbl <- sample_tbl %>%
+    mutate(follow = 1 - cens)
+
+follow_km <- survfit(Surv(tt, follow) ~ 1, data = sample_tbl, conf.type = 'log-log')
+
+ggsurvplot(follow_km)
+
+follow_km %>% summary()
+```
+
+
+## Smoothed Hazard Functions
+
+An empirical estimate of the hazard function is given by
+
+$$
+\mu(i) = \frac{d_i}{n_i}
+$$
+
+This is a very noisy estimate as it is sensitive to sample noise.
+
+### The Hazard Estimator
+
+To obtain more smooth functions we use kernel density estimator techniques.
+
+```{r show_muhaz_plots, echo=TRUE}
+sample_muhaz <- muhaz(sample_tbl$tt, sample_tbl$cens, max.time = 7)
+
+plot(sample_muhaz)
+```
+
+`broom` has tidying methods for `muhaz()` and this allows us to create plots
+with `ggplot2`
+
+```{r show_muhaz_tidy, echo=TRUE}
+muhaz_tidy_tbl <- sample_muhaz %>% tidy()
+
+muhaz_tidy_tbl %>% glimpse()
+```
+
+We have estimates of the hazard function now and so can plot it.
+
+```{r show_muhaz_tidy_plot, echo=TRUE}
+ggplot(muhaz_tidy_tbl) +
+    geom_line(aes(x = time, y = estimate)) +
+    expand_limits(x = 0, y = 0) +
+    xlab("Time") +
+    ylab("Estimated Hazard")
+```
+
+
+#### Exercises
+
+  1. Construct the smoothed estimator for the telco churn data
+  1. What time has the highest hazard rate?
+  1. What time has the lowest hazard rate?
+  1. Repeat the above for the other two datasets.
+
+
+### Boundary Corrections
+
+By default, `muhaz()` corrects for the boundary on both sides, but we may not
+wish this. To get estimates without this correction, we add it as an argument
+to the function call.
+
+
+```{r show_muhaz_nocorr, echo=TRUE}
+sample_nocorr_muhaz <- muhaz(sample_tbl$tt, sample_tbl$cens, max.time = 7
+                            ,b.cor = 'none')
+
+plot(sample_nocorr_muhaz)
+
+
+sample_nocorr_muhaz_tidy_tbl <- sample_nocorr_muhaz %>% tidy()
+
+ggplot(sample_nocorr_muhaz_tidy_tbl) +
+    geom_line(aes(x = time, y = estimate)) +
+    expand_limits(x = 0, y = 0) +
+    xlab("Time") +
+    ylab("Estimated Hazard")
+```
+
+To help ensure these smoothed estimates are capturing the correct aspects of
+the data, we also have the equivalent `pehaz()` functions - giving histogram
+estimates of the hazards, much how histogram and kernel estimates are discrete
+and continuous analogies of one another.
+
+#### Exercises
+
+  1. Construct the non-corrected smoothed estimator for the telco churn data
+  1. Repeat the above for the other two datasets.
+
+
+## Comparing KM and Smoothed Estimates
+
+Now that we have both methods of checking the empirical estimates, it is good
+to compare them.
+
+Before we do this, we note that Kaplan-Meier estimates the survival function
+but `muhaz()` gives us estimates of the hazard function.
+
+Thus we need to do some conversions and the easiest way to do this is to
+numerically integrate the hazard functions to calculate the survival function
+and then compare to the KM estimate.
+
+```{r integrate_muhaz, echo=TRUE}
+muhaz_surv_tbl <- muhaz_tidy_tbl %>%
+    mutate(dt  = c(0, diff(time))
+          ,S_t = 1 - cumsum(estimate * dt))
+
+ggsurvplot(example_km)$plot +
+    geom_line(aes(x = time, y = S_t), data = muhaz_surv_tbl)
+```
+
+
+### No Boundary Correction
+
+We also want to compare the results without the boundary correction.
+
+```{r compare_nocorr_estimates, echo=TRUE}
+muhaz_nocorr_surv_tbl <- sample_nocorr_muhaz_tidy_tbl %>%
+    mutate(dt  = c(0, diff(time))
+          ,S_t = 1 - cumsum(estimate * dt))
+
+ggsurvplot(example_km)$plot +
+    geom_line(aes(x = time, y = S_t), colour = 'blue', data = muhaz_surv_tbl) +
+    geom_line(aes(x = time, y = S_t), data = muhaz_nocorr_surv_tbl)
+    
+
+```
+
+We see that removing the boundary corrections can cause big discrepancies
+between the smoothed and discrete estimates (at least in this case)
+
+
+
+
+
+## R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```

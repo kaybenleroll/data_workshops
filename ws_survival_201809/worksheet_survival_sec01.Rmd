@@ -2,15 +2,16 @@
 title: "Dublin Data Science Workshop on Survival Analysis"
 subtitle: "Section 1"
 author: "Mick Cooney <mickcooney@gmail.com>"
-date: "Monday, September 2018"
+date: "Monday, 24 September 2018"
 output:
   html_document:
     fig_caption: yes
     number_sections: yes
     theme: cerulean
     toc: yes
-  word_document:
-    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
   pdf_document: default
 ---
 
@@ -25,11 +26,7 @@ knitr::opts_chunk$set(tidy  = FALSE
 library(tidyverse)
 library(scales)
 library(cowplot)
-
-library(ggnetwork)
-library(igraph)
-library(igraphdata)
-library(sand)
+library(survival)
 
 
 options(width = 80L
@@ -37,36 +34,234 @@ options(width = 80L
         )
 
 set.seed(42)
+
+source('data_setup.R')
 ```
 
 
 
-# Introduction
+# Basic Concepts
 
-## Workshop Materials
+In *survival analysis* we analyse *time-to-event* data and try to estimate the
+underlying distribution of times for events to occur.
+
+## Introduction
+
+For the purposes of this workshop, we focus on a single event type, but the
+topic is wide and broadly applicable.
+
+
+### Workshop Materials
 
 All materials for this workshop is available in my standard GitHub repo:
 
 https://github.com/kaybenleroll/dublin_r_workshops
 
 
-![book cover](img/sand_cover.jpg)
+![book cover](img/asaur_cover.jpg)
 
 
-The content of this workshop is based on the book "Statistical Analysis of
-Network Data with R" by Kolaczyk and Csardi. The data from this book is
-available from CRAN via the package `sand` and there is a GitHub repo for the
+The content of this workshop is partly based on the book "Applied Survival
+Analysis Using R" by Dirk F. Moore. The data from this book is available from
+CRAN via the package `asaur` and there is a GitHub repo for the
 code in the book also:
 
 https://github.com/kolaczyk/sand
 
 
+### Example Datasets
+
+This workshop will use a number of different time-to-event datasets, so we
+look at those first.
+
+#### Telco Churn Data
+
+The telco churn data contains some customer usage information on mobile phone
+customers and whether or not they left their subscription accounts.
+
+```{r show_telco_churn_data, echo=TRUE}
+telco_churn_tbl %>% glimpse()
+```
+
+
+#### Prostate Survival
+
+The prostate survival data is generated data from a cancer survival study.
+
+```{r show_prostate_data, echo=TRUE}
+prostate_surv_tbl %>% glimpse()
+```
+
+#### Smoker Data
+
+The smoker data is a smoking relapse study involving a number of different
+treatments and details on when and if the patient resumed smoking.
+
+```{r show_smoker_data, echo=TRUE}
+pharmaco_smoker_tbl %>% glimpse()
+```
+
+
+
+## Basic Principles  
+
+### Data Censoring and Truncation
+
+In the problems we work on, our data observation process does not allow us to
+fully observe the variable in question. Instead, our observations are often
+*right-censored* - that is, we know the value in question is at least the
+observed value, but it may also be higher.
+
+Expressing this formally, suppose $T^*$ is the time to event, and $U$ is the
+time to the censoring, the our observed time $T$, and censoring indicator,
+$\delta$, are given by
+
+\begin{eqnarray*}
+T      &=& \min(T^*, U) \\
+\delta &=& I[T^* \leq U]
+\end{eqnarray*}
+
+
+A less common phenomenon is *left-censoring* - where we observe the event to be
+at most a given duration. This may happen in medical studies where continual
+observation of the patients is not possible or feasible.
+
+### Hazard and Survival Functions
+
+Our key goal is to find the survival distribution - the distribution of times
+from some given start point to the time of the event.
+
+Two common ways of specifying this distribution are the *survival function*,
+$S(t)$ and the *hazard function*, $h(t)$.
+
+$S(t)$ is the probability of surviving to time $t$, so is defined as follows:
+
+$$
+S(t) = P(T > t), \, 0 \leq t \leq \infty
+$$
+
+Thus, $S(0) = 1$ and decreases monotonically with time $t$. As it is a
+probability it is non-negative.
+
+We can also define the survival function in terms of the instantaneous failure
+rate, the probability of failing at exactly time $t$. More formally,
+
+$$
+\lambda(t) = \lim_{\delta \to 0} \frac{P(t \leq T \leq t + \delta \; | \, T > t)}{\delta}
+$$
+
+This is also called the *intensity function* or the *force of mortality*
+
+
+### Cumulative Functions
+
+Some analyses make it easier to use the *cumulative hazard function* 
+
+$$
+\Lambda(t) = \int^t_0 \lambda(u) \, du
+$$
+
+As a consequence of this definition we also have
+
+$$
+S(t) = \exp(- \Lambda(t))
+$$
+
+### Mean and Median Survival
+
+Finally, two common statistics for survival are the *mean survival time* and
+the *median survival time*:
+
+The mean survival time is the expected value of the distribution, using
+standard probability definitions:
+
+$$
+\mu = E(T) = \int^\infty_0 t f(t) \, dt = \int^\infty_0 S(t) \, dt
+$$
+
+The median survival time, $t_{\text{med}}$ such that
+
+$$
+S(t_{\text{med}}) = 0.5
+$$
+
+
+## Example Distributions
+
+Let's look at some different survival distributions.
+
+### Constant Hazard
+
+```{r constant_hazard_plots, echo=TRUE}
+t_seq <- 1:100
+
+h_const_seq <- rep_along(t_seq, 0.01)
+S_const_seq <- cumprod(c(1, (1 - h_const_seq)))
+
+
+hazard_plot <- ggplot() +
+    geom_line(aes(x = t_seq, y = h_const_seq)) +
+    xlab("Time") +
+    ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+    geom_line(aes(x = c(0, t_seq), y = S_const_seq)) +
+    xlab("Time") +
+    ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
+
+### Early Hazard
+
+```{r early_hazard_plots, echo=TRUE}
+early_seq <- seq(0.2, 0.01, by = -0.01)
+late_seq  <- rep(0.01, 100 - length(early_seq))
+
+h_early_seq <- c(early_seq, late_seq)
+S_early_seq <- cumprod(c(1, (1 - h_early_seq)))
+
+
+hazard_plot <- ggplot() +
+    geom_line(aes(x = t_seq, y = h_early_seq)) +
+    xlab("Time") +
+    ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+    geom_line(aes(x = c(0, t_seq), y = S_early_seq)) +
+    xlab("Time") +
+    ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
+
+### Late Hazard
+
+```{r late_hazard_plots, echo=TRUE}
+late_seq  <- seq(0.01, 1.0, by = 0.02)
+early_seq <- rep(0.01, 100 - length(late_seq))
+
+h_late_seq <- c(early_seq, late_seq)
+S_late_seq <- cumprod(c(1, (1 - h_late_seq)))
+
+
+hazard_plot <- ggplot() +
+    geom_line(aes(x = t_seq, y = h_late_seq)) +
+    xlab("Time") +
+    ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+    geom_line(aes(x = c(0, t_seq), y = S_late_seq)) +
+    xlab("Time") +
+    ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
 
 
 
 
-
-# R Environment
+## R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
 devtools::session_info()
