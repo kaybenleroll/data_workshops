@@ -81,6 +81,8 @@ customers and whether or not they left their subscription accounts.
 
 ```{r show_telco_churn_data, echo=TRUE}
 telco_churn_tbl %>% glimpse()
+
+telco_churn_tbl %>% head()
 ```
 
 
@@ -90,6 +92,8 @@ The prostate survival data is generated data from a cancer survival study.
 
 ```{r show_prostate_data, echo=TRUE}
 prostate_surv_tbl %>% glimpse()
+
+prostate_surv_tbl %>% head()
 ```
 
 #### Smoker Data
@@ -99,6 +103,8 @@ treatments and details on when and if the patient resumed smoking.
 
 ```{r show_smoker_data, echo=TRUE}
 pharmaco_smoker_tbl %>% glimpse()
+
+pharmaco_smoker_tbl %>% head()
 ```
 
 
@@ -201,21 +207,51 @@ S_const_seq <- cumprod(c(1, (1 - h_const_seq)))
 
 hazard_plot <- ggplot() +
     geom_line(aes(x = t_seq, y = h_const_seq)) +
+    expand_limits(y = 0) +
     xlab("Time") +
     ylab("Instantaneous Hazard")
 
 cuml_plot <- ggplot() +
     geom_line(aes(x = c(0, t_seq), y = S_const_seq)) +
+    expand_limits(y = 0) +
     xlab("Time") +
     ylab("Cumulative Survival")
 
 plot_grid(hazard_plot, cuml_plot, nrow = 2)
 ```
 
+If we increase the constant hazard, we get a similar shape, but the curve
+declines faster.
+
+```{r constant_hazard_higher_plots, echo=TRUE}
+h_const_high_seq <- rep_along(t_seq, 0.03)
+S_const_high_seq <- cumprod(c(1, (1 - h_const_high_seq)))
+
+
+hazard_plot <- ggplot() +
+    geom_line(aes(x = t_seq, y = h_const_high_seq)) +
+    geom_line(aes(x = t_seq, y = h_const_seq)
+             ,colour = 'blue', linetype = 'dashed') +
+    expand_limits(y = 0) +
+    xlab("Time") +
+    ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+    geom_line(aes(x = c(0, t_seq), y = S_const_high_seq)) +
+    geom_line(aes(x = c(0, t_seq), y = S_const_seq)
+             ,colour = 'blue', linetype = 'dashed') +
+    expand_limits(y = 0) +
+    xlab("Time") +
+    ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
+
+
 ### Early Hazard
 
 ```{r early_hazard_plots, echo=TRUE}
-early_seq <- seq(0.2, 0.01, by = -0.01)
+early_seq <- seq(0.10, 0.01, by = -0.01)
 late_seq  <- rep(0.01, 100 - length(early_seq))
 
 h_early_seq <- c(early_seq, late_seq)
@@ -224,21 +260,25 @@ S_early_seq <- cumprod(c(1, (1 - h_early_seq)))
 
 hazard_plot <- ggplot() +
     geom_line(aes(x = t_seq, y = h_early_seq)) +
+    expand_limits(y = 0) +
     xlab("Time") +
     ylab("Instantaneous Hazard")
 
 cuml_plot <- ggplot() +
     geom_line(aes(x = c(0, t_seq), y = S_early_seq)) +
+    expand_limits(y = 0) +
     xlab("Time") +
     ylab("Cumulative Survival")
 
 plot_grid(hazard_plot, cuml_plot, nrow = 2)
 ```
 
+
+
 ### Late Hazard
 
 ```{r late_hazard_plots, echo=TRUE}
-late_seq  <- seq(0.01, 1.0, by = 0.02)
+late_seq  <- seq(0.01, 0.10, by = 0.0015)
 early_seq <- rep(0.01, 100 - length(late_seq))
 
 h_late_seq <- c(early_seq, late_seq)
@@ -247,11 +287,13 @@ S_late_seq <- cumprod(c(1, (1 - h_late_seq)))
 
 hazard_plot <- ggplot() +
     geom_line(aes(x = t_seq, y = h_late_seq)) +
+    expand_limits(y = 0) +
     xlab("Time") +
     ylab("Instantaneous Hazard")
 
 cuml_plot <- ggplot() +
     geom_line(aes(x = c(0, t_seq), y = S_late_seq)) +
+    expand_limits(y = 0) +
     xlab("Time") +
     ylab("Cumulative Survival")
 
