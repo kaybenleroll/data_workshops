@@ -303,7 +303,7 @@ plot_grid(hazard_plot, cuml_plot, nrow = 2)
 
 
 
-## R Environment
+# R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
 devtools::session_info()
