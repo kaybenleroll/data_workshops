@@ -480,7 +480,8 @@ and then compare to the KM estimate.
 ```{r integrate_muhaz, echo=TRUE}
 muhaz_surv_tbl <- muhaz_tidy_tbl %>%
     mutate(dt  = c(0, diff(time))
-          ,S_t = 1 - cumsum(estimate * dt))
+          ,S_t = exp(-cumsum(estimate * dt))
+    )
 
 ggsurvplot(example_km)$plot +
     geom_line(aes(x = time, y = S_t), data = muhaz_surv_tbl)
@@ -494,7 +495,8 @@ We also want to compare the results without the boundary correction.
 ```{r compare_nocorr_estimates, echo=TRUE}
 muhaz_nocorr_surv_tbl <- sample_nocorr_muhaz_tidy_tbl %>%
     mutate(dt  = c(0, diff(time))
-          ,S_t = 1 - cumsum(estimate * dt))
+          ,S_t = exp(-cumsum(estimate * dt))
+    )
 
 ggsurvplot(example_km)$plot +
     geom_line(aes(x = time, y = S_t), colour = 'blue', data = muhaz_surv_tbl) +
@@ -506,6 +508,109 @@ ggsurvplot(example_km)$plot +
 We see that removing the boundary corrections can cause big discrepancies
 between the smoothed and discrete estimates (at least in this case)
 
+
+## Estimating Survival Curves for the Telco Churn Data
+
+We now are going to build various Kaplan-Meier estimates for all the data,
+as well as splits on the data along `vmailplan` - whether or not the account
+had a voice mail, and `intlplan` - whether or not the account had an
+international calls plan.
+
+```{r create_km_fits, echo=TRUE}
+telco_all_km   <- survfit(Surv(accountdur, churned) ~ 1,         data = telco_churn_tbl)
+telco_vmail_km <- survfit(Surv(accountdur, churned) ~ vmailplan, data = telco_churn_tbl)
+telco_intl_km  <- survfit(Surv(accountdur, churned) ~ intlplan,  data = telco_churn_tbl)
+```
+
+
+### Plotting the Curves
+
+Having created the KM estimates, we first plot the curves to check for
+differences.
+
+```{r plot_km_curves, echo=TRUE}
+telco_all_km   %>% ggsurvplot(censor = FALSE)
+telco_vmail_km %>% ggsurvplot(censor = FALSE)
+telco_intl_km  %>% ggsurvplot(censor = FALSE)
+```
+
+The estimators comes with upper and lower confidence bounds, and it may be
+useful to include these estimates when determining the differences. We will
+look at a more formal way of discriminating between curves in a while.
+
+```{r plot_km_curves_bounds, echo=TRUE}
+telco_all_km   %>% ggsurvplot(censor = FALSE, conf.int = TRUE)
+telco_vmail_km %>% ggsurvplot(censor = FALSE, conf.int = TRUE)
+telco_intl_km  %>% ggsurvplot(censor = FALSE, conf.int = TRUE)
+```
+
+
+### Combining KM Estimators
+
+This is useful, but it would be better to combine all these together. To do
+this, we need the tables of the estimator data, and stack them together.
+
+Fortunately, the *broom* package is compatible with basic survival analysis
+routines, so this provides us with some utilities to help with this.
+
+If we need to access the KM data directly, we can use `tidy()` to get a look:
+
+```{r introspect_km_fits, echo=TRUE}
+telco_all_km_data   <- telco_all_km   %>% tidy()
+telco_all_km_data   %>% glimpse()
+
+telco_vmail_km_data <- telco_vmail_km %>% tidy()
+telco_vmail_km_data %>% glimpse()
+
+telco_intl_km_data  <- telco_intl_km  %>% tidy()
+telco_intl_km_data  %>% glimpse()
+```
+
+We stack the data and create a line plot of each of the survival curves.
+
+```{r plot_stacked_km_plots, echo=TRUE}
+stacked_km_tbl <- list(telco_all_km_data %>% mutate(strata = 'ALL')
+                      ,telco_vmail_km_data
+                      ,telco_intl_km_data
+                       ) %>%
+    bind_rows()
+
+
+ggplot(stacked_km_tbl) +
+    geom_line(aes(x = time, y = estimate,  colour = strata)) +
+    geom_line(aes(x = time, y = conf.high, colour = strata), linetype = 'dashed') +
+    geom_line(aes(x = time, y = conf.low,  colour = strata), linetype = 'dashed')
+```
+
+This chart is not as useful as it could be - it is too 'busy'. We need to
+simplify.
+
+Instead of including everything, we will look at the international plan curves
+along with the estimator calculated from the full dataset.
+
+```{r plot_stacked_km_all_intl_plots, echo=TRUE}
+ggplot(stacked_km_tbl %>% filter(grepl('ALL|intl', strata))) +
+    geom_line(aes(x = time, y = estimate,  colour = strata)) +
+    geom_line(aes(x = time, y = conf.high, colour = strata), linetype = 'dashed') +
+    geom_line(aes(x = time, y = conf.low,  colour = strata), linetype = 'dashed')
+```
+
+From this, it looks like people without international plans are similar to
+the population as a whole, but those with plans have a much worse churn
+effect. This type of information will be useful later.
+
+We can do a similar thing for the voice-mail plans.
+
+```{r plot_stacked_km_all_vmail_plots, echo=TRUE}
+ggplot(stacked_km_tbl %>% filter(grepl('ALL|vmail', strata))) +
+    geom_line(aes(x = time, y = estimate,  colour = strata)) +
+    geom_line(aes(x = time, y = conf.high, colour = strata), linetype = 'dashed') +
+    geom_line(aes(x = time, y = conf.low,  colour = strata), linetype = 'dashed')
+```
+
+This split is more mixed, but it appears that those with a voicemail plan have
+a better churn experience than the population, but those without are similar
+to the population as a whole.
 
 
 
