@@ -326,10 +326,11 @@ Before we move on to our datasets, we start with a small set of data.
 ```{r km_estimator_intro, echo=TRUE}
 tt   <- c(7, 6, 6, 5, 2, 4)
 cens <- c(0, 1, 0, 0, 1, 1)
+grp  <- c(0, 0, 0, 1, 1, 1)
 
 Surv(tt, cens)
 
-sample_tbl <- data_frame(tt = tt, cens = cens)
+sample_tbl <- data_frame(tt = tt, cens = cens, grp = grp)
 
 example_km <- survfit(Surv(tt, cens) ~ 1, data = sample_tbl, conf.type = 'log-log')
 
@@ -611,6 +612,551 @@ ggplot(stacked_km_tbl %>% filter(grepl('ALL|vmail', strata))) +
 This split is more mixed, but it appears that those with a voicemail plan have
 a better churn experience than the population, but those without are similar
 to the population as a whole.
+
+
+# Comparing Curves: The Log-Rank Test
+
+Now that we have ways of constructing different survival curves from our data
+we turn our attention to checking if these differences can be explained by
+random chance
+
+
+|            |Control          |    Treatment      |   Total     |
+|----------- |:---------------:|:-----------------:|:-----------:|
+|Failure     |$d_{0i}$         | $d_{1i}$          | $d_i$       |
+|Non-failure |$n_{0i} - d_{0i}$| $n_{1i} - d_{1i}$ | $n_i - d_i$ |
+|Total       |$n_{0i}$         | $n_{1i}$          | $n_i$       |
+
+
+From this table of values, we define two values:
+
+\begin{eqnarray*}
+e_{0i} &=& E(d_{0i}) = \frac{n_{0i} d_i}{n_i}                                        \\
+v_{0i} &=& \text{var}(d_{0i}) = \frac{n_{0i} n_{1i} d_i (n_i - d_i)}{n_i^2(n_i - 1)} \\ 
+U_0    &=& \sum_{i=1}^{N} (d_{0i} - e_{0i}) = \sum d_{0i} - \sum e_{0i}              \\
+V_0    &=& \text{var}(U_0) = \sum v_{0i}
+\end{eqnarray*}
+
+Having defined these variables as above, we can show that
+
+$$
+\frac{U_0^2}{V_0} \sim \chi_1^2
+$$
+
+This gives us a natural statistical test to compare the two curves.
+
+
+## Comparing Binary Categories
+
+The simplest case is when we are comparing survival data split down binary
+outcomes, such as whether or not the customer has a voicemail plan or a plan
+with international calls.
+
+### Voicemail Differences
+
+We start by comparing the voicemail plans.
+
+```{r compare_vmail_curves, echo=TRUE}
+telco_vmail_survdiff <- survdiff(Surv(accountdur, churned) ~ vmailplan
+                                ,data = telco_churn_tbl)
+
+telco_vmail_survdiff %>% print()
+telco_vmail_survdiff %>% glance()
+```
+
+Such a small $p$-value suggests the differences in the curves are unlikely to
+be due to chance, and this gels with what we observed on the plots of the
+curves.
+
+### International Calls Differences
+
+Now we compare the differences between plans with and without international
+calls.
+
+```{r compare_intl_curves, echo=TRUE}
+telco_intl_survdiff <- survdiff(Surv(accountdur, churned) ~ intlplan
+                               ,data = telco_churn_tbl)
+
+telco_intl_survdiff %>% print()
+telco_intl_survdiff %>% glance()
+```
+
+## Comparing Multiple Categories
+
+The approach discussed can be extended to categorical variables with multiple
+values. We can use `areacode` for this as it has three values in it:
+
+```{r check_area_code_levels, echo=TRUE}
+telco_churn_tbl %>% count(areacode)
+```
+
+Let's check how it splits the survival curves.
+
+```{r create_areacode_km_estimates, echo=TRUE}
+telco_areacode_km <- survfit(Surv(accountdur, churned) ~ areacode
+                            ,data = telco_churn_tbl)
+
+telco_areacode_km %>% ggsurvplot(censor = TRUE, conf.int = TRUE)
+```
+
+Now let's run the log-rank test on this data:
+
+```{r compare_areacode_curves, echo=TRUE}
+telco_areacode_survdiff <- survdiff(Surv(accountdur, churned) ~ areacode
+                                   ,data = telco_churn_tbl)
+
+telco_areacode_survdiff %>% print()
+telco_areacode_survdiff %>% glance()
+```
+
+Again, the results of the log-rank test meshes with our visual inspection: a
+$p$-value of 0.6 suggests differences are likely due to chance, and for most
+of the curves the three area codes pretty much share the same experience.
+
+Using our domain knowledge, this also makes sense - we would not expect phones
+based in different area codes to have substantial differences: area codes are
+too big and broad to show systemic geographic effects.
+
+
+## Discretizing Continuous Variables
+
+In the event that we have numeric variables affecting survival, we need to
+perform some discretization of those values to allow us to assess these
+effects.
+
+Regression models discussed later will allow us tackle these dependencies in
+a more direct way, but for now we will use this simplified approach.
+
+One numeric variable likely to have an effect on churn is `custservicecalls` -
+the number of calls made to customer service. We would expect that an account
+with more service calls is likely to be dissatisfied, so higher counts of
+calls corresponds to a higher churn rate.
+
+### Discretizing `custservicecalls`
+
+Having decided to bin our calls, we now need to decide how we go about this.
+One way is to split the data by quantiles, so we can try this first.
+
+Should this not prove satisfactory, it may help inform more suitable ways
+to bin this value.
+
+```{r create_custservicecalls_bins, echo=TRUE}
+telco_churn_tbl %>% count(custservicecalls) %>% mutate(cuml = cumsum(n))
+```
+
+We see this is a very skewed distribution to the lower end of call counts, so
+`ntile()` is not as effective here as it will not properly separate the
+counts. Instead we use `cut()` as that gives us more control over the binning.
+
+
+```{r construct_callservice_cuts, echo=TRUE}
+telco_churn_cat_tbl <- telco_churn_tbl %>%
+    mutate(calls_cat = cut(custservicecalls
+                          ,breaks = c(0, 1, 2, 5, Inf)
+                          ,right = FALSE)
+    )
+
+telco_callscat_km <- survfit(Surv(accountdur, churned) ~ calls_cat
+                            ,data = telco_churn_cat_tbl)
+
+telco_callscat_km %>% ggsurvplot(censor = FALSE, conf.int = TRUE)
+```
+
+It looks like there is not much difference for lower counts, but there is a
+worse churn experience when the number of customer service calls is 5 or
+higher.
+
+```{r compare_callscat_curves, echo=TRUE}
+telco_callscat_survdiff <- survdiff(Surv(accountdur, churned) ~ calls_cat
+                                   ,data = telco_churn_cat_tbl)
+
+telco_callscat_survdiff %>% print()
+telco_callscat_survdiff %>% glance()
+```
+
+
+
+
+# The Cox Proportional Hazards Model
+
+Up to this point we have focused on empirical and non-parametric approaches
+to estimating survival and hazard functions.
+
+While useful, these approaches do not work when we want to consider multiple
+variables simultaneously. We could try to construct different KM estimates
+according to the splits, but splitting along multiple directions rapidly
+diminishes the amount of data in each split.
+
+Instead, we start to build regression models to estimate the hazard and
+survival functions.
+
+## Proportional Hazards
+
+The core assumption for the proportional hazards model is that we model the
+hazard function and construct the survival curve from that.
+
+We assume we have a reference hazard function of time, $h_0(t)$, known as the
+*baseline hazard*. All hazard functions are proportional to this baseline:
+
+$$
+h(t) = \psi \, h_0(t)
+$$
+
+Implicit in the above statement is that the time-effects of the hazard are
+built into the hazard function $h_0(t)$ - there is no time-varying effect
+in the coefficients in the Cox PH model.
+
+The hazards can be greater or less than this baseline - $\psi > 1$ means the
+hazard is greater than the baseline and the survival curve will be below the
+baseline curve; $\psi < 1$ means it is less.
+
+We model this constant factor $\psi$ as a linear model - we have covariates
+$x_i$ as inputs to the model, and each covariate has a corresponding
+coefficient $\beta_i$.
+
+$$
+\psi = \exp(\beta \, x) = \exp(\beta_1 x_1 + ... + \beta_n x_x)
+$$
+
+Thus, stated fully, our Cox PH model can be expressed as follows:
+
+$$
+h(t | X) = h_0(t) \exp(\beta \, X)
+$$
+
+As our data is censored we need to modify our standard maximum likelihood
+approaches to estimating the parameters of a model - instead we need to use
+'partial likelihoods' that takes into account the censoring.
+
+We will not go into the details, but this method reduces to optimising a
+function over the parameter space. This has the side benefit that once we have
+these parameter values, we can use this to calculate the baseline hazard also.
+
+With this in mind, we now turn our attention to actually fitting the models.
+
+
+## Our First Cox-PH Model
+
+For our first Cox-PH model, we build a model using the voicemail parameter.
+
+```{r telco_model01_coxph, echo=TRUE}
+telco_model01_coxph <- coxph(Surv(accountdur, churned) ~ vmailplan
+                            ,data = telco_churn_tbl
+                             )
+
+telco_model01_coxph %>% summary()
+```
+
+Now that we have built our first survival regression model, how do we assess
+how good the model is?
+
+
+## Model Assessment
+
+Model assessment in survival analysis is less straightforward as the models
+produce a distribution rather than a number. We can discuss more robust
+assessments later, but for now it is worth introducing a number of
+quantitative measures of model quality.
+
+### R-Squared
+
+The standard measure of model fit is $R^2$, the proportion of variance
+explained by the model. This does not quite work for survival models, but we
+can use a modified $R^2$ statistic, defined for Cox-PH models as follows:
+
+$$
+R^2 = 1 - \left( \frac{l(0)}{l(\hat{\beta})} \right)^{\frac{2}{n}}
+$$
+
+where $l(\beta)$ is the log-likelihood function.
+
+
+### Concordance Index
+
+The concordance index, or $c$-index, or $c$-statistic is the proportion of
+pairwise comparisons correctly identified by the model. To ensure a fair
+comparison at least one of the rows must not be censored.
+
+We compare comparison times and check that our model correctly predicted the
+order of times between the compared datapoints - a correct value adds 1 to
+the total, an incorrect one adds 0. We then divide the total by the number
+of comparisons made to get our statistic.
+
+Thus, a concordance index of 0.5 is equivalent to a random guess and so is our
+baseline value. A good survival model will have a $c$-index between 0.6 and
+0.7 - anything higher is unlikely due to the censored nature of our data.
+
+
+### Assessing Our First Model
+
+So how good is our model?
+
+```{r telco_model01_coxph_assessment, echo=TRUE}
+telco_model01_coxph %>% summary()
+
+telco_model01_coxph %>%
+    glance() %>%
+    select(n, nevent, r.squared, concordance, std.error.concordance)
+
+telco_model01_coxph %>% tidy()
+```
+
+This simple model with one binary variable gives us a $c$-index of 0.565. The
+$R^2$ is essentially zero (0.011), and we will check how both values correlate
+as we iterate upon the model-building.
+
+
+## Adding International Plans
+
+For our second model we add international calls, adding it as a single variable
+before we see what adding both does..
+
+```{r telco_model02_coxph, echo=TRUE}
+telco_model02_coxph <- coxph(Surv(accountdur, churned) ~ intlplan
+                            ,data = telco_churn_tbl
+                             )
+
+telco_model02_coxph %>% summary()
+```
+
+Model02 has a $c$-index of 0.591, so the international plan has more
+predictive power. Note that $R^2$ is increasing with $c$-index, so this
+relationship is worth investigating later.
+
+```{r telco_model02_coxph_assessment, echo=TRUE}
+telco_model02_coxph %>%
+    glance() %>%
+    select(n, nevent, r.squared, concordance, std.error.concordance)
+
+telco_model02_coxph %>% tidy()
+```
+
+Having checked the variables separately, we now combine them into a single
+model containing both variables. We expect combining both variables to improve
+our model, but if both are highly correlated this may not be the case.
+
+```{r telco_model03_coxph, echo=TRUE}
+telco_model03_coxph <- coxph(Surv(accountdur, churned) ~ vmailplan + intlplan
+                            ,data = telco_churn_tbl
+                             )
+
+telco_model03_coxph %>% summary()
+```
+
+The combined model, Model03, has a $c$-index of 0.643 and an $R^2$ of 0.05.
+
+
+```{r telco_model03_coxph_assessment, echo=TRUE}
+telco_model03_coxph %>%
+    glance() %>%
+    select(n, nevent, r.squared, concordance, std.error.concordance)
+
+telco_model03_coxph %>% tidy()
+```
+
+This model appears to be better, and there are many more variables we can
+try to improve the model.
+
+Before we spend time and effort iterating further on this model, we now
+spend some time checking the proportional hazards assumption. As we might
+expect, we have tools to help with this.
+
+
+## Validating the Proportional Hazards Model
+
+We have skipped much of the statistical theory up to this point, but we now
+need to look at using some of it.
+
+A common statistical approach for assessing regression models is through
+analysis of the residuals, typically defined as some form of difference
+between the predicted and observed values.
+
+For survival analysis, our approach is more involved in terms of how we
+define the residuals of a model, but the basic concept is the same.
+
+### Fitting the Null Model
+
+We first work from a null CoxPH model that we fit - the 'null' model:
+
+```{r fit_null_model, echo=TRUE}
+telco_model00_coxph <- coxph(Surv(accountdur, churned) ~ 1
+                            ,data = telco_churn_tbl
+                             )
+
+telco_model00_coxph %>% summary()
+```
+
+
+### Martingale Residuals
+
+We define our basic residual $m_i$ as follows:
+
+$$
+m_i = \delta_i - \hat{H}_0(t_i) \exp(x_i \hat{\beta})
+$$
+
+The residual is the difference between the observed value of the whether the
+event occurred and its expected value under the Cox model.
+
+```{r calculate_null_model_martingale_residuals, echo=TRUE}
+telco_model00_resid_m <- telco_model00_coxph %>% residuals(type = 'martingale')
+
+telco_model00_resid_m %>% summary()
+```
+
+We have zero-mean, but there is skew in the data as the values are bounded
+above at 1, but unbounded below. The easiest way to check the shape is look at
+a histogram of the values.
+
+```{r plot_null_model_martingale_residuals, echo=TRUE}
+ggplot() +
+    geom_histogram(aes(x = telco_model00_resid_m), bins = 50) +
+    xlab('Residual Value') +
+    ylab('Count') +
+    ggtitle('Histogram of Null-Model Martingale Residuals')
+
+ggplot() +
+    geom_histogram(aes(x = telco_model00_resid_m^2), bins = 50) +
+    xlab('Squared Residual Value') +
+    ylab('Count') +
+    ggtitle('Histogram of Null-Model Squared Martingale Residuals')
+```
+
+
+### Deviance Residuals
+
+Martingale residuals cannot be used in sums of squares methods to assess
+goodness-of-fit - instead we define another quantity when the model is correct
+is symmetrically distributed with an expectation of zero. These 'deviance'
+residuals, $d_i$ are defined as follows:
+
+$$
+d_i = \text{sign}(m_i) {-2 [m_i + \delta_i \log (\delta_i - m_i)]}^{1/2}
+$$
+
+```{r calculate_null_model_deviance_residuals, echo=TRUE}
+telco_model00_resid_d <- telco_model00_coxph %>% residuals(type = 'deviance')
+
+telco_model00_resid_d %>% summary()
+```
+
+The mean is small, but non-zero. We inspect the distribution of values to see
+what it looks like.
+
+
+```{r plot_null_model_deviance_residuals, echo=TRUE}
+ggplot() +
+    geom_histogram(aes(x = telco_model00_resid_d), bins = 50) +
+    xlab('Residual Value') +
+    ylab('Count') +
+    ggtitle('Histogram of Null-Model Deviance Residuals')
+
+ggplot() +
+    geom_histogram(aes(x = telco_model00_resid_d^2), bins = 50) +
+    xlab('Squared Residual Value') +
+    ylab('Count') +
+    ggtitle('Histogram of Null-Model Squared Deviance Residuals')
+```
+
+Neither look distributed as we would like, suggesting this model is not good,
+but we will return to this topic later.
+
+
+### Residual Plots
+
+Much like for linear models, these residuals are useful to help decide which
+variables may have predictive power in our survival model. We do this by
+plotting the values of the residual against the variable values.
+
+To do this, we first add the residuals to the original dataset so that we can
+construct some of the residual plots.
+
+```{r create_residual_plots_null_model, echo=TRUE}
+telco_null_assess_tbl <- telco_churn_tbl %>%
+    mutate(resid_m = telco_model00_resid_m
+          ,resid_d = telco_model00_resid_d
+           )
+```
+
+Now that we have put the table together we can construct some two-way plots
+of the variable against the martingale residual:
+
+
+```{r construct_variable_residual_boxplots, echo=TRUE}
+ggplot(telco_null_assess_tbl) +
+    geom_boxplot(aes(x = vmailplan, y = resid_m)) +
+    xlab('vmailplan') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against vmailplan')
+
+ggplot(telco_null_assess_tbl) +
+    geom_boxplot(aes(x = intlplan, y = resid_m)) +
+    xlab('intlplan') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against intlplan')
+
+ggplot(telco_null_assess_tbl) +
+    geom_boxplot(aes(x = areacode, y = resid_m)) +
+    xlab('areacode') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against areacode')
+
+
+ggplot(telco_null_assess_tbl) +
+    geom_boxplot(aes(x = custservicecalls, y = resid_m, group = custservicecalls)) +
+    xlab('custservicecalls') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against custservicecalls')
+```
+
+`custservicecalls` is a numeric variable, but it does not take many values so
+we can create boxplots rather than a more typical scatterplot.
+
+For continuous variables, we look at those scatterplots:
+
+```{r construct_variable_residual_scatterplots, echo=TRUE}
+ggplot(telco_null_assess_tbl) +
+    geom_point(aes(x = vmailmessage, y = resid_m), size = 1, alpha = 0.1) +
+    xlab('vmailmessage') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against vmailmessage')
+
+ggplot(telco_null_assess_tbl) +
+    geom_point(aes(x = daymins, y = resid_m), size = 1, alpha = 0.1) +
+    xlab('daymins') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against daymins')
+
+ggplot(telco_null_assess_tbl) +
+    geom_point(aes(x = nightmins, y = resid_m), size = 1, alpha = 0.1) +
+    xlab('nightmins') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against nightmins')
+
+ggplot(telco_null_assess_tbl) +
+    geom_point(aes(x = intlmins, y = resid_m), size = 1, alpha = 0.1) +
+    xlab('intlmins') +
+    ylab('Martingale Residual') +
+    ggtitle('Residual Plot of Martingal Residual against intlmins')
+
+```
+
+No strong patterns stand out here, but that does not necessarily rule them
+out of candidate models. We will not know the predictive power till we try
+them in a model.
+
+
+## Assessing the Proportional Hazards Assumption
+
+The proportional hazards assumption is key in the construction of the partial
+likelihood, as it allows the cancellation of the baseline hazard in the
+calculations.
+
+This assumption of proportional hazards is likely to be violated in practice,
+so the question is how big the effect those violations have on our model.
+Formal statistical tests are thus of limited value, but can be a useful
+indicator of issues with any models built.
+
 
 
 

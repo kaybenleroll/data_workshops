@@ -7,8 +7,12 @@ library(asaur)
 
 
 # Setup the Telco churn data
+telco_cols <- cols(
+    areacode = col_character()
+)
+
 telco_churn_tbl <- read_csv('data/telcochurn.csv'
-                           ,col_types = cols()
+                           ,col_types = telco_cols
                             )
 
 # Setup the pharmacoSmoking data
