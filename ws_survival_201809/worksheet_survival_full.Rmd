@@ -1158,6 +1158,42 @@ Formal statistical tests are thus of limited value, but can be a useful
 indicator of issues with any models built.
 
 
+### Residual Plots
+
+Tests for the proportional hazards assumption reduce to checking if the
+parameters from the model are constant over time. This task is made easier
+by the construction of 'Schoenfeld' residuals, which we will not discuss
+here, but are easily calculated in R by using the `cox.zph()` function.
+
+```{r testing_model01_ph_assumptions, echo=TRUE}
+telco_model01_coxzph <- telco_model01_coxph %>% cox.zph(transform = 'km')
+
+telco_model01_coxzph %>% print()
+telco_model01_coxzph %>% ggcoxzph()
+```
+
+The plot and $p$-value suggest the assumptions are not horrible here.
+
+We now move on to the second model we built.
+
+```{r testing_model02_ph_assumptions, echo=TRUE}
+telco_model02_coxzph <- telco_model02_coxph %>% cox.zph(transform = 'km')
+
+telco_model02_coxzph %>% print()
+telco_model02_coxzph %>% ggcoxzph()
+```
+
+The assumption also seems sound here.
+
+
+We now try the combined model, `model03`:
+
+```{r testing_model03_ph_assumptions, echo=TRUE}
+telco_model03_coxzph <- telco_model03_coxph %>% cox.zph(transform = 'km')
+
+telco_model03_coxzph %>% print()
+telco_model03_coxzph %>% ggcoxzph()
+```
 
 
 
