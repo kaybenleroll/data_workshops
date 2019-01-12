@@ -65,10 +65,7 @@ https://github.com/kaybenleroll/dublin_r_workshops
 
 The content of this workshop is partly based on the book "Applied Survival
 Analysis Using R" by Dirk F. Moore. The data from this book is available from
-CRAN via the package `asaur` and there is a GitHub repo for the
-code in the book also:
-
-https://github.com/kolaczyk/sand
+CRAN via the package `asaur`.
 
 
 ### Example Datasets
