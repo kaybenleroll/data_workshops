@@ -1,0 +1,101 @@
+---
+title: "Dublin Data Science Workshop on Time Series Analysis"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, 21 January 2019"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+  pdf_document: default
+---
+
+```{r import_packages, echo=FALSE}
+
+
+```
+
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+
+
+```
+
+
+
+# Basic Concepts
+
+Time series occur in almost any field of study that produces quantitative data.
+Whenever quantities are measured over time, those measurements form a
+time-series, or more formally, a discrete-time stochastic process.
+
+One famous example of a time-series is count of airline passengers in the US,
+as shown in the figure below. This is a simple time-series, with
+measurements taken on a monthly basis over a number of years, each datum
+consisting of a single number - i.e. this time-series is univariate.
+
+```{r plot_air_passenger_timeseries, echo=TRUE}
+plot(AirPassengers)
+```
+
+Before we begin trying to analyse data such as this, we need to first create a
+mathematical framework to work in. Fortunately, we do not need anything too
+complicated, and for a finite time-series of length $N$, we model the time
+series as a sequence of $N$ random variables, $X_i$, with $i = 1, 2, ..., N$.
+
+Realise that each individual $X_i$ is a wholly separate random variable --
+analysing time series statistically is unusual as we only ever have a single
+measurement for each random variable from which we can do inference. In many
+cases we simplify this much further, but it is important to understand and
+appreciate that such simplifications are just that, and is often the reason why
+time series are difficult to analyse.
+
+Before we get to any of that though, and before we try to build any kind of
+models for the data, we always start with visualising the data. Often, a simple
+plot of the data helps use pick out aspects to analyse and incorporate into the
+models. For time series, one of the first things to do is the *time plot*, a
+simple plot of the data over time.
+
+For the passenger data, a few aspects stand out that are very common in time
+series. It is apparent that the numbers increase over time, and this systematic
+change in the data is called the *trend*. Often, approximating the trend as a
+linear function of time is adequate for many data sets.
+
+A repeating pattern in the data that occurs over the period of the data (in
+this case, each year), is called the *seasonal variation*, though a more
+general concept of 'season' is implied --- it often will not coincide with the
+seasons of the calendar.
+
+A slightly more generalised concept from the seasonality is that of *cycles*,
+repeating patterns in the data that do not correspond to the natural fixed
+periods of the model. None of these are apparent in the air passenger data, and
+accounting for them are beyond the scope of this introductory tutorial.
+
+Finally, another important benefit of visualising the data is that it helps
+identify possible *outliers* and *erroneous* data.
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```
