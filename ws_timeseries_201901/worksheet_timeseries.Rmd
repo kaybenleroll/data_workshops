@@ -15,16 +15,41 @@ output:
 ---
 
 ```{r import_packages, echo=FALSE}
+library(quantmod)
+library(PerformanceAnalytics)
+
+
 import::from(magrittr   ,"%>%", set_colnames)
+import::from(tibble     ,as_tibble, tibble, tribble, add_column, glimpse)
+import::from(readr      ,read_csv, read_tsv, write_csv, cols, col_character
+                        ,col_date, col_number)
+import::from(dplyr      ,mutate, mutate_all, mutate_if, filter, select
+                        ,group_by, left_join, inner_join, rename, summarise
+                        ,summarise_at, summarise_all, vars, funs, distinct
+                        ,sample_n, top_n, pull, if_else, count, one_of
+                        ,arrange, bind_rows)
+import::from(tidyr      ,gather, spread, nest, unnest)
+import::from(ggplot2    ,ggplot, aes, xlab, ylab, ggtitle
+                        ,geom_histogram, geom_boxplot, geom_bar, geom_col
+                        ,geom_tile, geom_vline, geom_line, geom_smooth
+                        ,geom_point
+                        ,scale_x_continuous, scale_y_continuous
+                        ,scale_x_discrete, scale_y_discrete
+                        ,scale_fill_continuous, scale_fill_discrete
+                        ,expand_limits, theme, element_text, facet_grid
+                        ,facet_wrap, theme_set, theme)
+import::from(scales     ,comma)
+import::from(zoo        ,yearmon)
+
 
 import::from(timetk     ,tk_tbl, tk_ts, tk_xts)
+import::from(cowplot    ,theme_cowplot, plot_grid)
+import::from(cranlogs   ,cran_downloads)
+import::from(tidyquant  ,tq_mutate, tq_transmute, tq_mutate_xy)
+import::from(xts        ,apply.daily, apply.weekly, apply.monthly
+                        ,apply.quarterly, apply.yearly)
 
-import::from(ggplot2   ,ggplot, aes, xlab, ylab, ggtitle
-                       ,geom_line
-                       ,scale_x_continuous, scale_y_continuous 
-                       ,expand_limits, theme, element_text, facet_grid
-                       ,facet_wrap, theme_set, theme)
-
+import::from('custom_functions.R', retrieve_cran_download_data)
 ```
 
 
@@ -42,7 +67,7 @@ options(width = 80L
 
 set.seed(42)
 
-
+theme_set(theme_cowplot())
 ```
 
 
@@ -146,6 +171,12 @@ here.
 This data comes in a few different format, and this workshop discusses methods
 for analysing this data in a common format.
 
+
+### Air Passenger Data
+
+As mentioned previously, a canonical time-series is the airline passenger
+dataset, and this is the first dataset we look at.
+
 ```{r show_airline_passengers}
 AirPassengers %>% print()
 
@@ -156,13 +187,13 @@ In this workshop we will convert all time series into the tibbles: the package
 `timetk` allows us to do this.
 
 ```{r convert_airpassengers_tibble, echo=TRUE}
-airpassengers_tbl <- AirPassengers %>% tk_tbl()
+airpassengers_tbl <- AirPassengers %>% tk_tbl(rename_index = 'month')
 
 airpassengers_tbl %>% print()
 
 
 ggplot(airpassengers_tbl) +
-    geom_line(aes(x = index, y = value)) +
+    geom_line(aes(x = month, y = value)) +
     xlab('Date') +
     ylab('Passenger Count') +
     expand_limits(y = 0) +
@@ -170,9 +201,284 @@ ggplot(airpassengers_tbl) +
 ```
 
 
+### Maine Unemployment
+
+Time series are very common in econometrics, and a dataset provided in the
+text is that of monthly unemployment statistics in Maine from 1996 on. I have
+included the datafile in this workshop.
+
+```{r load_maine_unemployment, echo=TRUE}
+maine_ts <- scan('data/Maine.dat', skip = 1) %>%
+    ts(start = 1996, frequency = 12)
+
+maine_ts %>% print()
+maine_ts %>% plot()
+```
+
+As before, we convert this data into a tibble and recreate the plot using
+`ggplot2`.
+
+```{r maine_unemployment_tibble, echo=TRUE}
+maine_tbl <- maine_ts %>% tk_tbl(rename_index = 'month')
+
+maine_tbl %>% print()
+
+
+ggplot(maine_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    xlab('Date') +
+    ylab('Unemployment Numbers') +
+    expand_limits(y = 0) +
+    ggtitle('Plot of Maine Unemployment Time Series')
+```
+
+
+### Australian Consumption Statistics
+
+Governments produce regular data on consumption numbers for their economy. One
+such dataset is contained in the file `cbe.dat`, containing data of chocolate,
+beer and energy production on a monthly basis.
+
+```{r load_australian_cbe_data, echo=TRUE}
+cbe_raw_tbl <- read_tsv('data/cbe.dat')
+
+cbe_raw_tbl %>% glimpse()
+```
+
+Similar to the Maine file, this data does not contain time indices for the
+data. For the sake of completeness, we use the same approach as before and
+convert to a tibble, but we will also show how to construct the time index
+without having to do intermediate conversions.
+
+First we add time indices via `ts` conversions.
+
+
+```{r construct_cbe_timeseries, echo=TRUE}
+cbe_ts <- cbe_raw_tbl %>%
+    as.matrix() %>%
+    ts(start = 1958, frequency = 12)
+
+cbe_ts %>% head(10)
+cbe_ts %>% plot()
+```
+
+An alternative approach is to add the time index directly.
+
+```{r australian_cbe_add_time, echo=TRUE}
+n_data <- cbe_raw_tbl %>% nrow()
+
+cbe_tbl <- cbe_raw_tbl %>%
+    add_column(month = (1958 + (0:(n_data-1)/12)) %>% yearmon, .before = 1)
+
+
+cbe_tbl %>% glimpse()
+cbe_tbl %>% print()
+```
+
+Having constructed the tibble, we now construct these time series plots using
+`ggplot2`.
+
+```{r construct_cbe_plots, echo=TRUE}
+plot_tbl <- cbe_tbl %>%
+    gather('product', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = product)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Production Amount") +
+    scale_y_continuous(labels = comma) +
+    ggtitle('Production Data from Australian Government')
+```
+
+
+Due to the different scales, it might be more useful to use a faceted plot for
+each product:
+
+```{r plot_cbe_facetted_data, echo=TRUE}
+plot_tbl <- cbe_tbl %>%
+    gather('product', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    facet_grid(rows = vars(product), scales = 'free_y') +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Production Amount") +
+    scale_y_continuous(labels = comma) +
+    ggtitle('Production Data from Australian Government')
+```
+
+
+### CRAN Package Downloads
+
+An interesting dataset is the daily count of package downloads from CRAN. This
+data is easy to obtain via use of the package `cranlogs`, which gives us use
+of the `cran_downloads()` function.
+
+For this workshop, we will look at some of the main packages that comprise
+the 'tidyverse', as well as the total number of downloads from CRAN.
+
+```{r download_cran_data, echo=TRUE}
+cran_data_file <- 'data/cran_download_data.csv'
+
+if(file.exists(cran_data_file)) {
+    cran_data_tbl <- read_csv(cran_data_file)
+} else {
+    cran_pkgs <- c('dplyr', 'tidyr', 'ggplot2', 'lubridate', 'stringr', 'tibble'
+                  ,'broom', 'jsonlite', 'purrr', 'readr', 'tidyquant')
+      
+
+    cran_data_tbl <- retrieve_cran_download_data(cran_pkgs, '2014-01-01', '2018-12-31')
+    
+    write_csv(cran_data_tbl, path = cran_data_file)
+}
+
+
+cran_data_tbl %>% glimpse()
+cran_data_tbl %>% print()
+```
+
+First we construct a simple line plot of the download counts, facetted by
+package.
+
+```{r plot_cran_downloads, echo=TRUE}
+ggplot(cran_data_tbl) +
+    geom_line(aes(x = date, y = count)) +
+    facet_wrap(vars(package), scales = 'free_y') +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    ggtitle('Facetted Lineplots of CRAN Daily Downloads')
+```
+
+Not all packages have download data as some packages were created after the
+start of our observation period. This manifests as zero counts for that
+package. We discuss these issues later on in the workshop.
+
+
+## Combining Time Series
+
+Useful insights are often gained from combining different datasets together.
+
+Looking at our datasets, one possible interesting relationship is that between
+energy production and airline passengers -- it is reasonable to expect that
+both of these quantities will be related as they are related to the overall
+health and size of the economy.
+
+A major benefit of using tidy tools for time series is to make such data
+manipulation and arrangement simple: combining datasets is simply a matter
+of using the two-table joins.
+
+To illustrate, we combine the Air Passenger data with the Australian economic
+data, using the following code. Note that we rename the air passenger data
+at the end to make it more meaningful and useful.
+
+
+```{r combining_airpassengers_australia_data, echo=TRUE}
+ap_econ_combined_tbl <- airpassengers_tbl %>%
+    left_join(cbe_tbl, by = 'month') %>%
+    filter(complete.cases(.)) %>%
+    rename(air = value)
+
+
+ap_econ_combined_tbl %>% glimpse()
+ap_econ_combined_tbl %>% print()
+```
+
+We return to this dataset later in the workshop.
+
+
+# Manipulation of Time Series Data
+
+Much like all data, it is rate to get time-series exactly in the format we
+want for analysis. For various reasons, we may want to analyse transformations
+or aggregations of this data.
+
+Much like feature engineering and variable selection, this process can be
+more art than science - there are no hard and fast rules, merely principles
+and rules-of-thumb.
+
+The last few years in particular have seen the development of a number of
+tools to aid us with the analysis of time series along 'tidy' principles. In
+particular, we will focus on the use of `tidyquant` - a package aimed at
+analysing financial data, but which is also very useful for time series.
+
+
+## Aggregating Data
+
+From a conceptual point of view, aggregating time series is the most
+straightforward - we group the data by longer periods of time and aggregate
+each individual 'bucket' of data as desired or required.
+
+As an example of this, suppose we wish to look at the air passenger data as an
+annual sum for each year. Our data is monthly, so we need to aggregate this
+up into annual numbers.
+
+
+```{r aggregate_ap_data_annual, echo=TRUE}
+ap_yearly_dplyr_tbl <- airpassengers_tbl %>%
+    group_by(year = month %>% format('%Y') %>% as.numeric) %>%
+    summarise(ann_total = sum(value))
+
+
+ap_yearly_dplyr_tbl %>% glimpse()
+ap_yearly_dplyr_tbl %>% print()
+```
+
+The above transformation was straightforward using existing `dplyr`
+functionality, but we can also use routines provided for by `tidyquant` and its
+function `tq_transmute`:
+
+
+```{r aggregate_ap_annual_transmute, echo=TRUE}
+ap_yearly_tidyquant_tbl <- airpassengers_tbl %>%
+    tq_transmute(
+        select     = value
+       ,mutate_fun = apply.yearly
+       ,FUN        = sum
+       ,na.rm      = TRUE
+       ,col_rename = 'ann_total'
+    )
+
+
+ap_yearly_tidyquant_tbl %>% glimpse()
+ap_yearly_tidyquant_tbl %>% print()
+```
 
 
 
+# Exploratory Data Analysis of Time Series
+
+The first step in all exploratory analysis is simple visualisation: simple
+lines plots such as those we have seen are our starting point. The human
+brain is excellent at pattern recognition, so a simple plot often guides our
+analysis more effectively than a suite of numerical diagnostics.
+
+## Air Passenger Data
+
+We start with the air passenger data, and remind ourselves of the simple line
+plot of the value over time.
+
+
+```{r plot_airpassenger_exploration, echo=TRUE}
+ggplot(airpassengers_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    xlab('Date') +
+    ylab('Passenger Count') +
+    expand_limits(y = 0) +
+    ggtitle('Plot of Air Passenger Time Series')
+```
+
+This plot suggests a strong seasonal effect as well as a trend and it is worth
+exploring this.
+
+We can explore the underlying trend of this data by looking at the yearly
+totals.
+
+```{r plot_ap_yearly_totals, echo=TRUE}
+
+
+```
 
 
 
@@ -181,22 +487,27 @@ ggplot(airpassengers_tbl) +
 
 # Time Series Decomposition
 
-Since many time series are dominated by trends or seasonal effects,
-and we can create fairly simple models based on these two
-components. The first of these, the
-\emph{additive decompositional model}, is just the sum of these
-effects, with the residual component being treated as random:
+Many time series are dominated by trends or seasonal effects, and we can
+create fairly simple models based on these two components. The first of these,
+the *additive decompositional model*, is just the sum of these effects, with
+the residual component being treated as random:
 
 $$
 x_t = m_t + s_t + z_t,
 $$
 
-where, at any given time $t$, $x_t$ is the observed value, $m_t$ is
-trend, $s_t$ is the seasonal component, and $z_t$ is the error term.
+where, at any given time $t$,
 
-It is worth noting that, in general, the error terms will be a
-correlated sequence of values, something we will account for and model
-later.
+\begin{eqnarray*}
+x_t && \text{is the observed value} \\
+m_t && \text{is the trend} \\
+s_t && \text{is the seasonal component} \\
+z_t && \text{is the error term}
+\end{eqnarray*}
+
+
+It is worth noting that, in general, the error terms will be a correlated
+sequence of values, something we will account for and model later.
 
 In other cases, we could have a situation where the seasonal effect
 increases as the trend increases, modeling the values as:
@@ -205,12 +516,14 @@ $$
 x_t = m_t s_t + z_t.
 $$
 
-Other options also exist, such as modeling the log of the observed
-values, which does cause some non-trivial modeling issues, such as
-biasing any predicted values for the time series.
+Other options also exist, such as modeling the log of the observed values,
+which does cause some non-trivial modeling issues, such as biasing any
+predicted values for the time series.
 
 Various methods are used for estimating the trend, such as taking a
-\emph{moving average} of the values, which is a common approach.
+*moving average* of the values, which is a common approach.
+
+
 
 \worksheetexercise
 Using the \texttt{decompose()} function in R, look at the trend and
@@ -671,5 +984,12 @@ electricity time series data from the CBE dataset.
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
+detach(package:PerformanceAnalytics)
+detach(package:quantmod)
+detach(package:TTR)
+detach(package:xts)
+detach(package:zoo)
+
+
 devtools::session_info()
 ```
