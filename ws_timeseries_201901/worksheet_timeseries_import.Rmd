@@ -14,6 +14,45 @@ output:
   pdf_document: default
 ---
 
+```{r import_packages, echo=FALSE}
+
+# library(quantmod)
+# library(PerformanceAnalytics)
+
+
+import::from(magrittr   ,"%>%", set_colnames)
+import::from(tibble     ,as_tibble, tibble, tribble, add_column, glimpse)
+import::from(readr      ,read_csv, read_tsv, write_csv, cols, col_character
+                        ,col_date, col_number)
+import::from(dplyr      ,mutate, mutate_all, mutate_if, filter, select
+                        ,group_by, left_join, inner_join, rename, summarise
+                        ,summarise_at, summarise_all, vars, funs, distinct
+                        ,sample_n, top_n, pull, if_else, count, one_of
+                        ,arrange, bind_rows)
+import::from(tidyr      ,gather, spread, nest, unnest)
+import::from(ggplot2    ,ggplot, aes, xlab, ylab, ggtitle
+                        ,geom_histogram, geom_boxplot, geom_bar, geom_col
+                        ,geom_tile, geom_vline, geom_line, geom_smooth
+                        ,geom_point
+                        ,scale_x_continuous, scale_y_continuous
+                        ,scale_x_discrete, scale_y_discrete
+                        ,scale_fill_continuous, scale_fill_discrete
+                        ,expand_limits, theme, element_text, facet_grid
+                        ,facet_wrap, theme_set, theme)
+import::from(scales     ,comma)
+import::from(zoo        ,yearmon)
+
+
+import::from(timetk     ,tk_tbl, tk_ts, tk_xts)
+import::from(cowplot    ,theme_cowplot, plot_grid)
+import::from(cranlogs   ,cran_downloads)
+import::from(tidyquant  ,tq_mutate, tq_transmute, tq_mutate_xy)
+import::from(xts        ,apply.daily, apply.weekly, apply.monthly
+                        ,apply.quarterly, apply.yearly)
+
+import::from('custom_functions.R', retrieve_cran_download_data)
+```
+
 
 ```{r knit_opts, include = FALSE}
 knitr::opts_chunk$set(tidy  = FALSE
@@ -23,13 +62,6 @@ knitr::opts_chunk$set(tidy  = FALSE
                      ,fig.height =  8
                      ,fig.width  = 11)
 
-library(tidyverse)
-library(tidyquant)
-library(scales)
-library(cowplot)
-library(cranlogs)
-library(timetk)
-
 options(width = 80L
        ,warn  = 1
         )
@@ -37,9 +69,6 @@ options(width = 80L
 set.seed(42)
 
 theme_set(theme_cowplot())
-
-
-source('custom_functions.R')
 ```
 
 
@@ -957,5 +986,12 @@ electricity time series data from the CBE dataset.
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
+# detach(package:PerformanceAnalytics)
+# detach(package:quantmod)
+# detach(package:TTR)
+# detach(package:xts)
+# detach(package:zoo)
+
+
 devtools::session_info()
 ```

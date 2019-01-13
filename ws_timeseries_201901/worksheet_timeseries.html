@@ -1542,18 +1542,6 @@ div.tocify {
 </div>
 
 
-<pre><code>## 
-## Attaching package: 'zoo'</code></pre>
-<pre><code>## The following objects are masked from 'package:base':
-## 
-##     as.Date, as.Date.numeric</code></pre>
-<pre><code>## Loading required package: TTR</code></pre>
-<pre><code>## Version 0.4-0 included new data defaults. See ?getSymbols.</code></pre>
-<pre><code>## 
-## Attaching package: 'PerformanceAnalytics'</code></pre>
-<pre><code>## The following object is masked from 'package:graphics':
-## 
-##     legend</code></pre>
 <div id="introduction" class="section level1">
 <h1><span class="header-section-number">1</span> Introduction</h1>
 <p>Time series occur in most fields of study that produce quantitative data. Whenever quantities are measured over time, those measurements form a time-series, or more formally, a discrete-time stochastic process.</p>
@@ -1866,7 +1854,7 @@ ap_econ_combined_tbl %&gt;% glimpse()</code></pre>
 <p>From a conceptual point of view, aggregating time series is the most straightforward - we group the data by longer periods of time and aggregate each individual ‘bucket’ of data as desired or required.</p>
 <p>As an example of this, suppose we wish to look at the air passenger data as an annual sum for each year. Our data is monthly, so we need to aggregate this up into annual numbers.</p>
 <pre class="r"><code>ap_yearly_dplyr_tbl &lt;- airpassengers_tbl %&gt;%
-    group_by(year = month %&gt;% format('%Y') %&gt;% as.numeric) %&gt;%
+    group_by(year = month %&gt;% format('%Y') %&gt;% as.numeric()) %&gt;%
     summarise(ann_total = sum(value))
 
 
@@ -1899,30 +1887,32 @@ ap_yearly_dplyr_tbl %&gt;% glimpse()</code></pre>
        ,FUN        = sum
        ,na.rm      = TRUE
        ,col_rename = 'ann_total'
-    )
+    ) %&gt;%
+    mutate(year = month %&gt;% format('%Y') %&gt;% as.numeric())
 
 
 ap_yearly_tidyquant_tbl %&gt;% glimpse()</code></pre>
 <pre><code>## Observations: 12
-## Variables: 2
+## Variables: 3
 ## $ month     &lt;S3: yearmon&gt; Dec 1949, Dec 1950, Dec 1951, Dec 1952, Dec 1953, D…
-## $ ann_total &lt;dbl&gt; 1520, 1676, 2042, 2364, 2700, 2867, 3408, 3939, 4421, 4572,…</code></pre>
+## $ ann_total &lt;dbl&gt; 1520, 1676, 2042, 2364, 2700, 2867, 3408, 3939, 4421, 4572,…
+## $ year      &lt;dbl&gt; 1949, 1950, 1951, 1952, 1953, 1954, 1955, 1956, 1957, 1958,…</code></pre>
 <pre class="r"><code>ap_yearly_tidyquant_tbl %&gt;% print()</code></pre>
-<pre><code>## # A tibble: 12 x 2
-##    month         ann_total
-##    &lt;S3: yearmon&gt;     &lt;dbl&gt;
-##  1 Dec 1949           1520
-##  2 Dec 1950           1676
-##  3 Dec 1951           2042
-##  4 Dec 1952           2364
-##  5 Dec 1953           2700
-##  6 Dec 1954           2867
-##  7 Dec 1955           3408
-##  8 Dec 1956           3939
-##  9 Dec 1957           4421
-## 10 Dec 1958           4572
-## 11 Dec 1959           5140
-## 12 Dec 1960           5714</code></pre>
+<pre><code>## # A tibble: 12 x 3
+##    month         ann_total  year
+##    &lt;S3: yearmon&gt;     &lt;dbl&gt; &lt;dbl&gt;
+##  1 Dec 1949           1520  1949
+##  2 Dec 1950           1676  1950
+##  3 Dec 1951           2042  1951
+##  4 Dec 1952           2364  1952
+##  5 Dec 1953           2700  1953
+##  6 Dec 1954           2867  1954
+##  7 Dec 1955           3408  1955
+##  8 Dec 1956           3939  1956
+##  9 Dec 1957           4421  1957
+## 10 Dec 1958           4572  1958
+## 11 Dec 1959           5140  1959
+## 12 Dec 1960           5714  1960</code></pre>
 </div>
 </div>
 <div id="exploratory-data-analysis-of-time-series" class="section level1">
@@ -2148,13 +2138,7 @@ x_t = \sum_{i=1}^p \alpha_i x_{t-i} + w_t + \sum_{j=1}^q \beta_j w_{t-j}
 </div>
 <div id="r-environment" class="section level1">
 <h1><span class="header-section-number">8</span> R Environment</h1>
-<pre class="r"><code>detach(package:PerformanceAnalytics, unload = TRUE)
-detach(package:quantmod, unload = TRUE)
-detach(package:xts, unload = TRUE)
-detach(package:zoo, unload = TRUE)
-
-
-devtools::session_info()</code></pre>
+<pre class="r"><code>devtools::session_info()</code></pre>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 3.5.2 (2018-12-20)
@@ -2178,39 +2162,38 @@ devtools::session_info()</code></pre>
 ##  cellranger             1.1.0   2016-07-27 [1] CRAN (R 3.5.1)
 ##  cli                    1.0.1   2018-09-25 [1] CRAN (R 3.5.1)
 ##  colorspace             1.3-2   2016-12-14 [1] CRAN (R 3.5.1)
-##  cowplot                0.9.4   2019-01-08 [1] CRAN (R 3.5.2)
-##  cranlogs               2.1.0   2015-12-07 [1] CRAN (R 3.5.2)
+##  cowplot              * 0.9.4   2019-01-08 [1] CRAN (R 3.5.2)
+##  cranlogs             * 2.1.0   2015-12-07 [1] CRAN (R 3.5.2)
 ##  crayon                 1.3.4   2017-09-16 [1] CRAN (R 3.5.1)
 ##  curl                   3.3     2019-01-10 [1] CRAN (R 3.5.2)
 ##  desc                   1.2.0   2018-05-01 [1] CRAN (R 3.5.1)
 ##  devtools               2.0.1   2018-10-26 [1] CRAN (R 3.5.1)
 ##  digest                 0.6.18  2018-10-10 [1] CRAN (R 3.5.1)
-##  dplyr                  0.7.8   2018-11-10 [1] CRAN (R 3.5.1)
+##  dplyr                * 0.7.8   2018-11-10 [1] CRAN (R 3.5.1)
 ##  evaluate               0.12    2018-10-09 [1] CRAN (R 3.5.1)
 ##  fansi                  0.4.0   2018-10-05 [1] CRAN (R 3.5.1)
-##  forcats                0.3.0   2018-02-19 [1] CRAN (R 3.5.1)
+##  forcats              * 0.3.0   2018-02-19 [1] CRAN (R 3.5.1)
 ##  fs                     1.2.6   2018-08-23 [1] CRAN (R 3.5.1)
 ##  generics               0.0.2   2018-11-29 [1] CRAN (R 3.5.1)
-##  ggplot2                3.1.0   2018-10-25 [1] CRAN (R 3.5.1)
+##  ggplot2              * 3.1.0   2018-10-25 [1] CRAN (R 3.5.1)
 ##  glue                   1.3.0   2018-07-17 [1] CRAN (R 3.5.1)
 ##  gtable                 0.2.0   2016-02-26 [1] CRAN (R 3.5.1)
 ##  haven                  2.0.0   2018-11-22 [1] CRAN (R 3.5.1)
 ##  hms                    0.4.2   2018-03-10 [1] CRAN (R 3.5.1)
 ##  htmltools              0.3.6   2017-04-28 [1] CRAN (R 3.5.1)
 ##  httr                   1.4.0   2018-12-11 [1] CRAN (R 3.5.1)
-##  import                 1.1.0   2015-06-22 [1] CRAN (R 3.5.1)
 ##  jsonlite               1.6     2018-12-07 [1] CRAN (R 3.5.1)
 ##  knitr                  1.21    2018-12-10 [1] CRAN (R 3.5.1)
 ##  labeling               0.3     2014-08-23 [1] CRAN (R 3.5.1)
 ##  lattice                0.20-38 2018-11-04 [3] CRAN (R 3.5.1)
 ##  lazyeval               0.2.1   2017-10-29 [1] CRAN (R 3.5.1)
-##  lubridate              1.7.4   2018-04-11 [1] CRAN (R 3.5.1)
+##  lubridate            * 1.7.4   2018-04-11 [1] CRAN (R 3.5.1)
 ##  magrittr               1.5     2014-11-22 [1] CRAN (R 3.5.1)
 ##  memoise                1.1.0   2017-04-21 [1] CRAN (R 3.5.1)
 ##  modelr                 0.1.2   2018-05-11 [1] CRAN (R 3.5.1)
 ##  munsell                0.5.0   2018-06-12 [1] CRAN (R 3.5.1)
 ##  nlme                   3.1-137 2018-04-07 [3] CRAN (R 3.5.0)
-##  PerformanceAnalytics   1.5.2   2018-03-02 [1] CRAN (R 3.5.1)
+##  PerformanceAnalytics * 1.5.2   2018-03-02 [1] CRAN (R 3.5.1)
 ##  pillar                 1.3.1   2018-12-15 [1] CRAN (R 3.5.1)
 ##  pkgbuild               1.0.2   2018-10-16 [1] CRAN (R 3.5.1)
 ##  pkgconfig              2.0.2   2018-08-16 [1] CRAN (R 3.5.1)
@@ -2219,40 +2202,41 @@ devtools::session_info()</code></pre>
 ##  prettyunits            1.0.2   2015-07-13 [1] CRAN (R 3.5.1)
 ##  processx               3.2.1   2018-12-05 [1] CRAN (R 3.5.1)
 ##  ps                     1.3.0   2018-12-21 [1] CRAN (R 3.5.2)
-##  purrr                  0.2.5   2018-05-29 [1] CRAN (R 3.5.1)
+##  purrr                * 0.2.5   2018-05-29 [1] CRAN (R 3.5.1)
 ##  quadprog               1.5-5   2013-04-17 [1] CRAN (R 3.5.1)
 ##  Quandl                 2.9.1   2018-08-14 [1] CRAN (R 3.5.1)
-##  quantmod               0.4-13  2018-04-13 [1] CRAN (R 3.5.2)
+##  quantmod             * 0.4-13  2018-04-13 [1] CRAN (R 3.5.2)
 ##  R6                     2.3.0   2018-10-04 [1] CRAN (R 3.5.1)
 ##  Rcpp                   1.0.0   2018-11-07 [1] CRAN (R 3.5.1)
-##  readr                  1.3.1   2018-12-21 [1] CRAN (R 3.5.2)
+##  readr                * 1.3.1   2018-12-21 [1] CRAN (R 3.5.2)
 ##  readxl                 1.2.0   2018-12-19 [1] CRAN (R 3.5.2)
 ##  remotes                2.0.2   2018-10-30 [1] CRAN (R 3.5.1)
 ##  reshape2               1.4.3   2017-12-11 [1] CRAN (R 3.5.1)
 ##  rlang                  0.3.1   2019-01-08 [1] CRAN (R 3.5.2)
 ##  rmarkdown              1.11    2018-12-08 [1] CRAN (R 3.5.1)
 ##  rprojroot              1.3-2   2018-01-03 [1] CRAN (R 3.5.1)
+##  rstudioapi             0.9.0   2019-01-09 [1] CRAN (R 3.5.2)
 ##  rvest                  0.3.2   2016-06-17 [1] CRAN (R 3.5.1)
-##  scales                 1.0.0   2018-08-09 [1] CRAN (R 3.5.1)
+##  scales               * 1.0.0   2018-08-09 [1] CRAN (R 3.5.1)
 ##  sessioninfo            1.1.1   2018-11-05 [1] CRAN (R 3.5.1)
 ##  stringi                1.2.4   2018-07-20 [1] CRAN (R 3.5.1)
-##  stringr                1.3.1   2018-05-10 [1] CRAN (R 3.5.1)
+##  stringr              * 1.3.1   2018-05-10 [1] CRAN (R 3.5.1)
 ##  testthat               2.0.1   2018-10-13 [1] CRAN (R 3.5.1)
-##  tibble                 2.0.1   2019-01-12 [1] CRAN (R 3.5.2)
-##  tidyquant              0.5.5   2018-05-09 [1] CRAN (R 3.5.2)
-##  tidyr                  0.8.2   2018-10-28 [1] CRAN (R 3.5.1)
+##  tibble               * 2.0.1   2019-01-12 [1] CRAN (R 3.5.2)
+##  tidyquant            * 0.5.5   2018-05-09 [1] CRAN (R 3.5.2)
+##  tidyr                * 0.8.2   2018-10-28 [1] CRAN (R 3.5.1)
 ##  tidyselect             0.2.5   2018-10-11 [1] CRAN (R 3.5.1)
-##  tidyverse              1.2.1   2017-11-14 [1] CRAN (R 3.5.1)
-##  timetk                 0.1.1.1 2018-08-19 [1] CRAN (R 3.5.1)
+##  tidyverse            * 1.2.1   2017-11-14 [1] CRAN (R 3.5.1)
+##  timetk               * 0.1.1.1 2018-08-19 [1] CRAN (R 3.5.1)
 ##  TTR                  * 0.23-4  2018-09-20 [1] CRAN (R 3.5.1)
 ##  usethis                1.4.0   2018-08-14 [1] CRAN (R 3.5.1)
 ##  utf8                   1.1.4   2018-05-24 [1] CRAN (R 3.5.1)
 ##  withr                  2.1.2   2018-03-15 [1] CRAN (R 3.5.1)
 ##  xfun                   0.4     2018-10-23 [1] CRAN (R 3.5.1)
 ##  xml2                   1.2.0   2018-01-24 [1] CRAN (R 3.5.1)
-##  xts                    0.11-2  2018-11-05 [1] CRAN (R 3.5.1)
+##  xts                  * 0.11-2  2018-11-05 [1] CRAN (R 3.5.1)
 ##  yaml                   2.2.0   2018-07-25 [1] CRAN (R 3.5.1)
-##  zoo                    1.8-4   2018-09-19 [1] CRAN (R 3.5.1)
+##  zoo                  * 1.8-4   2018-09-19 [1] CRAN (R 3.5.1)
 ## 
 ## [1] /usr/local/lib/R/site-library
 ## [2] /usr/lib/R/site-library
