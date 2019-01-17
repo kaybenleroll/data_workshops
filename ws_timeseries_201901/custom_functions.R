@@ -7,8 +7,8 @@ retrieve_cran_download_data <- function(cran_pkgs, start_date, end_date) {
 
 
     cran_all_tbl  <- cran_downloads(NULL
-                                    ,from = start_date
-                                    ,to   = end_date) %>%
+                                   ,from = start_date
+                                   ,to   = end_date) %>%
         as_tibble() %>%
         mutate(package = 'TOTAL')
 

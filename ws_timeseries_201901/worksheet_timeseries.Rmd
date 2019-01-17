@@ -418,6 +418,280 @@ ap_yearly_tidyquant_tbl %>% glimpse()
 ap_yearly_tidyquant_tbl %>% print()
 ```
 
+We can now look at a lineplot for this new time-series of annual totals. This
+gives us an idea of the overall trend in the data.
+
+
+```{r aggregate_ap_data_annual_lineplot, echo=TRUE}
+ggplot(ap_yearly_tidyquant_tbl) +
+    geom_line(aes(x = year, y = ann_total)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    ggtitle('Lineplot of the Annual Air Passenger Totals')
+```
+
+
+
+### Multiple Statistics
+
+Should we need multiple statistics in our output, we implement this by
+writing a custom function that outputs the statistics we require.
+
+```{r aggregate_ap_annual_transmute_custom, echo=TRUE}
+custom_stats_func <- function(x, na.rm = TRUE, ...) {
+    c(
+          sum    = sum(x, na.rm = na.rm)
+         ,mean   = mean(x, na.rm = na.rm)
+         ,sd     = sd(x, na.rm = na.rm)
+         ,median = median(x, na.rm = na.rm)
+         ,q25    = quantile(x, na.rm = na.rm, probs = 0.25, names = FALSE)
+         ,q75    = quantile(x, na.rm = na.rm, probs = 0.75, names = FALSE)
+    )
+}
+
+
+ap_yearly_tidyquant_custom_tbl <- airpassengers_tbl %>%
+    tq_transmute(
+        select     = value
+       ,mutate_fun = apply.yearly
+       ,FUN        = custom_stats_func
+       ,na.rm      = TRUE
+    ) %>%
+    mutate(year = month %>% format('%Y') %>% as.numeric())
+
+
+ap_yearly_tidyquant_custom_tbl %>% glimpse()
+ap_yearly_tidyquant_custom_tbl %>% print()
+```
+
+
+## Rolling Functions
+
+Another common transformation of time-series is to apply a function over a
+fixed rolling window of data.
+
+Note that rolling functions different conceptually from aggregates as they
+are not calculated over disjoint subsets of the data: the output is at the
+same time period as the original data.
+
+Because of this difference we use a different function from `tidyquant` to
+execute this calculation: `tq_mutate()`:
+
+
+### Moving Averages
+
+A common rolling function is the *moving average*: we calculate the average
+value of the time series over a fixed window of data.
+
+```{r rolling_ap_sixmonth_mutate, echo=TRUE}
+ap_rollmean_sixmonth_tbl <- airpassengers_tbl %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = value
+       ,mutate_fun = rollapply 
+        # rollapply args
+       ,width      = 6
+       ,align      = "right"
+       ,FUN        = mean
+        # mean args
+       ,na.rm      = TRUE
+        # tq_mutate args
+       ,col_rename = "mean_6m"
+    )
+
+
+ap_rollmean_sixmonth_tbl %>% glimpse()
+ap_rollmean_sixmonth_tbl %>% print()
+```
+
+We compare the two values by plotting the original time series against its
+moving average.
+
+
+```{r rolling_ap_sixmonth_plot, echo=TRUE}
+plot_tbl <- ap_rollmean_sixmonth_tbl %>%
+    rename(orig = value) %>%
+    gather('label', 'value', -month)
+
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = label)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab('Month') +
+    ylab('Passenger Total') +
+    ggtitle('Comparison Plot of the Air Passenger Counts')
+```
+
+Note that the moving-average series does not start at the same timestamp as
+the original dataset size is reduced by the windowing function.
+
+We can add multiple moving averages to a time series by chaining a series of
+`tq_mutate()` calls together.
+
+
+```{r rolling_ap_multiwindow, echo=TRUE}
+ap_rollmean_multi_tbl <- airpassengers_tbl %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = value
+       ,mutate_fun = rollapply
+        # rollapply args
+       ,width      = 6
+       ,align      = "right"
+       ,FUN        = mean
+        # mean args
+       ,na.rm      = TRUE
+        # tq_mutate args
+       ,col_rename = "mean_6m"
+    ) %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = value
+       ,mutate_fun = rollapply 
+        # rollapply args
+       ,width      = 12
+       ,align      = "right"
+       ,FUN        = mean
+        # mean args
+       ,na.rm      = TRUE
+        # tq_mutate args
+       ,col_rename = "mean_12m"
+    )
+  
+
+ap_rollmean_multi_tbl %>% glimpse()
+ap_rollmean_multi_tbl %>% print()
+```
+
+As before, we now create a lineplot of the three values to show the effect of
+the different window sizes.
+
+```{r rolling_ap_multi_plot, echo=TRUE}
+plot_tbl <- ap_rollmean_multi_tbl %>%
+    rename(orig = value) %>%
+    gather('label', 'value', -month)
+
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = label)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab('Month') +
+    ylab('Passenger Total') +
+    ggtitle('Comparison Plot of the Air Passenger Counts')
+```
+
+The twelve month time series is shorter than the six month series as it has
+a wider calculation window.
+
+Any sort of other windowing functions can be applied, including the standard
+deviation, allowing us to include a range of possible values.
+
+
+```{r rolling_ap_ribbon, echo=TRUE}
+ribbon_func <- function(x, na.rm = TRUE, ...) {
+    mu    <- mean(x, na.rm = na.rm)
+    sigma <- sd(x, na.rm = na.rm)
+    
+    lower <- mu - 2 * sigma
+    upper <- mu + 2 * sigma
+    
+    return(c(mu = mu, l2sd = lower, u2sd = upper))
+}
+
+
+ap_roll_ribbon_tbl <- airpassengers_tbl %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = value
+       ,mutate_fun = rollapply 
+        # rollapply args
+       ,width      = 6
+       ,align      = "right"
+       ,by.column  = FALSE
+       ,FUN        = ribbon_func
+        # mean args
+       ,na.rm      = TRUE
+    )
+  
+
+ap_roll_ribbon_tbl %>% glimpse()
+ap_roll_ribbon_tbl %>% print()
+```
+
+We now plot the original data against the moving average and the mean.
+
+
+```{r plot_ap_6m_ribbon_data, echo=TRUE}
+ggplot(ap_roll_ribbon_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    geom_line(aes(x = month, y = mu), colour = 'red') +
+    geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd)
+               ,colour = 'grey', alpha = 0.25) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab('Month') +
+    ylab('Passenger Total') +
+    ggtitle('Ribbon Plot of the Air Passenger Counts (6 month window)')
+```
+
+We repeat this process with a twelve month window to see the effects.
+
+```{r rolling_ap_12m_ribbon, echo=TRUE}
+ap_roll_12m_ribbon_tbl <- airpassengers_tbl %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = value
+       ,mutate_fun = rollapply 
+        # rollapply args
+       ,width      = 12
+       ,align      = "right"
+       ,by.column  = FALSE
+       ,FUN        = ribbon_func
+        # mean args
+       ,na.rm      = TRUE
+    )
+  
+
+ap_roll_12m_ribbon_tbl %>% glimpse()
+ap_roll_12m_ribbon_tbl %>% print()
+```
+
+We create a plot of this data to inspect it.
+
+```{r plot_ap_12m_ribbon_data, echo=TRUE}
+ggplot(ap_roll_12m_ribbon_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    geom_line(aes(x = month, y = mu), colour = 'red') +
+    geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd)
+               ,colour = 'grey', alpha = 0.25) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab('Month') +
+    ylab('Passenger Total') +
+    ggtitle('Ribbon Plot of the Air Passenger Counts (12 month window)')
+
+```
+
+
+### Differences
+
+Another common transformation of the data is to take the 'first differences'
+of the values, i.e. we convert the time series of values into one of
+differences. We discuss the reasons for this later on -- for now we focus on
+the mechanics of creating first differences.
+
+
+```{r ap_firstdiff_mutate, echo=TRUE}
+ap_firstdiff_tbl <- airpassengers_tbl %>%
+    mutate(diff = value - lag(value, n = 1))
+
+
+ap_firstdiff_tbl %>% glimpse()
+ap_firstdiff_tbl %>% print()
+```
+
 
 
 # Exploratory Data Analysis of Time Series
