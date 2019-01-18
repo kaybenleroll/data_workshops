@@ -173,7 +173,7 @@ ggplot(airpassengers_tbl) +
 ```
 
 
-### Maine Unemployment
+### Maine Unemployment Data
 
 Time series are very common in econometrics, and a dataset provided in the
 text is that of monthly unemployment statistics in Maine from 1996 on. I have
@@ -282,7 +282,7 @@ ggplot(plot_tbl) +
 ```
 
 
-### CRAN Package Downloads
+### CRAN Package Downloads Data
 
 An interesting dataset is the daily count of package downloads from CRAN. This
 data is easy to obtain via use of the package `cranlogs`, which gives us use
@@ -692,6 +692,25 @@ ap_firstdiff_tbl %>% glimpse()
 ap_firstdiff_tbl %>% print()
 ```
 
+Having calculated the differences, we now produce a lineplot of those values.
+
+```{r ap_firstdiff_plot, echo=TRUE}
+plot_tbl <- ap_firstdiff_tbl %>%
+    rename(count = value) %>%
+    gather('series', 'value', -month)
+
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = series)) +
+    scale_y_continuous(labels = comma) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Value') +
+    ggtitle('Plot of the Air Passenger Counts and First Differences')
+```
+
+As we see with this plot, the first differences of the passenger data does not
+contain a trend.
 
 
 # Exploratory Data Analysis of Time Series
@@ -701,11 +720,17 @@ lines plots such as those we have seen are our starting point. The human
 brain is excellent at pattern recognition, so a simple plot often guides our
 analysis more effectively than a suite of numerical diagnostics.
 
-## Air Passenger Data
+Rather than discuss different techniques, we will explore our sample data as a
+way to illustrate some ways of initially exploring the datasets.
+
+
+## Air Passenger
 
 We start with the air passenger data, and remind ourselves of the simple line
 plot of the value over time.
 
+
+### Raw Data
 
 ```{r plot_airpassenger_exploration, echo=TRUE}
 ggplot(airpassengers_tbl) +
@@ -716,21 +741,199 @@ ggplot(airpassengers_tbl) +
     ggtitle('Plot of Air Passenger Time Series')
 ```
 
-This plot suggests a strong seasonal effect as well as a trend and it is worth
-exploring this.
+This plot suggests a strong seasonal effect as well as a trend so this is the
+first thing to investigate.
 
-We can explore the underlying trend of this data by looking at the yearly
-totals.
+To look into trends, we have a number of options: we could look at yearly
+sums or averages, or we could look at moving averages.
 
 ```{r plot_ap_yearly_totals, echo=TRUE}
-
-
+ggplot(ap_yearly_tidyquant_tbl) +
+    geom_line(aes(x = year, y = ann_total)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    ggtitle('Lineplot of the Annual Air Passenger Totals')
 ```
 
 
+One way to investigate the seasonality in the dataset is to construct a boxplot
+of the passenger counts, grouping by month.
+
+```{r plot_ap_monthly_boxplots, echo=TRUE}
+plot_tbl <- airpassengers_tbl %>%
+    mutate(cal_month = format(month, '%b'))
+
+ggplot(plot_tbl) +
+    geom_boxplot(aes(x = cal_month, y = value)) +
+    scale_y_continuous(labels = comma) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Passenger Count') +
+    ggtitle('Boxplot of the Air Passenger Counts')
+```
+
+We can see some aspects of the data seasonality in this boxplot, but the
+multiplicative nature of the plots means the seasonal trends is obscured a
+little.
+
+### First Differences
+
+We also produce a similar boxplot, but this time looking at the first
+differences.
+
+```{r plot_ap_diffs_monthly_boxplots, echo=TRUE}
+plot_tbl <- ap_firstdiff_tbl %>%
+    mutate(cal_month = format(month, '%m'))
+
+ggplot(plot_tbl) +
+    geom_boxplot(aes(x = cal_month, y = diff)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab('Month') +
+    ylab('Passenger Count Changes') +
+    ggtitle('Boxplot of the First Differences of the Air Passenger Counts')
+```
+
+The seasonality in the data comes through much stronger with this plot. We see
+much bigger monthly effects.
 
 
+### Percentage Changes
 
+To look into multiplicative effects we check the percentage changes from month
+to month.
+
+
+```{r plot_ap_perc_change_lineplot, echo=TRUE}
+ap_perc_change_tbl <- airpassengers_tbl %>%
+    mutate(cal_month   = format(month, '%m')
+          ,perc_change = value / lag(value, n = 1) - 1)
+
+ggplot(ap_perc_change_tbl) +
+    geom_line(aes(x = month, y = perc_change)) +
+    expand_limits(y = 0) +
+    xlab('Date') +
+    ylab('Percentage Change') +
+    ggtitle('Lineplot of the Percentage Changes of the Air Passenger Counts')
+```
+
+Much like the arithmetic differences, the percentage changes are centred around
+zero, so now we can look at a boxplot of them.
+
+```{r plot_ap_perc_changes_monthly_boxplots, echo=TRUE}
+ggplot(ap_perc_change_tbl) +
+    geom_boxplot(aes(x = cal_month, y = perc_change)) +
+    xlab('Month') +
+    ylab('Percentage Changes') +
+    ggtitle('Boxplot of the Percentage Changes of the Air Passenger Counts')
+```
+
+
+## Maine Unemployment
+
+We now explore the Maine unemployment data.
+
+As before, we look at the raw data, the first differences and the percentage
+changes.
+
+```{r maine_data_exploration, echo=TRUE}
+maine_explore_tbl <- maine_tbl %>%
+    mutate(cal_month   = format(month, '%m')
+          ,diff        = value - lag(value, n = 1)
+          ,perc_change = value / lag(value, n = 1) - 1
+           )
+```
+
+
+### Raw Data
+
+We start by the standard lineplot of the values.
+
+```{r plot_maine_lineplot, echo=TRUE}
+ggplot(maine_explore_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab('Time') +
+    ylab('Maine Unemployment Count (thousands)') +
+    ggtitle('Lineplot of the Maine Unemployment Data')
+```
+
+We do not see a trend in this data but the data does seem to have strong
+seasonal patterns.
+
+To investigate the seasonality we construct the monthly boxplots from the raw
+data. Employment is often seasonal in nature - for example, retail is very
+busy towards Christmas each year. As such, we expect to see a large seasonal
+component in this data.
+
+```{r plot_maine_monthly_boxplot, echo=TRUE}
+ggplot(maine_explore_tbl) +
+    geom_boxplot(aes(x = cal_month, y = value)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab('Month') +
+    ylab('Maine Unemployment Count (thousands)') +
+    ggtitle('Monthly Boxplot of the Maine Unemployment Data')
+```
+
+We see definite changes over the months, though the effect does not seem as
+pronounced here as it was for the airline passenger counts.
+
+### First Differences
+
+We now look at first differences for the unemployment data, and start with the
+line plot.
+
+```{r plot_maine_diff_lineplot, echo=TRUE}
+ggplot(maine_explore_tbl) +
+    geom_line(aes(x = month, y = diff)) +
+    expand_limits(y = 0) +
+    xlab('Time') +
+    ylab('Maine Unemployment Count Differences') +
+    ggtitle('Lineplot of the Differences in Maine Unemployment Data')
+```
+
+The original data does not exhibit a strong trend, and the first differences
+are similar.
+
+```{r plot_maine_diff_monthly_boxplot, echo=TRUE}
+ggplot(maine_explore_tbl) +
+    geom_boxplot(aes(x = cal_month, y = diff)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Maine Unemployment Count Differences') +
+    ggtitle('Monthly Boxplot of the Maine Unemployment Data')
+```
+
+We see strong seasonal differences in the monthly data.
+
+
+### Percentage Changes
+
+We look at the lineplot of the percentage changes next.
+
+```{r plot_maine_perc_change_lineplot, echo=TRUE}
+ggplot(maine_explore_tbl) +
+    geom_line(aes(x = month, y = perc_change)) +
+    expand_limits(y = 0) +
+    xlab('Time') +
+    ylab('Maine Unemployment Count Percentage Changes') +
+    ggtitle('Lineplot of the Percentage Changes in Maine Unemployment Data')
+```
+
+As for the differences, no major trends or patterns emerge from this plot.
+
+We now look for seasonal patterns in the percentage changes.
+
+```{r plot_maine_perc_change_monthly_boxplot, echo=TRUE}
+ggplot(maine_explore_tbl) +
+    geom_boxplot(aes(x = cal_month, y = perc_change)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Maine Unemployment Count Percentage Changes') +
+    ggtitle('Monthly Boxplot of the Percentage Changes in Maine Unemployment Data')
+```
 
 # Time Series Decomposition
 
