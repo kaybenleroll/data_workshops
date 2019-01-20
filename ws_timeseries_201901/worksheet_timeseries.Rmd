@@ -29,6 +29,8 @@ library(scales)
 library(cowplot)
 library(cranlogs)
 library(timetk)
+library(sweep)
+
 
 options(width = 80L
        ,warn  = 1
@@ -205,7 +207,7 @@ ggplot(maine_tbl) +
 ```
 
 
-### Australian Consumption Statistics
+### Australian Consumption Statistics (CBE)
 
 Governments produce regular data on consumption numbers for their economy. One
 such dataset is contained in the file `cbe.dat`, containing data of chocolate,
@@ -382,10 +384,12 @@ From a conceptual point of view, aggregating time series is the most
 straightforward - we group the data by longer periods of time and aggregate
 each individual 'bucket' of data as desired or required.
 
+
+### Single Statistics
+
 As an example of this, suppose we wish to look at the air passenger data as an
 annual sum for each year. Our data is monthly, so we need to aggregate this
-up into annual numbers.
-
+data into annual numbers.
 
 ```{r aggregate_ap_data_annual, echo=TRUE}
 ap_yearly_dplyr_tbl <- airpassengers_tbl %>%
@@ -430,6 +434,12 @@ ggplot(ap_yearly_tidyquant_tbl) +
     ggtitle('Lineplot of the Annual Air Passenger Totals')
 ```
 
+#### Exercises
+
+  1. Aggregate the Maine unemployment data into yearly totals.
+  1. Create the relevant lineplots to check this data for trends and patterns.
+  1. Aggregate the CBE data into yearly totals.
+  1. Create plots of this data to check for trends.
 
 
 ### Multiple Statistics
@@ -463,6 +473,13 @@ ap_yearly_tidyquant_custom_tbl <- airpassengers_tbl %>%
 ap_yearly_tidyquant_custom_tbl %>% glimpse()
 ap_yearly_tidyquant_custom_tbl %>% print()
 ```
+
+
+#### Exercises
+
+  1. Repeat the aggregation shown using the Maine unemployment data
+  1. Repeat the aggregation shown using the CBE data.
+  1. Create a custom function to calculate mean, sd, skew and kurtosis
 
 
 ## Rolling Functions
@@ -636,7 +653,8 @@ ggplot(ap_roll_ribbon_tbl) +
     ggtitle('Ribbon Plot of the Air Passenger Counts (6 month window)')
 ```
 
-We repeat this process with a twelve month window to see the effects.
+
+We now repeat this process with using a twelve-month window for the data.
 
 ```{r rolling_ap_12m_ribbon, echo=TRUE}
 ap_roll_12m_ribbon_tbl <- airpassengers_tbl %>%
@@ -658,7 +676,8 @@ ap_roll_12m_ribbon_tbl %>% glimpse()
 ap_roll_12m_ribbon_tbl %>% print()
 ```
 
-We create a plot of this data to inspect it.
+Having constructed the data, we once again create a ribbon plot with these
+quantities.
 
 ```{r plot_ap_12m_ribbon_data, echo=TRUE}
 ggplot(ap_roll_12m_ribbon_tbl) +
@@ -671,8 +690,18 @@ ggplot(ap_roll_12m_ribbon_tbl) +
     xlab('Month') +
     ylab('Passenger Total') +
     ggtitle('Ribbon Plot of the Air Passenger Counts (12 month window)')
-
 ```
+
+
+#### Exercises
+
+  1. Construct a 3 month moving average for the passenger data and compare it
+     to the 6 and 12 month values.
+  1. Calculate the 6 month and 12 month rolling average values for the Maine
+     unemployment data.
+  1. Construct the ribbon plot for the Maine unemployment data.
+  1. Construct moving average data for the CBE dataset. This process may be
+     made easier by reshaping the data.
 
 
 ### Differences
@@ -713,6 +742,18 @@ As we see with this plot, the first differences of the passenger data does not
 contain a trend.
 
 
+#### Exercises
+
+  1. Calculate the first differences for the Maine unemployment data.
+  1. Create a lineplot of this data to check for its value.
+  1. Calculate the first differences for the CBE data.
+  1. Create lineplots for the CBE differences.
+  1. Using the `lag()` function with the Air Passenger data, calculate the
+     percentage changes data instead of the arithmetic changes.
+  1. Construct the lineplot for the percentage change values.
+  
+  
+
 # Exploratory Data Analysis of Time Series
 
 The first step in all exploratory analysis is simple visualisation: simple
@@ -726,8 +767,13 @@ way to illustrate some ways of initially exploring the datasets.
 
 ## Air Passenger
 
-We start with the air passenger data, and remind ourselves of the simple line
-plot of the value over time.
+We start with the air passenger data, and remind ourselves of the basic
+structure of the data.
+
+```{r airpassengers_explore_struct, echo=TRUE}
+airpassengers_tbl %>% glimpse()
+airpassengers_tbl %>% print()
+```
 
 
 ### Raw Data
@@ -804,11 +850,20 @@ To look into multiplicative effects we check the percentage changes from month
 to month.
 
 
-```{r plot_ap_perc_change_lineplot, echo=TRUE}
+```{r ap_perc_change_explore_struct, echo=TRUE}
 ap_perc_change_tbl <- airpassengers_tbl %>%
     mutate(cal_month   = format(month, '%m')
           ,perc_change = value / lag(value, n = 1) - 1)
 
+
+ap_perc_change_tbl %>% glimpse()
+ap_perc_change_tbl %>% print()
+```
+
+Having looked at the data and the column, we now look at some simple lineplots
+as before.
+
+```{r plot_ap_perc_change_lineplot, echo=TRUE}
 ggplot(ap_perc_change_tbl) +
     geom_line(aes(x = month, y = perc_change)) +
     expand_limits(y = 0) +
@@ -842,6 +897,10 @@ maine_explore_tbl <- maine_tbl %>%
           ,diff        = value - lag(value, n = 1)
           ,perc_change = value / lag(value, n = 1) - 1
            )
+
+
+maine_explore_tbl %>% glimpse()
+maine_explore_tbl %>% print()
 ```
 
 
@@ -935,6 +994,8 @@ ggplot(maine_explore_tbl) +
     ggtitle('Monthly Boxplot of the Percentage Changes in Maine Unemployment Data')
 ```
 
+
+
 # Time Series Decomposition
 
 Many time series are dominated by trends or seasonal effects, and we can
@@ -974,25 +1035,170 @@ Various methods are used for estimating the trend, such as taking a
 *moving average* of the values, which is a common approach.
 
 
+## Simple Decomposition
 
-\worksheetexercise
-Using the \texttt{decompose()} function in R, look at the trend and
-the seasonal variation for the airline passenger data. The output of
-this function can be plotted directly, and visually check the
-output. Does the output match your intuition about what you observed?
+We start with the simplest decomposition: the simple additive model with a
+moving average trend.
 
-\worksheetexercise
-Repeat this process for the CBE dataset.
+### Additive Models
 
-\worksheetexercise
-Try a multiplicative model for all of the above. \texttt{decompose()}
-allows the selection of this via the `\texttt{type}' parameter. Is the
-multiplicative model better? In either case, explain why this might be.
+The `decompose` function in R allows us to build this:
 
-\worksheetexercise
-Repeat the above, but use the \texttt{stl()} R function instead of
-\texttt{decompose()}. Compare the output of the two.
+```{r decompose_ap_simple_additive, echo=TRUE}
+ap_ts_sa_decompose <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    decompose()
 
+ap_ts_sa_decompose %>% plot()
+```
+
+The package `sweep` provides us with a number of routines to help us tidy the
+output of these routines.
+
+```{r decompose_ap_simple_additive_tidy, echo=TRUE}
+ap_ts_sa_decompose_tbl <- ap_ts_sa_decompose %>%
+    sw_tidy_decomp(rename_index = 'month')
+
+
+ap_ts_sa_decompose_tbl %>% glimpse()
+ap_ts_sa_decompose_tbl %>% print()
+```
+
+We have decomposed the time series into components, and the `sw_tidy_decomp()`
+function calculates the 'seasonally adjusted' values of the trend i.e. the
+'underlying' value ignoring seasonality.
+
+Comparing the observed and seasonally adjusted values are straight-forward
+from this, we plot both together.
+
+```{r plot_passenger_sa_adjusted, echo=TRUE}
+ggplot(ap_ts_sa_decompose_tbl) +
+    geom_line(aes(x = month, y = observed)) +
+    geom_line(aes(x = month, y = seasadj), colour = 'red') +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Passenger Count') +
+    ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts'
+           ,subtitle = '(seasonal adjustments in red)')
+
+```
+
+
+We now want to plot this data, and the easiest way to do this is to convert
+it to 'long' format and plot each quantity separately.
+
+```{r decompose_ap_sa_tidy_plot, echo=TRUE}
+plot_tbl <- ap_ts_sa_decompose_tbl %>%
+    gather('label', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    facet_grid(rows = vars(label)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Value') +
+    ggtitle('Decomposition Plot of the Simple Additive Model')
+```
+
+Due to the difference in scales for each parameter, we redo this plot but we
+free up the $y$-axis scale.
+
+
+```{r decompose_ap_sa_tidy_scales_plot, echo=TRUE}
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    facet_grid(rows = vars(label), scales = 'free_y') +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Value') +
+    ggtitle('Decomposition Plot of the Simple Additive Model')
+```
+
+
+#### Exercises
+
+  1. Construct the simple additive decomposition on the Maine unemployment data.
+  1. Construct the simple additive decomposition on the Australian CBE data.
+
+
+### Multiplicative Models
+
+Constructing the multiplicative decomposition model is similar, but this time
+the seasonal component and error are multiplied to the trend rather than added.
+
+Other than this, the multiplicative model works in a similar fashion. Once
+again, while we focus on creating plots using `ggplot2` we will use the
+default plotting system as a quick check.
+
+```{r decompose_ap_simple_multiplicative, echo=TRUE}
+ap_ts_sm_decompose <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    decompose(type = 'multiplicative')
+
+ap_ts_sm_decompose %>% plot()
+```
+
+Having created the decomposition object, we now inspect the outputs and produce
+plots.
+
+```{r decompose_ap_simple_multiplicative_tidy, echo=TRUE}
+ap_ts_sm_decompose_tbl <- ap_ts_sm_decompose %>%
+    sw_tidy_decomp(rename_index = 'month')
+
+ap_ts_sm_decompose_tbl %>% glimpse()
+ap_ts_sm_decompose_tbl %>% print()
+```
+
+While the model is different from before, it produces similar outputs, and so
+our plot code is almost identical to before.
+
+We compare the observed values to the seasonally-adjusted ones first via a
+lineplot.
+
+```{r plot_passenger_sm_adjusted, echo=TRUE}
+ggplot(ap_ts_sm_decompose_tbl) +
+    geom_line(aes(x = month, y = observed)) +
+    geom_line(aes(x = month, y = seasadj), colour = 'red') +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Passenger Count') +
+    ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts (Multiplicative Mdodel)'
+           ,subtitle = '(seasonal adjustments in red)')
+
+```
+
+We then look at the full decomposition plot, and each of the components.
+
+```{r decompose_ap_sm_tidy_plot, echo=TRUE}
+plot_tbl <- ap_ts_sm_decompose_tbl %>%
+    gather('label', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    facet_grid(rows = vars(label)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Value') +
+    ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
+```
+
+
+Like for the additive model, the components of the decomposition are on
+different scales, so we redo the plot with a free $y$-axis.
+
+```{r decompose_ap_sm_tidy_scales_plot, echo=TRUE}
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    facet_grid(rows = vars(label), scales = 'free_y') +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Value') +
+    ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
+```
+
+
+
+## STL Decomposition
 
 
 # Autocorrelation
