@@ -16,6 +16,8 @@ output:
 
 
 ```{r knit_opts, include = FALSE}
+rm(list = ls()); gc()
+
 knitr::opts_chunk$set(tidy  = FALSE
                      ,cache = FALSE
                      ,message = FALSE
@@ -1196,52 +1198,55 @@ ggplot(plot_tbl) +
     ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
 ```
 
+#### Exercises
+
+  1. Construct the simple multiplicative decomposition on the Maine
+     unemployment data.
+  1. Construct the simple multiplicative decomposition on the Australian CBE
+     data.
 
 
 ## STL Decomposition
 
 
-# Autocorrelation
+# Time-Series Structure
+
+Assuming we can remove the trend and the seasonal variation, we still have the
+random component, $z_t$. Unfortunately, this is non-trivial. We model this
+random component as a sequence of random variables, but nothing further.
+
+To simplify the analysis, we often make assumptions such like the random form
+a sequence of *independent and identically distributed (i.i.d.)* random
+variables, but this is rarely effective. Most of the time, the $z_t$ are
+correlated.
 
 
-Assuming we can remove the trend and the seasonal variation, that
-still leaves the random component, $z_t$. Unfortunately, analysing
-this is usually highly non-trivial. As discussed, we model the random
-component as a sequence of random variables, but no further
-assumptions we made.
+## Random Variables
 
-To simplify the analysis, we often make assumptions like
-\emph{independent and identically distributed (i.i.d.)} random
-variables, but this will rarely work well. Most of the time, the $z_t$
-are correlated.
-
-The \emph{expected value} or \emph{expectation} of a random variable
-$x$, denoted $E(x)$, is the mean value of $x$ in the population. So,
-for a continuous $x$, we have
+The *expected value* or *expectation* of a random variable $x$, denoted $E(x)$,
+is the mean value of $x$ in the population. Thus, for a continuous $x$, we have
 
 $$
 \mu = E(x) = \int p(x) \, x \, dx.
 $$
 
 
-and the \emph{variance}, $\sigma^2$, is the expectation of the squared
-deviations,
+and the *variance*, $\sigma^2$, is the expectation of the squared deviations,
 
 $$
-\sigma^2 = E[(x - \mu)^2],
+\text{Var}(x) = \sigma^2 = E[(x - \mu)^2],
 $$
 
 For bivariate data, each datapoint can be represented as $(x, y)$ and
-we can generalise this concept to the \emph{covariance},
-$\gamma(x, y)$,
+we can generalise this concept to the *covariance*, $\gamma(x, y)$,
 
 $$
-\gamma(x, y) = E[(x - \mu_x)(y - \mu_y)].
+\gamma(x, y) = \text{Cov}(x, y) =  E[(x - \mu_x)(y - \mu_y)].
 $$
 
 
-Correlation, $\rho$, is the standardised covariance, dividing the
-covariance by the standard deviation of the two variables,
+Correlation, $\rho$, is standardised covariance -- we scale the covariance by
+the standard deviation of the two variables,
 
 $$
 \rho(x, y) = \frac{\gamma(x, y)}{\sigma_x \sigma_y}.
@@ -1254,16 +1259,13 @@ $$
 \mu(t) = E(x_t),
 $$
 
-
-with the expectation in this case being across the \emph{ensemble} of
-possible time series that might have been produced by this model. Of
-course, in many cases, we only have one realisation of the model, and
-so, without any further assumption, estimate the mean to be the
+with the expectation being across the *ensemble* across histories of possible
+time series produced by this model. In general, we only have one realisation of
+this model, and so, without any further assumption, estimate the mean to be the
 measured value.
 
-If the mean function is constant, we say that the time-series is
-\emph{stationary in the mean}, and the estimate of the population mean
-is just the sample mean,
+If the mean function is constant, we say that the time-series is *stationary in
+the mean*, and the estimate of the population mean is just the sample mean,
 
 $$
 \mu = \sum^n_{t=1} x_t.
@@ -1274,34 +1276,36 @@ The variance function of a time-series model that is stationary in the
 mean is given by
 
 $$
-\sigma^2(t) = E[(x_t - \mu)^2],
+\sigma^2(t) = E[(x_t - \mu)^2].
 $$
 
 
-and if we make the further assumption that the time-series is also
-stationary in the variance, then the population variance is just the
-sample variance
+If we make the further assumption that the time-series is also stationary in
+the variance, then the population variance is just the sample variance:
 
 $$
 \text{Var}(x) = \frac{\sum(x_t - \mu)^2}{n - 1}
 $$
 
 
-Autocorrelation, often referred to as \emph{serial correlation}, is
-the correlation between the random variables at different time
-intervals. We can define the \emph{autocovariance function} and the
-\emph{autocorrelation function} as functions of the \emph{lag}, $k$, as
+## Autocorrelation (Serial Correlation)
 
-\begin{eqnarray}
+Autocorrelation, also known as *serial correlation*, is the correlation between
+random variables at different time intervals in a time series. We define the
+*lag*, $k$ to be a fixed discrete interval for analysis. From this, we define
+the *autocovariance function* and the *autocorrelation function* as functions
+of $k$:
+
+\begin{eqnarray*}
 \gamma_k &=& E[(x_t - \mu)(x_{t+k} - \mu)], \\
 \rho_k   &=& \frac{\gamma_k}{\sigma^2}.
-\end{eqnarray}
+\end{eqnarray*}
 
 
-Be default, the \texttt{acf()} function plots the \emph{correlogram},
-which is a plot of the sample autocorrelation at $r_k$ against the lag
-$k$.
+In R, the `acf()` function plots the *correlogram*, the plot of the sample
+autocorrelation at $\rho_k$ against the lag $k$.
 
+```
 \worksheetexercise
 Using the function \texttt{acf()}, calculate the autocorrelations for
 all the time series we have looked at. Look at the structure of the
@@ -1328,32 +1332,24 @@ previous correlogram you looked at?
 \worksheetexercise
 How can we use all that we have learned so far to assess the efficacy
 of the decompositional approach for time series?
+```
 
+## Multivariate Covariance
 
-
-# Basic Forecasting
-
-As mentioned earlier, an efficient way to forecast a variable is to
-find a related variable whose value leads it by one or more
-timesteps. The closer the relationship and the longer the lead time,
-the better it becomes.
-
-The trick, of course, is to find a leading variable.
-
-Multivariate series has a temporal equivalent to correlation and
-covariance, known as the \emph{cross-covariance function (ccvf)} and
-the \emph{cross-correlation function (ccf)},
+Multivariate series has a temporal equivalent to correlation and covariance,
+known as the *cross-covariance function (ccvf)* and the *cross-correlation
+function (ccf)*,
 
 \begin{eqnarray}
 \gamma_k(x, y) &=& E[(x_{t+k} - \mu_x)(y_t - \mu_y)], \\
 \rho_k(x, y)   &=& \frac{\gamma_k(x, y)}{\sigma_x \sigma_y}.
 \end{eqnarray}
 
-
 Note that the above functions are not symmetric, as the lag is always
 on the first variable, $x$.
 
 
+```
 \worksheetexercise
 Load the building approvals and activity data from the
 \texttt{ApprovActiv.dat} file. The data is quarterly and starts in
@@ -1369,15 +1365,44 @@ symmetric, and why?
 Examine the cross-correlations of the random element of the decomposed
 time-series for the building data, and compare this to the original
 cross-correlations.
+```
 
 
+
+
+
+# Basic Forecasting
+
+The basic task of forecasting is the prediction of future values for some
+quantity.
+
+One effective method of forecasting is to find a related variable whose value
+leads it by one or more timesteps. This related variable is often called a
+*leading indicator*.
+
+A good example of a leading indicator is the ADP numbers in the US. ADP is the
+main provider of payroll software in the US, and it releases information in
+advance of US Unemployment statistics. Economic and financial analysts pay
+close attention to this quantity as it is predictive of the unemployment
+numbers.
+
+In quantitative trading, one of the first popular and profitable uses of
+statistical and time series analysis was in *pairs trading* - closely related
+stocks tend to move together and this analysis enabled profitable trades.
+
+So, for any given quantity, the trick is to find a leading variable and this is
+often unreliable or non-existent. As a result, we start with the task of using
+univariate analysis to make our predictions.
+
+
+## Univariate Forecasting
 
 Our main objective in forecasting is to estimate the value of a future
-quantity, $x_{n+k}$, given past values ${x_1, x_2, ..., x_n}$. We
-assume no seasonal or trend effects, or any such effects have been
-removed from the data. We assume that the underlying mean of the data
-is $\mu_t$, and that this value changes from timestep to timestep, but
-this change is random.
+quantity, $x_{n+k}$, given past values ${x_1, x_2, ..., x_n}$. We assume no
+seasonal or trend effects, or that such effects are removed from the data.
+
+We assume that the underlying mean of the data is $\mu_t$, and that the value
+$x_t$ changes from timestep to timestep, but this change is random.
 
 Our model can be expressed as
 
@@ -1385,20 +1410,28 @@ $$
 x_t = \mu_t + w_t,
 $$
 
-where $\mu_t$ is the non-stationary mean of the process at time $t$
-and $w_t$ are independent random variates with mean $0$ and standard
-deviation $\sigma$. We let $a_t$ be our estimate of $\mu_t$, and can
-define the \emph{exponentially-weighted moving average (EWMA)}, $a_t$
-to be
+where
+
+\begin{eqnarray*}
+\mu_t && \text{is the non-stationary mean of the process at time} t \\
+w_t   && \text{are the independent random variates with mean 0 and standard deviation } \sigma
+\end{eqnarray*}
+
+
+## EWMA Models
+
+We let $a_t$ be our estimate of $\mu_t$, and can define the
+*exponentially-weighted moving average (EWMA)*, $a_t$ to be
 
 $$
-a_t = \alpha x_t + (1 - \alpha) a_{t-1}, \;\;\; 0 \leq \alpha \leq 1.
+a_t = \alpha x_t + (1 - \alpha) \, a_{t-1}, \;\;\; 0 \leq \alpha \leq 1.
 $$
-
 
 The value of $\alpha$ controls the amount of smoothing, as is referred
 to as the \emph{smoothing parameter}.
 
+
+```
 \worksheetexercise
 Load the data in the \texttt{motororg.dat} file. This is a count of
 complaints received on a monthly basis by a motoring organisation from
@@ -1414,23 +1447,30 @@ and visualise the output, comparing it to the original time series.
 \worksheetexercise
 Specifying values of $\alpha$ of 0.2 and 0.9, create new versions of
 the EWMA and compare them with previous fits of the EWMA.
+```
 
+## Holt-Winters Model
 
 The Holt-Winters method generalises this concept, allowing for trends
 and seasonal effects. The equations that govern this model for
 seasonal period, $p$, are given by
 
-\begin{eqnarray}
-a_t &=& \alpha (x_t - s_{t-p}) + (1 - \alpha)(a_{t-1} - b_{t-1}), \nonumber \\
-b_t &=& \beta (a_t - a_{t-1}) + (1 - \beta)b_{t-1},\\
-s_t &=& \gamma (x_t - a_t) + (1 - \gamma) s_{t-p}, \nonumber
-\end{eqnarray}
+\begin{eqnarray*}
+a_t &=& \alpha (x_t - s_{t-p}) + (1 - \alpha) (a_{t-1} - b_{t-1}),\\
+b_t &=& \beta  (a_t - a_{t-1}) + (1 - \beta)  b_{t-1},\\
+s_t &=& \gamma (x_t - a_t)     + (1 - \gamma) s_{t-p},
+\end{eqnarray*}
 
+where
 
-where $a_t$, $b_t$, $s_t$ are the estimated level, slope and seasonal
-effect at time $t$, and $\alpha$, $\beta$ and $\gamma$ are the
-smoothing parameters.
+\begin{eqnarray*}
+a_t && \text{is the estimated level at time $t$},\\
+b_t && \text{is the estimated slope at time $t$},\\
+s_t && \text{is the estimated seasonal effect at time $t$},\\
+\alpha, \beta, \gamma && \text{are smoothing parameters}
+\end{eqnarray*}
 
+```
 \worksheetexercise
 Fit the Holt-Winters parameters to the air passenger data and check
 the fit. Visualise the raw time-series against the fitted data.
@@ -1438,12 +1478,11 @@ the fit. Visualise the raw time-series against the fitted data.
 \worksheetexercise
 Predict data ahead for four years and visualise this data. How
 reliable are these forecasts do you think?
+```
 
 
+# AR, MA and ARMA Models
 
-# Stochastic Methods and Regression
-
-\noindent
 A time series $w_t$ is \emph{discrete white noise} if the $w_t$ are
 i.i.d with a mean of zero. Thus, they all have the same variance
 $\sigma^2$ and $\text{Cor}(w_i, w_j) = 0$ for $i \neq j$. In addition,
@@ -1460,6 +1499,7 @@ $$
 
 where $w_t$ is a white-noise series.
 
+```
 \worksheetexercise
 Generate a white noise series using \texttt{rnorm()}, with an initial
 value, $w_0 = 1$. and length 100. Plot the output, and investigate its
@@ -1472,9 +1512,9 @@ length 100. Plot its output and investigate its correlogram.
 \worksheetexercise
 Think about how you might create a random walk with an underlying
 drift?
+```
 
-
-
+## Autoregressive Process - AR(p)
 
 The time series $x_t$ is a \emph{auto-regressive process of order $p$},
 $\text{AR}(p)$, if,
@@ -1487,6 +1527,8 @@ x_t = \sum^p_{i=1} \alpha_i x_{t-i} + w_t,
 where $w_t$ is a white-noise process and the $\alpha_p \neq 0$ for an
 order-$p$ process.
 
+
+```
 \worksheetexercise
 Generate data for an AR(1) model with $\alpha = 0.5$ and initial value
 $x_1 = 1$. Plot the data and investigate its correlogram. Does this
@@ -1507,10 +1549,10 @@ $\alpha_2 = 0.5$ and initial value $x_1 = 1$, $x_2 = 1$.
 Fit the time-series you generated above to an autoregressive model
 using the function \texttt{ar()}. How do the fitted parameters match
 the values you used?
+```
 
-\vspace{5mm}
+## Moving Average Process - MA(q)
 
-\noindent
 A moving average (MA) process of order $q$ is a linear combination of
 the current white noise term and the $q$ most recent past white noise
 terms,
@@ -1519,9 +1561,10 @@ terms,
 x_t = w_t + \sum^q_{i=1} \beta_i w_{t - i}
 \end{equation}
 
-\noindent
 where $w_t$ is a white-noise process with mean 0 and variance $\sigma^2$.
 
+
+```
 \worksheetexercise
 Generate data for an MA(1) model with $\beta = 0.5$ and initial value
 $x_1 = 1$. Plot the data and investigate its correlogram. Does this
@@ -1544,26 +1587,19 @@ match the values you used?
 
 \worksheetexercise
 Compare the AR and MA models to one another.
+```
 
 
+## ARMA and ARIMA Models
 
-%%%
-%%% SECTION: ARMA and ARIMA Models
-%%%
+Now suppose we combine the ideas of autoregressive and moving average models
+together. A time series follows an *autoregressive moving average (ARMA)*
+process of order $(p, q)$ when
 
-\worksheetsection{ARMA and ARIMA Models}
-
-\noindent
-Now suppose we combine the ideas of autoregressive and moving average
-models together. A time series follows an
-\emph{autoregressive moving average (ARMA)} process of order $(p, q)$
-when
-
-\begin{equation}
+$$
 x_t = \sum_{i=1}^p \alpha_i x_{t-i} + w_t + \sum_{j=1}^q \beta_j w_{t-j}
-\end{equation}
+$$
 
-\noindent
 where $w_t$ is white noise.
 
 Both $\text{AR}(p)$ and $\text{MA}(q)$ models are special cases of
@@ -1572,6 +1608,8 @@ models are usually preferred due to \emph{parameter parsimony} ---
 when fitting data, the ARMA model is usually more parameter efficient,
 requiring few parameters.
 
+
+```
 \worksheetexercise
 Using the R function \texttt{arima.sim()}, create an ARMA(1,1)
 time-series of length 1000 with $\alpha = -0.6$, and
@@ -1604,28 +1642,26 @@ quarterly, and starts in Q1 1991.
 Fit the data GBP/NZD to an $\text{MA}(1)$, an $\text{AR}(1)$ and an
 $\text{ARMA}(1, 1)$ process. Which of the above models does the best
 job at fitting the data?
+```
 
-\vspace{5mm}
 
-\noindent
-It may be becoming quickly apparent that the choice of parameter count
-is non-trivial, and some kind of systematic approach would be
-desirable.
+### Fitting ARMA Models
 
-One such method for choosing the optimal number of parameters is to
-fit multiple options and choose the best one, using a metric known as
-the \emph{Akaike Information Criterion (AIC)}. The AIC is defined to
-be
+It may be becoming quickly apparent that the choice of parameter count is
+non-trivial, and some kind of systematic approach would be desirable.
 
-\begin{equation}
-\text{AIC} = -2 \times \text{loglikelihood of fit} + 2 \times
-\text{parameter count},
-\end{equation}
+One such method for choosing the optimal number of parameters is to fit
+multiple options and choose the best one, using a metric known as the
+*Akaike Information Criterion (AIC)*. The AIC is defined to be
 
-\noindent
+$$
+\text{AIC} = -2 \times \text{loglikelihood of fit} + 2 \times \text{parameter count},
+$$
+
 so that it balances the better fitting of parameters while penalising
 using too many parameters to fit.
 
+```
 \worksheetexercise
 Use the R function \texttt{AIC} to calculate the AIC of the three
 models above. Which one is the best? Why is this question a trap?
@@ -1633,7 +1669,7 @@ models above. Which one is the best? Why is this question a trap?
 \worksheetexercise
 Using all of the various techniques in this workshop, try to model the
 electricity time series data from the CBE dataset.
-
+```
 
 
 
