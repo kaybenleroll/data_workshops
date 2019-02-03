@@ -32,6 +32,8 @@ library(cowplot)
 library(cranlogs)
 library(timetk)
 library(sweep)
+library(seasonal)
+library(forecast)
 
 
 options(width = 80L
@@ -58,10 +60,8 @@ time-series, or more formally, a discrete-time stochastic process.
 
 All materials for this workshop is available in my standard GitHub repo:
 
-https://github.com/kaybenleroll/dublin_r_workshops
+https://github.com/kaybenleroll/data_workshops
 
-
-![](img/itswr_cover.jpg)
 
 
 The content of this workshop is partly based on the book "Introductory Time
@@ -69,6 +69,31 @@ Series with R" by Paul Cowpertwait and Andrew Metcalfe. The data from this book
 is available from the website:
 
 http://www.maths.adelaide.edu.au/emac2009/
+
+
+![](img/itswr_cover.jpg)
+
+
+
+For further resources, anyone with an interest in this topic should take a
+look at the book "Forecasting: Principles and Practice" by Rob J Hyndman and
+George Athanasopoulos
+
+![](img/fpp2_cover.jpg)
+
+While available as in dead-tree form, the full text is available online:
+
+https://otexts.com/fpp2/
+
+
+One final recommendation is the book "The Analysis of Time Series" by
+Christopher Chatfield. This is a principles and theory-based book on the
+underlying statistical concepts around time-series analysis and does not
+contain much in the way of code, but is still highly recommended.
+
+![](img/taots_cover.jpg)
+
+
 
 
 ### R Packages
@@ -780,6 +805,8 @@ airpassengers_tbl %>% print()
 
 ### Raw Data
 
+We remind ourselves of the lineplot of the raw data.
+
 ```{r plot_airpassenger_exploration, echo=TRUE}
 ggplot(airpassengers_tbl) +
     geom_line(aes(x = month, y = value)) +
@@ -792,6 +819,23 @@ ggplot(airpassengers_tbl) +
 This plot suggests a strong seasonal effect as well as a trend so this is the
 first thing to investigate.
 
+It may help if we can add points to the plot to indicate the months, so we add
+points for the month of June to help us identify years.
+
+```{r plot_airpassenger_exploration_dec_points, echo=TRUE}
+ap_jun_tbl <- airpassengers_tbl %>% filter(format(month, '%m') == '06')
+
+ggplot(airpassengers_tbl) +
+    geom_line(aes(x = month, y = value)) +
+    geom_point(aes(x = month, y = value), data = ap_jun_tbl, size = 2) +
+    xlab('Date') +
+    ylab('Passenger Count') +
+    expand_limits(y = 0) +
+    ggtitle('Plot of Air Passenger Time Series')
+```
+
+
+
 To look into trends, we have a number of options: we could look at yearly
 sums or averages, or we could look at moving averages.
 
@@ -802,6 +846,8 @@ ggplot(ap_yearly_tidyquant_tbl) +
     scale_y_continuous(labels = comma) +
     ggtitle('Lineplot of the Annual Air Passenger Totals')
 ```
+
+
 
 
 One way to investigate the seasonality in the dataset is to construct a boxplot
@@ -1206,19 +1252,255 @@ ggplot(plot_tbl) +
      data.
 
 
+### Drawbacks of Decomposition
+
+The above approach for time-series decomposition have the benefit of
+simplicity both in terms of intuition and calculation, but come with a number
+of drawbacks:
+
+  * Estimates of the trend are not available at the start and end of the
+    time-series.
+  * The trend-cycle estimate tends to over-smooth rapid rises and falls in the
+    data - we can check for this by inspecting the remainder.
+  * Seasonal components are fixed throughout the dataset and do not change - an
+    assumption much too simplistic for real-world data, especially those
+    collected over long periods of time
+  * Idiosyncratic events causing short-term changes in behaviour are not
+    managed well
+
+
+
 ## STL Decomposition
+
+The estimation of trend in a time series is often referred to as *smoothing* as
+it tries to remove higher frequency noise in the signal to understand the
+underlying signal.
+
+These smoothing procedures often use data points both before and after the time
+at which the smoothed estimate is to calculated. This makes it useless for
+direct forecasting, but nevertheless can reveal interesting structure in the
+data.
+
+Previously we looked at using moving averages to estimate the trend, but
+an alternative approach is to use *Seasonal and Trend decomposition using
+Loess* or STL. This estimates the trend by using locally-weighted regression
+(loess) methods.
+
+
+### Periodic  STL
+
+Our first use of STL involves using a regression window equal to the size of
+the period of the data. For `AirPassengers`, this is 12, but we do not have
+to set this explicitly.
+
+```{r decompose_ap_stl_periodic, echo=TRUE}
+ap_stl_decompose <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    magrittr::extract(,1) %>%       # need to use this for compatibility with stl()
+    stl(s.window = 'periodic')
+
+ap_stl_decompose %>% plot()
+```
+
+As before, we can use functions in the `sweep` package to create tidy outputs
+to ease plotting and analysis.
+
+```{r decompose_ap_stl_periodic_tidy, echo=TRUE}
+ap_stl_decompose_tbl <- ap_stl_decompose %>%
+    sw_tidy_decomp(rename_index = 'month')
+
+ap_stl_decompose_tbl %>% glimpse()
+ap_stl_decompose_tbl %>% print()
+```
+
+
+This decomposition seems similar to the one produced by the `decompose()`
+function, so we should compare the output. This is where tidy output is useful:
+we use standard `dplyr` and `tidyr` methodologies to manipulate the data and
+produce plots for visual inspection.
+
+```{r create_decomposition_comparisons, echo=TRUE}
+decomp_tbl <- ap_ts_sa_decompose_tbl %>%
+    rename(remainder = random)
+
+stl_tbl <- ap_stl_decompose_tbl
+
+
+decomp_compare_tbl <- list(
+    `Simple Additive` = decomp_tbl
+   ,`STL Periodic`    = stl_tbl
+    ) %>%
+    bind_rows(.id = 'category')
+
+decomp_compare_tbl %>% glimpse()
+decomp_compare_tbl %>% print()
+```
+
+```{r plot_decomposition_seasonal, echo=TRUE}
+ggplot(decomp_compare_tbl) +
+    geom_line(aes(x = month, y = season, colour = category)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Seasonal Value') +
+    ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
+```
+
+Seasonal values are almost the same, so we now compare trend values.
+
+```{r plot_decomposition_trends, echo=TRUE}
+ggplot(decomp_compare_tbl) +
+    geom_line(aes(x = month, y = trend, colour = category)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Trend Value') +
+    ggtitle('Comparison Plot for Trends between Decompositional Methods')
+```
+
+We see here that the STL with Periodic smoothing window is almost the same as
+the standard `decompose()` function for the Air Passenger data.
+
+
+### Robust STL
+
+We can also use robust loess to perform the STL, and compare the results.
+
+
+```{r decompose_ap_stl_robust, echo=TRUE}
+ap_stl_robust_decompose <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    magrittr::extract(,1) %>%       # need to use this for compatibility with stl()
+    stl(s.window = 'periodic', robust = TRUE)
+
+ap_stl_robust_decompose %>% plot()
+```
+
+As before, we can use functions in the `sweep` package to create tidy outputs
+to ease plotting and analysis.
+
+```{r decompose_ap_stl_robust_tidy, echo=TRUE}
+ap_stl_robust_decompose_tbl <- ap_stl_robust_decompose %>%
+    sw_tidy_decomp(rename_index = 'month')
+
+ap_stl_robust_decompose_tbl %>% glimpse()
+ap_stl_robust_decompose_tbl %>% print()
+```
+
+
+### Decomposition Comparisons
+
+We now directly compare all the decompositions.
+
+
+```{r create_all_decomp_comparisons, echo=TRUE}
+decomp_compare_tbl <- list(
+    `Simple Additive` = decomp_tbl
+   ,`STL Periodic`    = stl_tbl
+   ,`STL Robust`      = ap_stl_robust_decompose_tbl
+    ) %>%
+    bind_rows(.id = 'category')
+
+decomp_compare_tbl %>% glimpse()
+decomp_compare_tbl %>% print()
+```
+
+We have constructed the comparison dataset and now plot the seasonal values
+for the different decompositions.
+
+```{r plot_all_decomp_seasonal, echo=TRUE}
+ggplot(decomp_compare_tbl) +
+    geom_line(aes(x = month, y = season, colour = category)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Seasonal Value') +
+    ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
+```
+
+We now look at trend values for the different decompositions.
+
+
+```{r plot_all_decomp_trends, echo=TRUE}
+ggplot(decomp_compare_tbl) +
+    geom_line(aes(x = month, y = trend, colour = category)) +
+    expand_limits(y = 0) +
+    xlab('Month') +
+    ylab('Trend Value') +
+    ggtitle('Comparison Plot for Trends between Decompositional Methods')
+```
+
+
+## Additional Decompositions
+
+Many more approaches to time-series decomposition exist, but a thorough
+exploration of the techniques is beyond the scope of this workshop.
+Furthermore, while a number of excellent packages exist in R to perform this
+analysis, at the time of this workshop, they are not compatible with
+`tidyquant`.
+
+That said, some of these are very useful, so we will introduce them and show
+some simple uses of them, and leave further exploration as an exercise.
+
+### X11 Decomposition
+
+The X11 method was developed by US Census Bureau and Statistics Canada to
+assist them in the analysis of their statistical data collection and analysis.
+
+Building upon the existing approaches discussed already, the approach allows
+for the changes in seasonal effects over time, different day counts in each
+month and other wrinkles such as holidays.
+
+The `seasonal` package provides an implementation of this decomposition, and
+while we do not have a `tidyquant` interface for it, the `forecast` package
+provides some simple plotting routines.
+
+```{r illustrate_x11_decomposition, echo=TRUE}
+ap_x11_decompose <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    seas(x11 = '')
+
+ap_x11_decompose %>% plot()
+ap_x11_decompose %>%
+    autoplot() + ggtitle("Output of X11 Decomposition on Air Passenger Data")
+```
+
+
+### SEATS Decomposition
+
+"SEATS" stands for *Seasonal Extraction in ARIMA Time Series*. Developed by the
+Bank of Spain, this approach is commonly used by government agencies but only
+works with quarterly and monthly data - data with seasonal effects at other
+frequencies will require a different method.
+
+As we did with X11, we will show the output for the default and leave its
+exploration as an exercise.
+
+
+```{r illustrate_seats_decomposition, echo=TRUE}
+ap_seats_decompose <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    seas()
+
+ap_seats_decompose %>% plot()
+ap_seats_decompose %>%
+    autoplot() + ggtitle("Output of SEATS Decomposition on Air Passenger Data")
+```
+
 
 
 # Time-Series Structure
 
 Assuming we can remove the trend and the seasonal variation, we still have the
-random component, $z_t$. Unfortunately, this is non-trivial. We model this
-random component as a sequence of random variables, but nothing further.
+random component, $z_t$. Up to now, we have modelled this random component as
+a sequence of random variables.
 
 To simplify the analysis, we often make assumptions such like the random form
 a sequence of *independent and identically distributed (i.i.d.)* random
-variables, but this is rarely effective. Most of the time, the $z_t$ are
-correlated.
+variables, but this is rarely effective.
+
+Most of the time, the $z_t$ are correlated and so we need to put some structure
+on our framework for modelling this.
+
+To that end, we now look at some statistical concepts and quantities that are
+used to help with this modelling piece.
 
 
 ## Random Variables
@@ -1287,6 +1569,13 @@ $$
 \text{Var}(x) = \frac{\sum(x_t - \mu)^2}{n - 1}
 $$
 
+### Exercises
+
+  1. Are any of the time series we have analysed stationary in the mean?
+  1. What about first differences?
+  1. What about percentage changes?
+
+
 
 ## Autocorrelation (Serial Correlation)
 
@@ -1305,34 +1594,25 @@ of $k$:
 In R, the `acf()` function plots the *correlogram*, the plot of the sample
 autocorrelation at $\rho_k$ against the lag $k$.
 
-```
-\worksheetexercise
-Using the function \texttt{acf()}, calculate the autocorrelations for
-all the time series we have looked at. Look at the structure of the
-output, and use the help system to see what options are provided.
 
-\worksheetexercise
-Check the output of \texttt{acf()} against manual calculations of the
-correlations at various timesteps. Do the numbers match?
+### Autocorrelation in the AirPassenger Data
 
-\noindent
-\textbf{HINT:} The \texttt{cor()} function and some vector indexing
-will be helpful here.
+We now turn our attention to calculating autocorrelations for a given time 
+series, starting with the Air Passenger data.
 
-\worksheetexercise
-Plot the output of the \texttt{acf()} for the different time
-series. Think about what these plots are telling you. Do do these
-plots help the modelling process, if so, how?
+Autocorrelations and the correlogram are one of the most important concepts and
+tools in all of time series analysis, so while routines do exist to perform
+the calculations and produce the plots, we will first go through the entire
+process manually to ensure we have a thorough understanding of it all.
 
-\worksheetexercise
-Decompose the air passenger data and look at the appropriate
-correlogram. What does this plot tell you? How does it differ from the
-previous correlogram you looked at?
+Once we have gone through this process once, we will use the more direct
+procedures for efficiency.
 
-\worksheetexercise
-How can we use all that we have learned so far to assess the efficacy
-of the decompositional approach for time series?
-```
+
+
+
+
+
 
 ## Multivariate Covariance
 
