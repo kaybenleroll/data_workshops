@@ -1595,7 +1595,7 @@ In R, the `acf()` function plots the *correlogram*, the plot of the sample
 autocorrelation at $\rho_k$ against the lag $k$.
 
 
-### Autocorrelation in the AirPassenger Data
+### Analysing the AirPassenger Data
 
 We now turn our attention to calculating autocorrelations for a given time 
 series, starting with the Air Passenger data.
@@ -1605,14 +1605,103 @@ tools in all of time series analysis, so while routines do exist to perform
 the calculations and produce the plots, we will first go through the entire
 process manually to ensure we have a thorough understanding of it all.
 
+*NOTE:* Due to internal differences in how correlations are calculated
+(`cor()` uses a different denominator to `acf()`) - our two methods will
+produce slightly different values. In all cases, the values produced by `acf()`
+and functions it depends on are the ones to trust.
+
 Once we have gone through this process once, we will use the more direct
-procedures for efficiency.
+procedures.
+
+```{r produce_airpassenger_lags, echo=TRUE}
+ap_lags_tbl <- airpassengers_tbl %>%
+    tq_mutate(
+        select     = value
+       ,mutate_fun = lag.xts
+       ,k          = 1:24
+       ,col_rename = paste0('l', 1:24)
+    ) %>%
+    gather('lag_k','lag_val', -month, -value) %>%
+    mutate(lag_k = lag_k %>% str_replace('^l', '') %>% as.integer())
+
+ap_lags_tbl %>% glimpse()
+ap_lags_tbl %>% print()
+```
+
+To calculate the autocorrelations at various lags we group by the lag amount,
+calculate the correlation where we have values (we do not want to include the
+NA values in the calculation).
+
+Note that even independent pairs of numbers will be likely to calculate a small
+amount of correlation due to sample noise. This threshold can be shown to be
+
+$$
+\text{Threshold} = \frac{2}{\sqrt{N}}
+$$
+
+We include these cutoff bounds in the calculation.
+
+```{r calculate_ap_correlations, echo=TRUE}
+ap_autocorrs_tbl <- ap_lags_tbl %>%
+    group_by(lag_k) %>%
+    summarise(
+        cor          = cor(x = value, y = lag_val, use = "pairwise.complete.obs")
+       ,cutoff_upper =  2 / sqrt(n())
+       ,cutoff_lower = -2 / sqrt(n())
+    )
+
+ap_autocorrs_tbl %>% glimpse()
+ap_autocorrs_tbl %>% print()
+```
+
+Now that we have the data in the appropriate form, it is straight-forward to
+construct a plot in `ggplot2` to visualise the data.
+
+```{r show_ap_correlogram, echo=TRUE}
+ggplot(ap_autocorrs_tbl) +
+    geom_line(aes(x = lag_k, y = cor)) +
+    geom_line(aes(x = lag_k, y = cutoff_upper), colour = 'blue', linetype = 'dashed') +
+    geom_line(aes(x = lag_k, y = cutoff_lower), colour = 'blue', linetype = 'dashed') +
+    xlab('Lag') +
+    ylab('Auto-correlation') +
+    ggtitle('Correlogram for the Air Passenger Data')
+```
+
+As mentioned above, we can calculate these values directly in R by using
+`acf()` and its more user-friendly function from `forecast`, `Acf()`.
+
+```{r calculate_ap_acf, echo=TRUE}
+ap_acf <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    Acf()
+
+ap_acf %>% autoplot() + ggtitle('Correlogram of the Air Passenger Data')
+```
 
 
+### Partial Autocorrelation
 
+The correlogram is useful for checking correlations lags, but due to the nature
+of the calculation, the autocorrelation at higher lags is related to those at
+lower lags.
 
+For this reason, we often look at *partial autocorrelations* - where the
+correlation due to earlier lags is removed. The R code for calculating the
+PACF is almost identical as for the ACF.
 
+```{r calculate_ap_pacf, echo=TRUE}
+ap_pacf <- airpassengers_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    Pacf()
 
+ap_pacf %>% autoplot() + ggtitle('Partial Correlogram of the Air Passenger Data')
+```
+
+We see the two main correlations are at lag 1 and lag 13, manifesting the
+strong annual seasonality in the data.
+
+Partial autocorrelations are especially useful for modelling autoregressive
+models, and we will return to this later.
 
 ## Multivariate Covariance
 
@@ -1627,6 +1716,8 @@ function (ccf)*,
 
 Note that the above functions are not symmetric, as the lag is always
 on the first variable, $x$.
+
+
 
 
 ```
