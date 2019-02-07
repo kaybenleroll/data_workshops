@@ -236,9 +236,12 @@ ggplot(maine_tbl) +
 
 ### Australian Consumption Statistics (CBE)
 
-Governments produce regular data on consumption numbers for their economy. One
-such dataset is contained in the file `cbe.dat`, containing data of chocolate,
-beer and energy production on a monthly basis.
+Governments produce regular data on consumption numbers for their economy.
+
+One
+such dataset is contained in the file `cbe.dat`, produced by the Australian
+Census Bureau containing data of chocolate, beer and energy production on a
+monthly basis.
 
 ```{r load_australian_cbe_data, echo=TRUE}
 cbe_raw_tbl <- read_tsv('data/cbe.dat')
@@ -309,6 +312,57 @@ ggplot(plot_tbl) +
     scale_y_continuous(labels = comma) +
     ggtitle('Production Data from Australian Government')
 ```
+
+
+### Australian Building Activity
+
+Another set of data produced by the Australian Census Bureau is the Building
+Activity Publication listing the value of building work done in each quarter.
+This data contains the total dwellings approved for construction per month,
+averaged over the past three months, and the value of work done over the past
+three months.
+
+This data is quarterly from 1996, and we construct the data as before.
+
+
+```{r read_approvactiv_data, echo=TRUE}
+approvactiv_raw_tbl <- read_tsv('data/ApprovActiv.dat')
+
+approvactiv_raw_tbl %>% glimpse()
+
+
+approvactiv_ts <- approvactiv_raw_tbl %>%
+    as.matrix() %>%
+    ts(start = 1996, frequency = 4)
+
+approvactiv_ts %>% head(10)
+approvactiv_ts %>% plot()
+
+
+approvactiv_tbl <- approvactiv_ts %>%
+    tk_tbl(rename_index = 'quarter')
+
+approvactiv_tbl %>% glimpse()
+approvactiv_tbl %>% print()
+```
+
+As before, we can produce time plots in `ggplot2`.
+
+
+```{r construct_approvactiv_plots, echo=TRUE}
+plot_tbl <- approvactiv_tbl %>%
+    gather('label', 'value', -quarter)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = quarter, y = value)) +
+    facet_grid(rows = vars(label), scales = 'free_y') +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Amount") +
+    scale_y_continuous(labels = comma) +
+    ggtitle('Building Activity Data from Australian Government')
+```
+
 
 
 ### CRAN Package Downloads Data
@@ -1717,28 +1771,148 @@ function (ccf)*,
 Note that the above functions are not symmetric, as the lag is always
 on the first variable, $x$.
 
+A corollary of this definition is that negative lags switch the order of
+$(x, y)$
+
+$$
+\gamma_k(x, y) = \gamma_{-k}(y, x)
+$$
 
 
+### Building Activity
+
+Before we look at the data, we might expect to have a good example of leading
+and lagging variables in the Australian Building data: one of the values is
+the number of construction approvals, the other is the amount of activity.
+
+With this data we might expect that the behaviour in approvals will reflect
+later behaviour in activity - there is a natural chain of causality there.
+
+So, we now have something to investigate, and the code functionality we know
+can extend to multivariate time series.
+
+
+```{r show_cross_correlation_building, echo=TRUE}
+approvactiv_cross_acf <- approvactiv_ts %>%
+    Acf(plot = FALSE)
+
+approvactiv_cross_acf %>%
+    autoplot() +
+        ggtitle('Cross-correlations of the Australian Building Data')
+```
+
+Not that these plots are not symmetric: the plots on the diagonals give us
+the univariate correlograms, where as plot (2,1) on the bottom left shows us
+the cross-correlation of approvals to activity, i.e. whether or not the
+approval values lead activity values.
+
+We see quite a few lags are above the 'noise' threshold, indicating there is a
+leading effect.
+
+The plot is the reverse: do activity values lead approval values. Here we see
+little evidence of this.
+
+
+### Cross-Correlation and Non-Stationary Series
+
+In general, cross-correlation is defined for stationary time series as the
+for non-stationary series may have trends and seasonal effects, these may
+dominate the calculation. As a result, we typically remove trends and
+seasonality before looking for cross-correlations.
+
+To illustrate this, we do a simple exercise of producing independent series
+with trends and seasonality and calculate cross-correlations.
+
+```{r check_crosscorrs_trend, echo=TRUE}
+produce_trend_series <- function(strength, trend = 1:100, N = 100) {
+    x <- trend + strength * rnorm(N)
+    y <- trend + strength * rnorm(N)
+    
+    data_tbl <- tibble(
+        i = seq_along(trend)
+       ,x = x
+       ,y = y
+    )
+    
+    return(data_tbl)
+}
+
+gen_data_tbl <- tibble(strength = c(1, 10, 100, 1000)) %>%
+    mutate(data = map(strength, produce_trend_series)) %>%
+    unnest()
+
+ggplot(gen_data_tbl) +
+    geom_line(aes(x = i, y = x)) +
+    geom_line(aes(x = i, y = y), colour = 'red') +
+    facet_wrap(~strength, ncol = 2, scale = 'free_y')
 
 ```
-\worksheetexercise
-Load the building approvals and activity data from the
-\texttt{ApprovActiv.dat} file. The data is quarterly and starts in
-1996. Determine which is the leading variable and investigate the
-relationship between the two.
 
-\worksheetexercise
-Binding the time-series using \texttt{ts.union()}, find the
-cross-correlations for the building data. Is the relationship
-symmetric, and why?
+Having looked at the series, we see that for low values of `strength` the trend
+dominates the value. We now construct the cross-correlation function for each
+of these bivariate series.
 
-\worksheetexercise
-Examine the cross-correlations of the random element of the decomposed
-time-series for the building data, and compare this to the original
-cross-correlations.
+```{r plot_bivariate_trend_ccf, echo=TRUE}
+create_ccf_plot <- function(ccf_data, strength) {
+    autoplot(ccf_data) +
+        ggtitle(paste('Strength', strength))
+}
+
+gen_data_tbl %>%
+    group_by(strength) %>%
+    summarise(ccf_data = list(Ccf(x, y, plot = FALSE))) %>%
+    mutate(ccf_plot = map2(ccf_data, strength, create_ccf_plot)) %>%
+    pull(ccf_plot) %>%
+    plot_grid(plotlist = ., ncol = 2)
+```
+
+As we see, we pick up a lot of cross-correlation with a strong trend, but this
+drops off for the series with weaker trends.
+
+Similarly, we look at seasonal data, constructing some toy bivariate series
+with seasonal effects and then look at the cross-correlations.
+
+```{r construct_bivariate_seasonal, echo=TRUE}
+produce_seasonal_series <- function(strength, offset = 4, N = 370) {
+    time <- 0:N
+
+    x <- sin(2 * pi * time / 37)            + strength * rnorm(N+1)
+    y <- sin(2 * pi * (time + offset) / 37) + strength * rnorm(N+1)
+    
+    data_tbl <- tibble(
+        i = seq_along(time)
+       ,x = x
+       ,y = y
+    )
+    
+    return(data_tbl)
+}
+
+gen_data_tbl <- tibble(strength = c(0, 0.1, 0.5, 1, 2, 10)) %>%
+    mutate(data = map(strength, produce_seasonal_series)) %>%
+    unnest()
+
+ggplot(gen_data_tbl) +
+    geom_line(aes(x = i, y = x)) +
+    geom_line(aes(x = i, y = y), colour = 'red') +
+    facet_wrap(~ strength, ncol = 3, scale = 'free_y')
 ```
 
 
+
+```{r plot_bivariate_seasonal_ccf, echo=TRUE}
+create_ccf_plot <- function(ccf_data, strength) {
+    autoplot(ccf_data) +
+        ggtitle(paste('Strength', strength))
+}
+
+gen_data_tbl %>%
+    group_by(strength) %>%
+    summarise(ccf_data = list(Ccf(x, y, plot = FALSE))) %>%
+    mutate(ccf_plot = map2(ccf_data, strength, create_ccf_plot)) %>%
+    pull(ccf_plot) %>%
+    plot_grid(plotlist = ., ncol = 3)
+```
 
 
 
@@ -1766,7 +1940,19 @@ often unreliable or non-existent. As a result, we start with the task of using
 univariate analysis to make our predictions.
 
 
-## Univariate Forecasting
+
+## Regression Forecasting
+
+One possible starting point for forecasting problems is to use linear
+regression, much like any other predictive modelling. The difference is that
+we make time be an input.
+
+
+
+
+
+
+## Time Series Forecasting
 
 Our main objective in forecasting is to estimate the value of a future
 quantity, $x_{n+k}$, given past values ${x_1, x_2, ..., x_n}$. We assume no
@@ -1784,8 +1970,8 @@ $$
 where
 
 \begin{eqnarray*}
-\mu_t && \text{is the non-stationary mean of the process at time} t \\
-w_t   && \text{are the independent random variates with mean 0 and standard deviation } \sigma
+\mu_t &=&     \text{non-stationary mean of the process at time } t \\
+w_t   &\sim&  \mathcal{N}(0, \sigma) \text{ (i.i.d)}
 \end{eqnarray*}
 
 
@@ -1799,7 +1985,7 @@ a_t = \alpha x_t + (1 - \alpha) \, a_{t-1}, \;\;\; 0 \leq \alpha \leq 1.
 $$
 
 The value of $\alpha$ controls the amount of smoothing, as is referred
-to as the \emph{smoothing parameter}.
+to as the *smoothing parameter*.
 
 
 ```
