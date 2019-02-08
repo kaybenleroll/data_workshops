@@ -2,7 +2,7 @@
 powerlaw_claimsize_count <- function(claimsize, claimdata_tbl) {
     claimdata_tbl %>%
         filter(claim_amount >= 10^claimsize) %>%
-        nrow
+        nrow()
 }
 
 
@@ -52,8 +52,8 @@ create_claimrate_assessment <- function(train, valid, n_sim = 1000) {
         pull(total_claims)
 
     claim_rates <- predict(model_glm
-                           ,newdata = valid_tbl
-                           ,type = 'response')
+                          ,newdata = valid_tbl
+                          ,type = 'response')
 
     predicted_claim_count <- rpois(n_sim, claim_rates %>% sum())
 
@@ -185,7 +185,9 @@ create_claim_simulator <- function(claimfreq_glm
         ### If we include large losses, we proceed in a similar way for the
         ### the attritional piece - simplified by the fact that all policies
         ### are treated the same.
-        if(model_large_losses & !is.null(largeloss_freq) & !is.null(largeloss_scaling)) {
+        if(model_large_losses &
+           !is.null(largeloss_freq) &
+           !is.null(largeloss_scaling)) {
             simulation_tbl <- simulation_tbl %>%
                 mutate(largeloss_freq       = largeloss_freq
                       ,largeloss_claimcount = map(largeloss_freq, function(l) rpois(n_sim, l))
@@ -262,10 +264,10 @@ construct_model_assessment <- function(data_tbl, title_prefix) {
 
 construct_pricing_assessment <- function(data_tbl, title_prefix) {
     sim_loss_amount <- data_tbl$claim_costs  %>% reduce(`+`)
-    premium_charged <- data_tbl$expect_price %>% sum
+    premium_charged <- data_tbl$expect_price %>% sum()
 
     plot_title    <- paste0(title_prefix, " Comparison Plot for Simulated Loss Cost vs Premium Charged")
-    plot_subtitle <- paste0((data_tbl %>% nrow %>% comma), " Policies Used")
+    plot_subtitle <- paste0((data_tbl %>% nrow() %>% comma()), " Policies Used")
 
     assess_plot <- construct_assessment_plot(sim_loss_amount
                                             ,premium_charged

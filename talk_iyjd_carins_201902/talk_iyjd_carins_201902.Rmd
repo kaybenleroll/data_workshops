@@ -16,9 +16,6 @@ output:
 ```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
 rm(list = ls()); gc()
 
-# library(poweRlaw)
-# library(cowplot)
-
 import::from(rlang     ,as_integer)
 import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
 import::from(magrittr  ,"%>%", set_colnames)
@@ -80,7 +77,7 @@ set.seed(42)
 
 
 ```{r set_default_params, echo=FALSE}
-n_sim <- 10
+n_sim <- 500
 ```
 
 
@@ -219,7 +216,7 @@ data(freMTPLsev,  package = 'CASdatasets')
 ---
 
 ```{r show_frequency_data_head, echo=FALSE}
-freMTPLfreq %>% head %>% kable(digits = 2)
+freMTPLfreq %>% head() %>% kable(digits = 2)
 ```
 
 ---
@@ -239,8 +236,13 @@ freMTPLsev %>% head(n = 15) %>% kable(digits = 2)
 
 
 ```{r basic_data_transforms, echo=FALSE}
-policy_tbl <- freMTPLfreq %>% as_tibble()
-claim_tbl  <- freMTPLsev  %>% as_tibble()
+policy_tbl <- freMTPLfreq %>%
+    as_tibble() %>%
+    mutate(PolicyID = as.character(PolicyID))
+
+claim_tbl  <- freMTPLsev %>%
+    as_tibble() %>%
+    mutate(PolicyID = as.character(PolicyID))
 
 names(policy_tbl) <- policy_tbl %>% names() %>% to_snake_case()
 names(claim_tbl)  <- claim_tbl  %>% names() %>% to_snake_case()
@@ -258,7 +260,7 @@ combined_tbl <- policy_tbl %>%
           ,claim_total = ifelse(is.na(claim_total), 0, claim_total)
            )
 
-combined_tbl %>% head %>% kable(digits = 2)
+combined_tbl %>% head() %>% kable(digits = 2)
 ```
 
 ---
@@ -493,10 +495,10 @@ pl_lm <- lm(logcount ~ logsize, data = pl_tbl)
 
 
 ```{r show_powerlaw_factors, echo=FALSE}
-pl_lm %>% tidy %>% kable()
+pl_lm %>% tidy() %>% kable()
 
 pl_scaling <- pl_lm %>%
-    tidy %>%
+    tidy() %>%
     filter(term == 'logsize') %>%
     pull(estimate)
 
@@ -725,7 +727,7 @@ expmodel2_glm %>%
 
 
 ```{r model_gas_driverage_tidy, echo=FALSE}
-expmodel2_glm %>% tidy %>% kable(digits = 4)
+expmodel2_glm %>% tidy() %>% kable(digits = 4)
 ```
 
 ---
@@ -777,7 +779,9 @@ ggplot(secretweapon_tbl) +
     facet_wrap(~term, scales='free_y') +
     xlab("Region") +
     ylab("Parameter Value") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5)
+         ,strip.text.x = element_text(size = 8)
+          )
 ```
 
 ---
@@ -866,7 +870,7 @@ expclaim_lm %>%
 #### Model Coefficients
 
 ```{r model_log_claims_tidy, echo=FALSE}
-expclaim_lm %>% tidy %>% kable(digits = 2)
+expclaim_lm %>% tidy() %>% kable(digits = 2)
 ```
 
 ---
@@ -880,8 +884,11 @@ What does that even look like?
 ---
 
 ```{r visualise_claim_amount_model, echo=FALSE}
+sigma <- summary(expclaim_lm)$sigma
+mult_fact <- exp(0.5 * sigma * sigma)
+
 plot_tbl <- claimreg_tbl %>%
-    mutate(predict_claim = expclaim_lm %>% predict(type = 'response') %>% exp)
+    mutate(predict_claim = (expclaim_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
 
 ggplot(plot_tbl) +
     geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
@@ -918,14 +925,17 @@ expclaim2_lm %>%
 #### Model Coefficients
 
 ```{r model_log_claims_filtered_tidy, echo=FALSE}
-expclaim2_lm %>% tidy %>% kable(digits = 4)
+expclaim2_lm %>% tidy() %>% kable(digits = 4)
 ```
 
 ---
 
 ```{r visualise_claim_amount_model_filtered, echo=FALSE}
+sigma <- summary(expclaim2_lm)$sigma
+mult_fact <- exp(0.5 * sigma * sigma)
+
 plot_tbl <- claimreg_tbl %>%
-    mutate(predict_claim = expclaim2_lm %>% predict(type = 'response') %>% exp)
+    mutate(predict_claim = (expclaim2_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
 
 ggplot(plot_tbl) +
     geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
@@ -974,7 +984,7 @@ claimgamma_glm %>%
 
 ```{r claims_gamma_tidy, echo=FALSE}
 claimgamma_glm %>%
-    tidy %>%
+    tidy() %>%
     arrange(abs(estimate)) %>%
     head(n = 20) %>%
     kable(digits = 4)
@@ -1041,7 +1051,7 @@ sampledata_tbl <- policy_tbl %>%
     sample_n(20000)
 
 
-crossval_tbl <- crossv_mc(sampledata_tbl, 12, 0.25, id = 'fold_id') %>%
+crossval_tbl <- crossv_mc(sampledata_tbl, 20, 0.25, id = 'fold_id') %>%
     mutate(assess    = map2(train, test, create_crossval_assessment)
           ,observed  = map_int(assess, 'observed_count')
           ,predicted = map    (assess, 'predicted_count')
@@ -1054,7 +1064,7 @@ plot_tbl <- crossval_tbl %>%
 ggplot(plot_tbl) +
     geom_histogram(aes(x = predicted), bins = 25) +
     geom_vline(aes(xintercept = observed), colour = 'red') +
-    facet_wrap(~ fold_id, ncol = 4) +
+    facet_wrap(~ fold_id, ncol = 5) +
     xlab("Claim Count") +
     ylab("Count") +
     ggtitle("Claim Count Assessment Plot for Claim Frequency")
@@ -1086,7 +1096,7 @@ $$
 
 \begin{eqnarray*}
 \alpha &=& \text{scale parameter} \\
-\beta &=&  \text{rate parameter}
+\beta  &=& \text{rate parameter}
 \end{eqnarray*}
 
 ---
@@ -1395,7 +1405,7 @@ sample_size <- 1000000
 
 sample_pl <- rplcon(sample_size, xmin = 25000, alpha = pl_scaling)
 
-expected_loss <- sample_pl %>% mean
+expected_loss <- sample_pl %>% mean()
 
 expected_loss_print <- comma(expected_loss)
 ```
@@ -1406,9 +1416,9 @@ $\mu = `r expected_loss_print`$
 
 ```{r show_largeclaim_data, echo=FALSE}
 tribble(
-    ~Quantity,                                                                    ~Value
-   ,      "Loss Expectation",       expected_loss               %>% round(2) %>% comma()
-   ,"Large Claim Proportion", largeclaim_prop                   %>% sprintf("%8.6f", .)
+                   ~Quantity,                                                     ~Value
+   ,      "Loss Expectation", expected_loss                     %>% round(2) %>% comma()
+   ,"Large Claim Proportion", largeclaim_prop                   %>%  sprintf("%8.6f", .)
    ,     "Large-loss Charge", (largeclaim_prop * expected_loss) %>% round(2) %>% comma()
     ) %>%
     knitr::kable(align = c('lr'))
@@ -1553,7 +1563,7 @@ insamp_varsize_assess_lst <- simulate_claim_data(
 outsamp_varsize_assess_lst <- simulate_claim_data(
         outsamp_tbl
        ,variable_claim_size = TRUE
-       ,n_sim = n_sim
+       ,n_sim               = n_sim
     ) %>% construct_model_assessment("Out-of-Sample Data - Variable Claim Size")
 ```
 
@@ -1564,7 +1574,7 @@ insamp_varsize_assess_lst$losscost_plot %>% print()
 ---
 
 ```{r check_simulate_claim_size_oos, echo=FALSE}
-outsamp_varsize_assess_lst$losscost_plot %>% print
+outsamp_varsize_assess_lst$losscost_plot %>% print()
 ```
 
 ---
@@ -1745,6 +1755,6 @@ GitHub: https://github.com/kaybenleroll/dublin_r_workshops
 
 
 ```{r remove_variables, include=FALSE}
-rm(claimfreq_assessment_tbl, insamp_assess_tbl, outsamp_assess_tbl); gc()
+rm(claimfreq_assessment_tbl); gc()
 ```
 
