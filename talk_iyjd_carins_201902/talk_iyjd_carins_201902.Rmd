@@ -1,0 +1,1851 @@
+---
+title: "An Introduction to Insurance Pricing, GLMs and Model Validation"
+subtitle: "Insurely You're Joking Dublin"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2019-02-11"
+output:
+  revealjs::revealjs_presentation:
+    css: custom.css
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls()); gc()
+
+import::from(rlang     ,as_integer)
+import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
+import::from(magrittr  ,"%>%", set_colnames)
+import::from(readr     ,read_csv, write_csv, read_rds, write_rds, cols
+                       ,col_character)
+import::from(dplyr     ,mutate, filter, select, group_by
+                       ,left_join, inner_join, anti_join, semi_join
+                       ,summarise, summarise_at, vars, distinct, sample_n
+                       ,pull, if_else, count, arrange, bind_rows)
+import::from(tidyr     ,gather, spread, nest, unnest, replace_na)
+import::from(ggplot2   ,ggplot, aes, xlab, ylab, ggtitle
+                       ,geom_histogram, geom_boxplot, geom_bar, geom_col
+                       ,geom_line, geom_vline, geom_hline, geom_smooth
+                       ,geom_point, geom_errorbar
+                       ,scale_x_continuous, scale_y_continuous 
+                       ,expand_limits, theme, element_text, facet_grid
+                       ,facet_wrap, theme_set, theme)
+import::from(scales    ,comma)
+import::from(cowplot   ,theme_cowplot, plot_grid)
+import::from(purrr     ,map, map2, map_int, map_dbl, map_chr, reduce)
+import::from(stringr   ,str_replace, str_extract, str_replace, str_replace_all
+                       ,str_trim, str_detect)
+import::from(snakecase ,to_snake_case)
+import::from(MASS      ,gamma.shape)
+import::from(broom     ,tidy, glance, augment)
+import::from(forcats   ,fct_relevel)
+import::from(modelr    ,crossv_mc)
+import::from(poweRlaw  ,rplcon)
+import::from(knitr     ,kable)
+
+
+import::from('custom_functions.R' ,powerlaw_claimsize_count
+                                  ,create_crossval_assessment
+                                  ,create_claimrate_assessment
+                                  ,create_pricing_function
+                                  ,create_claim_simulator
+                                  ,construct_model_assessment
+                                  ,construct_pricing_assessment
+             )
+
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+theme_set(theme_cowplot())
+
+
+set.seed(42)
+```
+
+
+```{r set_default_params, echo=FALSE}
+n_sim <- 500
+```
+
+
+# Background
+
+## Computational Actuarial Science
+
+![](img/charpentier_cover.jpg)
+
+
+
+
+## Insurance Business
+
+\
+
+Life Insurance
+
+\
+
+General Insurance
+
+\
+
+(Health Insurance)
+
+---
+
+Pay premia
+
+\
+
+If event occurs, receive payout
+
+
+---
+
+How do we calculate premia?
+
+---
+
+How *SHOULD* we calculate premia?
+
+---
+
+$$
+\text{Price} = E(\text{Loss}) + \text{Expenses} + \text{Profit}
+$$
+
+
+## Life Insurance
+
+\
+
+Monthly or annual premia
+
+\
+
+Contingent annuity
+
+\
+
+Life Tables
+
+
+
+## Pricing General Insurance
+
+\
+
+Typically 1-year policies
+
+\
+
+(but not always)
+
+
+---
+
+Estimate Loss Cost of a Policy
+
+---
+
+Frequency / Severity Model
+
+\
+
+Exposure vs Claims
+
+\
+
+Heavy use of GLMs
+
+
+---
+
+$$
+\text{Price} = E[\text{Claim Rate}] \times E[\text{Claim Size}]
+$$
+
+---
+
+Claim Rate $\longrightarrow$ Poisson
+
+\
+
+Claim Amount $\longrightarrow$ Gamma
+
+---
+
+Need policy and claim data
+
+---
+
+Package `CASDatasets`
+
+\
+
+`freMPTLfreq` and `freMPTLsev`
+
+\
+
+More datasets in book
+
+
+# Data Loading and Exploration
+
+```{r load_data, echo=TRUE}
+# Our data comes from the package 'CASdatasets' (not on CRAN)
+# Available at http://cas.uqam.ca/
+
+data(freMTPLfreq, package = 'CASdatasets')
+data(freMTPLsev,  package = 'CASdatasets')
+```
+
+---
+
+```{r show_frequency_data_head, echo=FALSE}
+freMTPLfreq %>% head() %>% kable(digits = 2)
+```
+
+---
+
+```{r show_frequency_data_glimpse, echo=FALSE}
+freMTPLfreq %>% glimpse()
+```
+
+---
+
+```{r show_severity_data_head, echo=FALSE}
+freMTPLsev %>% head(n = 15) %>% kable(digits = 2)
+```
+
+
+## Combine Tables
+
+
+```{r basic_data_transforms, echo=FALSE}
+policy_tbl <- freMTPLfreq %>%
+    as_tibble() %>%
+    mutate(PolicyID = as.character(PolicyID))
+
+claim_tbl  <- freMTPLsev %>%
+    as_tibble() %>%
+    mutate(PolicyID = as.character(PolicyID))
+
+names(policy_tbl) <- policy_tbl %>% names() %>% to_snake_case()
+names(claim_tbl)  <- claim_tbl  %>% names() %>% to_snake_case()
+```
+
+```{r combine_policies_claims, echo=FALSE}
+policy_claims_tbl <- claim_tbl %>%
+    group_by(policy_id) %>%
+    summarise(claim_count = n()
+             ,claim_total = sum(claim_amount))
+
+combined_tbl <- policy_tbl %>%
+    left_join(policy_claims_tbl, by = 'policy_id') %>%
+    mutate(claim_count = ifelse(is.na(claim_count), 0, claim_count)
+          ,claim_total = ifelse(is.na(claim_total), 0, claim_total)
+           )
+
+combined_tbl %>% head() %>% kable(digits = 2)
+```
+
+---
+
+```{r combined_table_dataclean, echo=TRUE}
+combined_tbl %>% filter(claim_nb != claim_count)
+```
+
+
+## Univariate Data Exploration
+
+\
+
+Look at each variable
+
+\
+
+Create histograms, bar charts etc
+
+\
+
+`dataexpks` - data exploration template
+
+
+
+---
+
+### claim_count
+
+```{r explore_claim_count, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(combined_tbl) +
+    geom_bar(aes(x = claim_count)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Claim Count") +
+    ylab("Policy Count") +
+    ggtitle("Histogram of Claim Counts per Policy")
+```
+
+---
+
+```{r explore_claim_count_nonzero, echo=FALSE, fig.height=8, fig.width=11}
+ggplot(combined_tbl %>% filter(claim_count > 0)) +
+    geom_bar(aes(x = claim_count)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Claim Count") +
+    ylab("Policy Count") +
+    ggtitle("Histogram of Claim Counts per Policy with Claims")
+```
+
+---
+
+### claim_amount
+
+```{r explore_claim_amount, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(claim_tbl) +
+    geom_histogram(aes(x = claim_amount), bins = 50) +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Claim Amount") +
+    ylab("Policy Count") +
+    ggtitle("Histogram of Claim Amounts")
+```
+
+---
+
+```{r explore_claim_amount_operational, echo=FALSE, fig.height=8, fig.width=11}
+ggplot(claim_tbl %>% filter(claim_amount <= 25000)) +
+    geom_histogram(aes(x = claim_amount), bins = 50) +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Claim Amount") +
+    ylab("Policy Count") +
+    ggtitle("Histogram of Non-Large Claim Amounts")
+```
+
+---
+
+
+### exposure
+
+```{r explore_exposure, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(combined_tbl) +
+    geom_histogram(aes(x = exposure), bins = 50) +
+    scale_y_continuous(labels = comma) +
+    xlab("Policy Exposure") +
+    ylab("Policy Count") +
+    ggtitle("Histogram of Exposures in Policies")
+```
+
+---
+
+### driver_age
+
+```{r explore_driver_age, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(combined_tbl) +
+    geom_histogram(aes(x = driver_age), bins = 30) +
+    scale_y_continuous(labels = comma) +
+    xlab("Driver Age") +
+    ylab("Policy Count") +
+    ggtitle("Histogram of Driver Ages")
+```
+
+---
+
+### car_age
+
+```{r explore_car_age, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(combined_tbl) +
+    geom_histogram(aes(x = car_age), bins = 50) +
+    scale_y_continuous(labels = comma) +
+    xlab("Car Age") +
+    ylab("Policy Count") +
+    ggtitle("Histogram of Car Age")
+```
+
+---
+
+### region
+
+```{r explore_region, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(combined_tbl) +
+    geom_bar(aes(x = region)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Region") +
+    ylab("Policy Count") +
+    ggtitle("Barplot of Region")
+```
+
+
+
+
+## Bivariate Data Exploration
+
+\
+
+Look at two variables at once
+
+\
+
+Boxplots, Scatterplots, Heatmaps, etc
+
+
+---
+
+### claim_count vs driver_age
+
+```{r boxplot_driver_age_claim_count, echo=FALSE, fig.height=7.5, fig.width = 11}
+ggplot(combined_tbl) +
+    geom_boxplot(aes(x = claim_count %>% as.character, y = driver_age)) +
+    xlab("Claim Count") +
+    ylab("Driver Age") +
+    ggtitle("Boxplot of Driver Ages by Claim Count")
+```
+
+---
+
+### claim_count vs region
+
+```{r faceted_plot_claim_count_region, echo=FALSE, fig.height=7.5, fig.width=11}
+ggplot(combined_tbl) +
+    geom_bar(aes(x = claim_count)) +
+    scale_y_continuous(labels = comma) +
+    facet_wrap(~region, scales = 'free_y') +
+    xlab("Claim Count") +
+    ylab("Policy Count") +
+    ggtitle("Claim Counts by Policy Facetted by Region")
+```
+
+
+## Estimating Large Losses
+
+\
+
+Power-law scaling
+
+---
+
+```{r fit_power_law, echo=FALSE}
+logsize <- seq(0, 7, by = 0.1)
+
+powerlaw_tbl <- tibble(
+    logsize = logsize
+   ,count   = map_int(logsize, powerlaw_claimsize_count, claimdata_tbl = claim_tbl)
+)
+
+ggplot(powerlaw_tbl) +
+    geom_line(aes(x = logsize, y = log(count))) +
+    xlab('Log of Claim Size') +
+    ylab('Log of Claim Count') +
+    ggtitle("Power-law Scaling of Claim Sizes")
+```
+
+---
+
+```{r plot_power_law_scaling_linefit, echo=FALSE, warning=FALSE}
+ggplot(powerlaw_tbl %>% filter(logsize >= 3)) +
+    geom_line(aes(x = logsize, y = log(count))) +
+    geom_smooth(aes(x = logsize, y = log(count)), method = 'lm', se = TRUE) +
+    xlab('Log of Claim Size') +
+    ylab('Log of Claim Count') +
+    ggtitle("Fitted Scaling for Large Claim Sizes")
+```
+
+---
+
+Slope is scaling factor, $\alpha$
+
+\
+
+$\alpha > 2 \; \implies \mu$ finite
+
+\
+
+$\alpha > 3 \; \implies$ variance finite
+
+---
+
+Definitely want finite $\mu$...
+
+---
+
+
+```{r calculate_power_law_scaling, echo=TRUE}
+pl_tbl <- powerlaw_tbl %>%
+    filter(logsize >= 3, count > 0) %>%
+    mutate(logcount  = log(count))
+
+pl_lm <- lm(logcount ~ logsize, data = pl_tbl)
+```
+
+\
+
+
+```{r show_powerlaw_factors, echo=FALSE}
+pl_lm %>% tidy() %>% kable()
+
+pl_scaling <- pl_lm %>%
+    tidy() %>%
+    filter(term == 'logsize') %>%
+    pull(estimate)
+
+pl_scaling <- -pl_scaling
+```
+
+---
+
+Finite $\mu$, non-finite $\text{Var}(x)$
+
+
+# Proposed Approach
+
+\
+
+$$
+\text{Premium} = \text{Claim Rate} \times \text{Claim Size} + \text{Large Claim Charge}
+$$
+\
+
+Claim rate more predictive power
+
+
+## Model Attritional Losses
+
+\
+
+Use Poisson / Gamma models for rate / size
+
+\
+
+Estimate of attritional loss cost
+
+\
+
+Each policy has 'fitted' estimate
+
+
+## Model Catastrophic Losses
+
+\
+
+Use power-law distribution
+
+\
+
+Estimate rate of large losses
+
+\
+
+Use mean loss to calculate flat charge
+
+
+## Calculate Price
+
+\
+
+'Technical' price
+
+\
+
+$$
+P_{\text{Technical}} = P_{\text{Attritional}} + P_{\text{Catastrophic}}
+$$
+
+## Known Limitations
+
+\
+
+May want "Large Loss" piece - not in data
+
+\
+
+No consideration of market realities
+
+
+
+
+# Generalized Linear Models
+
+
+## Basic Concept
+
+\
+
+
+\begin{eqnarray*}
+E(\mathbf{Y})          &=& \mu = g^{-1}(\text{X} \beta) \\
+\text{Var}(\mathbf{Y}) &=& V(\mu)
+\end{eqnarray*}
+
+\
+
+where
+
+\
+
+\begin{align*}
+\mathbf{Y} &= \text{response variable}      \\
+\mathbf{X} &= \text{predictor variables}    \\
+\beta      &= \text{model coefficients}     \\
+g(x)       &= \text{link function}          \\
+V(x)       &= \text{variance function}      \\
+\end{align*}
+
+
+---
+
+Combines multiple forms of regression
+
+\
+
+\begin{eqnarray*}
+\text{Linear regression}  &\longrightarrow & g(x) = x \\
+\\
+\text{Poisson regression} &\longrightarrow & g(x) = \log(x) \\
+\\
+\text{Gamma regression}   &\longrightarrow & g(x) = \frac{1}{x}
+\end{eqnarray*}
+
+
+
+## Modelling Claim Rate
+
+
+\
+
+Predict per-policy poisson rate
+
+
+---
+
+
+### Overall Claim Rate
+
+```{r calculate_overall_claim_rate, echo=TRUE}
+combined_tbl %>%
+    summarise(claim_rate = sum(claim_count) / sum(exposure)) %>%
+    pull(claim_rate)
+```
+
+---
+
+### Claim Rate by Region
+
+```{r plot_region_claim_rate, echo=FALSE, fig.height=7.5, fig.width=11}
+claimrate_region_tbl <- combined_tbl %>%
+    group_by(region) %>%
+    summarise(claim_rate = sum(claim_count) / sum(exposure))
+
+ggplot(claimrate_region_tbl) +
+    geom_point(aes(x = region, y = claim_rate)) +
+    expand_limits(y = 0) +
+    xlab('Region') +
+    ylab('Claim Rate') +
+    ggtitle("Plot of Claim Rate by Region")
+```
+
+---
+
+### Claim Rate by Driver Age
+
+```{r plot_driver_age_claim_rate, echo=FALSE, fig.height=7.5, fig.width=11}
+claimrate_driverage_tbl <- combined_tbl %>%
+    group_by(driver_age) %>%
+    summarise(claim_rate = sum(claim_count) / sum(exposure))
+
+ggplot(claimrate_driverage_tbl) +
+    geom_point(aes(x = driver_age, y = claim_rate)) +
+    expand_limits(y = 0) +
+    xlab('Driver Age') +
+    ylab('Claim Rate') +
+    ggtitle("Claim Rate by Driver Age")
+```
+
+---
+
+Non-linear relationship
+
+---
+
+### Categorise Driver Age
+
+```{r create_cat_driver_age_variables, echo=FALSE, fig.height=7.5}
+policy_tbl <- policy_tbl %>%
+    mutate(cat_driver_age = cut(driver_age, c(17, 22, 26, 42, 74, Inf)))
+
+ggplot(policy_tbl) +
+    geom_bar(aes(x = cat_driver_age)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Binned Driver Age") +
+    ylab("Count") +
+    ggtitle("Barplot of Driver Ages after Binning")
+
+policy_tbl <- policy_tbl %>%
+    mutate(cat_driver_age = fct_relevel(cat_driver_age, '(26,42]'))
+```
+
+---
+
+### First Poisson Model
+
+
+```{r model_gas, echo=TRUE}
+gas_glm <- glm(claim_nb ~ 0 + gas
+              ,offset = log(exposure)
+              ,data   = policy_tbl
+              ,family = poisson)
+```
+
+#### Model Diagnostics
+
+```{r model_gas_glance, echo=FALSE}
+gas_glm %>%
+    glance() %>%
+    gather('diagnostic', 'value') %>%
+    kable(digits = 2)
+```
+
+---
+
+#### Model Coefficients
+
+```{r model_gas_tidy, echo=FALSE}
+gas_glm %>% tidy() %>% kable(digits = 4)
+```
+
+---
+
+### Adding Driver Age
+
+```{r model_gas_driverage, echo=TRUE}
+expmodel2_glm <- glm(claim_nb ~ gas + cat_driver_age
+                    ,offset = log(exposure)
+                    ,data   = policy_tbl
+                    ,family = poisson)
+```
+
+#### Model Diagnostics
+
+```{r model_gas_driverage_glance, echo=FALSE}
+expmodel2_glm %>%
+    glance() %>%
+    gather('diagnostic', 'value') %>%
+    kable(digits = 2)
+```
+
+---
+
+#### Model Coefficients
+
+
+```{r model_gas_driverage_tidy, echo=FALSE}
+expmodel2_glm %>% tidy() %>% kable(digits = 4)
+```
+
+---
+
+### The "Secret Weapon"
+
+\
+
+Andrew Gelman
+
+\
+
+Train model on data splits
+
+\
+
+Plot parameters together
+
+---
+
+```{r region_barplot_redux, echo=FALSE}
+ggplot(combined_tbl) +
+    geom_bar(aes(x = region)) +
+    scale_y_continuous(labels = comma) +
+    xlab("Region") +
+    ylab("Policy Count") +
+    ggtitle("Barplot of Region")
+```
+
+---
+
+```{r calculate_secretweapon_data, echo=FALSE}
+secretweapon_tbl <- policy_tbl %>%
+    split(.$region) %>%
+    map(~ glm(claim_nb ~ cat_driver_age + gas + car_age + density +
+                         cat_driver_age:gas
+             ,offset = log(exposure)
+             ,family = poisson
+             ,data = .)) %>%
+    map(tidy) %>%
+    bind_rows(.id = 'region')
+```
+
+```{r plot_secretweapon_params_all, echo=FALSE, fig.height=7.5}
+ggplot(secretweapon_tbl) +
+    geom_point(aes(x = region, y = estimate)) +
+    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
+    expand_limits(y = 0) +
+    facet_wrap(~term, scales='free_y') +
+    xlab("Region") +
+    ylab("Parameter Value") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5)
+         ,strip.text.x = element_text(size = 8)
+          )
+```
+
+---
+
+```{r plot_secretweapon_parameters_1, echo=FALSE}
+secretweapon_tbl <- secretweapon_tbl %>%
+    filter(!grepl("driver_age\\(74", term))
+
+first_params <- c("(Intercept)"
+                 ,"gasRegular"
+                 ,"cat_driver_age(17,22]"
+                 ,"cat_driver_age(22,26]"
+                 ,"cat_driver_age(42,74]"
+                  )
+
+ggplot(secretweapon_tbl %>% filter(term %in% first_params)) +
+    geom_point(aes(x = region, y = estimate)) +
+    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
+    expand_limits(y = 0) +
+    facet_wrap(~term, scales='free_y') +
+    xlab("Region") +
+    ylab("Parameter Value") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+---
+
+```{r plot_secretweapon_parameters_2, echo=FALSE, fig.height=7.5}
+ggplot(secretweapon_tbl %>% filter(!term %in% first_params)) +
+    geom_point(aes(x = region, y = estimate)) +
+    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
+    expand_limits(y = 0) +
+    facet_wrap(~term, scales='free_y') +
+    xlab("Region") +
+    ylab("Parameter Value") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+
+## Modelling Claim Size
+
+\
+
+Claim size always positive
+
+\
+
+Take logs?
+
+---
+
+```{r distribution_log_claim_amount, echo=FALSE}
+ggplot(claim_tbl) +
+    geom_histogram(aes(x = log(claim_amount)), bins = 50) +
+    xlab('Log(Claim Size)') +
+    ylab("Probability Density") +
+    ggtitle("Histogram of Log of the Claim Size")
+```
+
+---
+
+### Linear Model of Log(Claim Size)
+
+```{r construct_claim_reg, echo=FALSE}
+claimreg_tbl <- policy_tbl %>%
+    inner_join(claim_tbl, by = 'policy_id')
+```
+
+```{r model_log_claims, echo=TRUE}
+expclaim_lm <- lm(log(claim_amount) ~ gas + power + car_age
+                 ,data = claimreg_tbl)
+```
+
+#### Model Diagnostics
+
+```{r model_log_claims_glance, echo=FALSE}
+expclaim_lm %>%
+    glance() %>%
+    gather('diagnostic', 'value') %>%
+    kable(digits = 4)
+```
+
+---
+
+#### Model Coefficients
+
+```{r model_log_claims_tidy, echo=FALSE}
+expclaim_lm %>% tidy() %>% kable(digits = 2)
+```
+
+---
+
+Multiple-$R^2$ of 0.0017???
+
+---
+
+What does that even look like?
+
+---
+
+```{r visualise_claim_amount_model, echo=FALSE}
+sigma <- summary(expclaim_lm)$sigma
+mult_fact <- exp(0.5 * sigma * sigma)
+
+plot_tbl <- claimreg_tbl %>%
+    mutate(predict_claim = (expclaim_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
+
+ggplot(plot_tbl) +
+    geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
+    expand_limits(y = 0) +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Actual Claim Amount") +
+    ylab("Predicted Amount") +
+    ggtitle("Plot of Predicted vs Actual Claim Amount")
+```
+
+---
+
+### Linear Model of Attritional Log(Claim Size)
+
+```{r model_log_claims_filtered, echo=TRUE}
+claimreg_tbl <- claimreg_tbl %>% filter(claim_amount < 25000)
+
+expclaim2_lm <- lm(log(claim_amount) ~ gas + power + car_age
+                  ,data = claimreg_tbl)
+```
+
+#### Model Diagnostics
+
+```{r model_log_claims_filtered_glance, echo=FALSE}
+expclaim2_lm %>%
+    glance() %>%
+    gather('diagnostic', 'value') %>%
+    kable(digits = 4)
+```
+
+---
+
+#### Model Coefficients
+
+```{r model_log_claims_filtered_tidy, echo=FALSE}
+expclaim2_lm %>% tidy() %>% kable(digits = 4)
+```
+
+---
+
+```{r visualise_claim_amount_model_filtered, echo=FALSE}
+sigma <- summary(expclaim2_lm)$sigma
+mult_fact <- exp(0.5 * sigma * sigma)
+
+plot_tbl <- claimreg_tbl %>%
+    mutate(predict_claim = (expclaim2_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
+
+ggplot(plot_tbl) +
+    geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
+    expand_limits(y = 0) +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Actual Claim Amount") +
+    ylab("Predicted Amount") +
+    ggtitle("Plot of Predicted vs Actual Claim Amount for Non-Large Losses")
+```
+
+---
+
+Pretty poor
+
+---
+
+Fit a Gamma?
+
+---
+
+### Gamma GLM
+
+```{r fit_claims_gamma, echo=TRUE}
+claimgamma_glm <- glm(claim_amount ~ gas + power + car_age + cat_driver_age +
+                                     cat_driver_age:power
+                     ,family = Gamma(link = 'log')
+                     ,data   = claimreg_tbl)
+```
+
+\
+
+
+#### Model Diagnostics
+
+```{r claims_gamma_glance, echo=FALSE}
+claimgamma_glm %>%
+    glance() %>%
+    gather('diagnostic', 'value') %>%
+    kable(digits = 2)
+```
+
+---
+
+#### Model Coefficients
+
+```{r claims_gamma_tidy, echo=FALSE}
+claimgamma_glm %>%
+    tidy() %>%
+    arrange(abs(estimate)) %>%
+    head(n = 20) %>%
+    kable(digits = 4)
+```
+
+---
+
+```{r visualise_claims_gamma_model, echo=FALSE}
+plot_tbl <- claimreg_tbl %>%
+    mutate(predict_claim = claimgamma_glm %>% predict(type = 'response'))
+
+ggplot(plot_tbl) +
+    geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
+    expand_limits(y = 0) +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Actual Claim Amount") +
+    ylab("Predicted Amount") +
+    ggtitle("Actual vs Expected Plot for Claim Size")
+```
+
+---
+
+Best to have low expectations
+
+
+```{r delete_files, echo=FALSE}
+rm(expclaim_lm, expclaim2_lm, expmodel2_glm, gas_glm)
+```
+
+
+# Model Assessment
+
+## Assessing Frequency Models
+
+\
+
+Deviance, AIC, BIC
+
+\
+
+Simulate claim counts
+
+\
+
+Observed vs distribution of expected
+
+
+## Assessing Severity Models
+
+\
+
+Claim severity skewed
+
+\
+
+Actual vs Observed inappropriate
+
+\
+
+Alternative approach required
+
+---
+
+### Proposed Claim Size Assessment
+
+\
+
+
+  1. Per-claim gamma parameters
+  1. Calculate quantile for claim amount
+  1. Check quantile values against uniform distribution
+  
+\
+
+Alternative is Q-Q plot
+
+
+
+## Simulation of Claim Counts
+
+\
+
+Observed vs Predicted
+
+\
+
+In-Sample and Out-of-Sample
+
+
+---
+
+```{r simulate_claim_counts, echo=FALSE}
+sampledata_tbl <- policy_tbl %>%
+    sample_n(20000)
+
+
+crossval_tbl <- crossv_mc(sampledata_tbl, 20, 0.25, id = 'fold_id') %>%
+    mutate(assess    = map2(train, test, create_crossval_assessment)
+          ,observed  = map_int(assess, 'observed_count')
+          ,predicted = map    (assess, 'predicted_count')
+          ,cuml_prob = map_dbl(assess, 'cuml_prob')
+           )
+
+plot_tbl <- crossval_tbl %>%
+    unnest(predicted)
+
+ggplot(plot_tbl) +
+    geom_histogram(aes(x = predicted), bins = 25) +
+    geom_vline(aes(xintercept = observed), colour = 'red') +
+    facet_wrap(~ fold_id, ncol = 5) +
+    xlab("Claim Count") +
+    ylab("Count") +
+    ggtitle("Claim Count Assessment Plot for Claim Frequency")
+```
+
+---
+
+Small fold-count
+
+\
+
+Cumulative probabilities
+
+
+
+## Simulation of Claim Size
+
+\
+
+GLM Gamma fit?
+
+---
+
+$$
+X \sim \Gamma(\alpha, \beta)
+$$
+\
+
+
+\begin{eqnarray*}
+\alpha &=& \text{scale parameter} \\
+\beta  &=& \text{rate parameter}
+\end{eqnarray*}
+
+---
+
+
+To simulate need $(\alpha, \beta)$
+
+\
+
+
+\begin{eqnarray*}
+\alpha &=& \frac{1}{\text{dispersion}} \\
+\beta  &=& \frac{\alpha}{\mu}
+\end{eqnarray*}
+
+
+
+## Assessment Approach
+
+\
+
+Layers of uncertainty
+
+
+---
+
+### Simple Frequency/Severity
+
+\
+
+Per policy claim frequency / severity
+
+\
+
+Distribution of predicted vs observed
+
+---
+
+### Simulate Claim Counts
+
+\
+
+Simulate claim counts from claim rate
+
+\
+
+Average claim size
+
+\
+
+Multiply to calculate simulated loss cost
+
+
+---
+
+### Simulate Claim Count and Size
+
+\
+
+Simulate claim counts from claim rate
+
+\
+
+Simulate claim size from prediction
+
+\
+
+Multiply through for loss calculation
+
+
+---
+
+### Checking Claim Size Uniformity
+
+```{r assess_claim_size_uniformity_histogram, echo=FALSE, fig.height=7}
+claimsize_assess_tbl <- claimgamma_glm %>%
+    augment(type.predict = 'response') %>%
+    mutate(claim_gamma_shape = gamma.shape(claimgamma_glm)$alpha
+          ,claim_gamma_rate  = claim_gamma_shape / .fitted
+          ,claim_prob        = pgamma(claim_amount, shape = claim_gamma_shape, rate = claim_gamma_rate)
+           ) %>%
+    arrange(claim_prob) %>%
+    mutate(prob_order = 1:n())
+
+ggplot(claimsize_assess_tbl) +
+    geom_histogram(aes(x = claim_prob), bins = 50) +
+    expand_limits(y = c(0, 1)) +
+    scale_x_continuous(labels = comma) +
+    xlab('Claim Size Probability') +
+    ylab('Order') +
+    ggtitle('Claim Size Model Assessment - Histogram')
+```
+
+---
+
+```{r assess_claim_size_uniformity_qqplot, echo=FALSE, fig.height=7}
+ggplot(claimsize_assess_tbl) +
+    geom_line(aes(x = prob_order, y = claim_prob)) +
+    expand_limits(y = c(0, 1)) +
+    scale_y_continuous(labels = comma) +
+    xlab('Probability Ordering') +
+    ylab('Claim Size Probability') +
+    ggtitle('Claim Size Model Assessment - Lineplot')
+```
+
+
+# Building a Premium Quoter
+
+## Data Preparation
+
+\
+
+Remove drivers older than 75 years
+
+\
+
+Remove cars older than 20 years
+
+---
+
+```{r filter_data, echo=FALSE}
+quotepolicy_tbl <- policy_tbl %>%
+    filter(driver_age <= 75, car_age <= 20)
+
+quoteclaim_tbl <- claim_tbl %>%
+    filter(claim_amount < 25000)
+```
+
+Total size of dataset after filters: `r quotepolicy_tbl %>% nrow %>% comma`
+
+\
+
+```{r show_filtered_data, echo=FALSE}
+quotepolicy_tbl %>% head() %>% kable(digits = 2)
+```
+
+---
+
+### Split Data
+
+\
+
+Standard Train/Test split
+
+\
+
+Take 100,000 policies for test
+
+\
+
+```{r split_data, echo=FALSE}
+aggclaims_tbl <- quoteclaim_tbl %>%
+    group_by(policy_id) %>%
+    summarise(claim_count = n()
+             ,claim_total = sum(claim_amount)
+              )
+
+attr_combined_tbl <- quotepolicy_tbl %>%
+    left_join(aggclaims_tbl, by = 'policy_id') %>%
+    replace_na(list(claim_count = 0L
+                   ,claim_total = 0))
+
+testpolicies_tbl  <- attr_combined_tbl %>%
+    sample_n(100000, replace = FALSE) %>%
+    arrange(policy_id)
+
+trainpolicies_tbl <- attr_combined_tbl %>%
+    anti_join(testpolicies_tbl, by = 'policy_id') %>%
+    arrange(policy_id)
+
+tribble(
+    ~Dataset,                                      ~Size
+   , "Train",   trainpolicies_tbl %>% nrow() %>% comma() 
+   ,  "Test",   testpolicies_tbl  %>% nrow() %>% comma()
+    ) %>%
+    knitr::kable(align = 'lr')
+```
+
+---
+
+## Model Claim Rate
+
+```{r model_claimrate_driverage, echo=TRUE}
+model_01_glm <- glm(claim_nb ~ cat_driver_age
+                   ,offset = log(exposure)
+                   ,family = poisson
+                   ,data   = trainpolicies_tbl)
+```
+
+### Model Diagnostics
+
+```{r model_claimrate_01_glance, echo=FALSE}
+model_01_glm %>%
+    glance() %>%
+    gather('diagnostic', 'value') %>%
+    kable(digits = 2)
+```
+
+---
+
+### Model Coefficients
+
+```{r model_claimrate_01_tidy, echo=FALSE}
+model_01_glm %>% tidy() %>% kable(digits = 4)
+```
+
+---
+
+## Final Claim Rate Model
+
+```{r model_claimrate_02, echo=TRUE}
+model_02_glm <- glm(claim_nb ~ gas + cat_driver_age + car_age + density +
+                               cat_driver_age:gas
+                   ,offset = log(exposure)
+                   ,family = poisson
+                   ,data   = trainpolicies_tbl)
+```
+
+### Model Diagnostics
+
+```{r model_claimrate_02_glance, echo=FALSE}
+model_02_glm %>%
+    glance() %>%
+    gather('diagnostic', 'value') %>%
+    kable(digits = 2)
+```
+
+---
+
+### Model Coefficients
+
+```{r model_claimrate_02_tidy, echo=FALSE}
+model_02_glm %>% tidy() %>% kable(digits = 4)
+```
+
+---
+
+## Assess Claim Rate Model
+
+\
+
+Use predictive checks as before
+
+---
+
+```{r assess_claimfrequency_model, echo=FALSE}
+assessment_count <- 20
+
+claimfreq_assessment_tbl <- crossv_mc(trainpolicies_tbl
+                                     ,assessment_count
+                                     ,test = 0.25
+                                     ,id = 'fold_id') %>%
+    mutate(assess    = map2(train, test, create_claimrate_assessment, n_sim = n_sim)
+          ,observed  = map_int(assess, 'observed_count')
+          ,predicted = map(assess, 'predicted_count')
+          ,cuml_prob = map_dbl(assess, 'cuml_prob')
+           )
+
+plot_tbl <- claimfreq_assessment_tbl %>%
+    unnest(predicted)
+
+ggplot(plot_tbl) +
+    geom_histogram(aes(x = predicted), bins = 25) +
+    geom_vline(aes(xintercept = observed), colour = 'red') +
+    facet_wrap(~ fold_id, ncol = 5) +
+    scale_x_continuous(labels = comma) +
+    xlab("Claim Count") +
+    ylab("Count") +
+    ggtitle("Claim Count Assessment Plot for Claim Frequency Model") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+---
+
+What about claim size?
+
+---
+
+VERY noisy...
+
+---
+
+Assume average claim size
+
+\
+
+
+```{r calculate_mean_claim_size, echo=TRUE}
+claim_tbl %>%
+    filter(claim_amount <= 25000) %>%
+    summarise(mean_amount = mean(claim_amount))
+```
+
+\
+
+Use this for claim prediction
+
+```{r create_claimsize_model, echo=FALSE}
+modelclaim_tbl <- quoteclaim_tbl %>%
+    inner_join(quotepolicy_tbl, by = 'policy_id')
+
+claimsize_glm <- glm(claim_amount ~ cat_driver_age
+                    ,family = Gamma(link = 'log')
+                    ,data   = modelclaim_tbl)
+```
+
+
+---
+
+## Calculate Large Loss Charge
+
+```{r estimate_largeloss_rate, echo=FALSE}
+largeclaim_count <- claim_tbl %>%
+    filter(claim_amount >= 25000) %>%
+    nrow()
+
+largeclaim_prop <- largeclaim_count / (policy_tbl$exposure %>% sum)
+```
+
+\
+
+Estimate large losses per unit exposure
+
+
+---
+
+Power-law scaling factor
+
+\
+
+$\alpha = `r pl_scaling`$
+
+\
+
+Use to estimate mean of distribution
+
+\
+
+```{r generate_power_law, echo=FALSE}
+sample_size <- 1000000
+
+sample_pl <- rplcon(sample_size, xmin = 25000, alpha = pl_scaling)
+
+expected_loss <- sample_pl %>% mean()
+
+expected_loss_print <- comma(expected_loss)
+```
+
+$\mu = `r expected_loss_print`$
+
+---
+
+```{r show_largeclaim_data, echo=FALSE}
+tribble(
+                   ~Quantity,                                                     ~Value
+   ,      "Loss Expectation", expected_loss                     %>% round(2) %>% comma()
+   ,"Large Claim Proportion", largeclaim_prop                   %>%  sprintf("%8.6f", .)
+   ,     "Large-loss Charge", (largeclaim_prop * expected_loss) %>% round(2) %>% comma()
+    ) %>%
+    knitr::kable(align = c('lr'))
+```
+
+---
+
+
+## Create Premium Quoter Function
+
+```{r create_premium_quoter_function, echo=FALSE}
+premium_quoter <- create_pricing_function(
+    claimrate_model_glm = model_02_glm
+   ,claimsize_model_glm = claimsize_glm
+   ,largeloss_charge    = largeclaim_prop * expected_loss
+   ,quote_ratio         = 0.35
+)
+```
+
+
+```{r calculate_premium_price, echo=FALSE}
+sampledata_tbl <- trainpolicies_tbl %>% sample_n(100000)
+
+pricing_tbl <- premium_quoter(sampledata_tbl) %>%
+    mutate(policy_id = sampledata_tbl$policy_id)
+```
+
+```{r show_premium_table, echo=FALSE}
+pricing_tbl %>%
+    select(policy_id, expect_price, largeloss_charge, risk_premium, quote_price) %>%
+    arrange(policy_id) %>%
+    head(n = 20) %>%
+    kable(digits = 2)
+```
+
+
+# Pricing Assessment
+
+\
+
+Do the premia cover losses?
+
+\
+
+Do the premia result in expected profit?
+
+\
+
+Can we test attritional and large claims separately?
+
+
+---
+
+## Test-Run Assessment Method
+
+\
+
+Claim rate
+
+\
+
+Claim size
+
+\
+
+Loss cost
+
+
+---
+
+### Assess Training Data
+
+```{r construct_train_valid_datasets, echo=FALSE}
+insamp_tbl <- trainpolicies_tbl %>%
+    sample_n(100000) %>%
+    arrange(policy_id)
+
+outsamp_tbl <- trainpolicies_tbl %>%
+    anti_join(insamp_tbl, by = 'policy_id') %>%
+    sample_n(50000) %>%
+    arrange(policy_id)
+
+simulate_claim_data <- create_claim_simulator(claimfreq_glm     = model_02_glm
+                                             ,claimsev_glm      = claimsize_glm
+                                             ,largeloss_freq    = largeclaim_prop
+                                             ,largeloss_scaling = pl_scaling)
+```
+
+```{r sanity_check_training, echo=FALSE}
+insamp_assess_lst <- simulate_claim_data(insamp_tbl
+                                        ,variable_claim_size = FALSE
+                                        ,model_large_losses  = TRUE
+                                        ,n_sim = n_sim
+                                        ) %>%
+    construct_model_assessment("In-Sample Data")
+```
+
+```{r check_training_data_claim_count, echo=FALSE, fig.height=7.5}
+insamp_assess_lst$claimcount_plot %>% print()
+```
+
+---
+
+```{r check_training_data_loss_cost, echo=FALSE}
+insamp_assess_lst$losscost_plot %>% print()
+```
+
+---
+
+### Assess Out-of-Sample Data
+
+```{r model_validation_oos, echo=FALSE}
+outsamp_assess_lst <- simulate_claim_data(outsamp_tbl
+                                         ,variable_claim_size = FALSE
+                                         ,model_large_losses = TRUE
+                                         ,n_sim = n_sim
+                                            ) %>%
+    construct_model_assessment("Out-of-Sample Data")
+```
+
+```{r check_oos_data_claim_count, echo=FALSE, fig.height=7.5}
+outsamp_assess_lst$claimcount_plot %>% print()
+```
+
+---
+
+```{r check_oos_data_loss_cost, echo=FALSE}
+outsamp_assess_lst$losscost_plot %>% print()
+```
+
+
+## Adding Claim Size Variation
+
+```{r simulate_claim_size, echo=FALSE}
+insamp_varsize_assess_lst <- simulate_claim_data(
+        insamp_tbl
+       ,variable_claim_size = TRUE
+       ,n_sim = n_sim
+    ) %>%
+    construct_model_assessment("In-Sample Data - Variable Claim Size")
+
+outsamp_varsize_assess_lst <- simulate_claim_data(
+        outsamp_tbl
+       ,variable_claim_size = TRUE
+       ,n_sim               = n_sim
+    ) %>% construct_model_assessment("Out-of-Sample Data - Variable Claim Size")
+```
+
+```{r simulate_claim_size_insample_plot, echo=FALSE, fig.height=7}
+insamp_varsize_assess_lst$losscost_plot %>% print()
+```
+
+---
+
+```{r check_simulate_claim_size_oos, echo=FALSE}
+outsamp_varsize_assess_lst$losscost_plot %>% print()
+```
+
+---
+
+```{r show_all_plot, echo=FALSE}
+plot_grid(insamp_assess_lst$losscost_plot  +
+              ggtitle("In-Sample, Fixed Claim Size"
+                     ,subtitle = insamp_assess_lst$losscost_plot$labels$subtitle)
+         ,outsamp_assess_lst$losscost_plot +
+             ggtitle("Out-of-Sample, Fixed Claim Size"
+                    ,subtitle = outsamp_assess_lst$losscost_plot$labels$subtitle)
+         ,insamp_varsize_assess_lst$losscost_plot  +
+             ggtitle("In-Sample, Variable Claim Size"
+                    ,subtitle = insamp_varsize_assess_lst$losscost_plot$labels$subtitle)
+         ,outsamp_varsize_assess_lst$losscost_plot +
+             ggtitle("Out-of-Sample, Variable Claim Size"
+                    ,subtitle = outsamp_varsize_assess_lst$losscost_plot$labels$subtitle)
+         ,ncol = 2
+          )
+```
+
+## Assess Attritional Pricing
+
+```{r construct_premium_quoter_function, echo=FALSE}
+premium_quoter <- create_pricing_function(
+    claimrate_model_glm = model_02_glm
+   ,claimsize_model_glm = claimsize_glm
+   ,largeloss_charge    = largeclaim_prop * expected_loss
+   ,quote_ratio         = 0.35
+)
+
+insamp_pricing_tbl <- premium_quoter(insamp_tbl)
+
+insamp_pricing_assess_lst <- insamp_assess_lst$data_tbl %>%
+    inner_join(insamp_pricing_tbl, by = 'policy_id') %>%
+    construct_pricing_assessment('In-Sample Attritional Pricing Comparison')
+
+
+
+outsamp_pricing_tbl <- premium_quoter(outsamp_tbl)
+
+outsamp_pricing_assess_lst <- outsamp_assess_lst$data_tbl %>%
+    inner_join(outsamp_pricing_tbl, by = 'policy_id') %>%
+    construct_pricing_assessment('Out-of-Sample Attritional Pricing Comparison')
+```
+
+```{r plot_insample_pricing_assessment, echo=FALSE, fig.height=7}
+insamp_pricing_assess_lst$assess_plot %>% print()
+```
+
+---
+
+```{r plot_outsample_pricing_assessment, echo=FALSE}
+outsamp_pricing_assess_lst$assess_plot %>% print()
+```
+
+
+## Assess Large-loss Pricing
+
+---
+
+### In-Sample Prediction
+
+```{r assess_largeloss_insamp_pricing, echo=FALSE, fig.height=7.5}
+obs_ll_loss <- claim_tbl %>%
+    semi_join(insamp_pricing_assess_lst$data_tbl, by = 'policy_id') %>%
+    filter(claim_amount > 25000) %>%
+    pull(claim_amount) %>%
+    sum()
+
+sim_ll_loss <- insamp_pricing_assess_lst$data_tbl$largeloss_claimsize %>% reduce(`+`)
+
+ggplot() +
+    geom_histogram(aes(x = sim_ll_loss), bins = 50) +
+    geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Simulated Loss Cost") +
+    ylab("Simulation Count") +
+    ggtitle("In-Sample Plot of Simulated Large Losses vs Observed")
+```
+
+---
+
+### Out-of-Sample Prediction
+
+```{r assess_largeloss_outsamp_pricing, echo=FALSE, fig.height=7.5}
+obs_ll_loss <- claim_tbl %>%
+    semi_join(outsamp_pricing_assess_lst$data_tbl, by = 'policy_id') %>%
+    filter(claim_amount > 25000) %>%
+    pull(claim_amount) %>%
+    sum()
+
+sim_ll_loss <- outsamp_pricing_assess_lst$data_tbl$largeloss_claimsize %>% reduce(`+`)
+
+ggplot() +
+    geom_histogram(aes(x = sim_ll_loss), bins = 50) +
+    geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
+    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
+    xlab("Simulated Loss Cost") +
+    ylab("Simulation Count") +
+    ggtitle("Out-of-Sample Plot of Simulated Large Losses vs Observed")
+```
+
+
+
+# Future Steps
+
+## Problems and Shortcomings
+
+\
+
+Simplistic distributions, overdispersed models?
+
+\
+
+More validation / testing
+
+\
+
+Claim size models need work
+
+
+
+## Future Improvements
+
+Improved validation
+
+\
+
+Large-loss assessment
+
+\
+
+Use Bayesian version - `stan_glm`
+
+\
+
+Improve linear models - GAMs
+
+
+
+## Further Resources
+
+\
+
+
+------------------------------- ------------------------- -------------------------- ------------------------------  
+![](img/charpentier_splash.png) ![](img/frees_splash.png) ![](img/dejong_splash.png) ![](img/gelmanhill_splash.png)
+------------------------------- ------------------------- -------------------------- ------------------------------
+
+---
+
+\
+
+https://github.com/kaybenleroll/carinsurance_pricing
+
+\
+
+http://ijlyttle.github.io/isugg_purrr/presentation.html#(1)
+
+\
+
+https://github.com/DublinLearningGroup/dataexpks
+
+
+
+## Questions?
+
+\
+
+Email: mickcooney@gmail.com
+
+\
+
+GitHub: https://github.com/kaybenleroll/dublin_r_workshops
+
+
+```{r remove_variables, include=FALSE}
+rm(claimfreq_assessment_tbl); gc()
+```
+
