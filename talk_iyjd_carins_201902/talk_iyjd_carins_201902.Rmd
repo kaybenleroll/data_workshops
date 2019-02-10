@@ -552,6 +552,31 @@ Estimate rate of large losses
 Use mean loss to calculate flat charge
 
 
+## Calculate Price
+
+\
+
+'Technical' price
+
+\
+
+$$
+P_{\text{Technical}} = P_{\text{Attritional}} + P_{\text{Catastrophic}}
+$$
+
+## Known Limitations
+
+\
+
+May want "Large Loss" piece - not in data
+
+\
+
+No consideration of market realities
+
+
+
+
 # Generalized Linear Models
 
 
@@ -917,7 +942,7 @@ expclaim2_lm <- lm(log(claim_amount) ~ gas + power + car_age
 expclaim2_lm %>%
     glance() %>%
     gather('diagnostic', 'value') %>%
-    kable(digits = 2)
+    kable(digits = 4)
 ```
 
 ---
@@ -1002,7 +1027,8 @@ ggplot(plot_tbl) +
     scale_x_continuous(labels = comma) +
     scale_y_continuous(labels = comma) +
     xlab("Actual Claim Amount") +
-    ylab("Predicted Amount")
+    ylab("Predicted Amount") +
+    ggtitle("Actual vs Expected Plot for Claim Size")
 ```
 
 ---
@@ -1030,6 +1056,36 @@ Simulate claim counts
 \
 
 Observed vs distribution of expected
+
+
+## Assessing Severity Models
+
+\
+
+Claim severity skewed
+
+\
+
+Actual vs Observed inappropriate
+
+\
+
+Alternative approach required
+
+---
+
+### Proposed Claim Size Assessment
+
+\
+
+
+  1. Per-claim gamma parameters
+  1. Calculate quantile for claim amount
+  1. Check quantile values against uniform distribution
+  
+\
+
+Alternative is Q-Q plot
 
 
 
@@ -1166,6 +1222,41 @@ Simulate claim size from prediction
 
 Multiply through for loss calculation
 
+
+---
+
+### Checking Claim Size Uniformity
+
+```{r assess_claim_size_uniformity_histogram, echo=FALSE, fig.height=7}
+claimsize_assess_tbl <- claimgamma_glm %>%
+    augment(type.predict = 'response') %>%
+    mutate(claim_gamma_shape = gamma.shape(claimgamma_glm)$alpha
+          ,claim_gamma_rate  = claim_gamma_shape / .fitted
+          ,claim_prob        = pgamma(claim_amount, shape = claim_gamma_shape, rate = claim_gamma_rate)
+           ) %>%
+    arrange(claim_prob) %>%
+    mutate(prob_order = 1:n())
+
+ggplot(claimsize_assess_tbl) +
+    geom_histogram(aes(x = claim_prob), bins = 50) +
+    expand_limits(y = c(0, 1)) +
+    scale_x_continuous(labels = comma) +
+    xlab('Claim Size Probability') +
+    ylab('Order') +
+    ggtitle('Claim Size Model Assessment - Histogram')
+```
+
+---
+
+```{r assess_claim_size_uniformity_qqplot, echo=FALSE, fig.height=7}
+ggplot(claimsize_assess_tbl) +
+    geom_line(aes(x = prob_order, y = claim_prob)) +
+    expand_limits(y = c(0, 1)) +
+    scale_y_continuous(labels = comma) +
+    xlab('Probability Ordering') +
+    ylab('Claim Size Probability') +
+    ggtitle('Claim Size Model Assessment - Lineplot')
+```
 
 
 # Building a Premium Quoter
@@ -1308,7 +1399,7 @@ Use predictive checks as before
 ---
 
 ```{r assess_claimfrequency_model, echo=FALSE}
-assessment_count <- 12
+assessment_count <- 20
 
 claimfreq_assessment_tbl <- crossv_mc(trainpolicies_tbl
                                      ,assessment_count
@@ -1326,7 +1417,7 @@ plot_tbl <- claimfreq_assessment_tbl %>%
 ggplot(plot_tbl) +
     geom_histogram(aes(x = predicted), bins = 25) +
     geom_vline(aes(xintercept = observed), colour = 'red') +
-    facet_wrap(~ fold_id, ncol = 4) +
+    facet_wrap(~ fold_id, ncol = 5) +
     scale_x_continuous(labels = comma) +
     xlab("Claim Count") +
     ylab("Count") +
