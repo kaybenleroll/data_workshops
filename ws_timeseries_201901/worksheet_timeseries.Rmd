@@ -1944,8 +1944,9 @@ univariate analysis to make our predictions.
 ## Regression Forecasting
 
 One possible starting point for forecasting problems is to use linear
-regression, much like any other predictive modelling. The difference is that
-we make time be an input.
+regression, much like any other predictive modelling with time as an input to
+the regression. We account for seasonality by using the various calendar labels
+as additional predictors.
 
 
 
