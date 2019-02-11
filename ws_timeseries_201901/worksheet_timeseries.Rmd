@@ -34,6 +34,7 @@ library(timetk)
 library(sweep)
 library(seasonal)
 library(forecast)
+library(broom)
 
 
 options(width = 80L
@@ -1941,16 +1942,124 @@ univariate analysis to make our predictions.
 
 
 
-## Regression Forecasting
+## Forecasting with Linear Models
 
-One possible starting point for forecasting problems is to use linear
-regression, much like any other predictive modelling with time as an input to
-the regression. We account for seasonality by using the various calendar labels
-as additional predictors.
+One possible starting point for forecasting problems is to use a linear model,
+much like any other predictive modelling with time as an input to the
+regression. We account for seasonality by using the various calendar labels as
+additional predictors.
+
+Rather than fit the model on the whole dataset, we use the final year of data
+as our test dataset.
+
+```{r ap_forecast_regression_data, echo=TRUE}
+ap_lm_data_tbl <- airpassengers_tbl %>%
+    mutate(month_label = format(month, '%m')
+          ,year_num    = year(month)
+           )
+
+ap_train_tbl <- ap_lm_data_tbl %>% filter(year_num != 1960)
+ap_test_tbl  <- ap_lm_data_tbl %>% filter(year_num == 1960)
+```
+
+### Simple Linear Model
+
+We now fit a model.
+
+```{r ap_forecast_regression_lm, echo=TRUE}
+ap_base_lm <- lm(value ~ 0 + month_label + year_num, data = ap_train_tbl)
+
+ap_base_lm %>% glance()
+ap_base_lm %>% tidy()
+```
+
+We now check the fitted values against the observed.
+
+```{r ap_forecast_regression_train, echo=TRUE}
+plot_tbl <- ap_base_lm %>%
+    augment() %>%
+    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    select(month, observed = value, fitted = .fitted) %>%
+    gather('series', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = series)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle("Comparison Lineplot of Air Passengers vs Linear Model")
+```
+
+We see that the additive model here may be less appropriate as a multiplicative
+model as our linear model over-estimates early values and then under-estimates
+towards the end of the series.
+
+We expect this will continue when we try the model with the test data.
+
+```{r ap_forecast_regression_test, echo=TRUE}
+plot_tbl <- ap_base_lm %>%
+    augment(newdata = ap_test_tbl) %>%
+    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    select(month, observed = value, fitted = .fitted) %>%
+    gather('series', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = series)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle("Comparison Lineplot of Air Passengers vs Linear Model (1960 points)")
+```
 
 
+### Poisson Model
 
+A more appropriate model may be to fit the Poisson model.
 
+```{r ap_forecast_regression_glm, echo=TRUE}
+ap_base_glm <- glm(value ~ 0 + month_label + year_num
+                  ,data   = ap_train_tbl
+                  ,family = poisson)
+
+ap_base_glm %>% glance()
+ap_base_glm %>% tidy()
+```
+
+We now check the fitted values against the observed.
+
+```{r ap_forecast_regression_glm_train, echo=TRUE}
+plot_tbl <- ap_base_glm %>%
+    augment(type.predict = 'response') %>%
+    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    select(month, observed = value, fitted = .fitted) %>%
+    gather('series', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = series)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model")
+```
+
+We see that a Poisson model does a better job of capturing the magnitude of
+the values throughout the series. We hope this means the 1960 data points are
+better matched also.
+
+```{r ap_forecast_regression_glm_test, echo=TRUE}
+plot_tbl <- ap_base_glm %>%
+    augment(newdata = ap_test_tbl, type.predict = 'response') %>%
+    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    select(month, observed = value, fitted = .fitted) %>%
+    gather('series', 'value', -month)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = month, y = value, colour = series)) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model (1960 points)")
+```
 
 
 ## Time Series Forecasting
@@ -1976,7 +2085,7 @@ w_t   &\sim&  \mathcal{N}(0, \sigma) \text{ (i.i.d)}
 \end{eqnarray*}
 
 
-## EWMA Models
+### EWMA Models
 
 We let $a_t$ be our estimate of $\mu_t$, and can define the
 *exponentially-weighted moving average (EWMA)*, $a_t$ to be
@@ -1987,6 +2096,9 @@ $$
 
 The value of $\alpha$ controls the amount of smoothing, as is referred
 to as the *smoothing parameter*.
+
+
+
 
 
 ```
@@ -2007,7 +2119,7 @@ Specifying values of $\alpha$ of 0.2 and 0.9, create new versions of
 the EWMA and compare them with previous fits of the EWMA.
 ```
 
-## Holt-Winters Model
+### Holt-Winters Model
 
 The Holt-Winters method generalises this concept, allowing for trends
 and seasonal effects. The equations that govern this model for
