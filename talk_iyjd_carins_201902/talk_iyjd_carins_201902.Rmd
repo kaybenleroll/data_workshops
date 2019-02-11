@@ -647,10 +647,16 @@ combined_tbl %>%
 ```{r plot_region_claim_rate, echo=FALSE, fig.height=7.5, fig.width=11}
 claimrate_region_tbl <- combined_tbl %>%
     group_by(region) %>%
-    summarise(claim_rate = sum(claim_count) / sum(exposure))
+    summarise(tot_claim    = sum(claim_count)
+             ,tot_exposure = sum(exposure)
+             ,claim_rate   = tot_claim / tot_exposure
+             ,rate_upper = qgamma(0.75, shape = tot_claim, rate = tot_exposure)
+             ,rate_lower = qgamma(0.25, shape = tot_claim, rate = tot_exposure)
+              )
 
 ggplot(claimrate_region_tbl) +
     geom_point(aes(x = region, y = claim_rate)) +
+    geom_errorbar(aes(x = region, ymin = rate_lower, ymax = rate_upper), width = 0) +
     expand_limits(y = 0) +
     xlab('Region') +
     ylab('Claim Rate') +
@@ -664,14 +670,21 @@ ggplot(claimrate_region_tbl) +
 ```{r plot_driver_age_claim_rate, echo=FALSE, fig.height=7.5, fig.width=11}
 claimrate_driverage_tbl <- combined_tbl %>%
     group_by(driver_age) %>%
-    summarise(claim_rate = sum(claim_count) / sum(exposure))
+    summarise(tot_claim    = sum(claim_count)
+             ,tot_exposure = sum(exposure)
+             ,claim_rate   = tot_claim / tot_exposure
+             ,rate_upper = qgamma(0.75, shape = tot_claim, rate = tot_exposure)
+             ,rate_lower = qgamma(0.25, shape = tot_claim, rate = tot_exposure)
+              )
 
 ggplot(claimrate_driverage_tbl) +
     geom_point(aes(x = driver_age, y = claim_rate)) +
+    geom_errorbar(aes(x = driver_age, ymin = rate_lower, ymax = rate_upper), width = 0) +
     expand_limits(y = 0) +
     xlab('Driver Age') +
     ylab('Claim Rate') +
-    ggtitle("Claim Rate by Driver Age")
+    ggtitle("Claim Rate by Driver Age"
+           ,subtitle = 'Uncertainty is inter-quartile values for Gamma distribution')
 ```
 
 ---
@@ -804,6 +817,7 @@ ggplot(secretweapon_tbl) +
     facet_wrap(~term, scales='free_y') +
     xlab("Region") +
     ylab("Parameter Value") +
+    ggtitle("Claim Frequency Model Outputs by Region") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5)
          ,strip.text.x = element_text(size = 8)
           )
@@ -829,6 +843,7 @@ ggplot(secretweapon_tbl %>% filter(term %in% first_params)) +
     facet_wrap(~term, scales='free_y') +
     xlab("Region") +
     ylab("Parameter Value") +
+    ggtitle("Claim Frequency Model Outputs by Region") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
@@ -842,6 +857,7 @@ ggplot(secretweapon_tbl %>% filter(!term %in% first_params)) +
     facet_wrap(~term, scales='free_y') +
     xlab("Region") +
     ylab("Parameter Value") +
+    ggtitle("Claim Frequency Model Outputs by Region") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
@@ -1240,7 +1256,7 @@ claimsize_assess_tbl <- claimgamma_glm %>%
 ggplot(claimsize_assess_tbl) +
     geom_histogram(aes(x = claim_prob), bins = 50) +
     expand_limits(y = c(0, 1)) +
-    scale_x_continuous(labels = comma) +
+    scale_y_continuous(labels = comma) +
     xlab('Claim Size Probability') +
     ylab('Order') +
     ggtitle('Claim Size Model Assessment - Histogram')
@@ -1252,7 +1268,6 @@ ggplot(claimsize_assess_tbl) +
 ggplot(claimsize_assess_tbl) +
     geom_line(aes(x = prob_order, y = claim_prob)) +
     expand_limits(y = c(0, 1)) +
-    scale_y_continuous(labels = comma) +
     xlab('Probability Ordering') +
     ylab('Claim Size Probability') +
     ggtitle('Claim Size Model Assessment - Lineplot')
@@ -1328,7 +1343,7 @@ tribble(
    , "Train",   trainpolicies_tbl %>% nrow() %>% comma() 
    ,  "Test",   testpolicies_tbl  %>% nrow() %>% comma()
     ) %>%
-    knitr::kable(align = 'lr')
+    kable(align = 'lr')
 ```
 
 ---
@@ -1512,7 +1527,7 @@ tribble(
    ,"Large Claim Proportion", largeclaim_prop                   %>%  sprintf("%8.6f", .)
    ,     "Large-loss Charge", (largeclaim_prop * expected_loss) %>% round(2) %>% comma()
     ) %>%
-    knitr::kable(align = c('lr'))
+    kable(align = c('lr'))
 ```
 
 ---
@@ -1793,11 +1808,13 @@ Claim size models need work
 
 ## Future Improvements
 
+\
+
 Improved validation
 
 \
 
-Large-loss assessment
+Better large-loss / catastrophic loss assessment
 
 \
 
@@ -1806,6 +1823,10 @@ Use Bayesian version - `stan_glm`
 \
 
 Improve linear models - GAMs
+
+\
+
+Investigate neural nets / tweedie / boosting
 
 
 
@@ -1842,7 +1863,7 @@ Email: mickcooney@gmail.com
 
 \
 
-GitHub: https://github.com/kaybenleroll/dublin_r_workshops
+GitHub: https://github.com/kaybenleroll/data_workshops
 
 
 ```{r remove_variables, include=FALSE}
