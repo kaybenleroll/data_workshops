@@ -910,7 +910,7 @@ of the passenger counts, grouping by month.
 
 ```{r plot_ap_monthly_boxplots, echo=TRUE}
 plot_tbl <- airpassengers_tbl %>%
-    mutate(cal_month = format(month, '%b'))
+    mutate(cal_month = format(month, '%m'))
 
 ggplot(plot_tbl) +
     geom_boxplot(aes(x = cal_month, y = value)) +
@@ -2096,6 +2096,11 @@ $$
 
 The value of $\alpha$ controls the amount of smoothing, as is referred
 to as the *smoothing parameter*.
+
+The main package we use for forecasting in R is the `forecast` package,
+created by Rob Hyndman. `forecast` contains a convenient framework for
+performing most of the task required for time series forecast. We then use
+the `sweep` package to bring the outputs into a tidy format where appropriate.
 
 
 
