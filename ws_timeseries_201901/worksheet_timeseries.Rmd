@@ -1962,6 +1962,13 @@ ap_train_tbl <- ap_lm_data_tbl %>% filter(year_num != 1960)
 ap_test_tbl  <- ap_lm_data_tbl %>% filter(year_num == 1960)
 ```
 
+```{r maine_forecast_regression_data, echo=TRUE}
+maine_train_tbl <- maine_tbl %>% filter(month <  as.yearmon('2005-01'))
+maine_test_tbl  <- maine_tbl %>% filter(month >= as.yearmon('2005-01'))
+```
+
+
+
 ### Simple Linear Model
 
 We now fit a model.
@@ -2095,34 +2102,134 @@ a_t = \alpha x_t + (1 - \alpha) \, a_{t-1}, \;\;\; 0 \leq \alpha \leq 1.
 $$
 
 The value of $\alpha$ controls the amount of smoothing, as is referred
-to as the *smoothing parameter*.
+to as the *smoothing parameter*. An alternative name for this time-series model
+is *simple exponential smoothing (SES)*.
 
 The main package we use for forecasting in R is the `forecast` package,
 created by Rob Hyndman. `forecast` contains a convenient framework for
 performing most of the task required for time series forecast. We then use
 the `sweep` package to bring the outputs into a tidy format where appropriate.
 
+#### Air Passenger Data
 
+We start using the EWMA model on the Air Passenger data.
 
+As a simple approach for testing our models, we remove the final year from the
+air passenger data and produce forecasts for those, comparing them to the 
+actual values.
 
+```{r ap_ewma_first, echo=TRUE}
+ap_ewma_fit <- ap_train_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    ets(model = 'ANN')
 
+ap_ewma_fit %>% sw_tidy()
+ap_ewma_fit %>% sw_glance()
 ```
-\worksheetexercise
-Load the data in the \texttt{motororg.dat} file. This is a count of
-complaints received on a monthly basis by a motoring organisation from
-1996 to 1999. Create an appropriate time series from this data. Plot
-the data, checking it for trends or seasonality.
 
-\worksheetexercise
-Using the function \texttt{HoltWinters()}, with the additional
-parameters set to zero, create the EWMA of the data, allowing the
-function itself to choose the optimal value of $\alpha$. Investigate
-and visualise the output, comparing it to the original time series.
+Now that we have fit our model we can use the `forecast()` function to produce
+forecasts for future times, as well as plotting them.
 
-\worksheetexercise
-Specifying values of $\alpha$ of 0.2 and 0.9, create new versions of
-the EWMA and compare them with previous fits of the EWMA.
+```{r ap_produce_forecasts, echo=TRUE}
+ap_ewma_forecast_tbl <- ap_ewma_fit %>%
+    forecast(h = 12, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+
+ggplot(ap_ewma_forecast_tbl) +
+    geom_line  (aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Forecast for Air Passengers with EWMA Model')
 ```
+
+We see that the EWMA model is not effective in terms prediction.
+
+We can compare the fits against the data directly with `sw_augment()`:
+
+```{r ap_ewma_sweep_augment, echo=TRUE}
+ap_ewma_augment_tbl <- ap_ewma_fit %>%
+    sw_augment(rename_index = 'month')
+
+
+ggplot(ap_ewma_augment_tbl) +
+    geom_line(aes(x = month, y = .actual)) +
+    geom_line(aes(x = month, y = .fitted), colour = 'red') +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Forecast for Air Passengers with EWMA Model')
+```
+
+
+
+
+#### Maine Unemployment
+
+We now try the EWMA model on the Maine Unemployment data to see if this model
+works any better.
+
+```{r maine_ewma_model, echo=TRUE}
+maine_ewma_fit <- maine_train_tbl %>%
+    tk_ts(select = value, start = 1996, frequency = 12) %>%
+    ets(model = 'ANN')
+
+maine_ewma_fit %>% sw_tidy()
+maine_ewma_fit %>% sw_glance()
+```
+
+As before, having fit the EWMA model we now produce forecasts.
+
+```{r maine_produce_forecasts, echo=TRUE}
+maine_ewma_forecast_tbl <- maine_ewma_fit %>%
+    forecast(h = 20, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+
+ggplot(maine_ewma_forecast_tbl) +
+    geom_line  (aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Forecast for Maine Unemployment Data with EWMA Model')
+```
+
+In some cases, with such a simple model we may prefer to set values for
+$\alpha$ directly rather than fitting it to the data. We do this by passing
+the chosen parameters directly into the fitting routine:
+
+```{r maine_ewma_model_set_params, echo=TRUE}
+maine_ewma_paramfit <- maine_train_tbl %>%
+    tk_ts(select = value, start = 1996, frequency = 12) %>%
+    ets(model = 'ANN', alpha = 0.8)
+
+maine_ewma_paramfit %>% sw_tidy()
+maine_ewma_paramfit %>% sw_glance()
+```
+
+We now produce forecasts using the set EWMA parameter to see how they compare.
+
+```{r maine_produce_paramfit_forecasts, echo=TRUE}
+maine_ewma_paramfit_forecast_tbl <- maine_ewma_paramfit %>%
+    forecast(h = 20, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+
+ggplot(maine_ewma_paramfit_forecast_tbl) +
+    geom_line  (aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Forecast for Maine Unemployment Data with Non-Fitted EWMA Model')
+```
+
 
 ### Holt-Winters Model
 
@@ -2145,23 +2252,300 @@ s_t && \text{is the estimated seasonal effect at time $t$},\\
 \alpha, \beta, \gamma && \text{are smoothing parameters}
 \end{eqnarray*}
 
-```
-\worksheetexercise
-Fit the Holt-Winters parameters to the air passenger data and check
-the fit. Visualise the raw time-series against the fitted data.
+Within the framework of the `forecast` package, we have an additive trend with
+an additive seasonal component and additive errors. This corresponds to using
+the 'AAA' `ets()` model
 
-\worksheetexercise
-Predict data ahead for four years and visualise this data. How
-reliable are these forecasts do you think?
+
+#### Air Passenger Data
+
+We start with the Air Passenger data, and use the 'AAA' model within `ets()`.
+
+```{r fit_holtwinters_ts_model, echo=TRUE}
+ap_hw_fit <- ap_train_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    ets(model = 'AAA')
+
+ap_hw_fit %>% sw_tidy()
+ap_hw_fit %>% sw_glance()
+
+
+ap_hw_forecast_tbl <- ap_hw_fit %>%
+    forecast(h = 12, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+
+ggplot(ap_hw_forecast_tbl) +
+    geom_line  (aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Forecast for Air Passengers with Holt-Winters Model')
+
+
+ap_hw_augment_tbl <- ap_hw_fit %>%
+    sw_augment(rename_index = 'month')
+
+ggplot(ap_hw_augment_tbl) +
+    geom_line(aes(x = month, y = .actual)) +
+    geom_line(aes(x = month, y = .fitted), colour = 'red') +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('sw_augment Output for Holt-Winters Model')
 ```
+
+For this data the multiplicative trend and errors is not the most appropriate
+so we will refit this data with those changes.
+
+Rather than run through the full set of code again we run a more concise
+version of this code.
+
+```{r fit_ap_mult_hw, echo=TRUE}
+ap_hwmult_fit <- ap_train_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    ets(model = 'MAM')
+
+ap_hwmult_forecast_tbl <- ap_hwmult_fit %>%
+    forecast(h = 12, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+ap_hwmult_fit %>% sw_tidy()
+ap_hwmult_fit %>% sw_glance()
+
+ggplot(ap_hwmult_forecast_tbl) +
+    geom_line(aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Air Passengers Forecast for Multiplicative Holt-Winters Model')
+```
+
+
+#### Maine Unemployment Data
+
+We now try to fit our models with the Maine Unemployment data, repeating the
+process from before.
+
+```{r fit_maine_hw, echo=TRUE}
+maine_hw_fit <- maine_train_tbl %>%
+    tk_ts(select = value, start = 1996, frequency = 12) %>%
+    ets(model = 'ANN')
+
+maine_hw_forecast_tbl <- maine_hw_fit %>%
+    forecast(h = 20, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+maine_hw_fit %>% sw_tidy()
+maine_hw_fit %>% sw_glance()
+
+
+ggplot(maine_hw_forecast_tbl) +
+    geom_line(aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Additive Holt-Winters Model for the Maine Unemployment Data')
+```
+
+As before, we can try a multiplicative model.
+
+```{r fit_maine_hwmult, echo=TRUE}
+maine_hwmult_fit <- maine_train_tbl %>%
+    tk_ts(select = value, start = 1996, frequency = 12) %>%
+    ets(model = 'MAM')
+
+maine_hwmult_forecast_tbl <- maine_hwmult_fit %>%
+    forecast(h = 20, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+maine_hwmult_fit %>% sw_tidy()
+maine_hwmult_fit %>% sw_glance()
+
+
+ggplot(maine_hwmult_forecast_tbl) +
+    geom_line(aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Multiplicative Holt-Winters Model for the Maine Unemployment Data')
+```
+
+We see that including a seasonal component into the model improves the
+predictions
+
+
+## Automated Model Selection
+
+The `ets()` function allows us to automatically select a model given the time
+series data.
+
+The exponentially-smoothed models fitted allows us to use AIC and BIC as a
+decision metric.
+
+The Aikake Information Criterion (AIC) is defined to be:
+
+$$
+\text{AIC} = -2 \log(L) + 2k,
+$$
+
+where $L$ is the likelihood of the fitted model and $k$ is the number of
+degrees of freedom in the model (free parameters, initial states and residual
+variance).
+
+For small sample sizes this approach may still be prone to overfitting, so we
+may use a corrected version for small-sample bias, ($\text{AIC}_c$)
+
+$$
+\text{AIC}_c = \text{AIC} + \frac{k(k+1)}{T - k -1},
+$$
+
+The Bayes Information Criterion (BIC) is defined to be:
+
+$$
+\text{BIC} = \text{AIC} + k (\log(T) - 2)
+$$
+
+The `ets()` model allows us to select the type of error term, trend type and
+seasonality, letting us choose additive (A), multiplicative (M), none (N) or
+automatically selected (Z) for each of the three options.
+
+The first values, the error term, cannot be 'N' and a number of combinations
+are numerically unstable and suppressed.
+
+We now fit both the Air Passenger and Maine Unemployment data using the
+automatic model selection.
+
+### Air Passenger Models
+
+We now fit the Air Passenger data first.
+
+```{r fit_ap_auto_ets, echo=TRUE}
+ap_autoets_fit <- ap_train_tbl %>%
+    tk_ts(select = value, start = 1949, frequency = 12) %>%
+    ets(model = 'ZZZ')
+
+ap_autoets_forecast_tbl <- ap_autoets_fit %>%
+    forecast(h = 12, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+ap_autoets_fit %>% sw_tidy()
+ap_autoets_fit %>% sw_glance()
+
+ggplot(ap_autoets_forecast_tbl) +
+    geom_line(aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Air Passengers Forecast for Automatic ETS Model')
+```
+
+Having fit the data and selected the model, we now can compare our different
+models and how the forecasts compare to each other.
+
+```{r compare_ap_forecasts, echo=TRUE}
+ap_forecast_compare_tbl <- list(
+    ewma   = ap_ewma_forecast_tbl    %>% filter(key == 'forecast')
+   ,hw     = ap_hw_forecast_tbl      %>% filter(key == 'forecast')
+   ,hwmult = ap_hwmult_forecast_tbl  %>% filter(key == 'forecast')
+   ,auto   = ap_autoets_forecast_tbl %>% filter(key == 'forecast')
+    ) %>%
+    bind_rows(.id = 'model') %>%
+    mutate(month = as.yearmon(month))
+
+
+ggplot(ap_forecast_compare_tbl) +
+    geom_line(aes(x = month, y = value, colour = model)) +
+    geom_line(aes(x = month, y = value), colour = 'black', data = ap_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Comparison of Air Passenger Forecast Models')
+```
+
+
+### Maine Unemployment Models
+
+We now move on to the Maine Unemployment data, and repeat the procedure.
+
+
+```{r fit_maine_auto_ets, echo=TRUE}
+maine_autoets_fit <- maine_train_tbl %>%
+    tk_ts(select = value, start = 1996, frequency = 12) %>%
+    ets(model = 'ZZZ')
+
+maine_autoets_forecast_tbl <- maine_autoets_fit %>%
+    forecast(h = 20, level = c(50, 80)) %>%
+    sw_sweep(rename_index = 'month')
+
+maine_autoets_fit %>% sw_tidy()
+maine_autoets_fit %>% sw_glance()
+
+
+ggplot(maine_autoets_forecast_tbl) +
+    geom_line(aes(x = month, y = value, colour = key)) +
+    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Maine Unemployment Forecast for Automatic ETS Model')
+```
+
+As before, we compare the forecasts against one another.
+
+```{r compare_maine_forecasts, echo=TRUE}
+maine_forecast_compare_tbl <- list(
+    ewma      = maine_ewma_forecast_tbl          %>% filter(key == 'forecast')
+   ,ewmaparam = maine_ewma_paramfit_forecast_tbl %>% filter(key == 'forecast')
+   ,hw        = maine_hw_forecast_tbl            %>% filter(key == 'forecast')
+   ,hwmult    = maine_hwmult_forecast_tbl        %>% filter(key == 'forecast')
+   ,auto      = maine_autoets_forecast_tbl       %>% filter(key == 'forecast')
+    ) %>%
+    bind_rows(.id = 'model') %>%
+    mutate(month = as.yearmon(month))
+
+
+ggplot(maine_forecast_compare_tbl) +
+    geom_line(aes(x = month, y = value, colour = model)) +
+    geom_line(aes(x = month, y = value), colour = 'black', data = maine_test_tbl) +
+    expand_limits(y = 0) +
+    xlab("Date") +
+    ylab("Count") +
+    ggtitle('Comparison of Maine Unemployment Forecast Models')
+```
+
 
 
 # AR, MA and ARMA Models
 
-A time series $w_t$ is \emph{discrete white noise} if the $w_t$ are
-i.i.d with a mean of zero. Thus, they all have the same variance
-$\sigma^2$ and $\text{Cor}(w_i, w_j) = 0$ for $i \neq j$. In addition,
-if the $w_j \sim N(0, \sigma^2)$ then it is said to be
+We now turn our attention to the auto-regressive and moving average model - the
+second workhorse for time-series modelling.
+
+## Building Blocks
+
+These models are built from a number of elementary model types that we first
+discuss before combining in different ways to model time series data seen in
+the real world.
+
+
+### White Noise Series
+
+A time series $w_t$ is \emph{discrete white noise} if the $w_t$ are i.i.d with
+a mean of zero. They all have the same variance $\sigma^2$ and
+$\text{Cor}(w_i, w_j) = 0$ for $i \neq j$.
+
+In addition, if $w_j \sim N(0, \sigma^2)$ then it is called
 \emph{Gaussian white noise}.
 
 
@@ -2171,105 +2555,302 @@ $$
 x_t = x_{t-1} + w_t,
 $$
 
-
 where $w_t$ is a white-noise series.
 
+
+```{r white_noise_series, echo=TRUE}
+wn_innov <- rnorm(200, 0, 1)
+
+sim_wn_ts <- arima.sim(list()
+                      ,n = length(wn_innov)
+                      ,innov = wn_innov
+                      ,start.innov = rep(0, 100)
+                      )
+
+sim_wn_ts_tbl <- sim_wn_ts %>%
+    tk_tbl() %>%
+    add_column(index = 1:length(sim_wn_ts), .before = 1)
+
+ggplot(sim_wn_ts_tbl) +
+    geom_line(aes(x = index, y = value)) +
+    expand_limits(y = 0) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Plot of Generated Gaussian White Noise Series")
 ```
-\worksheetexercise
-Generate a white noise series using \texttt{rnorm()}, with an initial
-value, $w_0 = 1$. and length 100. Plot the output, and investigate its
-correlogram.
 
-\worksheetexercise
-Generate a random walk time series with initial value $x_0 = 1$ and
-length 100. Plot its output and investigate its correlogram.
+We also produce a standard and partial correlogram, but expect no significant
+lags.
 
-\worksheetexercise
-Think about how you might create a random walk with an underlying
-drift?
+```{r white_noise_acf_pacf, echo=TRUE}
+sim_wn_ts %>% Acf()  %>% autoplot() + ggtitle("ACF for White Noise Series")
+sim_wn_ts %>% Pacf() %>% autoplot() + ggtitle("PACF for White Noise Series")
 ```
 
-## Autoregressive Process - AR(p)
 
-The time series $x_t$ is a \emph{auto-regressive process of order $p$},
+### Autoregressive Process - AR(p)
+
+The time series $x_t$ is an \emph{auto-regressive process of order $p$},
 $\text{AR}(p)$, if,
 
-\begin{equation}
-x_t = \sum^p_{i=1} \alpha_i x_{t-i} + w_t,
-\end{equation}
+\begin{eqnarray*}
+x_t &=& \delta + \alpha_1 x_1 + ... + \alpha_p x_p + w_t \\
+    &=& \alpha_0 + \sum^p_{i=1} \alpha_i x_{t-i} + w_t,
+\end{eqnarray*}
 
-\noindent
-where $w_t$ is a white-noise process and the $\alpha_p \neq 0$ for an
-order-$p$ process.
+where
+
+\begin{eqnarray*}
+w_t      &=&    \text{is a white-noise process} \\
+\delta   &=&    \text{'intercept' value}     \\
+\alpha_p &\neq& 0 \text{ for order } p
+\end{eqnarray*}
 
 
+With this definition, we can use this as a *data-generating process* to
+construct an example AR(1) model, and visual inspect the results.
+
+```{r generate_ar1_model, echo=TRUE}
+sim_ar1_ts <- arima.sim(list(ar = 0.5)
+                       ,n     = length(wn_innov)
+                       ,innov = wn_innov
+                       ,start.innov = rep(0, 100)
+                        )
+
+sim_ar1_ts_tbl <- sim_ar1_ts %>%
+    tk_tbl() %>%
+    add_column(index = 1:length(sim_ar1_ts), .before = 1)
+
+ggplot(sim_ar1_ts_tbl) +
+    geom_line(aes(x = index, y = value)) +
+    expand_limits(y = 0) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Plot of Generated AR(1) Series")
 ```
-\worksheetexercise
-Generate data for an AR(1) model with $\alpha = 0.5$ and initial value
-$x_1 = 1$. Plot the data and investigate its correlogram. Does this
-time series appear to be stationary? The R function
-\texttt{arima.sim()} can be used for this.
 
-\worksheetexercise
-Generate data for an AR(2) model with $\alpha_1 = 1$ and
-$\alpha_2 = -0.25$ and initial value $x_1 = 1$, $x_2 = 1$. Plot the
-data and investigate its correlogram. Does this time series appear to
-be stationary?
+Having generated the AR(1) process, we now look at the correlogram to see what
+it produces.
 
-\worksheetexercise
-Generate data for an AR(2) model with $\alpha_1 = 0.5$ and
-$\alpha_2 = 0.5$ and initial value $x_1 = 1$, $x_2 = 1$.
-
-\worksheetexercise
-Fit the time-series you generated above to an autoregressive model
-using the function \texttt{ar()}. How do the fitted parameters match
-the values you used?
+```{r ar1_acf_pacf, echo=TRUE}
+sim_ar1_ts %>% Acf()  %>% autoplot() + ggtitle("ACF for AR(1) Series")
+sim_ar1_ts %>% Pacf() %>% autoplot() + ggtitle("PACF for AR(1) Series")
 ```
 
-## Moving Average Process - MA(q)
 
-A moving average (MA) process of order $q$ is a linear combination of
-the current white noise term and the $q$ most recent past white noise
-terms,
+Moving on, in a similar fashion we can construct an AR(2) model with the same
+innovations, but with $\alpha_1 = 1$, $\alpha_2 = -0.25$:
 
-\begin{equation}
-x_t = w_t + \sum^q_{i=1} \beta_i w_{t - i}
-\end{equation}
+
+```{r generate_ar2_model, echo=TRUE}
+sim_ar2_ts <- arima.sim(list(ar = c(1, -0.25))
+                       ,n     = length(wn_innov)
+                       ,innov = wn_innov
+                       ,start.innov = rep(0, 100)
+                         )
+
+sim_ar2_ts_tbl <- sim_ar2_ts %>%
+    tk_tbl() %>%
+    add_column(index = 1:length(sim_ar2_ts), .before = 1)
+
+
+ggplot(sim_ar2_ts_tbl) +
+    geom_line(aes(x = index, y = value)) +
+    expand_limits(y = 0) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Plot of Generated AR(2) Series")
+```
+
+We also look at the correlogram for this series.
+
+```{r ar2_acf_pacf, echo=TRUE}
+sim_ar2_ts %>% Acf()  %>% autoplot() + ggtitle("ACF for AR(2) Series")
+sim_ar2_ts %>% Pacf() %>% autoplot() + ggtitle("PACF for AR(2) Series")
+```
+
+
+
+We can try a number of different parameters here to see the effect - we try
+another AR(2) but this time with both parameters positive:
+
+
+```{r generate_ar2alt_model, echo=TRUE}
+sim_ar2alt_ts <- arima.sim(list(ar = c(0.5, 0.4))
+                          ,n     = length(wn_innov)
+                          ,innov = wn_innov
+                          ,start.innov = rep(0, 100)
+                           )
+
+sim_ar2alt_ts_tbl <- sim_ar2alt_ts %>%
+    tk_tbl() %>%
+    add_column(index = 1:length(sim_ar2alt_ts), .before = 1)
+
+
+ggplot(sim_ar2alt_ts_tbl) +
+    geom_line(aes(x = index, y = value)) +
+    expand_limits(y = 0) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Plot of Generated Alternate AR(2) Series")
+```
+
+And the correlogram for this alternate AR(2) series.
+
+```{r ar2alt_acf_pacf, echo=TRUE}
+sim_ar2alt_ts %>% Acf()  %>% autoplot() + ggtitle("ACF for Alternate AR(2) Series")
+sim_ar2alt_ts %>% Pacf() %>% autoplot() + ggtitle("ACF for Alternate AR(2) Series")
+```
+
+To help with intuition we plot these generated data together.
+
+```{r plot_generated_ar_series, echo=TRUE}
+sim_compare_tbl <- list(
+    wn     = sim_wn_ts_tbl
+   ,ar1    = sim_ar1_ts_tbl
+   ,ar2    = sim_ar2_ts_tbl
+   ,ar2alt = sim_ar2alt_ts_tbl
+    ) %>%
+    bind_rows(.id = 'model')
+
+
+ggplot(sim_compare_tbl) +
+    geom_line(aes(x = index, y = value, colour = model)) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Generated AR Models Comparison Plot")
+```
+
+
+### Moving Average Process - MA(q)
+
+A moving average (MA) process of order $q$ is a linear combination of the
+current white noise term and the $q$ most recent past white noise terms,
+
+\begin{eqnarray*}
+x_t &=& w_t + \gamma + \beta_1 w_1 + ... + \beta_q w_q \\
+    &=& \gamma + w_t + \sum^q_{i=1} \beta_i w_{t-i}
+\end{eqnarray*}
 
 where $w_t$ is a white-noise process with mean 0 and variance $\sigma^2$.
 
+\begin{eqnarray*}
+w_t     &=&    \text{is a white-noise process with mean 0 and variance } \sigma^2 \\
+\gamma  &=&    \text{'intercept' value}     \\
+\beta_q &\neq& 0 \text{ for order } q
+\end{eqnarray*}
 
+
+```{r generate_ma1_model, echo=TRUE}
+sim_ma1_ts <- arima.sim(list(ma = 0.5)
+                       ,n     = length(wn_innov)
+                       ,innov = wn_innov
+                       ,start.innov = rep(0, 100)
+                        )
+
+sim_ma1_ts_tbl <- sim_ma1_ts %>%
+    tk_tbl() %>%
+    add_column(index = 1:length(sim_ma1_ts), .before = 1)
+
+ggplot(sim_ma1_ts_tbl) +
+    geom_line(aes(x = index, y = value)) +
+    expand_limits(y = 0) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Plot of Generated MA(1) Series")
 ```
-\worksheetexercise
-Generate data for an MA(1) model with $\beta = 0.5$ and initial value
-$x_1 = 1$. Plot the data and investigate its correlogram. Does this
-time series appear to be stationary?
 
-\worksheetexercise
-Generate data for an MA(2) model with $\beta_1 = 1$ and
-$\beta_2 = -0.25$ and initial values $x_1 = 1$, $x_2 = 2$. Plot the
-data and investigate its correlogram. Does this time series appear to
-be stationary?
+We check the MA(1) correlogram:
 
-\worksheetexercise
-Generate data for an MA(2) model with $\beta_1 = 0.5$ and
-$\beta_2 = 0.5$ and initial values $x_1 = 1$, $x_2 = 1$.
+```{r ma1_acf_pacf, echo=TRUE}
+sim_ma1_ts %>% Acf()  %>% autoplot() + ggtitle("ACF for MA(1) Series")
+sim_ma1_ts %>% Pacf() %>% autoplot() + ggtitle("ACF for MA(1) Series")
+```
 
-\worksheetexercise
-Fit the time-series you generated above to a moving-average model
-using the function \texttt{arima()}. How do the fitted parameters
-match the values you used?
 
-\worksheetexercise
-Compare the AR and MA models to one another.
+Like we did before, we now generate an MA(2) model.
+
+```{r generate_ma2_model, echo=TRUE}
+sim_ma2_ts <- arima.sim(list(ma = c(1, -0.25))
+                       ,n     = length(wn_innov)
+                       ,innov = wn_innov
+                       ,start.innov = rep(0, 100)
+                         )
+
+sim_ma2_ts_tbl <- sim_ma2_ts %>%
+    tk_tbl() %>%
+    add_column(index = 1:length(sim_ma2_ts), .before = 1)
+
+
+ggplot(sim_ma2_ts_tbl) +
+    geom_line(aes(x = index, y = value)) +
+    expand_limits(y = 0) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Plot of Generated MA(2) Series")
+```
+
+Once again we look at the MA(2) series.
+
+```{r ma2_acf_pacf, echo=TRUE}
+sim_ma2_ts %>% Acf()  %>% autoplot() + ggtitle("ACF for MA(2) Series")
+sim_ma2_ts %>% Pacf() %>% autoplot() + ggtitle("ACF for MA(2) Series")
+```
+
+
+```{r plot_generated_ma_series, echo=TRUE}
+sim_compare_tbl <- list(
+    wn  = sim_wn_ts_tbl
+   ,ma1 = sim_ma1_ts_tbl
+   ,ma2 = sim_ma2_ts_tbl
+    ) %>%
+    bind_rows(.id = 'model')
+
+
+ggplot(sim_compare_tbl) +
+    geom_line(aes(x = index, y = value, colour = model)) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Generated MA Models Comparison Plot")
+```
+
+
+### Comparing AR and MA Models
+
+Before moving on to ARMA and ARIMA models we combine all our generated series
+and plot them all against each other.
+
+```{r plot_generated_ar_ma_series, echo=TRUE}
+sim_compare_tbl <- list(
+    wn     = sim_wn_ts_tbl
+   ,ar1    = sim_ar1_ts_tbl
+   ,ar2    = sim_ar2_ts_tbl
+   ,ar2alt = sim_ar2alt_ts_tbl
+   ,ma1    = sim_ma1_ts_tbl
+   ,ma2    = sim_ma2_ts_tbl
+    ) %>%
+    bind_rows(.id = 'model')
+
+
+ggplot(sim_compare_tbl) +
+    geom_line(aes(x = index, y = value, colour = model)) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Generated AR and MA Models Comparison Plot")
 ```
 
 
 ## ARMA and ARIMA Models
 
-Now suppose we combine the ideas of autoregressive and moving average models
-together. A time series follows an *autoregressive moving average (ARMA)*
-process of order $(p, q)$ when
+Autoregressive moving-average models combine both the AR and MA models
+together. The benefit of combining both models is due to the
+*principle of parsimony* - given two equal quality models, we prefer the one
+with the lower number of parameters.
+
+In general, ARMA models fit time series with a lower number of parameters than
+either AR or MA models alone, so they are preferred.
+
+More formally, we define an $\text{ARMA}(p, q)$ model to be
 
 $$
 x_t = \sum_{i=1}^p \alpha_i x_{t-i} + w_t + \sum_{j=1}^q \beta_j w_{t-j}
@@ -2278,63 +2859,43 @@ $$
 where $w_t$ is white noise.
 
 Both $\text{AR}(p)$ and $\text{MA}(q)$ models are special cases of
-$\text{ARMA}(p, q)$ (with $q = 0$ and $p = 0$ respectively), and ARMA
-models are usually preferred due to \emph{parameter parsimony} ---
-when fitting data, the ARMA model is usually more parameter efficient,
-requiring few parameters.
+$\text{ARMA}(p, q)$ (with $q = 0$ and $p = 0$ respectively).
+
+We now fit an $\text{ARMA}(1, 1)$ model using the same white-noise innovations
+as before.
 
 
+```{r generate_arma_1_1_model, echo=TRUE}
+sim_arma_1_1_ts <- arima.sim(list(ar = 0.5, ma = 0.5)
+                            ,n     = length(wn_innov)
+                            ,innov = wn_innov
+                            ,start.innov = rep(0, 100)
+                             )
+
+sim_arma_1_1_ts_tbl <- sim_arma_1_1_ts %>%
+    tk_tbl() %>%
+    add_column(index = 1:length(sim_arma_1_1_ts), .before = 1)
+
+ggplot(sim_arma_1_1_ts_tbl) +
+    geom_line(aes(x = index, y = value)) +
+    expand_limits(y = 0) +
+    xlab("Index") +
+    ylab("Value") +
+    ggtitle("Plot of Generated ARMA(1,1) Series")
 ```
-\worksheetexercise
-Using the R function \texttt{arima.sim()}, create an ARMA(1,1)
-time-series of length 1000 with $\alpha = -0.6$, and
-$\beta = 0.5$. Plot this time series and check its ACF. Is this
-correct?
 
-\worksheetexercise
-Using \texttt{arima()}, fit your generated time series to an
-$\text{ARMA}(1,1)$ model and compare the fitted output to the values
-you have set.
+We use `auto.arima()` to fit parameters for this data to see if we recover the
+given parameters.
 
-\worksheetexercise
-Repeat the above exercises, but for an $\text{ARMA}(2, 2)$ model with
-$\alpha_1 = 0.2$, $\alpha_2 = -0.5$, $\beta_1 = -0.1$ and
-$\beta_2 = 0.3$.
-
-\worksheetexercise
-Investigate the effect of the parameters $p$ and $q$ by generating the
-various combinations of the $\text{ARMA}(p, q)$ models but using the
-same set of innovations in each case.\\
-\textbf{HINT:} \texttt{arima.sim()} has a parameter \texttt{innov = ...}
-that allows you to pass in a set of innovations into the ARMA process.
-
-\worksheetexercise
-Load in the GBP/NZD currency pair data from the file
-\texttt{pound\_nz.dat}, and create a time-series from this. The data is
-quarterly, and starts in Q1 1991.
-
-\worksheetexercise
-Fit the data GBP/NZD to an $\text{MA}(1)$, an $\text{AR}(1)$ and an
-$\text{ARMA}(1, 1)$ process. Which of the above models does the best
-job at fitting the data?
+```{r fit_sim_arma_1_1, echo=TRUE}
+sim_arma_1_1_ts %>%
+    auto.arima() %>%
+    sw_tidy()
 ```
 
 
 ### Fitting ARMA Models
 
-It may be becoming quickly apparent that the choice of parameter count is
-non-trivial, and some kind of systematic approach would be desirable.
-
-One such method for choosing the optimal number of parameters is to fit
-multiple options and choose the best one, using a metric known as the
-*Akaike Information Criterion (AIC)*. The AIC is defined to be
-
-$$
-\text{AIC} = -2 \times \text{loglikelihood of fit} + 2 \times \text{parameter count},
-$$
-
-so that it balances the better fitting of parameters while penalising
-using too many parameters to fit.
 
 ```
 \worksheetexercise
