@@ -1,0 +1,688 @@
+---
+title: "An Introduction to Options and Risk Margining"
+subtitle: "Dublin Data Science"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2019-03-25"
+output:
+  revealjs::revealjs_presentation:
+#    css: custom.css
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls()); gc()
+
+import::from(rlang     ,as_integer)
+import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
+import::from(magrittr  ,"%>%", set_colnames)
+import::from(readr     ,read_csv, write_csv, read_rds, write_rds, cols
+                       ,col_character)
+import::from(dplyr     ,mutate, filter, select, group_by
+                       ,left_join, inner_join, anti_join, semi_join
+                       ,summarise, summarise_at, vars, distinct, sample_n
+                       ,pull, if_else, count, arrange, bind_rows)
+import::from(tidyr     ,gather, spread, nest, unnest, replace_na, crossing)
+import::from(ggplot2   ,ggplot, aes, xlab, ylab, ggtitle
+                       ,geom_histogram, geom_boxplot, geom_bar, geom_col
+                       ,geom_line, geom_vline, geom_hline, geom_smooth
+                       ,geom_point, geom_errorbar, geom_tile
+                       ,scale_x_continuous, scale_y_continuous 
+                       ,expand_limits, theme, element_text, facet_grid
+                       ,facet_wrap, theme_set, theme)
+import::from(scales    ,comma)
+import::from(cowplot   ,theme_cowplot, plot_grid)
+import::from(purrr     ,map, map2, map_int, map_dbl, map_chr, map2_dbl, reduce)
+import::from(knitr     ,kable)
+import::from(RQuantLib ,AmericanOption, EuropeanOption)
+
+
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+theme_set(theme_cowplot())
+
+
+set.seed(42)
+```
+
+
+
+
+
+# Introduction
+
+## Derivatives
+
+![](img/charlie_munger.jpg)
+
+*If you intelligently trade derivatives, it's like a license to steal*
+Charlie Munger, Berkshire Hathaway (2014)
+
+
+## Options
+
+\
+
+
+The contract offers the buyer the right, but not the obligation, to trade (buy
+or sell) the underlying asset at a specific price during a defined period of
+time or on a specific date.
+
+---
+
+Options on everything
+
+\ 
+
+Equities
+
+Futures
+
+Bonds
+
+Swaps
+  
+
+
+# Options Trading
+
+## Terminology
+
+\
+
+Call/Put
+
+Long/Short
+
+Strike
+
+Expiration / Lifetime
+
+American / European
+  
+
+## Risk
+
+\
+
+Counterparty
+
+Liquidity
+
+Asset
+
+
+## Exchanges
+
+\
+
+Central marketplace
+
+\
+
+Fixed expirations and strikes
+
+\
+
+Contracts for 100 shares
+
+---
+
+Two-sided open outcry
+
+\
+
+*bid-ask spread*
+
+\
+
+Proxy for liquidity
+
+
+# Payoffs and Option Spreads
+
+---
+
+\
+
+Payoff, value of option at expiration
+
+\
+
+$S$, Price of underlying
+
+\
+
+$K$, Strike price in contract
+
+
+## Payoff Graphs
+
+\
+
+Plot of payoff vs underlying
+
+---
+
+```{r longcalloption_payoff, echo=FALSE, results='show'}
+S <- seq(50, 150, by = 0.1)
+K <- 100
+
+call_payoff <- pmax(S - K, 0);
+put_payoff  <- pmax(K - S, 0);
+
+
+ggplot() +
+    geom_line(aes(x = S, y = call_payoff)) +
+    xlab('Stock Price, S') +
+    ylab('Payoff') +
+    ggtitle('Payoff of a Long Call Option with Strike Price K = 100')
+```
+
+---
+
+```{r longputoption_payoff, echo=FALSE, results='show'}
+ggplot() +
+    geom_line(aes(x = S, y = put_payoff)) +
+    xlab('Stock Price, S') +
+    ylab('Payoff') +
+    ggtitle('Payoff of a Long Put Option with Strike Price K = 100')
+```
+
+## Option Spreads
+
+\
+
+Options often combined into *spreads*
+
+\
+
+---
+
+### Bullish Call Spread
+
+\
+
+Same expiry
+
+\
+
+Long call at strike $K_1$
+
+\
+
+Short call at strike $K_2$
+
+---
+
+```{r longbullcallspread_payoff, echo=FALSE, results='show'}
+S <- seq(80, 120, by = 0.1)
+K1 <- 100
+K2 <- 110
+
+call1_payoff <- pmax(S - K1, 0);
+call2_payoff <- pmax(S - K2, 0);
+
+spread_payoff <- call1_payoff - call2_payoff
+
+ggplot() +
+    geom_line(aes(x = S, y = spread_payoff)) +
+    xlab('Stock Price, S') +
+    ylab('Payoff') +
+    ggtitle('Payoff of a Long Bullish Call Spread with Strike Price K = 100, 110')
+```
+
+
+---
+
+### Long Straddle
+
+\
+
+Same expiry
+
+\
+
+Long call and put at strike $K$
+
+---
+
+```{r longstraddle_payoff, echo=FALSE, results='show', fig.height=7, fig.width=11}
+S <- seq(80, 120, by = 0.1)
+K <- 100
+
+call_payoff <- pmax(S - K, 0);
+put_payoff  <- pmax(K - S, 0);
+
+spread_payoff <- call_payoff + put_payoff
+
+ggplot() +
+    geom_line(aes(x = S, y = spread_payoff)) +
+    xlab('Stock Price, S') +
+    ylab('Payoff') +
+    ggtitle('Payoff of a Long Straddle with Strike Price K = 100')
+```
+
+---
+
+### Long Butterfly
+
+\
+
+Same expiry
+
+\
+
+Long calls at $K_1$, $K_3$
+
+\
+
+Short two calls at $K_2$
+
+
+---
+
+```{r longbutterfly_payoff, echo=FALSE, results='show', fig.height=7, fig.width=11}
+S <- seq(80, 120, by = 0.1)
+K1 <- 90
+K2 <- 100
+K3 <- 110
+
+c1_payoff <- pmax(S - K1, 0);
+c2_payoff <- pmax(S - K2, 0);
+c3_payoff <- pmax(S - K3, 0);
+
+spread_payoff <- c1_payoff - 2 * c2_payoff + c3_payoff
+
+ggplot() +
+    geom_line(aes(x = S, y = spread_payoff)) +
+    xlab('Stock Price, S') +
+    ylab('Payoff') +
+    ggtitle('Payoff of a Long Butterfly Spread with Strike Price K = 90, 100, 110')
+```
+
+---
+
+### Others
+
+\
+
+Calendar spreads
+
+\
+
+Box Spreads
+
+\
+
+Condor
+
+\
+
+Conversion / Reversal
+
+
+---
+
+Focus on value at expiration
+
+\
+
+What about while 'in-force'
+
+
+
+# Option Pricing
+
+---
+
+How do we price/value this 'insurance'?
+
+---
+
+What impacts this value?
+
+---
+
+\begin{eqnarray*}
+S &=& \text{current price of underlying}   \\
+K &=& \text{strike price of contract}      \\
+t &=& \text{time to expiration}            \\
+r &=& \text{risk-free interest rate}       \\
+\sigma &=& \text{volatility of underlying} \\
+\end{eqnarray*}
+
+---
+
+## Key Assumption of Finance
+
+\
+
+"No arbitrage" condition
+
+---
+
+No risk-free profit
+
+
+
+## Black Scholes
+
+\
+
+$$
+\frac{dV}{dt} + \frac{1}{2} \sigma^2 S^2 \frac{d^2 V}{dS^2} + rS \frac{dV}{dS} - rV = 0
+$$
+
+---
+
+```{r show_blackscholes_prices_calls, echo=FALSE}
+S <- seq(90, 110, by = 0.01)
+T <- 10/252
+K <- 100
+r <- 0.02
+sig <- 0.20
+
+call_pricing_tbl <- tibble(S = S) %>%
+    mutate(type = 'call'
+          ,eurocalc = map(S, EuropeanOption
+                         ,type          = 'call'
+                         ,strike        = K
+                         ,dividendYield = 0
+                         ,riskFreeRate  = r
+                         ,maturity      = T
+                         ,volatility    = sig)
+          ,amercalc = map(S, AmericanOption
+                         ,type          = 'call'
+                         ,strike        = K
+                         ,dividendYield = 0
+                         ,riskFreeRate  = r
+                         ,maturity      = T
+                         ,volatility    = sig)
+           ) %>%
+    mutate(price = map_dbl(eurocalc, 'value')
+          ,delta = map_dbl(eurocalc, 'delta')
+          ,gamma = map_dbl(eurocalc, 'gamma')
+          ,vega  = map_dbl(eurocalc, 'vega')
+          ,theta = map_dbl(eurocalc, 'theta')
+          ,rho   = map_dbl(eurocalc, 'rho')
+          ,intrs = pmax(S - K, 0)
+          ,amerprice = map_dbl(amercalc, 'value')
+           )
+
+ggplot(call_pricing_tbl) +
+    geom_line(aes(x = S, y = price), colour = 'red') +
+    geom_line(aes(x = S, y = price), colour = 'green') +
+    geom_line(aes(x = S, y = intrs), colour = 'black') +
+    xlab("Stock Price") +
+    ylab("Option Price") +
+    ggtitle("Pricing for Call Options")
+```
+
+---
+
+```{r show_blackscholes_prices_puts, echo=FALSE}
+S <- seq(90, 110, by = 0.01)
+T <- 10/252
+K <- 100
+r <- 0.02
+sig <- 0.20
+
+put_pricing_tbl <- tibble(S = S) %>%
+    mutate(type = 'put'
+          ,eurocalc = map(S, EuropeanOption
+                         ,type          = 'put'
+                         ,strike        = K
+                         ,dividendYield = 0
+                         ,riskFreeRate  = r
+                         ,maturity      = T
+                         ,volatility    = sig)
+          ,amercalc = map(S, AmericanOption
+                         ,type          = 'put'
+                         ,strike        = K
+                         ,dividendYield = 0
+                         ,riskFreeRate  = r
+                         ,maturity      = T
+                         ,volatility    = sig)
+           ) %>%
+    mutate(price = map_dbl(eurocalc, 'value')
+          ,delta = map_dbl(eurocalc, 'delta')
+          ,gamma = map_dbl(eurocalc, 'gamma')
+          ,vega  = map_dbl(eurocalc, 'vega')
+          ,theta = map_dbl(eurocalc, 'theta')
+          ,rho   = map_dbl(eurocalc, 'rho')
+          ,intrs = pmax(K - S, 0)
+          ,amerprice = map_dbl(amercalc, 'value')
+           )
+
+ggplot(put_pricing_tbl) +
+    geom_line(aes(x = S, y = price), colour = 'red') +
+    geom_line(aes(x = S, y = price), colour = 'green') +
+    geom_line(aes(x = S, y = intrs), colour = 'black') +
+    xlab("Stock Price") +
+    ylab("Option Price") +
+    ggtitle("Pricing for Put Options")
+```
+
+
+
+
+
+
+---
+
+$$
+\text{Price} = \text{Intrinsic} + \text{Time}
+$$
+
+\
+
+Time value aka 'Premium'
+
+---
+
+```{r option_price_grid, echo=FALSE}
+S <- seq(90, 110, by = 0.1)
+T <- 1:120
+
+calc_call_price <- function(S, T) {
+    calc <- AmericanOption(type          = 'call'
+                          ,underlying    = S
+                          ,strike        = 100
+                          ,dividendYield = 0
+                          ,riskFreeRate  = r
+                          ,maturity      = T / 252
+                          ,volatility    = 0.2)
+    
+    return(calc$value)
+}
+
+pricing_grid_tbl <- crossing(S = S, T = T) %>%
+    mutate(price     = map2_dbl(S, T, calc_call_price)
+          ,intrinsic = pmax(S - K, 0)
+          ,premium   = price - intrinsic
+           )
+```
+
+```{r plot_price_grid, echo=FALSE}
+ggplot(pricing_grid_tbl) +
+    geom_tile(aes(x = S, y = T, fill = price)) +
+    xlab("Stock Price") +
+    ylab("Days to Expiration") +
+    ggtitle("Option Price by Stock and Time")
+```
+
+---
+
+```{r plot_premium_grid, echo=FALSE}
+ggplot(pricing_grid_tbl) +
+    geom_tile(aes(x = S, y = T, fill = premium)) +
+    xlab("Stock Price") +
+    ylab("Days to Expiration") +
+    ggtitle("Option Premium by Stock and Time")
+```
+
+
+
+## Greeks
+
+\
+
+"Sensitivities" of price to inputs
+
+\
+
+Crucial for risk management
+
+---
+
+### Delta, $\frac{dV}{dS}$
+
+\
+
+'Share' equivalent
+
+\
+
+Expressed in hundreds of shares
+
+\
+
+25 delta put, 70 delta call
+
+\
+
+*at the money* $\implies$ 50 delta
+
+
+---
+
+### Gamma, $\frac{d^2 V}{dS^2}$
+
+\
+
+Change in deltas due to price
+
+\
+
+Long options, long gamma
+
+
+---
+
+### Vega, $\frac{dV}{d\sigma}$
+
+\
+
+Expressed in currency
+
+\
+
+Change per vol 'click'
+
+\
+
+Long options, long vega
+
+
+---
+
+### Theta, $\frac{dV}{dt}$
+
+\
+
+Expressed in currency
+
+\
+
+Option decay - daily not annual
+
+\
+
+Long options, long theta
+
+
+---
+
+### Rho, $\frac{dV}{dr}$
+
+\
+
+Important longer term options
+
+
+---
+
+More sensitivities exist
+
+\
+
+Useful, but less common
+
+
+
+# Risk Management and Non-Linear Behaviour
+
+---
+
+Option values behave non-linearly
+
+\
+
+Non-intuitive
+
+\
+
+Risks non-obvious
+
+
+## Non-Linear Behaviour
+
+
+## Margin Calculator
+
+
+# Summary
+
+## Further Work
+
+## Questions?
+
+\
+
+
+http://www.github.com/kaybenleroll/data_workshops
+
+\
+
+
+mickcooney@gmail.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
