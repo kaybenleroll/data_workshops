@@ -196,9 +196,10 @@ airpassengers_tbl %>% print()
 
 ggplot(airpassengers_tbl) +
     geom_line(aes(x = month, y = value)) +
+    expand_limits(y = 0) +
     xlab('Date') +
     ylab('Passenger Count') +
-    expand_limits(y = 0) +
+    scale_x_yearmon() +
     ggtitle('Plot of Air Passenger Time Series')
 ```
 
@@ -228,9 +229,10 @@ maine_tbl %>% print()
 
 ggplot(maine_tbl) +
     geom_line(aes(x = month, y = value)) +
+    expand_limits(y = 0) +
     xlab('Date') +
     ylab('Unemployment Numbers') +
-    expand_limits(y = 0) +
+    scale_x_yearmon() +
     ggtitle('Plot of Maine Unemployment Time Series')
 ```
 
@@ -292,6 +294,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Production Amount") +
+    scale_x_yearmon() +
     scale_y_continuous(labels = comma) +
     ggtitle('Production Data from Australian Government')
 ```
@@ -310,6 +313,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Production Amount") +
+    scale_x_yearmon() +
     scale_y_continuous(labels = comma) +
     ggtitle('Production Data from Australian Government')
 ```
@@ -360,6 +364,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Amount") +
+    scale_x_yearqtr() +
     scale_y_continuous(labels = comma) +
     ggtitle('Building Activity Data from Australian Government')
 ```
@@ -616,9 +621,10 @@ plot_tbl <- ap_rollmean_sixmonth_tbl %>%
 ggplot(plot_tbl) +
     geom_line(aes(x = month, y = value, colour = label)) +
     expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
     xlab('Month') +
     ylab('Passenger Total') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Comparison Plot of the Air Passenger Counts')
 ```
 
@@ -675,9 +681,10 @@ plot_tbl <- ap_rollmean_multi_tbl %>%
 ggplot(plot_tbl) +
     geom_line(aes(x = month, y = value, colour = label)) +
     expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
     xlab('Month') +
     ylab('Passenger Total') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Comparison Plot of the Air Passenger Counts')
 ```
 
@@ -729,9 +736,10 @@ ggplot(ap_roll_ribbon_tbl) +
     geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd)
                ,colour = 'grey', alpha = 0.25) +
     expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
     xlab('Month') +
     ylab('Passenger Total') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Ribbon Plot of the Air Passenger Counts (6 month window)')
 ```
 
@@ -768,9 +776,10 @@ ggplot(ap_roll_12m_ribbon_tbl) +
     geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd)
                ,colour = 'grey', alpha = 0.25) +
     expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
     xlab('Month') +
     ylab('Passenger Total') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Ribbon Plot of the Air Passenger Counts (12 month window)')
 ```
 
@@ -813,10 +822,11 @@ plot_tbl <- ap_firstdiff_tbl %>%
 
 ggplot(plot_tbl) +
     geom_line(aes(x = month, y = value, colour = series)) +
-    scale_y_continuous(labels = comma) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Value') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Plot of the Air Passenger Counts and First Differences')
 ```
 
@@ -868,6 +878,7 @@ ggplot(airpassengers_tbl) +
     xlab('Date') +
     ylab('Passenger Count') +
     expand_limits(y = 0) +
+    scale_x_yearmon() +
     ggtitle('Plot of Air Passenger Time Series')
 ```
 
@@ -883,9 +894,10 @@ ap_jun_tbl <- airpassengers_tbl %>% filter(format(month, '%m') == '06')
 ggplot(airpassengers_tbl) +
     geom_line(aes(x = month, y = value)) +
     geom_point(aes(x = month, y = value), data = ap_jun_tbl, size = 2) +
+    expand_limits(y = 0) +
     xlab('Date') +
     ylab('Passenger Count') +
-    expand_limits(y = 0) +
+    scale_x_yearmon() +
     ggtitle('Plot of Air Passenger Time Series')
 ```
 
@@ -898,6 +910,7 @@ sums or averages, or we could look at moving averages.
 ggplot(ap_yearly_tidyquant_tbl) +
     geom_line(aes(x = year, y = ann_total)) +
     expand_limits(y = 0) +
+    scale_x_yearmon() +
     scale_y_continuous(labels = comma) +
     ggtitle('Lineplot of the Annual Air Passenger Totals')
 ```
@@ -914,10 +927,11 @@ plot_tbl <- airpassengers_tbl %>%
 
 ggplot(plot_tbl) +
     geom_boxplot(aes(x = cal_month, y = value)) +
-    scale_y_continuous(labels = comma) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Passenger Count') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Boxplot of the Air Passenger Counts')
 ```
 
@@ -937,9 +951,10 @@ plot_tbl <- ap_firstdiff_tbl %>%
 ggplot(plot_tbl) +
     geom_boxplot(aes(x = cal_month, y = diff)) +
     expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
     xlab('Month') +
     ylab('Passenger Count Changes') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Boxplot of the First Differences of the Air Passenger Counts')
 ```
 
@@ -972,6 +987,7 @@ ggplot(ap_perc_change_tbl) +
     expand_limits(y = 0) +
     xlab('Date') +
     ylab('Percentage Change') +
+    scale_x_yearmon() +
     ggtitle('Lineplot of the Percentage Changes of the Air Passenger Counts')
 ```
 
@@ -983,6 +999,7 @@ ggplot(ap_perc_change_tbl) +
     geom_boxplot(aes(x = cal_month, y = perc_change)) +
     xlab('Month') +
     ylab('Percentage Changes') +
+    scale_x_yearmon() +
     ggtitle('Boxplot of the Percentage Changes of the Air Passenger Counts')
 ```
 
@@ -1015,9 +1032,10 @@ We start by the standard lineplot of the values.
 ggplot(maine_explore_tbl) +
     geom_line(aes(x = month, y = value)) +
     expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
     xlab('Time') +
     ylab('Maine Unemployment Count (thousands)') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Lineplot of the Maine Unemployment Data')
 ```
 
@@ -1033,9 +1051,10 @@ component in this data.
 ggplot(maine_explore_tbl) +
     geom_boxplot(aes(x = cal_month, y = value)) +
     expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
     xlab('Month') +
     ylab('Maine Unemployment Count (thousands)') +
+    scale_x_yearmon() +
+    scale_y_continuous(labels = comma) +
     ggtitle('Monthly Boxplot of the Maine Unemployment Data')
 ```
 
@@ -1053,6 +1072,7 @@ ggplot(maine_explore_tbl) +
     expand_limits(y = 0) +
     xlab('Time') +
     ylab('Maine Unemployment Count Differences') +
+    scale_x_yearmon() +
     ggtitle('Lineplot of the Differences in Maine Unemployment Data')
 ```
 
@@ -1065,6 +1085,7 @@ ggplot(maine_explore_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Maine Unemployment Count Differences') +
+    scale_x_yearmon() +
     ggtitle('Monthly Boxplot of the Maine Unemployment Data')
 ```
 
@@ -1081,6 +1102,7 @@ ggplot(maine_explore_tbl) +
     expand_limits(y = 0) +
     xlab('Time') +
     ylab('Maine Unemployment Count Percentage Changes') +
+    scale_x_yearmon() +
     ggtitle('Lineplot of the Percentage Changes in Maine Unemployment Data')
 ```
 
@@ -1094,6 +1116,7 @@ ggplot(maine_explore_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Maine Unemployment Count Percentage Changes') +
+    scale_x_yearmon() +
     ggtitle('Monthly Boxplot of the Percentage Changes in Maine Unemployment Data')
 ```
 
@@ -1181,6 +1204,7 @@ ggplot(ap_ts_sa_decompose_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Passenger Count') +
+    scale_x_yearmon() +
     ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts'
            ,subtitle = '(seasonal adjustments in red)')
 
@@ -1200,6 +1224,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Value') +
+    scale_x_yearmon() +
     ggtitle('Decomposition Plot of the Simple Additive Model')
 ```
 
@@ -1214,6 +1239,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Value') +
+    scale_x_yearmon() +
     ggtitle('Decomposition Plot of the Simple Additive Model')
 ```
 
@@ -1265,6 +1291,7 @@ ggplot(ap_ts_sm_decompose_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Passenger Count') +
+    scale_x_yearmon() +
     ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts (Multiplicative Mdodel)'
            ,subtitle = '(seasonal adjustments in red)')
 
@@ -1282,6 +1309,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Value') +
+    scale_x_yearmon() +
     ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
 ```
 
@@ -1296,6 +1324,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Value') +
+    scale_x_yearmon() +
     ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
 ```
 
@@ -1397,6 +1426,7 @@ ggplot(decomp_compare_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Seasonal Value') +
+    scale_x_yearmon() +
     ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
 ```
 
@@ -1408,6 +1438,7 @@ ggplot(decomp_compare_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Trend Value') +
+    scale_x_yearmon() +
     ggtitle('Comparison Plot for Trends between Decompositional Methods')
 ```
 
@@ -1467,6 +1498,7 @@ ggplot(decomp_compare_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Seasonal Value') +
+    scale_x_yearmon() +
     ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
 ```
 
@@ -1479,6 +1511,7 @@ ggplot(decomp_compare_tbl) +
     expand_limits(y = 0) +
     xlab('Month') +
     ylab('Trend Value') +
+    scale_x_yearmon() +
     ggtitle('Comparison Plot for Trends between Decompositional Methods')
 ```
 
@@ -1985,7 +2018,7 @@ We now check the fitted values against the observed.
 ```{r ap_forecast_regression_train, echo=TRUE}
 plot_tbl <- ap_base_lm %>%
     augment() %>%
-    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
     select(month, observed = value, fitted = .fitted) %>%
     gather('series', 'value', -month)
 
@@ -1994,6 +2027,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle("Comparison Lineplot of Air Passengers vs Linear Model")
 ```
 
@@ -2006,7 +2040,7 @@ We expect this will continue when we try the model with the test data.
 ```{r ap_forecast_regression_test, echo=TRUE}
 plot_tbl <- ap_base_lm %>%
     augment(newdata = ap_test_tbl) %>%
-    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
     select(month, observed = value, fitted = .fitted) %>%
     gather('series', 'value', -month)
 
@@ -2015,6 +2049,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle("Comparison Lineplot of Air Passengers vs Linear Model (1960 points)")
 ```
 
@@ -2037,7 +2072,7 @@ We now check the fitted values against the observed.
 ```{r ap_forecast_regression_glm_train, echo=TRUE}
 plot_tbl <- ap_base_glm %>%
     augment(type.predict = 'response') %>%
-    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
     select(month, observed = value, fitted = .fitted) %>%
     gather('series', 'value', -month)
 
@@ -2046,6 +2081,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model")
 ```
 
@@ -2056,7 +2092,7 @@ better matched also.
 ```{r ap_forecast_regression_glm_test, echo=TRUE}
 plot_tbl <- ap_base_glm %>%
     augment(newdata = ap_test_tbl, type.predict = 'response') %>%
-    mutate(month = as.Date(paste(year_num, month_label, '01', sep = '-'))) %>%
+    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
     select(month, observed = value, fitted = .fitted) %>%
     gather('series', 'value', -month)
 
@@ -2065,6 +2101,7 @@ ggplot(plot_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model (1960 points)")
 ```
 
@@ -2131,8 +2168,10 @@ Now that we have fit our model we can use the `forecast()` function to produce
 forecasts for future times, as well as plotting them.
 
 ```{r ap_produce_forecasts, echo=TRUE}
-ap_ewma_forecast_tbl <- ap_ewma_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_ewma_forecast <- ap_ewma_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_ewma_forecast_tbl <- ap_ewma_forecast %>%
     sw_sweep(rename_index = 'month')
 
 
@@ -2143,6 +2182,7 @@ ggplot(ap_ewma_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Forecast for Air Passengers with EWMA Model')
 ```
 
@@ -2161,6 +2201,7 @@ ggplot(ap_ewma_augment_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Forecast for Air Passengers with EWMA Model')
 ```
 
@@ -2184,8 +2225,10 @@ maine_ewma_fit %>% sw_glance()
 As before, having fit the EWMA model we now produce forecasts.
 
 ```{r maine_produce_forecasts, echo=TRUE}
-maine_ewma_forecast_tbl <- maine_ewma_fit %>%
-    forecast(h = 20, level = c(50, 80)) %>%
+maine_ewma_forecast <- maine_ewma_fit %>%
+    forecast(h = 20, level = c(50, 80))
+
+maine_ewma_forecast_tbl <- maine_ewma_forecast %>%
     sw_sweep(rename_index = 'month')
 
 
@@ -2196,6 +2239,7 @@ ggplot(maine_ewma_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Forecast for Maine Unemployment Data with EWMA Model')
 ```
 
@@ -2215,8 +2259,10 @@ maine_ewma_paramfit %>% sw_glance()
 We now produce forecasts using the set EWMA parameter to see how they compare.
 
 ```{r maine_produce_paramfit_forecasts, echo=TRUE}
-maine_ewma_paramfit_forecast_tbl <- maine_ewma_paramfit %>%
-    forecast(h = 20, level = c(50, 80)) %>%
+maine_ewma_paramfit_forecast <- maine_ewma_paramfit %>%
+    forecast(h = 20, level = c(50, 80))
+
+maine_ewma_paramfit_forecast_tbl <- maine_ewma_paramfit_forecast %>%
     sw_sweep(rename_index = 'month')
 
 
@@ -2227,6 +2273,7 @@ ggplot(maine_ewma_paramfit_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Forecast for Maine Unemployment Data with Non-Fitted EWMA Model')
 ```
 
@@ -2270,8 +2317,10 @@ ap_hw_fit %>% sw_tidy()
 ap_hw_fit %>% sw_glance()
 
 
-ap_hw_forecast_tbl <- ap_hw_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_hw_forecast <- ap_hw_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_hw_forecast_tbl <- ap_hw_forecast %>%
     sw_sweep(rename_index = 'month')
 
 
@@ -2282,6 +2331,7 @@ ggplot(ap_hw_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Forecast for Air Passengers with Holt-Winters Model')
 
 
@@ -2294,6 +2344,7 @@ ggplot(ap_hw_augment_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('sw_augment Output for Holt-Winters Model')
 ```
 
@@ -2308,9 +2359,12 @@ ap_hwmult_fit <- ap_train_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
     ets(model = 'MAM')
 
-ap_hwmult_forecast_tbl <- ap_hwmult_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_hwmult_forecast <- ap_hwmult_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_hwmult_forecast_tbl <- ap_hwmult_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 ap_hwmult_fit %>% sw_tidy()
 ap_hwmult_fit %>% sw_glance()
@@ -2322,6 +2376,7 @@ ggplot(ap_hwmult_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Air Passengers Forecast for Multiplicative Holt-Winters Model')
 ```
 
@@ -2336,9 +2391,12 @@ maine_hw_fit <- maine_train_tbl %>%
     tk_ts(select = value, start = 1996, frequency = 12) %>%
     ets(model = 'ANN')
 
-maine_hw_forecast_tbl <- maine_hw_fit %>%
-    forecast(h = 20, level = c(50, 80)) %>%
+maine_hw_forecast <- maine_hw_fit %>%
+    forecast(h = 20, level = c(50, 80))
+
+maine_hw_forecast_tbl <- maine_hw_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 maine_hw_fit %>% sw_tidy()
 maine_hw_fit %>% sw_glance()
@@ -2351,6 +2409,7 @@ ggplot(maine_hw_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Additive Holt-Winters Model for the Maine Unemployment Data')
 ```
 
@@ -2361,9 +2420,12 @@ maine_hwmult_fit <- maine_train_tbl %>%
     tk_ts(select = value, start = 1996, frequency = 12) %>%
     ets(model = 'MAM')
 
-maine_hwmult_forecast_tbl <- maine_hwmult_fit %>%
-    forecast(h = 20, level = c(50, 80)) %>%
+maine_hwmult_forecast <- maine_hwmult_fit %>%
+    forecast(h = 20, level = c(50, 80))
+
+maine_hwmult_forecast_tbl <- maine_hwmult_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 maine_hwmult_fit %>% sw_tidy()
 maine_hwmult_fit %>% sw_glance()
@@ -2376,6 +2438,7 @@ ggplot(maine_hwmult_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Multiplicative Holt-Winters Model for the Maine Unemployment Data')
 ```
 
@@ -2433,8 +2496,10 @@ ap_autoets_fit <- ap_train_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
     ets(model = 'ZZZ')
 
-ap_autoets_forecast_tbl <- ap_autoets_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_autoets_forecast <- ap_autoets_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_autoets_forecast_tbl <- ap_autoets_forecast %>%
     sw_sweep(rename_index = 'month')
 
 ap_autoets_fit %>% sw_tidy()
@@ -2447,6 +2512,7 @@ ggplot(ap_autoets_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Air Passengers Forecast for Automatic ETS Model')
 ```
 
@@ -2468,8 +2534,10 @@ ggplot(ap_forecast_compare_tbl) +
     geom_line(aes(x = month, y = value, colour = model)) +
     geom_line(aes(x = month, y = value), colour = 'black', data = ap_test_tbl) +
     expand_limits(y = 0) +
+    scale_x_yearmon() +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Comparison of Air Passenger Forecast Models')
 ```
 
@@ -2484,9 +2552,12 @@ maine_autoets_fit <- maine_train_tbl %>%
     tk_ts(select = value, start = 1996, frequency = 12) %>%
     ets(model = 'ZZZ')
 
-maine_autoets_forecast_tbl <- maine_autoets_fit %>%
-    forecast(h = 20, level = c(50, 80)) %>%
+maine_autoets_forecast <- maine_autoets_fit %>%
+    forecast(h = 20, level = c(50, 80))
+
+maine_autoets_forecast_tbl <- maine_autoets_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 maine_autoets_fit %>% sw_tidy()
 maine_autoets_fit %>% sw_glance()
@@ -2499,6 +2570,7 @@ ggplot(maine_autoets_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Maine Unemployment Forecast for Automatic ETS Model')
 ```
 
@@ -2522,7 +2594,131 @@ ggplot(maine_forecast_compare_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Comparison of Maine Unemployment Forecast Models')
+```
+
+
+# Forecast Evaluation
+
+We finally come to the most important part of forecasting - how we decide how
+good it is.
+
+
+## Evaluation Metrics
+
+We start by defining the forecast *error* or forecast *residual*, $e_{t+h}$ as:
+
+$$
+e_{t+h} = y_{t+h} - \hat{y}_{t+h \, | \,t}
+$$
+
+This is scale-dependent, so we also define the *forecast percentage error*,
+$p_t$
+
+$$
+p_t = \frac{e_t}{y_t}
+$$
+
+
+where:
+
+\begin{eqnarray*}
+y_{t+h} &=& \text{realized value at time } t+h   \\
+\hat{y}_{t+h} &=& \text{forecast value at time } t+h
+\end{eqnarray*}
+
+From this we build a number of different metrics:
+
+\begin{eqnarray*}
+\text{Mean absolute error, MAE}              &=&
+    \text{mean}(|e_t|)                                     \\
+\text{Root mean square error, RMSE}          &=&
+    \sqrt{\text{mean}(e_t^2)}                              \\
+\text{Mean absolute percentage error, MAPE}  &=& 
+    \text{mean}(|p_t|)                                     \\
+\text{Symmetric MAPE}                        &=&
+    \frac{200 * |y_t - \hat{y}_t|}{y_t + \hat{y}_t}        \\
+\text{Scaled error}, q_j                     &=&
+    \frac{e_j}{\frac{1}{T-1} \sum_{t=2}^T |y_t - y_{t-1}|} \\
+\text{Mean absolute scaled error, MASE}      &=&
+    \text{mean}(|q_j|)
+\end{eqnarray*}
+
+
+## Evaluating Fits
+
+We run the accuracy metrics for both the Air Passenger and the Maine
+Unemployment data for the fits we ran.
+
+
+### Air Passenger Metrics
+
+We now calculate the evaluation metrics for the Air Passenger models.
+
+```{r calculate_ap_metrics, echo=TRUE}
+ap_ets_assess_tbl <- list(
+    ewma    = ap_ewma_forecast
+   ,hw      = ap_hw_forecast
+   ,hwmult  = ap_hwmult_forecast
+   ,autoets = ap_autoets_forecast
+    ) %>%
+    map(accuracy, x = ap_test_tbl$value) %>%
+    map(as_tibble, rownames = 'type') %>%
+    bind_rows(.id = 'model') %>%
+    arrange(type, model)
+
+ap_ets_assess_tbl %>% print()
+```
+
+We plot the values.
+
+```{r plot_ap_metrics, echo=TRUE}
+plot_tbl <- ap_ets_assess_tbl %>%
+    gather('metric', 'value', -model, -type)
+  
+ggplot(plot_tbl) +
+    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+    facet_wrap(~ metric, scales = 'free_y') +
+    xlab('Model') +
+    ylab('Metric') +
+    ggtitle('Facet Plot for Air Passenger Forecast Metrics')
+```
+
+
+
+### Maine Unemployment Metrics
+
+We repeat this process for the Maine Unemployment series.
+
+```{r calculate_maine_metrics, echo=TRUE}
+maine_ets_assess_tbl <- list(
+    ewma    = maine_ewma_forecast
+   ,ewma    = maine_ewma_paramfit_forecast
+   ,hw      = maine_hw_forecast
+   ,hwmult  = maine_hwmult_forecast
+   ,autoets = maine_autoets_forecast
+    ) %>%
+    map(accuracy, x = maine_test_tbl$value) %>%
+    map(as_tibble, rownames = 'type') %>%
+    bind_rows(.id = 'model') %>%
+    arrange(type, model)
+
+maine_ets_assess_tbl %>% print()
+```
+
+We plot the values.
+
+```{r plot_maine_metrics, echo=TRUE}
+plot_tbl <- maine_ets_assess_tbl %>%
+    gather('metric', 'value', -model, -type)
+  
+ggplot(plot_tbl) +
+    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+    facet_wrap(~ metric, scales = 'free_y') +
+    xlab('Model') +
+    ylab('Metric') +
+    ggtitle('Facet Plot for Maine Unemployment Forecast Metrics')
 ```
 
 
@@ -2568,7 +2764,7 @@ sim_wn_ts <- arima.sim(list()
                       )
 
 sim_wn_ts_tbl <- sim_wn_ts %>%
-    tk_tbl() %>%
+    tk_tbl(preserve_index = FALSE) %>%
     add_column(index = 1:length(sim_wn_ts), .before = 1)
 
 ggplot(sim_wn_ts_tbl) +
@@ -2618,7 +2814,7 @@ sim_ar1_ts <- arima.sim(list(ar = 0.5)
                         )
 
 sim_ar1_ts_tbl <- sim_ar1_ts %>%
-    tk_tbl() %>%
+    tk_tbl(preserve_index = FALSE) %>%
     add_column(index = 1:length(sim_ar1_ts), .before = 1)
 
 ggplot(sim_ar1_ts_tbl) +
@@ -2650,7 +2846,7 @@ sim_ar2_ts <- arima.sim(list(ar = c(1, -0.25))
                          )
 
 sim_ar2_ts_tbl <- sim_ar2_ts %>%
-    tk_tbl() %>%
+    tk_tbl(preserve_index = FALSE) %>%
     add_column(index = 1:length(sim_ar2_ts), .before = 1)
 
 
@@ -2683,7 +2879,7 @@ sim_ar2alt_ts <- arima.sim(list(ar = c(0.5, 0.4))
                            )
 
 sim_ar2alt_ts_tbl <- sim_ar2alt_ts %>%
-    tk_tbl() %>%
+    tk_tbl(preserve_index = FALSE) %>%
     add_column(index = 1:length(sim_ar2alt_ts), .before = 1)
 
 
@@ -2749,7 +2945,7 @@ sim_ma1_ts <- arima.sim(list(ma = 0.5)
                         )
 
 sim_ma1_ts_tbl <- sim_ma1_ts %>%
-    tk_tbl() %>%
+    tk_tbl(preserve_index = FALSE) %>%
     add_column(index = 1:length(sim_ma1_ts), .before = 1)
 
 ggplot(sim_ma1_ts_tbl) +
@@ -2778,7 +2974,7 @@ sim_ma2_ts <- arima.sim(list(ma = c(1, -0.25))
                          )
 
 sim_ma2_ts_tbl <- sim_ma2_ts %>%
-    tk_tbl() %>%
+    tk_tbl(preserve_index = FALSE) %>%
     add_column(index = 1:length(sim_ma2_ts), .before = 1)
 
 
@@ -2873,7 +3069,7 @@ sim_arma_1_1_ts <- arima.sim(list(ar = 0.5, ma = 0.5)
                              )
 
 sim_arma_1_1_ts_tbl <- sim_arma_1_1_ts %>%
-    tk_tbl() %>%
+    tk_tbl(preserve_index = FALSE) %>%
     add_column(index = 1:length(sim_arma_1_1_ts), .before = 1)
 
 ggplot(sim_arma_1_1_ts_tbl) +
@@ -2930,9 +3126,12 @@ ap_arma_1_1_fit <- ap_train_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
     Arima(order = c(1, 0, 1))
 
-ap_arma_1_1_forecast_tbl <- ap_arma_1_1_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_arma_1_1_forecast <- ap_arma_1_1_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_arma_1_1_forecast_tbl <- ap_arma_1_1_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 ap_arma_1_1_fit %>% sw_tidy()
 ap_arma_1_1_fit %>% sw_glance()
@@ -2945,6 +3144,7 @@ ggplot(ap_arma_1_1_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Air Passenger Forecast for ARMA(1, 1) Model')
 ```
 
@@ -2955,9 +3155,12 @@ ap_arma_1_1_1_fit <- ap_train_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
     Arima(order = c(1, 1, 1))
 
-ap_arma_1_1_1_forecast_tbl <- ap_arma_1_1_1_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_arma_1_1_1_forecast <- ap_arma_1_1_1_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_arma_1_1_1_forecast_tbl <- ap_arma_1_1_1_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 ap_arma_1_1_1_fit %>% sw_tidy()
 ap_arma_1_1_1_fit %>% sw_glance()
@@ -2970,6 +3173,7 @@ ggplot(ap_arma_1_1_1_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Air Passenger Forecast for ARIMA(1, 1, 1) Model')
 ```
 
@@ -2984,9 +3188,12 @@ ap_autoarima_fit <- ap_train_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
     auto.arima(seasonal = FALSE)
 
-ap_autoarima_forecast_tbl <- ap_autoarima_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_autoarima_forecast <- ap_autoarima_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_autoarima_forecast_tbl <- ap_autoarima_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 ap_autoarima_fit %>% sw_tidy()
 ap_autoarima_fit %>% sw_glance()
@@ -2999,6 +3206,7 @@ ggplot(ap_autoarima_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Air Passenger Forecast for Auto-ARIMA Model')
 ```
 
@@ -3015,8 +3223,10 @@ maine_autoarima_fit <- maine_train_tbl %>%
     tk_ts(select = value, start = 1996, frequency = 12) %>%
     auto.arima(seasonal = FALSE)
 
-maine_autoarima_forecast_tbl <- maine_autoarima_fit %>%
-    forecast(h = 20, level = c(50, 80)) %>%
+maine_autoarima_forecast <- maine_autoarima_fit %>%
+    forecast(h = 20, level = c(50, 80))
+
+maine_autoarima_forecast_tbl <- maine_autoarima_forecast %>%
     sw_sweep(rename_index = 'month')
 
 maine_autoarima_fit %>% sw_tidy()
@@ -3030,6 +3240,7 @@ ggplot(maine_autoarima_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Maine Unemployment Forecast for Auto-ARIMA Model')
 ```
 
@@ -3058,9 +3269,12 @@ ap_sarima_fit <- ap_train_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
     auto.arima(seasonal = TRUE)
 
-ap_sarima_forecast_tbl <- ap_sarima_fit %>%
-    forecast(h = 12, level = c(50, 80)) %>%
+ap_sarima_forecast <- ap_sarima_fit %>%
+    forecast(h = 12, level = c(50, 80))
+
+ap_sarima_forecast_tbl <- ap_sarima_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 ap_sarima_fit %>% sw_tidy()
 ap_sarima_fit %>% sw_glance()
@@ -3073,6 +3287,7 @@ ggplot(ap_sarima_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Air Passenger Forecast for Seasonal ARIMA Model')
 ```
 
@@ -3085,9 +3300,12 @@ maine_sarima_fit <- maine_train_tbl %>%
     tk_ts(select = value, start = 1996, frequency = 12) %>%
     auto.arima(seasonal = TRUE)
 
-maine_sarima_forecast_tbl <- maine_sarima_fit %>%
-    forecast(h = 20, level = c(50, 80)) %>%
+maine_sarima_forecast <- maine_sarima_fit %>%
+    forecast(h = 20, level = c(50, 80))
+
+maine_sarima_forecast_tbl <- maine_sarima_forecast %>%
     sw_sweep(rename_index = 'month')
+
 
 maine_sarima_fit %>% sw_tidy()
 maine_sarima_fit %>% sw_glance()
@@ -3100,9 +3318,80 @@ ggplot(maine_sarima_forecast_tbl) +
     expand_limits(y = 0) +
     xlab("Date") +
     ylab("Count") +
+    scale_x_yearmon() +
     ggtitle('Maine Unemployment Forecast for Seasonal ARIMA Model')
 ```
 
+
+
+## Forecast Evaluation
+
+We now run forecast evaluations metrics for all our forecasts.
+
+
+### Air Passenger Forecasts
+
+We run the data for the Air Passenger data.
+
+```{r calculate_ap_evaluations, echo=TRUE}
+ap_metrics_tbl <- ls(pattern = '^ap_.*_forecast$') %>%
+    enframe(value = 'variable') %>%
+    mutate(model    = str_replace(variable, 'ap_(.*)_forecast', '\\1')
+          ,data     = map(variable, get)
+          ,accuracy = map(data, accuracy, x = ap_test_tbl$value)
+          ,acc_tbl  = map(accuracy, as_tibble, rownames = 'type')) %>%
+    select(model, acc_tbl) %>%
+    unnest() %>%
+    arrange(type, model)
+
+ap_metrics_tbl %>% print()
+```
+
+
+```{r plot_full_ap_metrics, echo=TRUE}
+plot_tbl <- ap_metrics_tbl %>%
+    gather('metric', 'value', -model, -type)
+  
+ggplot(plot_tbl) +
+    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+    facet_wrap(~ metric, scales = 'free_y') +
+    xlab('Model') +
+    ylab('Metric') +
+    ggtitle('Facet Plot for Air Passenger Forecast Metrics') +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+### Maine Unemployment Forecasts
+
+And we run the data for the Maine Unemployment time series.
+
+```{r calculate_maine_evaluations, echo=TRUE}
+maine_metrics_tbl <- ls(pattern = '^maine_.*_forecast$') %>%
+    enframe(value = 'variable') %>%
+    mutate(model    = str_replace(variable, 'maine_(.*)_forecast', '\\1')
+          ,data     = map(variable, get)
+          ,accuracy = map(data, accuracy, x = maine_test_tbl$value)
+          ,acc_tbl  = map(accuracy, as_tibble, rownames = 'type')) %>%
+    select(model, acc_tbl) %>%
+    unnest() %>%
+    arrange(type, model)
+
+maine_metrics_tbl %>% print()
+```
+
+```{r plot_full_maine_metrics, echo=TRUE}
+plot_tbl <- maine_metrics_tbl %>%
+    gather('metric', 'value', -model, -type)
+  
+ggplot(plot_tbl) +
+    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+    facet_wrap(~ metric, scales = 'free_y') +
+    xlab('Model') +
+    ylab('Metric') +
+    ggtitle('Facet Plot for Maine Unemployment Forecast Metrics') +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
 
 
 # R Environment
