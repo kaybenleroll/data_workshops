@@ -5,7 +5,6 @@ author: "Mick Cooney <mickcooney@gmail.com>"
 date: "2019-03-25"
 output:
   revealjs::revealjs_presentation:
-#    css: custom.css
     theme: night
     highlight: pygments
     center: true
@@ -16,28 +15,34 @@ output:
 ```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
 rm(list = ls()); gc()
 
-import::from(rlang     ,as_integer)
-import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
-import::from(magrittr  ,"%>%", set_colnames)
-import::from(readr     ,read_csv, write_csv, read_rds, write_rds, cols
-                       ,col_character)
-import::from(dplyr     ,mutate, filter, select, group_by
-                       ,left_join, inner_join, anti_join, semi_join
-                       ,summarise, summarise_at, vars, distinct, sample_n
-                       ,pull, if_else, count, arrange, bind_rows)
-import::from(tidyr     ,gather, spread, nest, unnest, replace_na, crossing)
-import::from(ggplot2   ,ggplot, aes, xlab, ylab, ggtitle
-                       ,geom_histogram, geom_boxplot, geom_bar, geom_col
-                       ,geom_line, geom_vline, geom_hline, geom_smooth
-                       ,geom_point, geom_errorbar, geom_tile
-                       ,scale_x_continuous, scale_y_continuous 
-                       ,expand_limits, theme, element_text, facet_grid
-                       ,facet_wrap, theme_set, theme)
-import::from(scales    ,comma)
-import::from(cowplot   ,theme_cowplot, plot_grid)
-import::from(purrr     ,map, map2, map_int, map_dbl, map_chr, map2_dbl, reduce)
-import::from(knitr     ,kable)
-import::from(RQuantLib ,AmericanOption, EuropeanOption)
+import::from(rlang      ,as_integer)
+import::from(tibble     ,as_tibble, tibble, tribble, add_column, glimpse)
+import::from(magrittr   ,"%>%", set_colnames)
+import::from(readr      ,read_csv, write_csv, read_rds, write_rds, cols
+                        ,col_character)
+import::from(dplyr      ,mutate, filter, select, group_by, slice, ungroup
+                        ,left_join, inner_join, anti_join, semi_join
+                        ,summarise, summarise_at, vars, distinct, sample_n
+                        ,pull, if_else, count, arrange, bind_rows)
+import::from(tidyr      ,gather, spread, nest, unnest, replace_na, crossing)
+import::from(ggplot2    ,ggplot, aes, xlab, ylab, ggtitle
+                        ,geom_histogram, geom_boxplot, geom_bar, geom_col
+                        ,geom_line, geom_vline, geom_hline, geom_smooth
+                        ,geom_point, geom_errorbar, geom_tile
+                        ,scale_x_continuous, scale_y_continuous 
+                        ,expand_limits, theme, element_text, facet_grid
+                        ,facet_wrap, theme_set, theme)
+import::from(scales     ,comma)
+import::from(cowplot    ,theme_cowplot, plot_grid)
+import::from(purrr      ,map, map2, map_int, map_dbl, map_chr, map2_dbl, reduce)
+import::from(knitr      ,kable)
+import::from(kableExtra ,kable_styling, row_spec)
+import::from(RQuantLib  ,AmericanOption, EuropeanOption)
+
+
+import::from('custom_functions.R'  ,calc_option_price_greeks, leverage_pricer
+                                   ,construct_margin_calc_details
+                                   ,construct_margin_data)
 
 
 
@@ -95,6 +100,16 @@ Futures
 Bonds
 
 Swaps
+
+
+---
+
+![](img/cboe_pit.jpg)
+
+---
+
+![](img/cboe_after.jpg)
+
   
 
 
@@ -627,6 +642,14 @@ Important longer term options
 
 ---
 
+Greeks additive within a stock
+
+\
+
+Theta additive across portfolio
+
+---
+
 More sensitivities exist
 
 \
@@ -635,7 +658,7 @@ Useful, but less common
 
 
 
-# Risk Management and Non-Linear Behaviour
+# Option Risk and Non-Linear Behaviour
 
 ---
 
@@ -652,13 +675,384 @@ Risks non-obvious
 
 ## Non-Linear Behaviour
 
+\
 
-## Margin Calculator
+
+---
+
+### "Leverage Effect"
+
+```{r calc_expiring_options_price, echo=FALSE}
+p1 <- leverage_pricer(S =  97, t = 2.0/252) %>% round(2)
+p2 <- leverage_pricer(S =  99, t = 1.0/252) %>% round(2)
+p3 <- leverage_pricer(S = 100, t = 0.5/252) %>% round(2)
+```
+
+\
+
+
+\begin{eqnarray*}
+S =  97.00, t = 2.0 &\implies& `r p1`    \\
+S =  99.00, t = 1.0 &\implies& `r p2`    \\
+S = 100.00, t = 0.5 &\implies& `r p3`
+\end{eqnarray*}
+
+
+---
+
+Nothing constant
+
+\
+
+All Greeks interact
+
+---
+
+Complex
+
+---
+
+How do we quantify the risk of a position?
+
+
+## Margin
+
+\
+
+Covers risk of position
+
+\
+
+Probabilistic
+
+\
+
+Regulatory vs Contractual
+
+---
+
+"Margin Calls"
+
+---
+
+### Risk-based Margin
+
+\
+
+Most commonly used
+
+\
+
+Scenario-driven
+
+\
+
+1 in 20 Years
+
+---
+
+Aggregate Greek positions
+
+\
+
+Accounts for correlations
+
+---
+
+### Rules-based Margin
+
+\
+
+Canadian regulator
+
+\
+
+Margins based on spreads
+
+\
+
+"How much could you lose?"
+
+---
+
+Spread-specific calculation
+
+\
+
+Percentage of maximum loss
+
+---
+
+Suboptimal
+
+---
+
+## Example Calculations
+
+
+### Long Stock
+
+\
+
+25% of value
+
+\
+
+1,000 shares of AAPL @ 200.00 USD
+
+\
+
+Total Value: 200,000.00 USD
+
+Margin: 50,000.00 USD
+
+---
+
+### Long Call Spread
+
+```{r longcallspread_plot, echo=FALSE, results='show', fig.height=7.5}
+S  <- seq(200, 225, by = 0.1)
+K1 <- 210
+K2 <- 215
+
+call1_payoff <- pmax(S - K1, 0);
+call2_payoff <- pmax(S - K2, 0);
+
+spread_payoff <- call1_payoff - call2_payoff
+
+ggplot() +
+    geom_line(aes(x = S, y = spread_payoff)) +
+    xlab('Stock Price, S') +
+    ylab('Payoff') +
+    ggtitle('Payoff of a Long Bullish Call Spread with Strike Price K = 210, 215')
+```
+
+
+---
+
+\
+
+Market value of position
+
+\
+
+
+\begin{eqnarray*}
+\text{Long Jun 210 Call}  &\implies& \$0.50  \\
+\text{Short Jun 215 Call} &\implies& \$0.30  \\
+\end{eqnarray*}
+
+\
+
+Total Value: $(0.50 - 0.30) \times 100 \times 100 = 2,000.00$ USD
+
+Margin: 2,000.00 USD
+
+
+---
+
+### Short Call Spread
+
+```{r shortcallspread_plot, echo=FALSE, results='show', fig.height=7.5}
+S  <- seq(200, 225, by = 0.1)
+K1 <- 210
+K2 <- 215
+
+call1_payoff <- pmax(S - K1, 0);
+call2_payoff <- pmax(S - K2, 0);
+
+spread_payoff <- - (call1_payoff - call2_payoff)
+
+ggplot() +
+    geom_line(aes(x = S, y = spread_payoff)) +
+    xlab('Stock Price, S') +
+    ylab('Payoff') +
+    ggtitle('Payoff of a Short Bullish Call Spread with Strike Price K = 210, 215')
+```
+
+---
+
+Maximum possible loss
+
+\
+
+Long Jun 210 Call - 0.50
+
+Short Jun 215 Call - 0.30
+
+\
+
+Total Value: $(215 - 210) \times 100 \times 100 = 50,000.00$ USD
+
+Margin: 50,000.00 USD
+
+
+
+# Margin Calculator
+
+## Example Option Portfolio
+
+\
+
+```{r show_xiu_portfolio, echo=FALSE}
+xiu_portfolio_tbl <- read_csv('data/xiu_option_position.csv')
+
+xiu_portfolio_tbl %>%
+    select(symbol, expiry, strike, callput, position) %>%
+    arrange(symbol, expiry, strike, callput) %>%
+    kable() %>%
+    kable_styling(font_size = 15)
+```
+
+---
+
+Margin calculation?
+
+---
+
+Divide portfolio into spreads
+
+\
+
+Margin calculation for each spread
+
+\
+
+Total margin sum of spread margin
+
+---
+
+How do we divide up portfolio?
+
+
+## Suggested Approach
+
+\
+
+
+  1. Sample spreads
+  1. Calculate margin
+  1. Allocate whole portfolio
+  1. Sum amounts
+
+---
+
+```{r reshow_xiu_portfolio, echo=FALSE}
+xiu_portfolio_tbl %>%
+    select(symbol, expiry, strike, callput, position) %>%
+    arrange(symbol, expiry, strike, callput) %>%
+    kable() %>%
+    kable_styling(font_size = 15)
+```
+
+---
+
+```{r xiu_portfolio_highlight_straddle, echo=FALSE}
+xiu_portfolio_tbl %>%
+    select(symbol, expiry, strike, callput, position) %>%
+    arrange(symbol, expiry, strike, callput) %>%
+    kable() %>%
+    kable_styling(font_size = 15) %>% 
+    row_spec(13:14, bold = TRUE, background = 'blue')
+```
+
+---
+
+```{r xiu_portfolio_after_straddle, echo=FALSE}
+xiu_portfolio_tbl %>%
+    select(symbol, expiry, strike, callput, position) %>%
+    arrange(symbol, expiry, strike, callput) %>%
+    slice(c(1:12, 14:20)) %>%
+    mutate(position = ifelse(seq_along(position) == 13, -4, position)) %>%
+    kable() %>%
+    kable_styling(font_size = 15) %>% 
+    row_spec(13, bold = TRUE, background = 'green')
+```
+
+
+## Distribution of Total Margin
+
+```{r load_show_margin_data, echo=FALSE}
+margin_10k_lst <- read_rds('data/margin_10k_lst.rds')
+
+margin_10k_lst[[1]][[1]]
+
+
+margin_data_tbl <- margin_10k_lst %>%
+    construct_margin_data()
+
+margin_totals <- margin_data_tbl %>%
+    group_by(sim_id) %>%
+    summarise(total_margin = sum(margin)) %>%
+    pull(total_margin)
+```
+
+---
+
+```{r plot_margin_distributions, echo=FALSE}
+ggplot() +
+    geom_histogram(aes(x = margin_totals), bins = 50) +
+    xlab("Calculated Margin") +
+    ylab("Count") +
+    scale_x_continuous(labels = comma) +
+    ggtitle("Distribution of Calculated Margin")
+```
+
+---
+
+```{r plot_ordered_margins, echo=FALSE}
+ggplot() +
+    geom_line(aes(x = margin_totals %>% seq_along()
+                 ,y = margin_totals %>% sort(decreasing = TRUE))) +
+    expand_limits(y = 0) +
+    xlab("Order") +
+    ylab("Calculated Margin") +
+    scale_y_continuous(labels = comma) +
+    ggtitle("Lineplot of Ordered Calculated Margin")
+```
+
+---
+
+```{r analyse_margin_output, echo=FALSE}
+margin_data_tbl %>%
+    group_by(sim_id) %>%
+    mutate(total_margin = sum(margin)) %>%
+    ungroup() %>%
+    filter(total_margin == min(total_margin)) %>%
+    arrange(desc(margin)) %>%
+    select(sim_id, comp_id, spread, margin, total_margin) %>%
+    kable() %>%
+    kable_styling(font_size = 15)
+```
 
 
 # Summary
 
+
+
 ## Further Work
+
+
+
+## Blogpost Series
+
+\
+
+https://blog.applied.ai/a-practical-introduction-to-options-part-1/
+
+\
+
+https://blog.applied.ai/a-practical-introduction-to-options-part-2/
+
+\
+
+https://blog.applied.ai/a-practical-introduction-to-options-part-3/
+
+\
+
+https://blog.applied.ai/a-practical-introduction-to-options-part-4/
+
+
 
 ## Questions?
 
