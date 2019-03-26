@@ -75,7 +75,8 @@ set.seed(42)
 ![](img/charlie_munger.jpg)
 
 *If you intelligently trade derivatives, it's like a license to steal*
-Charlie Munger, Berkshire Hathaway (2014)
+
+    Charlie Munger, Berkshire Hathaway (2014)
 
 
 ## Options
@@ -294,7 +295,7 @@ ggplot() +
 
 ---
 
-### Long Butterfly
+### Short Butterfly
 
 \
 
@@ -637,7 +638,7 @@ Long options, long theta
 
 \
 
-Important longer term options
+Important for longer term options
 
 
 ---
@@ -1028,7 +1029,6 @@ margin_data_tbl %>%
 
 # Wrap-up and Summary
 
-
 ## Weaknesses
 
 \
@@ -1038,8 +1038,6 @@ Undirected exploration
 \
 
 Memory intensive
-
-
 
 
 ## Further Work
@@ -1057,8 +1055,56 @@ Discrete state exploration
 Engineering and Physics?
 
 
+## Real-world Relevance
 
-## Blogpost Series
+\
+
+Purely academic interest?
+
+---
+
+Linearity intuitive
+
+\
+
+Linear approximations appealing
+
+---
+
+HOWEVER
+
+---
+
+\
+
+Risk usually non-linear
+
+\
+
+Non-zero second derivative
+
+
+---
+
+Bacterial growth question
+
+---
+
+Not always quantifiable
+
+---
+
+*If we can't measure what is important, we make what we can measure important*
+
+           - 'The Vietnam War' Documentary Series
+
+
+
+## Further Reading
+
+---
+
+### Blogpost Series
 
 \
 
@@ -1077,13 +1123,18 @@ https://blog.applied.ai/a-practical-introduction-to-options-part-3/
 https://blog.applied.ai/a-practical-introduction-to-options-part-4/
 
 
-## Margin Calculator
+---
+
+### Margin Calculator
+
+\
 
 http://www.github.com/kaybenleroll/options_margin_calculator
 
 
+---
 
-## Options Trading Flowchart
+### Options Trading Flowchart
 
 \
 
@@ -1103,15 +1154,6 @@ http://www.github.com/kaybenleroll/data_workshops
 
 
 mickcooney@gmail.com
-
-
-
-
-
-
-
-
-
 
 
 
