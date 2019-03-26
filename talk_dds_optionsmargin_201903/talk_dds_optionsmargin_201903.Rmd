@@ -1026,11 +1026,14 @@ margin_data_tbl %>%
 ```
 
 
-# Summary
+# Wrap-up and Summary
 
+
+## Weaknesses
 
 
 ## Further Work
+
 
 
 
