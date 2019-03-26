@@ -1031,9 +1031,30 @@ margin_data_tbl %>%
 
 ## Weaknesses
 
+\
+
+Undirected exploration
+
+\
+
+Memory intensive
+
+
+
 
 ## Further Work
 
+\
+
+Improve optimisation
+
+\
+
+Discrete state exploration
+
+\
+
+Engineering and Physics?
 
 
 
@@ -1054,6 +1075,20 @@ https://blog.applied.ai/a-practical-introduction-to-options-part-3/
 \
 
 https://blog.applied.ai/a-practical-introduction-to-options-part-4/
+
+
+## Margin Calculator
+
+http://www.github.com/kaybenleroll/options_margin_calculator
+
+
+
+## Options Trading Flowchart
+
+\
+
+
+![](img/options_trading_flowchart.png)
 
 
 
