@@ -23,7 +23,7 @@ import::from(readr      ,read_csv, write_csv, read_rds, write_rds, cols
 import::from(dplyr      ,mutate, filter, select, group_by, slice, ungroup
                         ,left_join, inner_join, anti_join, semi_join
                         ,summarise, summarise_at, vars, distinct, sample_n
-                        ,pull, if_else, count, arrange, bind_rows)
+                        ,pull, if_else, count, arrange, bind_rows, mutate_all)
 import::from(tidyr      ,gather, spread, nest, unnest, replace_na, crossing)
 import::from(ggplot2    ,ggplot, aes, xlab, ylab, ggtitle
                         ,geom_histogram, geom_boxplot, geom_bar, geom_col
@@ -372,17 +372,7 @@ How do we price/value this 'insurance'?
 
 What impacts this value?
 
----
 
-\begin{eqnarray*}
-S &=& \text{current price of underlying}   \\
-K &=& \text{strike price of contract}      \\
-t &=& \text{time to expiration}            \\
-r &=& \text{risk-free interest rate}       \\
-\sigma &=& \text{volatility of underlying} \\
-\end{eqnarray*}
-
----
 
 ## Key Assumption of Finance
 
@@ -399,6 +389,17 @@ No risk-free profit
 ## Black Scholes
 
 \
+
+
+\begin{eqnarray*}
+S &=& \text{current price of underlying}   \\
+K &=& \text{strike price of contract}      \\
+t &=& \text{time to expiration}            \\
+r &=& \text{risk-free interest rate}       \\
+\sigma &=& \text{volatility of underlying} \\
+\end{eqnarray*}
+
+---
 
 $$
 \frac{dV}{dt} + \frac{1}{2} \sigma^2 S^2 \frac{d^2 V}{dS^2} + rS \frac{dV}{dS} - rV = 0
@@ -494,7 +495,19 @@ ggplot(put_pricing_tbl) +
     ggtitle("Pricing for Put Options")
 ```
 
+---
 
+```{r plot_european_put_prices, echo=FALSE}
+plot_tbl <- put_pricing_tbl %>% filter(S <= 91)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = S, y = price), colour = 'red') +
+    geom_line(aes(x = S, y = price), colour = 'green') +
+    geom_line(aes(x = S, y = intrs), colour = 'black') +
+    xlab("Stock Price") +
+    ylab("Option Price") +
+    ggtitle("European Put Options and Intrinsic Value")
+```
 
 
 
@@ -539,7 +552,7 @@ ggplot(pricing_grid_tbl) +
     geom_tile(aes(x = S, y = T, fill = price)) +
     xlab("Stock Price") +
     ylab("Days to Expiration") +
-    ggtitle("Option Price by Stock and Time")
+    ggtitle("Call Option Price by Stock and Time")
 ```
 
 ---
@@ -549,9 +562,8 @@ ggplot(pricing_grid_tbl) +
     geom_tile(aes(x = S, y = T, fill = premium)) +
     xlab("Stock Price") +
     ylab("Days to Expiration") +
-    ggtitle("Option Premium by Stock and Time")
+    ggtitle("Call Option Premium by Stock and Time")
 ```
-
 
 
 ## Greeks
@@ -674,6 +686,7 @@ Non-intuitive
 Risks non-obvious
 
 
+
 ## Non-Linear Behaviour
 
 \
@@ -698,6 +711,34 @@ S =  99.00, t = 1.0 &\implies& `r p2`    \\
 S = 100.00, t = 0.5 &\implies& `r p3`
 \end{eqnarray*}
 
+---
+
+### Time Decay
+
+```{r plot_time_decay_atm_option, echo=FALSE, fig.height=7.5}
+moneyness_tbl <- tribble(
+            ~moneyness,     ~S
+   ,"Out of the Money",  99.50
+   ,    "At the Money", 100.00
+   ,    "In the Money", 100.50
+)
+
+option_decay_tbl <- crossing(moneyness = moneyness_tbl$moneyness, T = (1:40) / 252) %>%
+    inner_join(moneyness_tbl, by = 'moneyness') %>%
+    mutate(price = map2_dbl(S, T, calc_call_price)
+          ,days_passed = 40 - (252 * T)
+           ) %>%
+    arrange(S, days_passed) %>%
+    group_by(S = as.character(S)) %>%
+    mutate(price_prop = price / price[1]) %>%
+    ungroup()
+
+ggplot(option_decay_tbl) +
+    geom_line(aes(x = days_passed, y = price_prop, colour = moneyness)) +
+    xlab("Days Passed") +
+    ylab("Proportion of Initial Price") +
+    ggtitle("Price Decay of Options with Different Moneyness")
+```
 
 ---
 
@@ -899,10 +940,42 @@ Margin: 50,000.00 USD
 xiu_portfolio_tbl <- read_csv('data/xiu_option_position.csv')
 
 xiu_portfolio_tbl %>%
-    select(symbol, expiry, strike, callput, position) %>%
+    select(symbol, expiry, strike, callput, price, position) %>%
     arrange(symbol, expiry, strike, callput) %>%
     kable() %>%
     kable_styling(font_size = 15)
+```
+
+---
+
+### Portfolio Greeks
+
+\
+
+
+```{r xiu_position_summary, echo=FALSE}
+option_greeks_tbl <- read_rds('data/option_data.rds')
+
+portfolio_greeks_tbl <- xiu_portfolio_tbl %>%
+    left_join(option_greeks_tbl, by = c('symbol', 'expiry', 'strike', 'callput')) %>%
+    mutate(delta_pos = position * contract_size * ifelse(asset_type == 'equity', 1, delta)
+          ,gamma_pos = position * contract_size * ifelse(asset_type == 'equity', 0, gamma)
+          ,vega_pos  = position * contract_size * ifelse(asset_type == 'equity', 0, vega)
+          ,theta_pos = position * contract_size * ifelse(asset_type == 'equity', 0, theta)
+          ,rho_pos   = position * contract_size * ifelse(asset_type == 'equity', 0, rho)
+           ) %>%
+    summarise(nav = sum(position * contract_size * price)
+             ,delta = sum(delta_pos)
+             ,gamma = sum(gamma_pos)
+             ,vega  = sum(vega_pos)
+             ,theta = sum(theta_pos)
+             ,rho   = sum(rho_pos)
+              )
+
+portfolio_greeks_tbl %>%
+    mutate_all(comma) %>%
+    kable() %>%
+    kable_styling(font_size = 25)
 ```
 
 ---
@@ -1154,9 +1227,6 @@ http://www.github.com/kaybenleroll/data_workshops
 
 
 mickcooney@gmail.com
-
-
-
 
 
 
