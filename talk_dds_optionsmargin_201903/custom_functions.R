@@ -1,3 +1,16 @@
+calc_call_price <- function(S, T) {
+    calc <- AmericanOption(type          = 'call'
+                           ,underlying    = S
+                           ,strike        = 100
+                           ,dividendYield = 0
+                           ,riskFreeRate  = r
+                           ,maturity      = T / 252
+                           ,volatility    = 0.2)
+
+    return(calc$value)
+}
+
+
 calc_option_price_greeks <- function(...) {
     option_price <- EuropeanOption(...)
 

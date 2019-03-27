@@ -40,7 +40,9 @@ import::from(kableExtra ,kable_styling, row_spec)
 import::from(RQuantLib  ,AmericanOption, EuropeanOption)
 
 
-import::from('custom_functions.R'  ,calc_option_price_greeks, leverage_pricer
+import::from('custom_functions.R'  ,calc_call_price
+                                   ,calc_option_price_greeks
+                                   ,leverage_pricer
                                    ,construct_margin_calc_details
                                    ,construct_margin_data)
 
@@ -528,18 +530,6 @@ Time value aka 'Premium'
 S <- seq(90, 110, by = 0.1)
 T <- 1:120
 
-calc_call_price <- function(S, T) {
-    calc <- AmericanOption(type          = 'call'
-                          ,underlying    = S
-                          ,strike        = 100
-                          ,dividendYield = 0
-                          ,riskFreeRate  = r
-                          ,maturity      = T / 252
-                          ,volatility    = 0.2)
-    
-    return(calc$value)
-}
-
 pricing_grid_tbl <- crossing(S = S, T = T) %>%
     mutate(price     = map2_dbl(S, T, calc_call_price)
           ,intrinsic = pmax(S - K, 0)
@@ -641,7 +631,7 @@ Option decay - daily not annual
 
 \
 
-Long options, long theta
+Long options, pay theta
 
 
 ---
