@@ -1,0 +1,332 @@
+---
+title: "The Bayesian Approach to Data"
+subtitle: "Dogpatch Labs - First Fridays"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2019-04-04"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(cowplot)
+
+
+options(width = 80L
+       ,warn  = 1)
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,warning = FALSE
+                     ,message = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+
+set.seed(42)
+```
+
+# Insurance
+
+---
+
+![](img/dads_army.jpg)
+
+---
+
+![](img/mad_men.jpg)
+
+---
+
+![](img/gladiator.jpg)
+
+
+# Why Bayes?
+
+---
+
+What is Bayes?
+
+
+## Probability and Statistics
+
+\
+
+"Data"
+
+\
+
+Observations, Measurements, Facts
+
+
+## Bayesian Inference Engine
+
+\
+
+Prior Knowledge
+
+\
+
+$+$
+
+\
+
+Data
+
+\
+
+$=$
+
+\
+
+Posterior Knowledge
+
+
+# Using Bayes
+
+---
+
+LOADS of interesting questions
+
+---
+
+INSTEAD
+
+---
+
+![](img/penalty_miss.jpg)
+
+\
+
+Just How Sh*t are England at Penalty Shootouts?
+
+
+## Prior Distribution
+
+```{r plot_prior_beta_11, echo=FALSE, fig.height=7.5}
+theta_seq <- seq(0, 1, by = 0.001)
+
+beta_11 <- dbeta(theta_seq, 1, 1)
+
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_11)) +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("Prior Distribution for Probability of Success (uniform)")
+```
+
+---
+
+```{r plot_prior_beta_22, echo=FALSE, fig.height=7.5}
+beta_22 <- dbeta(theta_seq, 2, 2)
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_22)) +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("Prior Distribution for Probability of Success (weakly informed)")
+```
+
+## Data (pre-2018 World Cup)
+
+\
+
+```{r show_england_tournaments, echo=FALSE}
+england_prewc_tbl <- tribble(
+    ~Year,      ~Opponent,  ~Tournament, ~Result
+    ,1990, "West Germany",  "World Cup",  "Loss"
+    ,1996,        "Spain",      "Euros",   "Win"
+    ,1996,      "Germany",      "Euros",  "Loss"
+    ,1998,    "Argentina",  "World Cup",  "Loss"
+    ,2004,     "Portugal",      "Euros",  "Loss"
+    ,2006,     "Portugal",  "World Cup",  "Loss"
+    ,2012,        "Italy",      "Euros",  "Loss"
+)
+
+england_prewc_tbl %>% (knitr::kable)(align = c('llll'))
+```
+
+---
+
+1 Win
+
+\
+
+6 Losses
+
+\
+
+14% win ratio
+
+
+## Posterior Distribution
+
+\
+
+Combine prior and data
+
+\
+
+Calculate posterior distribution for $\theta$
+
+---
+
+### Uniform Prior
+
+```{r plot_beta_england, echo=FALSE}
+beta_england <- dbeta(theta_seq, 1+1, 1+6)
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_england)) +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("Posterior Distribution for English Probability of Success (uniform prior)")
+```
+
+---
+
+### Informed Prior
+
+```{r plot_beta_england_informed, echo=FALSE}
+beta_england_informed <- dbeta(theta_seq, 2+1, 2+6)
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_england), colour = 'red') +
+    geom_line(aes(x = theta_seq, y = beta_england_informed)) +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("Posterior Distribution for English Probability of Success (informed prior)")
+```
+
+
+# Statistical Inference
+
+## Our Question
+
+\
+
+What values do we calculate for $\theta$?
+
+\
+
+(probability that England win shootout)
+
+## Credibility Interval
+
+```{r plot_50_credibility_region, echo=FALSE}
+bayes_cred_50 <- qbeta(c(0.25, 0.75), 2+1, 2+6)
+
+keep_flag <- (theta_seq >= bayes_cred_50[1] & theta_seq <= bayes_cred_50[2])
+
+cred_x <- theta_seq[keep_flag]
+cred_y <- beta_england_informed[keep_flag]
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_england_informed)) +
+    geom_area(aes(x = cred_x, y = cred_y), fill = 'grey', alpha = 0.5) +
+    geom_text(aes(x = bayes_cred_50, y = 0.75, label = bayes_cred_50 %>% round(2)), size = 10) +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("50% Posterior Credibility Interval")
+```
+
+---
+
+```{r plot_80_credibility_region, echo=FALSE}
+bayes_cred_80 <- qbeta(c(0.10, 0.90), 2+1, 2+6)
+
+keep_flag <- (theta_seq >= bayes_cred_80[1] & theta_seq <= bayes_cred_80[2])
+
+cred_x <- theta_seq[keep_flag]
+cred_y <- beta_england_informed[keep_flag]
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_england_informed)) +
+    geom_area(aes(x = cred_x, y = cred_y), fill = 'grey', alpha = 0.5) +
+    geom_text(aes(x = bayes_cred_80, y = 0.75, label = bayes_cred_80 %>% round(2)), size = 10) +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("80% Posterior Credibility Interval")
+
+```
+
+
+# Adapting to New Data
+
+## 2018 World Cup
+
+\
+
+![](img/england_win.jpg)
+
+---
+
+How do we incorporate that last win?
+
+---
+
+```{r plot_beta_new_england, echo=FALSE}
+beta_new_england <- dbeta(theta_seq, 1+2, 1+6)
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_new_england)) +
+    geom_line(aes(x = theta_seq, y = beta_england), colour = 'blue') +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("Updated Posterior Distribution for World Cup Win (uniform prior)")
+```
+
+---
+
+```{r plot_beta_new_england_informed, echo=FALSE}
+beta_new_england_informed <- dbeta(theta_seq, 2+2, 2+6)
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_new_england_informed)) +
+    geom_line(aes(x = theta_seq, y = beta_england_informed), colour = 'blue') +
+    geom_line(aes(x = theta_seq, y = beta_england), colour = 'red') +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("Updated Posterior Distribution for World Cup Win (informed prior)")
+```
+
+
+
+
+# Summary
+
+---
+
+![](img/gazza_tears.jpg)
+
+---
+
+Coherent approach
+
+\
+
+Gives sense of uncertainty
+
+\
+
+Easier and easier to use
+
+---
+
+Thank You!!!
+
+\
+
+mickcooney@gmail.com
+
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops
