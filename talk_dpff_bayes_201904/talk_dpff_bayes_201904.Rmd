@@ -93,11 +93,11 @@ Posterior Knowledge
 
 ---
 
-LOADS of interesting questions
+Interesting questions
 
 ---
 
-INSTEAD
+Important questions
 
 ---
 
@@ -110,7 +110,7 @@ Just How Sh*t are England at Penalty Shootouts?
 
 ## Prior Distribution
 
-```{r plot_prior_beta_11, echo=FALSE, fig.height=7.5}
+```{r plot_prior_beta_11, echo=FALSE, fig.height=7.0}
 theta_seq <- seq(0, 1, by = 0.001)
 
 beta_11 <- dbeta(theta_seq, 1, 1)
@@ -134,6 +134,7 @@ ggplot() +
     ylab("Density") +
     ggtitle("Prior Distribution for Probability of Success (weakly informed)")
 ```
+
 
 ## Data (pre-2018 World Cup)
 
@@ -181,7 +182,7 @@ Calculate posterior distribution for $\theta$
 
 ### Uniform Prior
 
-```{r plot_beta_england, echo=FALSE}
+```{r plot_beta_england, echo=FALSE, fig.height=7.0}
 beta_england <- dbeta(theta_seq, 1+1, 1+6)
 
 ggplot() +
@@ -195,7 +196,7 @@ ggplot() +
 
 ### Informed Prior
 
-```{r plot_beta_england_informed, echo=FALSE}
+```{r plot_beta_england_informed, echo=FALSE, fig.height=7.0}
 beta_england_informed <- dbeta(theta_seq, 2+1, 2+6)
 
 ggplot() +
@@ -203,7 +204,9 @@ ggplot() +
     geom_line(aes(x = theta_seq, y = beta_england_informed)) +
     xlab(expression(theta)) +
     ylab("Density") +
-    ggtitle("Posterior Distribution for English Probability of Success (informed prior)")
+    ggtitle("Posterior Distribution for English Probability of Success (informed prior)"
+           ,subtitle = "Red line is posterior with uniform prior"
+            )
 ```
 
 
@@ -221,7 +224,7 @@ What values do we calculate for $\theta$?
 
 ## Credibility Interval
 
-```{r plot_50_credibility_region, echo=FALSE}
+```{r plot_50_credibility_region, echo=FALSE, fig.height=7.0}
 bayes_cred_50 <- qbeta(c(0.25, 0.75), 2+1, 2+6)
 
 keep_flag <- (theta_seq >= bayes_cred_50[1] & theta_seq <= bayes_cred_50[2])
@@ -273,39 +276,44 @@ How do we incorporate that last win?
 
 ---
 
-```{r plot_beta_new_england, echo=FALSE}
-beta_new_england <- dbeta(theta_seq, 1+2, 1+6)
-
-ggplot() +
-    geom_line(aes(x = theta_seq, y = beta_new_england)) +
-    geom_line(aes(x = theta_seq, y = beta_england), colour = 'blue') +
-    xlab(expression(theta)) +
-    ylab("Density") +
-    ggtitle("Updated Posterior Distribution for World Cup Win (uniform prior)")
-```
-
----
-
 ```{r plot_beta_new_england_informed, echo=FALSE}
 beta_new_england_informed <- dbeta(theta_seq, 2+2, 2+6)
 
 ggplot() +
     geom_line(aes(x = theta_seq, y = beta_new_england_informed)) +
     geom_line(aes(x = theta_seq, y = beta_england_informed), colour = 'blue') +
-    geom_line(aes(x = theta_seq, y = beta_england), colour = 'red') +
     xlab(expression(theta)) +
     ylab("Density") +
-    ggtitle("Updated Posterior Distribution for World Cup Win (informed prior)")
+    ggtitle("Updated Posterior Distribution for World Cup Win (informed prior)"
+           ,"(blue line is pre-World Cup posterior)"
+            )
+```
+
+---
+
+```{r plot_new_50_credibility_region, echo=FALSE}
+new_bayes_cred_50 <- qbeta(c(0.25, 0.75), 2+2, 2+6)
+
+keep_flag <- (theta_seq >= bayes_cred_50[1] & theta_seq <= bayes_cred_50[2])
+
+cred_x <- theta_seq[keep_flag]
+cred_y <- beta_new_england_informed[keep_flag]
+
+ggplot() +
+    geom_line(aes(x = theta_seq, y = beta_new_england_informed)) +
+    geom_area(aes(x = cred_x, y = cred_y), fill = 'grey', alpha = 0.5) +
+    geom_text(aes(x = new_bayes_cred_50, y = 0.75
+                 ,label = new_bayes_cred_50 %>% round(2))
+             ,size = 10) +
+    xlab(expression(theta)) +
+    ylab("Density") +
+    ggtitle("50% Posterior Credibility Interval")
+
 ```
 
 
 
-
 # Summary
-
----
-
-![](img/gazza_tears.jpg)
 
 ---
 
@@ -320,6 +328,11 @@ Gives sense of uncertainty
 Easier and easier to use
 
 ---
+
+![](img/gazza_tears.jpg)
+
+---
+
 
 Thank You!!!
 
