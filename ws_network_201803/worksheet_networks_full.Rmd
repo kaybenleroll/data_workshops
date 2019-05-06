@@ -1,6 +1,5 @@
 ---
 title: "Dublin Data Science Workshop on the Statistical Analysis of Networks"
-subtitle: "Section 1"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Monday, March 26 2018"
 output:
@@ -9,6 +8,9 @@ output:
     number_sections: yes
     theme: cerulean
     toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
   word_document:
     toc: yes
   pdf_document: default
