@@ -21,10 +21,13 @@ import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
 import::from(magrittr  ,"%>%", set_colnames)
 import::from(readr     ,read_csv, write_csv, read_rds, write_rds, cols
                        ,col_character)
-import::from(dplyr     ,mutate, filter, select, group_by
-                       ,left_join, inner_join, anti_join, semi_join
-                       ,summarise, summarise_at, vars, distinct, sample_n
-                       ,pull, if_else, count, arrange, bind_rows)
+import::from(dplyr     ,n, filter, select, group_by, ungroup, pull, count
+                       ,arrange, desc, vars, distinct, sample_n, sample_frac
+                       ,top_n, bind_rows, if_else
+                       ,summarise, summarise_at, summarise_if, summarise_all
+                       ,mutate, mutate_at, mutate_if, mutate_all
+                       ,transmute, transmute_at, transmute_if, transmute_all
+                       ,inner_join, left_join, semi_join, anti_join)
 import::from(tidyr     ,gather, spread, nest, unnest, replace_na)
 import::from(ggplot2   ,ggplot, aes, xlab, ylab, ggtitle
                        ,geom_histogram, geom_boxplot, geom_bar, geom_col

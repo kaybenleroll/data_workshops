@@ -1,0 +1,132 @@
+---
+title: "Terrorism as a Virus"
+subtitle: "Insurance Data Science Conference 2019"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "14 June 2019"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+---
+
+```{r knit_opts, include=FALSE}
+rm(list = ls()); gc()
+
+import::from(rlang     ,as_integer, as_character)
+import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
+import::from(magrittr  ,"%>%", set_colnames)
+import::from(readr     ,read_csv, write_csv, cols, col_character, col_integer
+                       ,write_lines, read_rds, write_rds, read_fwf, fwf_cols
+                       ,read_tsv, read_delim)
+import::from(dplyr     ,filter, select, group_by, ungroup, pull, count
+                       ,arrange, desc, vars, distinct, sample_n, sample_frac
+                       ,top_n, if_else
+                       ,summarise, summarise_at, summarise_if
+                       ,mutate, mutate_at, mutate_if
+                       ,transmute, transmute_at, transmute_if
+                       ,inner_join, left_join, semi_join, anti_join)
+import::from(tidyr     ,gather, spread, nest, unnest, replace_na, crossing)
+import::from(ggplot2   ,ggplot, aes, xlab, ylab, ggtitle
+                       ,geom_histogram, geom_boxplot, geom_bar, geom_col
+                       ,geom_line, geom_hline, geom_vline
+                       ,geom_polygon, geom_segment
+                       ,scale_x_continuous, scale_y_continuous
+                       ,expand_limits, theme, element_text, facet_grid
+                       ,facet_wrap, theme_set, theme, map_data, theme_void)
+import::from(scales    ,comma)
+import::from(cowplot   ,theme_cowplot)
+import::from(jsonlite  ,toJSON, fromJSON)
+import::from(purrr     ,map, map_int, map_dbl, map_chr)
+import::from(stringr   ,str_replace, str_extract, str_replace, str_replace_all
+                       ,str_trim, str_detect)
+import::from(feather   ,read_feather, write_feather)
+
+
+knitr::opts_chunk$set(tidy       = FALSE
+                     ,cache      = FALSE
+                     ,message    = FALSE
+                     ,warning    = FALSE
+                     ,fig.width  =    11
+                     ,fig.height =     8)
+
+
+options(width = 80L
+       ,warn  = 1 
+        )
+```
+
+```{r load_data, echo=FALSE}
+gtd_filtered_tbl <- read_rds("data/gtd_filtered_tbl.rds") %>%
+    mutate(event_date = as.Date(paste(iyear, imonth, iday, sep = '-'))) %>%
+    select(eventid, iyear, imonth, iday, country = country_txt, event_date, nkill)
+```
+
+```{r construct_monthly_counts, echo=FALSE}
+countries <- gtd_filtered_tbl %>% pull(country) %>% sort() %>% unique()
+
+calendar_tbl <- crossing(year = 1970:2018, month = 1:12, country = countries) %>%
+    mutate(event_month = sprintf("%04d-%02d-01", year, month) %>% as.Date()) %>%
+    select(country, event_month)
+
+data_counts_tbl <- gtd_filtered_tbl %>%
+    mutate(event_month = sprintf("%04d-%02d-01", iyear, imonth) %>% as.Date()) %>%
+    group_by(country, event_month) %>%
+    summarise(total_deaths = sum(nkill))
+
+monthly_counts_tbl <- calendar_tbl %>%
+    left_join(data_counts_tbl, by = c('event_month','country')) %>%
+    replace_na(list(total_deaths = 0))
+```
+
+---
+
+```{r show_death_plots, echo=FALSE}
+ggplot(monthly_counts_tbl) +
+    geom_line(aes(x = event_month, y = total_deaths)) +
+    facet_wrap(vars(country)) +
+    xlab("Date") +
+    ylab("Total Deaths") +
+    ggtitle("Lineplots of Death Total by Month by Country")
+```
+
+---
+
+```{r show_iraq_death_plots, echo=FALSE}
+iraq_tbl <- monthly_counts_tbl %>%
+    filter(country == 'Iraq', event_month >= as.Date('2000-01-01'))
+
+ggplot(iraq_tbl) +
+    geom_line(aes(x = event_month, y = total_deaths)) +
+    xlab("Date") +
+    ylab("Total Deaths") +
+    ggtitle("Lineplots of Death Total by Month for Iraq")
+```
+
+---
+
+![](img/terrorism_network_plot.png)
+
+
+# Thank You
+
+## References
+
+["A machine learning approach to the analysis of terrorism"](https://www.researchgate.net/publication/323422134_A_machine_learning_approach_to_the_analysis_of_terrorism)
+
+Peter Brennan (MSc Thesis, 2017)
+
+\
+
+
+
+## Get in Touch
+
+\
+
+
+mcooney@describedata.com
+
+GitHub: <http://www.github.com/kaybenleroll/data_workshops>
+
+

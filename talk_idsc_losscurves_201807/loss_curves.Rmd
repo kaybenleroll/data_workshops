@@ -1,0 +1,744 @@
+---
+title: "Loss Curve Modelling"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2018-07-17"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(scales)
+library(rstan)
+library(bayesplot)
+library(cowplot)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+
+set.seed(42)
+
+stan_seed <- 42
+
+source("custom_functions.R")
+```
+
+# Introduction
+
+## NAIC Schedule P Dataset
+
+```{r load_data, echo=FALSE}
+### File was downloaded from http://www.casact.org/research/reserve_data/ppauto_pos.csv
+data_files <- dir("data/", pattern = "\\.csv", full.names = TRUE)
+
+data_cols <- cols(GRCODE = col_character())
+
+rawdata_tbl <- data_files %>%
+    map(read_claim_datafile, col_type = data_cols) %>%
+    bind_rows
+
+glimpse(rawdata_tbl)
+```
+
+---
+
+```{r reorganise_data, echo=FALSE}
+claimdata_tbl <- rawdata_tbl %>%
+    mutate(acc_year   = as.character(accidentyear)
+          ,dev_year   = developmentyear
+          ,dev_lag    = developmentlag
+          ,premium    = earnedpremdir
+          ,cum_loss   = cumpaidloss
+          ,loss_ratio = cum_loss / premium) %>%
+    select(grcode, grname, lob, acc_year, dev_year, dev_lag, premium, cum_loss, loss_ratio) %>%
+    group_by(grcode, lob, acc_year) %>%
+    mutate(dev_factor = cum_loss / cum_loss[10]) %>%
+    ungroup()
+
+claimdata_tbl %>% glimpse()
+```
+
+---
+
+```{r plot_total_losses, echo=FALSE}
+use_grcode <- '43'
+
+carrier_full_tbl <- claimdata_tbl %>%
+    filter(lob == 'ppauto')
+
+snapshot_tbl <- claimdata_tbl %>%
+    filter(lob      == 'ppauto'
+          ,grcode   == use_grcode
+          ,dev_year <  1998
+           )
+
+losscurves_plot <- ggplot(snapshot_tbl) +
+    geom_line (aes(x = dev_lag, y = cum_loss, colour = acc_year)) +
+    geom_point(aes(x = dev_lag, y = cum_loss, colour = acc_year)) +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = comma) +
+    xlab("Development Year") +
+    ylab("Cumulative Loss") +
+    ggtitle("Plot of Cumulative Losses by Cohort Year")
+
+losscurves_plot %>% plot
+```
+
+---
+
+```{r plot_loss_ratio, echo=FALSE}
+devfactors_plot <- ggplot(snapshot_tbl) +
+    geom_line (aes(x = dev_lag, y = loss_ratio, colour = acc_year)) +
+    geom_point(aes(x = dev_lag, y = loss_ratio, colour = acc_year)) +
+    expand_limits(y = 0) +
+    xlab("Development Year") +
+    ylab("Development Factor") +
+    ggtitle("Plot of Development Factors by Cohort Year")
+
+devfactors_plot %>% plot
+```
+
+
+## Grid Approximation
+
+```{r show_fully_developed_curve, echo=FALSE}
+single_curve_tbl <- snapshot_tbl %>%
+    filter(acc_year == 1988)
+
+fully_developed_likelihood <- create_curve_likelihood_function(single_curve_tbl)
+
+
+mle_est <- optim(c(1,1)
+                ,function(x) fully_developed_likelihood(x[1],x[2])$loglik
+                ,control = list(fnscale = -1)
+                 )
+```
+
+```{r single_parameter_approximation, echo=FALSE, fig.height=7.5}
+ulr_vals <- seq(0.65, 0.75, by = 0.001)
+
+ulr_likelihood_func <-function(ulr)
+    map_dbl(ulr, function(x) fully_developed_likelihood(mle_est$par[1], x)$loglik)
+
+likelihood_vals <- ulr_likelihood_func(ulr_vals) %>% exp %>% (function (x) x * 0.001)
+
+ulr_probs <- likelihood_vals / sum(likelihood_vals)
+
+ulr_likelihood_plot <- ggplot() +
+    geom_line(aes(x = ulr_vals, y = ulr_probs)) +
+    xlab("Ultimate Loss Ratio") +
+    ylab("Likelihood") +
+    ggtitle("Marginal Probability of Observed Curve as Function of ULR")
+
+ulr_likelihood_plot %>% plot
+```
+
+---
+
+### 2D Grid
+
+
+```{r calculate_grid_approximation, echo=FALSE, cache=FALSE}
+# dlambda <- 0.01
+# dulr    <- 0.01
+dlambda <- 0.025
+dulr    <- 0.025
+
+l_seq <- seq(0.10, 1.50, by = dlambda)
+u_seq <- seq(0.10, 1.50, by = dulr)
+
+curve_sd <- 0.05
+
+grid_tbl <- crossing(lambda = l_seq, ulr = u_seq) %>%
+    filter(lambda >= 0.2, lambda <= 0.6
+          ,ulr    >= 0.6, ulr    <= 0.8
+           ) %>%
+    mutate(output   = map2(lambda, ulr, fully_developed_likelihood, sd = curve_sd)
+          ,loglik   = map_dbl(output, 'loglik')
+          ,imp_prob = exp(loglik) * dlambda * dulr
+          ,prob     = imp_prob / sum(imp_prob)
+           )
+```
+
+```{r plot_grid_approximation, echo=FALSE, fig.height=7}
+sample_tbl <- grid_tbl %>%
+    filter(prob >= quantile(prob, 0.80)) %>%
+#    sample_n(10, weight = prob)
+    sample_n(5, weight = prob)
+
+grid_approx_plot <- ggplot(grid_tbl) +
+    geom_tile   (aes(x = lambda, y = ulr, fill = prob)) +
+    geom_contour(aes(x = lambda, y = ulr, z = prob), binwidth = 1, colour = 'black', bins = 10) +
+    geom_point  (aes(x = mle_est$par[1], y = mle_est$par[2]), colour = 'black') +
+    scale_fill_gradient(low = 'blue', high = 'red') +
+    xlab(expression(lambda)) +
+    ylab("ULR") +
+    ggtitle("Grid Approximation of Curve Fit")
+
+grid_approx_plot %>% plot
+```
+
+---
+
+```{r plot_grid_approximation_sample_points, echo=FALSE}
+grid_approx_points_plot <- grid_approx_plot +
+    geom_point(aes(x = lambda, y = ulr), data = sample_tbl, colour = 'grey')
+    
+grid_approx_points_plot %>% plot
+```
+
+---
+
+```{r plot_possible_curves, echo=FALSE}
+mlecurve_tbl <- fully_developed_likelihood(mle_est$par[1]
+                                          ,mle_est$par[2]
+                                          ,mle_est$par[3]
+                                           )$curve_tbl
+
+plot_tbl <- sample_tbl %>%
+    pull(output) %>%
+    map('curve_tbl') %>%
+    bind_rows(.id = 'id_val')
+
+mle_neighbour_plot <- ggplot(plot_tbl) +
+    geom_line (aes(x = dev_lag, y = predicted, group = id_val),                           colour = 'black', alpha = 0.2) +
+    geom_line (aes(x = dev_lag, y = loss_ratio), data = plot_tbl %>% filter(id_val == 1), colour = 'blue') +
+    geom_point(aes(x = dev_lag, y = loss_ratio), data = plot_tbl %>% filter(id_val == 1), colour = 'blue') +
+    geom_line (aes(x = dev_lag, y = predicted),  data = mlecurve_tbl,                     colour = 'red', size = 1) +
+    expand_limits(y = c(0, 0.8)) +
+    xlab("Time") +
+    ylab("Development Factor") +
+    ggtitle("Plot of Possible Curves vs Observed")
+
+mle_neighbour_plot %>% plot
+```
+
+---
+
+```{r calculate_five_year_development, echo=FALSE}
+fiveyear_tbl <- snapshot_tbl %>% filter(acc_year == 1993)
+
+fiveyear_lst <- create_dev_factor_diagnostics(fiveyear_tbl, l_seq, u_seq)
+
+fiveyear_lst$gridapprox_plot %>% plot
+```
+
+---
+
+```{r calculate_three_year_development, echo=FALSE}
+threeyear_tbl <- snapshot_tbl %>% filter(acc_year == 1995)
+
+threeyear_lst <- create_dev_factor_diagnostics(threeyear_tbl, l_seq, u_seq)
+
+threeyear_lst$gridapprox_plot %>% plot
+```
+
+---
+
+```{r calculate_ten_years, echo=FALSE, height=10, width=14}
+allyears_lst <- snapshot_tbl %>%
+    split(.$acc_year) %>%
+    map(create_dev_factor_diagnostics, l_seq = l_seq, u_seq = u_seq, plot_title = '')
+
+allyears_plot <- allyears_lst %>%
+    map('gridapprox_plot') %>%
+    plot_grid(plotlist = ., ncol = 4)
+
+allyears_plot %>% plot
+```
+
+---
+
+```{r plot_empirical_prior, echo=FALSE}
+empirical_prior_tbl <- allyears_lst %>%
+    map('grid_tbl') %>%
+    bind_rows %>%
+    group_by(lambda, ulr) %>%
+    summarise(inter = sum(prob)) %>%
+    ungroup() %>%
+    mutate(new_prob = inter / sum(inter))
+
+
+ggplot(empirical_prior_tbl) +
+    geom_tile(aes(x = lambda, y = ulr, fill = new_prob)) +
+    scale_fill_gradient(low = 'blue', high = 'red') +
+    ggtitle('Empirical Prior') +
+    theme(legend.position = 'none')
+```
+
+
+# Specifying the Model
+
+## Core Concept
+
+\
+
+
+$$
+\text{Loss}(t) = \text{Premium} \times \text{ULR} \times \text{GF}(t)
+$$
+
+
+## Full Specification
+
+\
+
+
+$$
+\text{Loss}(Y, t) \sim \text{Normal}(\mu(Y, t), \, \sigma_Y)
+$$
+
+where
+
+\begin{eqnarray*}
+\mu(Y, t)       &=& \text{Premium}(Y) \times \text{LR}(Y) \times \text{GF}(t)  \\
+\text{GF}(t)    &=& \text{growth function of } t \\
+\sigma_Y        &=& \text{Premium}(Y) \times \sigma \\
+\text{LR}_Y     &\sim& \text{Lognormal}(\mu_{\text{LR}}, \sigma_{\text{LR}}) \\
+\mu_{\text{LR}} &\sim& \text{Normal}(0, 0.5)
+\end{eqnarray*}
+
+
+## Importance of the Functional Form
+
+\
+
+
+Does the choice of function matter?
+
+---
+
+```{r weibull_loglogistic_comparison_plot, echo=FALSE}
+t_seq <- seq(0, 15, by = 0.01)
+
+loglogistic_func <- function(t, om, th) 1 - exp(-(t/th)^om)
+weibull_func     <- function(t, om, th) t^om / (t^om + th^om)
+
+
+weibull_tbl <- tibble(
+    label = 'Weibull'
+   ,t = t_seq
+   ,value = weibull_func(t_seq, 1.5, 2.2)
+)
+
+loglogistic_tbl <- tibble(
+    label = 'Log-logistic'
+   ,t = t_seq
+   ,value = loglogistic_func(t_seq, 1.5, 2.2)
+)
+
+plot_tbl <- bind_rows(weibull_tbl, loglogistic_tbl)
+
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = t, y = value, colour = label)) +
+    xlab(expression(t)) +
+    ylab(expression("Growth Factor for (" * omega * "=1.5, " * theta * "=2.2)")) +
+    ggtitle("Sample Curves for Log-Logistic and Weibull Forms")
+```
+
+---
+
+```{r fit_new_params_gf, echo=FALSE}
+ll_vals <- loglogistic_tbl$value
+
+new_param_func <- function(x) {
+    omega <- x[1]
+    theta <- x[2]
+
+    new_vals <- weibull_func(t_seq, omega, theta)
+
+    tot_ss <- sum((new_vals - ll_vals)^2)
+
+    return(tot_ss)
+}
+
+optim_params <- optim(c(1, 1), new_param_func)
+
+
+fittedweibull_tbl <- tibble(
+    label = 'Weibull (fitted)'
+   ,t = t_seq
+   ,value = weibull_func(t_seq
+                        ,optim_params$par[1]
+                        ,optim_params$par[2])
+)
+
+
+plot_tbl <- bind_rows(weibull_tbl
+                     ,loglogistic_tbl
+                     ,fittedweibull_tbl)
+
+ggplot(plot_tbl) +
+    geom_line(aes(x = t, y = value, colour = label)) +
+    xlab(expression(t)) +
+    ylab(expression("Functional Forms for Growth/Development Factors")) +
+    ggtitle("Comparison Plot for Weibull and Log-Logistic Curves")    
+```
+
+---
+
+Not much difference...
+
+---
+
+(probably)
+
+
+# Building the Stan Model
+
+## Getting Started
+
+```{r load_stan_file, echo=FALSE, comment=''}
+stan_code <- read_lines('losscurves_sislob.stan')
+```
+
+```{r print_functions_block, echo=FALSE, comment=''}
+stan_code[1:10] %>% cat(sep = '\n')
+```
+
+---
+
+```{r print_data_block, echo=FALSE, comment=''}
+stan_code[12:28] %>% cat(sep = '\n')
+```
+
+---
+
+```{r print_params_block, echo=FALSE, comment=''}
+stan_code[30:40] %>% cat(sep = '\n')
+```
+
+---
+
+```{r print_transparams_block, echo=FALSE, comment=''}
+stan_code[42:55] %>% cat(sep = '\n')
+```
+
+---
+
+```{r print_model_block, echo=FALSE, comment=''}
+stan_code[57:69] %>% cat(sep = '\n')
+```
+
+
+# Models Fits and Diagnostics
+
+## Model Convergence
+
+```{r stan_data, echo=FALSE}
+modeldata_tbl <- claimdata_tbl %>%
+    filter(lob    == 'ppauto'
+          ,grcode == use_grcode)
+
+usedata_tbl <- modeldata_tbl %>%
+    filter(dev_year < 1998)
+
+cohort_maxtime <- usedata_tbl %>%
+    group_by(acc_year) %>%
+    summarise(maxtime = max(dev_lag)) %>%
+    arrange(acc_year) %>%
+    pull(maxtime)
+
+cohort_premium <- usedata_tbl %>%
+    group_by(acc_year) %>%
+    summarise(premium = unique(premium)) %>%
+    pull(premium)
+
+t_values <- usedata_tbl %>%
+    select(dev_lag) %>%
+    arrange(dev_lag) %>%
+    unique %>%
+    pull(dev_lag)
+
+standata_lst <- list(
+    growthmodel_id = 1   # Use weibull rather than loglogistic
+   ,n_data         = usedata_tbl %>% nrow
+   ,n_time         = usedata_tbl %>% select(dev_lag)  %>% unique %>% nrow
+   ,n_cohort       = usedata_tbl %>% select(acc_year) %>% unique %>% nrow
+   ,cohort_id      = get_character_index(usedata_tbl$acc_year)
+   ,cohort_maxtime = cohort_maxtime
+   ,t_value        = t_values
+   ,t_idx          = get_character_index(usedata_tbl$dev_lag)
+   ,premium        = cohort_premium
+   ,loss           = usedata_tbl$cum_loss
+)
+```
+
+```{r create_stan_model, echo=FALSE}
+model_sislob_stanmodel <- stan_model('losscurves_sislob.stan')
+
+model_sislob_stanfit <- sampling(
+    object = model_sislob_stanmodel
+   ,data   = standata_lst
+   ,iter   = 500
+   ,chains = 8
+   ,seed   = stan_seed
+)
+```
+
+```{r plot_parameter_traceplots, echo=FALSE}
+traceplot(model_sislob_stanfit, pars = c('omega','theta','LR','mu_LR','sd_LR'))
+```
+
+---
+
+```{r plot_parameter_traceplots_rest, echo=FALSE}
+traceplot(model_sislob_stanfit, pars = c('loss_sd','gf'))
+```
+
+---
+
+```{r plot_rhat_values, echo=FALSE}
+model_sislob_stanfit %>%
+    rhat(pars = c('omega','theta','LR','mu_LR','sd_LR','loss_sd')) %>%
+    mcmc_rhat(.) +
+        yaxis_text() +
+        ggtitle("Parameter Plot of R-hat Statistic")
+```
+
+---
+
+```{r plot_neff_values, echo=FALSE}
+model_sislob_stanfit %>%
+    neff_ratio(pars = c('omega','theta','LR','mu_LR','sd_LR','loss_sd')) %>%
+    mcmc_neff(.) +
+        yaxis_text() +
+        ggtitle("Parameter Plot of Effective Sample Size")
+```
+
+## Parameter Values
+
+```{r plot_parameter_intervals, echo=FALSE}
+model_sislob_stanfit %>%
+    extract(inc_warmup = FALSE, permuted = FALSE) %>%
+    mcmc_intervals(regex_pars = c('omega','theta','LR\\[', 'mu_LR','sd_LR','loss_sd')) +
+        expand_limits(x = c(-0.5, 2.5)) +
+        ggtitle("Posterior Credibility Intervals for Sampler Parameters")
+```
+
+---
+
+```{r plot_sanity_check, echo=FALSE}
+fitted_curves_tbl <- extract(model_sislob_stanfit)$loss_sample[,1,] %>%
+    as_data_frame() %>%
+    mutate(iter = 1:n()) %>%
+    gather("timelbl", "value", -iter) %>%
+    mutate(time = gsub("V", "", timelbl) %>% as.numeric())
+
+ggplot(snapshot_tbl %>% filter(acc_year == 1988)) +
+    geom_line (aes(x = time, y = value, group = iter)
+              ,data = fitted_curves_tbl, alpha = 0.005) +
+    geom_line (aes(x = dev_lag, y = cum_loss), colour = 'red') +
+    geom_point(aes(x = dev_lag, y = cum_loss), colour = 'blue') +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = dollar) +
+    xlab("Time") +
+    ylab("Loss") +
+    ggtitle("Plot of 1988 Year Loss Development Against Posterior Distribution")
+```
+
+---
+
+```{r plot_1993_predict_cone, echo=FALSE}
+predict_cone_tbl <- extract(model_sislob_stanfit)$loss_prediction[,6,] %>%
+    as_data_frame() %>%
+    mutate(iter = 1:n()) %>%
+    gather("timelbl", "value", -iter) %>%
+    mutate(time = gsub("V", "", timelbl) %>% as.numeric())
+
+plot_predict <- ggplot(carrier_full_tbl %>% filter(grcode == use_grcode, acc_year == '1993')) +
+    geom_line (aes(x = time, y = value, group = iter)
+              ,data = predict_cone_tbl, alpha = 0.005) +
+    geom_line (aes(x = dev_lag, y = cum_loss), colour = 'red') +
+    geom_point(aes(x = dev_lag, y = cum_loss), colour = 'blue') +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = dollar) +
+    xlab("Time") +
+    ylab("Loss") +
+    ggtitle("Plot of 1993 Year Loss Prediction")
+
+plot_predict %>% plot
+```
+
+---
+
+```{r plot_1995_predict_code, echo=FALSE}
+predict_cone_tbl <- extract(model_sislob_stanfit)$loss_prediction[,8,] %>%
+    as_data_frame() %>%
+    mutate(iter = 1:n()) %>%
+    gather("timelbl", "value", -iter) %>%
+    mutate(time = gsub("V", "", timelbl) %>% as.numeric())
+
+plot_predict <- ggplot(carrier_full_tbl %>% filter(grcode == use_grcode, acc_year == '1995')) +
+    geom_line (aes(x = time, y = value, group = iter)
+              ,data = predict_cone_tbl, alpha = 0.005) +
+    geom_line (aes(x = dev_lag, y = cum_loss), colour = 'red') +
+    geom_point(aes(x = dev_lag, y = cum_loss), colour = 'blue') +
+    expand_limits(y = 0) +
+    scale_y_continuous(labels = dollar) +
+    xlab("Time") +
+    ylab("Loss") +
+    ggtitle("Plot of 1995 Year Loss Prediction")
+
+plot_predict %>% plot
+```
+
+
+# Constructing the Predictive Checks
+
+## Range of Loss Ratios
+
+\
+
+Project out ULR values
+
+\
+
+Find smallest and largest value for each iteration
+
+\
+
+Compare to data
+
+---
+
+```{r plot_range_ulrs, echo=FALSE}
+ppc_min_lr <- extract(model_sislob_stanfit)$ppc_minLR
+ppc_max_lr <- extract(model_sislob_stanfit)$ppc_maxLR
+
+lr_tbl <- carrier_full_tbl %>%
+    filter(grcode == use_grcode
+          ,dev_lag == 10) %>%
+    summarise(min_lr = min(loss_ratio)
+             ,max_lr = max(loss_ratio))
+
+min_plot <- ggplot() +
+    geom_line(aes(x = ppc_min_lr), stat = 'density') +
+    geom_vline(aes(xintercept = lr_tbl$min_lr), colour = 'red') +
+    xlab("Minimum Loss Ratio") +
+    ylab("Probability Density") +
+    ggtitle("Min Loss Ratio")
+
+max_plot <- ggplot() +
+    geom_line(aes(x = ppc_max_lr), stat = 'density') +
+    geom_vline(aes(xintercept = lr_tbl$max_lr), colour = 'red') +
+    xlab("Maximum Loss Ratio") +
+    ylab("Probability Density") +
+    ggtitle("Max Loss Ratio")
+
+plot_grid(min_plot, max_plot, nrow = 2)
+```
+
+
+## Total Reserves
+
+\
+
+Project out ultimate loss ratios
+
+\
+
+Calculate difference to current loss ratio
+
+\
+
+Add up across accounting years
+
+---
+
+```{r plot_total_reserves_ppc, echo=FALSE}
+tckc <- snapshot_tbl %>%
+    filter(lob == 'ppauto'
+          ,grcode == use_grcode) %>%
+    group_by(acc_year) %>%
+    filter(dev_lag == max(dev_lag)) %>%
+    pull(cum_loss) %>%
+    sum
+
+afc <- carrier_full_tbl %>%
+    filter(grcode == use_grcode) %>%
+    group_by(acc_year) %>%
+    filter(dev_lag == max(dev_lag)) %>%
+    pull(cum_loss) %>%
+    sum
+
+future_claims <- afc - tckc
+
+
+ggplot() +
+    geom_line(aes(x = extract(model_sislob_stanfit)$ppc_EFC), stat = 'density') +
+    geom_vline(aes(xintercept = future_claims), colour = 'red') +
+    scale_x_continuous(labels = dollar) +
+    xlab("Future Claims ('000s)") +
+    ylab("Probability Density") +
+    ggtitle("Forecasted Reserves for All Claims")
+```
+
+
+
+
+# Conclusion
+
+## Further Iterations
+
+\
+
+Non-constant variance
+
+\
+
+Other functional forms (CDFs)
+
+\
+
+Multiple lines of business
+
+\
+
+Multiple coverholders
+
+---
+
+On that note...
+
+\
+
+https://magesblog.com/post/2018-07-15-hierarchical-loss-reserving-with-growth-cruves-using-brms/
+
+
+
+## Questions
+
+\
+
+Thank You!!!
+
+\
+
+mickcooney@gmail.com
+
+\
+
+http://mc-stan.org/users/documentation/case-studies/losscurves_casestudy.html
