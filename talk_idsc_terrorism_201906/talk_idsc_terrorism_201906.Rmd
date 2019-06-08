@@ -112,6 +112,8 @@ ggplot(iraq_tbl) +
 
 ## References
 
+\
+
 ["A machine learning approach to the analysis of terrorism"](https://www.researchgate.net/publication/323422134_A_machine_learning_approach_to_the_analysis_of_terrorism)
 
 Peter Brennan (MSc Thesis, 2017)
