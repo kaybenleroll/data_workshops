@@ -25,7 +25,9 @@ knitr::opts_chunk$set(tidy  = FALSE
                      ,fig.height =  8
                      ,fig.width  = 11)
 
+library(conflicted)
 library(tidyverse)
+library(magrittr)
 library(tidyquant)
 library(scales)
 library(cowplot)
@@ -35,6 +37,11 @@ library(sweep)
 library(seasonal)
 library(forecast)
 library(broom)
+
+conflict_prefer('select',  'dplyr')
+conflict_prefer('filter',  'dplyr')
+conflict_prefer('lag',     'dplyr')
+
 
 
 options(width = 80L
@@ -1380,7 +1387,7 @@ to set this explicitly.
 ```{r decompose_ap_stl_periodic, echo=TRUE}
 ap_stl_decompose <- airpassengers_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
-    magrittr::extract(,1) %>%       # need to use this for compatibility with stl()
+    extract(,1) %>%       # need to use this for compatibility with stl()
     stl(s.window = 'periodic')
 
 ap_stl_decompose %>% plot()
@@ -1454,7 +1461,7 @@ We can also use robust loess to perform the STL, and compare the results.
 ```{r decompose_ap_stl_robust, echo=TRUE}
 ap_stl_robust_decompose <- airpassengers_tbl %>%
     tk_ts(select = value, start = 1949, frequency = 12) %>%
-    magrittr::extract(,1) %>%       # need to use this for compatibility with stl()
+    extract(,1) %>%       # need to use this for compatibility with stl()
     stl(s.window = 'periodic', robust = TRUE)
 
 ap_stl_robust_decompose %>% plot()
