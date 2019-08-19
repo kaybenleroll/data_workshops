@@ -1,0 +1,404 @@
+---
+title: "An Introduction to Bayesian Regression and Hierarchical Models"
+subtitle: "Dublin Data Science"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2019-08-21"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls()); gc()
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(cowplot)
+library(knitr)
+library(fs)
+
+source("custom_functions.R")
+
+conflict_prefer('filter',   'dplyr')
+conflict_prefer('lag',      'dplyr')
+conflict_prefer('select',   'dplyr')
+
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+theme_set(theme_cowplot())
+
+
+set.seed(42)
+stan_seed <- 42
+```
+
+
+# Introduction
+
+
+## Diamonds
+
+\
+
+
+```{r show_diamonds_data, echo=FALSE}
+diamonds %>%
+  head(n = 10) %>%
+  kable()
+```
+
+---
+
+```{r show_bivariate_plot, echo=FALSE}
+price_carat_plot <- ggplot(diamonds) +
+  geom_point(aes(x = carat, y = price), alpha = 0.1, size = 1) +
+  scale_y_continuous(labels = comma) +
+  xlab("Carat") +
+  ylab("Price") +
+  ggtitle("Carat vs Price Plot")
+
+price_cut_plot <- ggplot(diamonds) +
+  geom_boxplot(aes(x = cut, y = price)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Cut") +
+  ylab("Price") +
+  ggtitle("Cut vs Price Plot")
+
+price_color_plot <- ggplot(diamonds) +
+  geom_boxplot(aes(x = color, y = price)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Color") +
+  ylab("Price") +
+  ggtitle("Color vs Price Plot")
+
+price_table_plot <- ggplot(diamonds) +
+  geom_point(aes(x = table, y = price), alpha = 0.1, size = 1) +
+  scale_y_continuous(labels = comma) +
+  xlab("Table") +
+  ylab("Price") +
+  ggtitle("Table vs Price Plot")
+
+plot_grid(price_carat_plot, price_cut_plot, price_color_plot, price_table_plot
+         ,ncol = 2)
+```
+
+
+## US Radon Measurements
+
+\
+
+
+```{r load_radon_data, echo=FALSE}
+radon_cols <- cols(
+  .default = col_character(),
+  floor    = col_integer(),
+  room     = col_integer(),
+  wave     = col_double(),
+  activity = col_double(),
+  pcterr   = col_double(),
+  adjwt    = col_double()
+)
+
+radon_tbl <- read_csv("data/srrs2.dat",
+                      col_types = radon_cols,
+                      na        = c("", "NA", ".")
+                      )
+```
+
+
+```{r show_radon_data, echo=FALSE}
+radon_tbl %>%
+  print()
+```
+
+---
+
+```{r show_county_radon_boxplots, echo=FALSE}
+show_counties <- c('LAC QUI PARLE', 'AITKIN', 'KOOCHICHING', 'DOUGLAS', 'CLAY'
+                  ,'STEARNS', 'RAMSEY', 'ST LOUIS')
+
+radon_mn_eight_tbl <- radon_tbl %>%
+  filter(state == 'MN', county %in% show_counties)
+
+
+ggplot(radon_mn_eight_tbl) +
+  geom_boxplot(aes(x = county, y = activity)) +
+  xlab("County") +
+  ylab("Radon Activity Reading") +
+  ggtitle("Boxplot for Radon Measurements for Selected Counties")
+```
+
+---
+
+```{r show_county_radon_points, echo=FALSE}
+ggplot(radon_mn_eight_tbl) +
+  geom_point(aes(x = county, y = activity)) +
+  xlab("County") +
+  ylab("Radon Activity Reading") +
+  ggtitle("Boxplot for Radon Measurements for Selected Counties")
+```
+
+
+
+
+
+# Basic Regression Theory
+
+\
+
+Investigate relationships between quantities
+
+\
+
+
+\begin{eqnarray*}
+y &=& \text{output variable}  \\
+x_i &=& \text{input variables}
+\end{eqnarray*}
+
+
+## Formulating the Problem
+
+\
+
+Observations drawn from Normal distribution
+
+\
+
+$$
+y \sim \mathcal{N}(\mu, \sigma)
+$$
+
+---
+
+Predictors determine mean, $\mu$
+
+\
+
+Choose functional form for this relationship
+
+
+---
+
+### Linear Model
+
+\
+
+$$
+f(x) \to \beta \mathbf{X} \to \mu
+$$
+
+---
+
+### Consequence
+
+\
+
+Each point drawn from an individual distribution
+
+\
+
+$$
+y_i \sim \mathcal{N}\left(\sum \beta_j x_{ji}, \, \sigma\right)
+$$
+
+---
+
+Model fit $\rightarrow$ determine values for $\beta$
+
+
+
+## Model Fitting
+
+\
+
+How do we determine $\beta$?
+
+---
+
+Calculate $\mu$ from data
+
+\
+
+Calculate log-likelihood of measurement, $\mathcal{L}(y \, | \, \mu, \sigma)$
+
+\
+
+Sum over all datapoints
+
+---
+
+```{r show_loglik_heatmap, echo=FALSE}
+diam_loglik_func <- construct_loglik_function(diamonds)
+
+loglik_heatmap_data_file <- 'data/loglik_heatmap_tbl.rds'
+
+if(!file_exists(loglik_heatmap_data_file)) {
+  intcpt_vals <- seq(-3000, -1000, by = 25)
+  carat_vals  <- seq( 6500,  8500, by = 25)
+  
+  loglik_heatmap_tbl <- crossing(intcpt = intcpt_vals, carat = carat_vals) %>%
+    mutate(loglik = map2_dbl(intcpt, carat
+                            ,diam_loglik_func
+                            ,fit_sd = 1548, show_prob = 0.001))
+  
+  loglik_heatmap_tbl %>% write_rds(loglik_heatmap_data_file)
+} else {
+  loglik_heatmap_tbl <- read_rds(loglik_heatmap_data_file)
+}
+
+
+ggplot(loglik_heatmap_tbl) +
+  geom_tile(aes(x = intcpt, y = carat, fill = loglik)) +
+  geom_contour(aes(x = intcpt, y = carat, z = loglik), colour = 'black') +
+  geom_point(aes(x = -2256, y = 7756), size = 3) +
+  scale_fill_gradient(low = 'blue', high = 'red') +
+  xlab("Intercept Parameter") +
+  ylab("Carat Parameter") +
+  ggtitle("Heatmap of Log-likelihood Values from Intercept and Carat Parameters")
+```
+
+---
+
+Parameter uncertainty
+
+
+# Bayesian Regression
+
+
+## Bayesian Inference Engine
+
+\
+
+Prior Knowledge
+
+\
+
+$+$
+
+\
+
+Data
+
+\
+
+$=$
+
+\
+
+Posterior Knowledge
+
+---
+
+Parameters, $\theta$
+
+\
+
+Data, $D$
+
+---
+
+Prior: $p(\theta)$
+
+\
+
+Likelihood: $p(D | \theta)$
+
+\
+
+Posterior: $p(\theta | D)$
+
+---
+
+$$
+p(\theta \, | \, D) = \int p(\theta) \, p(D \, | \, \theta)
+$$
+
+\
+
+Posterior calculation is high-dim integral
+
+---
+
+Use MCMC to sample posterior
+
+---
+
+## Stan, rstan, and rstanarm / brms {data-background="img/stan_logo_tm.png"}
+
+\
+
+Probabilistic Programming Language
+
+\
+
+CmdStan, PyStan, rstan
+
+\
+
+rstanarm and brms
+
+---
+
+```{r fit_bayesian_regression_model, echo=TRUE}
+diamondprice_stanlm <- stan_lm(
+  price ~ carat + cut + color + clarity
+ ,data   = diamonds
+ ,prior  = R2(0.7)
+ ,prior_intercept = normal(0)
+ ,chains = 4
+ ,seed   = stan_seed
+)
+
+
+```
+
+# Model Assessment
+
+
+# Benefits of Bayesian Regression
+
+
+# Future Steps
+
+## Problems and Shortcomings
+
+
+## Future Improvements
+
+
+## Further Resources
+
+
+## Questions?
+
+\
+
+Email:
+
+mickcooney@gmail.com
+
+\
+
+GitHub:
+
+https://github.com/kaybenleroll/data_workshops
+
+

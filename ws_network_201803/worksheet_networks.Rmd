@@ -1238,14 +1238,14 @@ The function `summary.statistics` counts the various configurations in the
 network.
 
 ```{r ergm_lazega_edge_counts, echo=TRUE}
-summary.statistics(lazega_network ~ edges)
+summary_formula(lazega_network ~ edges)
 ```
 
 We now extend this model to see other configuration types including k-stars
 and so on.
 
 ```{r ergm_lazega_config_counts, echo=TRUE}
-summary.statistics(lazega_network ~ edges + kstar(2) + kstar(3) + triangle)
+summary_formula(lazega_network ~ edges + kstar(2) + kstar(3) + triangle)
 ```
 
 In practice, adding $k$-stars directly as characteristics of networks results
@@ -1285,9 +1285,9 @@ used.
 
 
 ```{r ergm_lazega_alt, echo=TRUE}
-summary.statistics(lazega_network ~ edges + gwesp(1, fixed = TRUE))
+summary_formula(lazega_network ~ edges + gwesp(1, fixed = TRUE))
 
-summary.statistics(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE))
+summary_formula(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE))
 ```
 
 
@@ -1308,8 +1308,10 @@ the probability (analogous to 'interactions' or 'second-order effects').
 These predictors are added to a formula via the `nodemain` and `match` terms.
 
 ```{r ergm_lazega_vertex_formula, echo=TRUE}
-summary.statistics(lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE) +
-    nodemain('Practice') + match('Office'))
+summary_formula(
+  lazega_network ~ edges + triangles + gwdegree(1, fixed = TRUE) +
+                   nodemain('Practice') + match('Office')
+  )
 ```
 
 
@@ -1327,7 +1329,7 @@ lazega_01_ergm <- ergm(lazega_network ~ edges + triangles + gwesp(1)
    ,control = control.ergm(seed = 42)
 )
 
-run_ergm <- function() simulate.ergm(lazega_01_ergm) %>% intergraph::asIgraph()
+run_ergm <- function() simulate(lazega_01_ergm) %>% intergraph::asIgraph()
 
 lazega_01_lst <- run_network_model_assessment(lazega_igraph, run_ergm, n_iter = 1000)
 
@@ -1336,7 +1338,7 @@ plot(lazega_01_lst$assess_plot)
 summary(lazega_01_ergm)
 ```
 
-We have simulated new graphs from this model using `simulate.ergm()` so we
+We have simulated new graphs from this model using `simulate()` so we
 will produce one and then plot the two beside each other.
 
 ```{r plot_simulated_graph, echo=TRUE}
@@ -1345,7 +1347,7 @@ plot_1 <- ggplot(lazega_igraph, aes(x = x, y = y, xend = xend, yend = yend)) +
     geom_label(aes(label = vertex.names), size = 5) +
     theme_blank()
 
-plot_2 <- ggplot(simulate.ergm(lazega_01_ergm), aes(x = x, y = y, xend = xend, yend = yend)) +
+plot_2 <- ggplot(simulate(lazega_01_ergm), aes(x = x, y = y, xend = xend, yend = yend)) +
     geom_edges() +
     geom_label(aes(label = vertex.names), size = 5) +
     theme_blank()
@@ -1361,7 +1363,7 @@ simulated ERGM from it.
 lazega_degdist <- lazega_igraph %>%
     igraph::degree()
 
-lazega_01_degdist <- simulate.ergm(lazega_01_ergm) %>%
+lazega_01_degdist <- simulate(lazega_01_ergm) %>%
     intergraph::asIgraph() %>%
     igraph::degree()
 
@@ -1395,7 +1397,7 @@ lazega_02_ergm <- ergm(lazega_network ~ edges + triangles +
 )
 
 
-run_02_ergm <- function() simulate.ergm(lazega_02_ergm) %>% intergraph::asIgraph()
+run_02_ergm <- function() simulate(lazega_02_ergm) %>% intergraph::asIgraph()
 
 lazega_02_lst <- run_network_model_assessment(lazega_igraph, run_02_ergm, n_iter = 1000)
 
@@ -1409,7 +1411,7 @@ summary(lazega_02_ergm)
 lazega_degdist <- lazega_igraph %>%
     igraph::degree()
 
-lazega_02_degdist <- simulate.ergm(lazega_02_ergm) %>%
+lazega_02_degdist <- simulate(lazega_02_ergm) %>%
     intergraph::asIgraph() %>%
     igraph::degree()
 
@@ -1536,7 +1538,7 @@ dixon_model_01_ergm <- ergm(dixon_network ~ edges
 )
 
 
-run_01_ergm <- function() simulate.ergm(dixon_model_01_ergm) %>% intergraph::asIgraph()
+run_01_ergm <- function() simulate(dixon_model_01_ergm) %>% intergraph::asIgraph()
 
 dixon_01_lst <- run_network_model_assessment(dixon_igraph, run_01_ergm, n_iter = 1000)
 
@@ -1576,7 +1578,7 @@ dixon_model_02_ergm <- ergm(dixon_network ~ edges + gwesp(0.1, fixed=TRUE)
 mcmc.diagnostics(dixon_model_02_ergm)
 
 
-run_02_ergm <- function() simulate.ergm(dixon_model_02_ergm) %>% intergraph::asIgraph()
+run_02_ergm <- function() simulate(dixon_model_02_ergm) %>% intergraph::asIgraph()
 
 dixon_02_lst <- run_network_model_assessment(dixon_igraph, run_02_ergm, n_iter = 1000)
 
@@ -1600,7 +1602,7 @@ dixon_model_03_ergm <- ergm(model_03_formula, control = control.ergm(seed = 423)
 mcmc.diagnostics(dixon_model_03_ergm)
 
 
-run_03_ergm <- function() simulate.ergm(dixon_model_03_ergm) %>% intergraph::asIgraph()
+run_03_ergm <- function() simulate(dixon_model_03_ergm) %>% intergraph::asIgraph()
 
 dixon_03_lst <- run_network_model_assessment(dixon_igraph, run_03_ergm, n_iter = 1000)
 
@@ -1625,7 +1627,7 @@ dixon_model_04_ergm <- ergm(model_04_formula, control = control.ergm(seed = 423)
 mcmc.diagnostics(dixon_model_04_ergm)
 
 
-run_04_ergm <- function() simulate.ergm(dixon_model_04_ergm) %>% intergraph::asIgraph()
+run_04_ergm <- function() simulate(dixon_model_04_ergm) %>% intergraph::asIgraph()
 
 dixon_04_lst <- run_network_model_assessment(dixon_igraph, run_04_ergm, n_iter = 1000)
 
