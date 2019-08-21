@@ -386,18 +386,22 @@ diamondprice_stanlm %>%
 
 ```{r show_fit_traceplots, echo=FALSE}
 diamondprice_stanlm %>%
-  plot('trace') + ggtitle("Parameter Traceplots")
+  plot('trace') +
+  ggtitle("Parameter Traceplots") +
+  theme(axis.text.x = element_text(size = 7))
 ```
 
 ---
 
 ```{r show_fit_histograms, echo=FALSE}
 diamondprice_stanlm %>%
-  plot('hist') + ggtitle("Parameter Histograms")
+  plot('hist') +
+  ggtitle("Parameter Histograms") +
+  theme(axis.text.x = element_text(size = 7))
 ```
 
 
-## Model Outputs
+## Using Model Outputs
 
 \
 
@@ -410,17 +414,146 @@ How do we use these posterior draws?
 ```{r plot_diamonds_comparison, echo=FALSE}
 sample_12_tbl <- diamonds %>% sample_n(12)
 
-sample_fitted_tbl <- sample_12_tbl %>%
-  add_fitted_draws(diamondprice_stanlm)
+sample_predict_tbl <- sample_12_tbl %>%
+  add_predicted_draws(diamondprice_stanlm)
   
-ggplot(sample_fitted_tbl) +
-  geom_histogram(aes(x = .value), bins = 50) +
+ggplot(sample_predict_tbl) +
+  geom_histogram(aes(x = .prediction), bins = 50) +
   geom_vline(aes(xintercept = price), colour = 'red') +
   facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
   xlab("Diamond Price") +
   ylab("Count") +
-  ggtitle("Posterior Predictive Comparion Plot")
+  ggtitle("Posterior Predictive Comparion Plot") +
+  theme(axis.text.x = element_text(size = 7))
 ```
+
+---
+
+Negative prices?
+
+\
+
+Use logs
+
+---
+
+```{r fit_diamlog_model, echo=TRUE}
+diamonds_tbl <- diamonds %>% mutate(log_price = log(price))
+
+diamlog_stanlm <- stan_lm(
+  log_price ~ carat + cut + color + clarity
+ ,data            = diamonds_tbl
+ ,prior           = R2(0.7)
+ ,chains          = 4
+ ,seed            = stan_seed
+)
+```
+
+---
+
+```{r check_diamlog_diagnostics, echo=FALSE, message=TRUE}
+diamlog_stanlm %>%
+  .$stanfit %>%
+  check_hmc_diagnostics()
+```
+
+---
+
+```{r show_diamlog_traceplots, echo=FALSE}
+diamlog_stanlm %>%
+  plot('trace') +
+  ggtitle("Parameter Traceplots") +
+  theme(axis.text.x = element_text(size = 7))
+```
+
+---
+
+```{r show_diamlog_histograms, echo=FALSE}
+diamlog_stanlm %>%
+  plot('hist') +
+  ggtitle("Parameter Histograms") +
+  theme(axis.text.x = element_text(size = 7))
+```
+
+---
+
+```{r plot_diamlog_predictions, echo=FALSE}
+sample_diamlog_predict_tbl <- sample_12_tbl %>%
+  mutate(log_price = log(price)) %>%
+  add_predicted_draws(diamlog_stanlm)
+  
+ggplot(sample_diamlog_predict_tbl) +
+  geom_histogram(aes(x = .prediction), bins = 50) +
+  geom_vline(aes(xintercept = log_price), colour = 'red') +
+  facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
+  xlab("Log Diamond Price") +
+  ylab("Count") +
+  ggtitle("Posterior Predictive Diamond Log Price Comparison Plot")
+```
+
+---
+
+A word of caution...
+
+---
+
+Predicting `log(price)`
+
+---
+
+What about `price`?
+
+---
+
+```{r plot_diamlog_predictions_natural, echo=FALSE}
+ggplot(sample_diamlog_predict_tbl %>% mutate(predict_price = exp(.prediction))) +
+  geom_histogram(aes(x = predict_price), bins = 50) +
+  geom_vline(aes(xintercept = price), colour = 'red') +
+  facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
+  xlab("Diamond Price") +
+  ylab("Count") +
+  ggtitle("Posterior Predictive Diamond Log Price Naturalised Comparison Plot") +
+  theme(axis.text.x = element_text(size = 7))
+```
+
+---
+
+Induce a uniform distribution?
+
+---
+
+```{r check_logprice_induced_uniform, echo=FALSE}
+plot_tbl <- diamonds_tbl %>%
+  sample_n(5000) %>%
+  add_predicted_draws(diamlog_stanlm) %>%
+  summarise(cumlprob = ecdf(.prediction)(log_price[1]))
+
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = cumlprob), bins = 50) +
+  xlab("Cumulative Probability") +
+  ylab("Frequency") +
+  ggtitle("Induced Cumulative Probability Distribution of Diamond Log-Price")
+```
+
+---
+
+```{r check_exp_logprice_induced_uniform, echo=FALSE}
+plot_tbl <- diamonds_tbl %>%
+  sample_n(1000) %>%
+  add_predicted_draws(diamlog_stanlm) %>%
+  summarise(cumlprob = ecdf(exp(.prediction))(price[1]))
+
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = cumlprob), bins = 50) +
+  xlab("Cumulative Probability") +
+  ylab("Frequency") +
+  ggtitle("Induced Cumulative Probability Distribution of Naturalised Diamond Log-Price")
+```
+
+
+
 
 
 # Hierarchical Models
@@ -688,6 +821,7 @@ Censored, truncated data
 \
 
 Generative modelling
+
 
 
 
