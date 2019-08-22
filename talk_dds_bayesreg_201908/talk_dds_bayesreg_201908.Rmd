@@ -780,7 +780,7 @@ plot_tbl <- radon_mn_tbl %>%
         ,size   = log(sample_count)
          )
 
-ggplot(plot_tbl %>% filter(sample_count <= 5)) +
+ggplot(plot_tbl) +
   geom_point(aes(x = county, y = mean_val)) +
   geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size), width = 0) +
   scale_colour_gradient(low = 'blue', high = 'red') +
