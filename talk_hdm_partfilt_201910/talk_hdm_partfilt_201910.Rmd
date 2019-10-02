@@ -41,6 +41,10 @@ theme_set(theme_cowplot())
 set.seed(42)
 ```
 
+
+
+# Introduction
+
 <style type="text/css">
 code.haskell{
   font-size: 25px;
@@ -54,8 +58,6 @@ code {
 </style>
 
 
-
-# Introduction
 
 ## Background
 
@@ -360,6 +362,10 @@ posteriorize h x = H.bmap bayes h
     bayes :: Double -> Double -> Double
     bayes theta p = p * likelihood x theta
 ```
+
+
+
+
 
 # Conclusions
 

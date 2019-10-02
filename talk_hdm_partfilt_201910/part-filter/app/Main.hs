@@ -1,22 +1,4 @@
-module Main ( m0X1
-            , m1X1
-            , muX1
-            , m0Y1
-            , m1Y1
-            , muY1
-            , marginal1X
-            , marginal1Y
-            , mu
-            , sigma
-            , likelihood
-            , ds
-            , mu0
-            , sigma0
-            , hist
-            , priors
-            , ns
-            , main
-            ) where
+module Main where
 
 import Control.Monad
 import Data.Random.Source.PureMT
@@ -38,6 +20,13 @@ import qualified Data.Random.Distribution.MultivariateNormal as G
 import Diagrams.Prelude hiding ( normal, sample )
 import Diagrams.Backend.Rasterific
 import Plots hiding ( numBins, pdf )
+
+
+
+main =
+  mapM_ print priors
+
+
 
 
 numBins :: Int
@@ -78,10 +67,10 @@ priors :: Histogram BinD Double
 priors = hist $ runSampler (normal mu0 sigma0) 42 100000
 
 mu :: Double
-mu = 1.00
+mu = 0.50
 
 sigma :: Double
-sigma = 0.9
+sigma = 1.5
 
 likelihood :: Double -> Double -> Double
 likelihood x nu = n / d
@@ -110,5 +99,3 @@ ss = map H.sum qs
 
 ns :: [Histogram BinD Double]
 ns = zipWith (\s q -> H.map (/ s) q) ss qs
-
-
