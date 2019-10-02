@@ -5,6 +5,7 @@ author: "Mick Cooney <mickcooney@gmail.com>"
 date: "2019-10-03"
 output:
   revealjs::revealjs_presentation:
+    css: custom.css
     theme: night
     highlight: pygments
     center: true
@@ -44,19 +45,6 @@ set.seed(42)
 
 
 # Introduction
-
-<style type="text/css">
-code.haskell{
-  font-size: 25px;
-}
-pre {
-  font-size: 25px;
-}
-code {
-  font-size: 25px;
-}
-</style>
-
 
 
 ## Background
