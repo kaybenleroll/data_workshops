@@ -399,9 +399,9 @@ beta_bayes_tbl <- tribble(
       3,     5,
   ) %>%
   mutate(distribution  = paste0("Beta(", a, ",", b, ")"),
-         prior_data    = map2(a,              b,              construct_beta_tbl_func),
-         post10_data   = map2(a + a_10   - 1, b + b_10   - 1, construct_beta_tbl_func),
-         post1000_data = map2(a + a_1000 - 1, b + b_1000 - 1, construct_beta_tbl_func)
+         prior_data    = map2(a,              b,      construct_beta_tbl_func),
+         post10_data   = map2(a + a_10  , b + b_10  , construct_beta_tbl_func),
+         post1000_data = map2(a + a_1000, b + b_1000, construct_beta_tbl_func)
          ) %>%
   select(-a, -b) %>%
   gather('type', 'data', -distribution) %>%
@@ -496,21 +496,167 @@ arbitrary priors and perform the integration numerically.
 
 ## Posteriors for $N=10$
 
-We start with our $\text{Beta}(1, 1)$ prior and use our grid approximation to
-integrate the posterior density.
+We start with the smaller dataset with $N=10$.
+
+### Beta(1,1)
+
+The $\text{Beta}(1,1)$ uniform prior is a natural place to start and we want
+to calculate the numerical integral using our grid approximation to calculate
+the posterior density.
 
 ```{r calc_beta_1_1_numeric, echo=TRUE}
-prior_tbl <- beta_bayes_tbl %>%
-  filter(distribution == 'Beta(1,1)', type == 'prior_data') %>%
-  transmute(theta, dens, dens_log = log(dens))
+prior_1_1_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
+  mutate(dens     = dbeta(theta, 1, 1),
+         dens_log = dbeta(theta, 1, 1, log = TRUE)
+         )
 
-data_loglik_tbl <- calc_data_loglik(cointoss_10, prior_tbl$theta)
+data_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
 
-num_post_tbl <- calc_posterior(prior_tbl, data_loglik_tbl)
+num_1_1_post_tbl <- calc_posterior(prior_1_1_tbl, data_loglik_tbl)
+
+num_1_1_post_tbl %>% glimpse()
+```
+
+To check that this is working correctly we now plot the numerical posterior
+density against those calculated by the conjugate distribution.
+
+```{r compare_data10_beta_1_1_posteriors, echo=TRUE}
+conjugate_tbl <- beta_bayes_tbl %>%
+  filter(distribution == 'Beta(1,1)', type == 'post10_data') %>%
+  select(theta, Conjugate = dens)
+
+numeric_tbl <- num_1_1_post_tbl %>%
+  select(theta, Numeric = post_lik)
+
+plot_tbl <- conjugate_tbl %>%
+  inner_join(numeric_tbl, by = 'theta') %>%
+  gather('label', 'value', -theta) %>%
+  filter(!is.na(value))
+  
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = value, colour = label)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Posterior Distribution Beta(1,1) Comparison for Conjugate and Numeric Calculations")
+```
+
+### Beta(10, 5)
+
+The $\text{Beta}(10,5)$ uniform prior is a natural place to start and we want
+to calculate the numerical integral using our grid approximation to calculate
+the posterior density.
+
+```{r calc_beta_10_5_numeric, echo=TRUE}
+prior_10_5_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
+  mutate(dens     = dbeta(theta, 10, 5),
+         dens_log = dbeta(theta, 10, 5, log = TRUE)
+         )
+
+data_loglik_tbl <- calc_data_loglik(cointoss_10, prior_10_5_tbl$theta)
+
+num_10_5_post_tbl <- calc_posterior(prior_10_5_tbl, data_loglik_tbl)
+
+num_10_5_post_tbl %>% glimpse()
+```
+
+Like before, we compare the numerical approximation to the conjugate version.
+
+```{r compare_data10_beta_10_5_posteriors, echo=TRUE}
+conjugate_tbl <- beta_bayes_tbl %>%
+  filter(distribution == 'Beta(10,5)', type == 'post10_data') %>%
+  select(theta, Conjugate = dens)
+
+numeric_tbl <- num_10_5_post_tbl %>%
+  select(theta, Numeric = post_lik)
+
+plot_tbl <- conjugate_tbl %>%
+  inner_join(numeric_tbl, by = 'theta') %>%
+  gather('label', 'value', -theta) %>%
+  filter(!is.na(value))
+  
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = value, colour = label)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Posterior Distribution Beta(10,5) Comparison for Conjugate and Numeric Calculations")
+```
+
+## Posteriors for $N=1,000$
+
+We repeat this exercise for the $N=1,000$ dataset.
+
+### Beta(1,1)
+
+
+```{r calc_data1000_beta_1_1_numeric, echo=TRUE}
+prior_1_1_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
+  mutate(dens     = dbeta(theta, 1, 1),
+         dens_log = dbeta(theta, 1, 1, log = TRUE)
+         )
+
+data_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
+
+num_1_1_post_tbl <- calc_posterior(prior_1_1_tbl, data_loglik_tbl)
+
+num_1_1_post_tbl %>% glimpse()
 ```
 
 
+```{r compare_data1000_beta_1_1_posteriors, echo=TRUE}
+conjugate_tbl <- beta_bayes_tbl %>%
+  filter(distribution == 'Beta(1,1)', type == 'post1000_data') %>%
+  select(theta, Conjugate = dens)
 
+numeric_tbl <- num_1_1_post_tbl %>%
+  select(theta, Numeric = post_lik)
+
+plot_tbl <- conjugate_tbl %>%
+  inner_join(numeric_tbl, by = 'theta') %>%
+  gather('label', 'value', -theta) %>%
+  filter(!is.na(value))
+  
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = value, colour = label)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Posterior Distribution Beta(1,1) Comparison for Conjugate and Numeric Calculations")
+```
+
+### Beta(10, 5)
+
+```{r calc_data1000_beta_10_5_numeric, echo=TRUE}
+prior_10_5_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
+  mutate(dens     = dbeta(theta, 10, 5),
+         dens_log = dbeta(theta, 10, 5, log = TRUE)
+         )
+
+data_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_10_5_tbl$theta)
+
+num_10_5_post_tbl <- calc_posterior(prior_10_5_tbl, data_loglik_tbl)
+
+num_10_5_post_tbl %>% glimpse()
+```
+
+
+```{r compare_data1000_beta_10_5_posteriors, echo=TRUE}
+conjugate_tbl <- beta_bayes_tbl %>%
+  filter(distribution == 'Beta(10,5)', type == 'post1000_data') %>%
+  select(theta, Conjugate = dens)
+
+numeric_tbl <- num_10_5_post_tbl %>%
+  select(theta, Numeric = post_lik)
+
+plot_tbl <- conjugate_tbl %>%
+  inner_join(numeric_tbl, by = 'theta') %>%
+  gather('label', 'value', -theta) %>%
+  filter(!is.na(value))
+  
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = value, colour = label)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Posterior Distribution Beta(10,5) Comparison for Conjugate and Numeric Calculations")
+```
 
 
 Suppose we think the coin has a 3/1 bias, but we do not know for which side. Create a prior that represents this and investigate the posterior for both sets of data.
