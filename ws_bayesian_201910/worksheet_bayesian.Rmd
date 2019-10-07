@@ -1,0 +1,531 @@
+---
+title: "Dublin Data Science Workshop on Bayesian Data Analysis"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, 7 October 2019"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+  pdf_document: default
+---
+
+
+```{r knit_opts, include = FALSE}
+rm(list = ls()); gc()
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(cowplot)
+library(rstan)
+library(tidybayes)
+
+source("custom_functions.R")
+
+conflict_prefer('select',  'dplyr')
+conflict_prefer('filter',  'dplyr')
+conflict_prefer('lag',     'dplyr')
+
+
+
+options(width = 80L
+       ,warn  = 1
+        )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+
+#source('custom_functions.R')
+```
+
+
+# Conditional Probability
+
+Suppose that in the general population, the probability of having a specific
+rare disease (the Dreaded Lurgy) is one in a thousand. We denote the true
+presence or absence of the disease as the value of a parameter, $\theta$, that
+takes the value 1 if disease is present, or 0 if the disease is absent.
+The base rate of the disease is therefore denoted $p(\theta = 1) = 0.001$.
+
+This is our prior belief that a person selected at random has the disease.
+
+Suppose that there is a test for the disease that has a 99\% hit rate - if a
+person has the disease, then the test result is positive 99\% of the time.
+
+We denote a positive test result as $D = 1$, and a negative test result as
+$D = 0$. The observed test result is a bit of data that we will use to modify
+our belief about the value of the underlying disease parameter.
+
+The hit rate is expressed as
+
+$$
+p(D = 1 \, | \, \theta = 1) = 0.99.
+$$
+
+The test also has a false alarm rate of 5\%.
+
+This means that 5\% of the time when the disease is not present, the test
+falsely indicates that the disease is present. We denote the false alarm rate
+as
+
+$$
+p(D = 1 \, | \, \theta = 0) = 0.05
+$$
+
+
+However, what we need to know is $p(\theta = 1 \, | \, D = 1)$, i.e. the
+probability that the patient has the disease given a positive test result.
+
+We can calculate the above conditional probability given Bayes' Rule and using
+arithmetic and algebra but we will use simulation to estimate it.
+
+We will try to estimate this probability using simulation.
+
+
+```{r bayes_rule_basic, echo=TRUE}
+n_sim <- 1000000
+
+base_rate <- 0.001
+true_rate <- 0.99
+fa_rate   <- 0.05
+
+single_test_tbl <- tibble(id = 1:n_sim) %>%
+  mutate(sick_person = sample(c(TRUE, FALSE),
+                              n_sim,
+                              prob = c(base_rate, 1 - base_rate),
+                              replace = TRUE))
+
+sick_tbl    <- single_test_tbl %>% filter(sick_person == TRUE)
+notsick_tbl <- single_test_tbl %>% filter(sick_person == FALSE)
+
+sick_tbl <- sick_tbl %>%
+  mutate(test_result = sample(c(TRUE, FALSE),
+                              n(),
+                              prob = c(true_rate, 1 - true_rate),
+                              replace = TRUE))
+
+notsick_tbl <- notsick_tbl %>%
+  mutate(test_result = sample(c(TRUE, FALSE),
+                              n(),
+                              prob = c(fa_rate, 1 - fa_rate),
+                              replace = TRUE))
+
+single_test_tbl <- list(sick_tbl, notsick_tbl) %>%
+  bind_rows() %>%
+  arrange(id)
+```
+
+## Questions
+
+We ask some simple questions first:
+
+  * How many people are sick?
+  * How many people test positive?
+  * Of the people with a positive result, how many are actually sick?
+
+
+```{r count_sick_people, echo=TRUE}
+single_test_tbl %>% count(sick_person)
+single_test_tbl %>% count(test_result)
+single_test_tbl %>% count(sick_person, test_result)
+```
+
+
+
+
+```{r check_proportions, echo=TRUE}
+single_test_tbl %>%
+  filter(test_result == TRUE) %>%
+  summarise(n_sick = sum(sick_person), sick_prop = n_sick / n())
+```
+
+
+## Inputs Dependency
+
+We now want to see how this probability depends on both the accuracy of the
+test as well as the false alarm rate.
+
+We start looking at changing the accuracy of the test from 90% to 100%.
+
+```{r create_acc_test_data, echo=TRUE}
+calc_acc_prop_func <- function(acc_rate) {
+  sick_prop <- create_medtest_data(10000, base_rate = 0.001, true_rate = acc_rate,
+                                          fa_rate = 0.05) %>%
+    filter(test_result == TRUE) %>%
+    summarise(sick_prop = sum(sick_person) / n()) %>%
+    pull(sick_prop)
+
+  return(sick_prop)
+}
+
+
+acc_props_tbl <- tibble(acc_vals = seq(0.90, 1.00, by = 0.001)) %>%
+  mutate(sick_prop = map_dbl(acc_vals, calc_acc_prop_func))
+
+ggplot(acc_props_tbl) +
+    geom_line(aes(x = acc_vals, y = sick_prop)) +
+    expand_limits(y = 0) +
+    xlab('False Alarm Rate') +
+    ylab('Proportion of True Positives')
+
+```
+
+We now want to look at the effect of the false alarm rate on the conditional
+probability.
+
+```{r create_fa_test_data, echo = TRUE}
+calc_fa_prop_func <- function(fa_rate) {
+  sick_prop <- create_medtest_data(10000, base_rate = 0.001, true_rate = 0.99,
+                                          fa_rate = fa_rate) %>%
+    filter(test_result == TRUE) %>%
+    summarise(sick_prop = sum(sick_person) / n()) %>%
+    pull(sick_prop)
+
+  return(sick_prop)
+}
+
+
+fa_props_tbl <- tibble(fa_rate = seq(0.001, 0.10, by = 0.001)) %>%
+  mutate(sick_prop = map_dbl(fa_rate, calc_fa_prop_func))
+
+ggplot(fa_props_tbl) +
+    geom_line(aes(x = fa_rate, y = sick_prop)) +
+    expand_limits(y = 0) +
+    xlab('False Alarm Rate') +
+    ylab('Proportion of True Positives')
+```
+
+What if we have multiple tests?
+
+```{r bayes_rule_multiple_tests, echo=TRUE}
+fa_vals <- seq(0.001, 0.10, by = 0.001)
+
+calc_fa_prop_func <- function(fa_rate) {
+  sick_prop <- create_two_medtest_data(10000,
+                                       base_rate = 0.001,
+                                       true_rate = 0.99,
+                                       fa_rate   = fa_rate) %>%
+    filter(test_result_1 == TRUE, test_result_2 == TRUE) %>%
+    summarise(sick_prop = sum(sick_person) / n()) %>%
+    pull(sick_prop)
+  
+  return(sick_prop)
+}
+
+sick_2_prop_tbl <- tibble(fa_rate     = fa_vals,
+                          sick_2_prop = map_dbl(fa_vals, calc_fa_prop_func))
+
+sick_tbl <- fa_props_tbl %>%
+  inner_join(sick_2_prop_tbl, by = 'fa_rate')
+
+ggplot(sick_tbl) +
+  geom_line(aes(x = fa_vals, y = sick_prop), colour = 'red') +
+  geom_line(aes(x = fa_vals, y = sick_2_prop)) +
+  expand_limits(y = 0) +
+  xlab('False Alarm Rate') +
+  ylab('Proportion of True Positives')
+```
+
+
+
+
+# Analytical Approach
+
+Bayesian reasoning is as old as the concept of probabilities, but has
+only recently started to receive a lot of attention. One likely reason
+for this is that, apart from a few special cases, it is mot possible
+to perform the calculations analytically.
+
+
+In our application we have a prior distribution for
+our beliefs, $p(\theta)$, and a likelihood for the data,
+$p(D | \theta)$, and through use of the Chain Rule, we get the
+posterior distribution, $p(\theta | D)$,
+
+$$
+p(\theta | D) = \int d\theta \, p(D | \theta) \, p(\theta).
+$$
+
+
+In those special cases, the likelihood function has a prior and
+posterior distribution with the same functional form, i.e. the prior
+and the posterior are two members of the same `family' of functions.
+
+
+For the rest of this workshop we are going to deal with estimating the
+fairness of a coin, based on the result of multiple coin tosses. We
+define `success' as the toss coming up Heads, and denote this
+probability as $\theta$. Thus,
+
+$$
+P(y = 1 | \, \theta) = \theta \; \text{ and } \; P(y = 0 | \, \theta) = 1 - \theta.
+$$
+
+
+We can combine the above two into a single expression:
+
+$$
+P(y | \theta) = \theta^y (1 - \theta)^{(1 - y)}.
+$$
+
+
+## The Beta Distribution
+
+Now we consider the data $y$ to be fixed, and consider the above as a function
+of $\theta$. With this approach we call the above equation the likelihood
+function of $\theta$}.
+
+The Bernoulli function has a conjugate prior: the *Beta distribution*,
+$\text{Beta}(a, b)$.
+
+R supports the beta distribution natively, via the standard grouping of
+functions for probability distributions: `rbeta()`, `dbeta()`, `pbeta()`,
+`qbeta()`.
+
+We now plot the density distribution for the Beta distribution using various
+combinations of parameters $a$ and $b$.
+
+
+```{r plot_beta_distribution, echo=TRUE}
+beta_tbl <- tribble(
+     ~a,    ~b,
+      1,     1,
+      2,     2,
+     10,     5,
+      3,     5,
+)
+
+construct_beta_tbl_func <- function(a, b) {
+  tibble(theta = seq(0, 1, by = 0.001)) %>%
+    mutate(dens = dbeta(theta, a, b))
+}
+
+beta_tbl <- beta_tbl %>%
+  mutate(distribution = paste0("Beta(", a, ",", b, ")")
+        ,data         = map2(a, b, construct_beta_tbl_func)
+         ) %>%
+  unnest(data)
+
+ggplot(beta_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Probability Density of Beta Distribution")
+```
+
+One interesting observation on the parameterisation of the Beta distribution
+is to observe the effect of higher magnitudes of $a$ and $b$ while keeping
+their ratio constant.
+
+```{r plot_tighter_beta_distribution, echo=TRUE}
+beta_tbl <- tribble(
+     ~a,    ~b,
+      1,     1,
+      2,     2,
+      5,     5,
+     10,    10,
+    100,   100,
+)
+
+beta_tbl <- beta_tbl %>%
+  mutate(distribution = paste0("Beta(", a, ",", b, ")")
+        ,data         = map2(a, b, construct_beta_tbl_func)
+         ) %>%
+  unnest(data)
+
+ggplot(beta_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Probability Density of Beta Distribution")
+```
+
+We see that lower values represent more uncertainty for the value of $\theta$.
+
+Finally, it is important to note that $\text{Beta}(a, b)$ corresponds to $a-1$
+successes and $b-1$ failures. To see this, we look at $\text{Beta}(2,4)$.
+
+```{r inspect_beta_2_4_density, echo=TRUE}
+beta_tbl <- construct_beta_tbl_func(2, 4) %>%
+  mutate(distribution = 'Beta(2,4)')
+
+ggplot(beta_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Probability Density of Beta Distribution")
+```
+
+
+## Effect of Priors
+
+We want to investigate the influence of the prior on the posterior
+distribution, in particular for different amounts of data.
+
+To start, we load data with 10 trials and 1,000 trials and use these for
+comparisons.
+
+```{r setup_comparison_priors, echo=TRUE}
+cointoss_10   <- read_rds("data/cointoss10.rds")
+cointoss_1000 <- read_rds("data/cointoss1000.rds")
+
+a_10 <- sum(cointoss_10)
+b_10 <- length(cointoss_10) - a_10
+
+a_1000 <- sum(cointoss_1000)
+b_1000 <- length(cointoss_1000) - a_1000
+
+
+beta_bayes_tbl <- tribble(
+     ~a,    ~b,
+      1,     1,
+      2,     2,
+     10,     5,
+      3,     5,
+  ) %>%
+  mutate(distribution  = paste0("Beta(", a, ",", b, ")"),
+         prior_data    = map2(a,              b,              construct_beta_tbl_func),
+         post10_data   = map2(a + a_10   - 1, b + b_10   - 1, construct_beta_tbl_func),
+         post1000_data = map2(a + a_1000 - 1, b + b_1000 - 1, construct_beta_tbl_func)
+         ) %>%
+  select(-a, -b) %>%
+  gather('type', 'data', -distribution) %>%
+  unnest(data)
+
+beta_bayes_tbl %>% glimpse()
+```
+
+We have constructed the prior and posterior distributions for different sets of
+parameters, so we will some plots.
+
+### Analysis of $N=10$ Dataset
+
+We start with the analysis of the smaller dataset, 10 Bernoulli trials with a
+success rate of 4 out of 10.
+
+```{r data_10_prior_posterior_plots, echo=TRUE}
+plot_tbl <- beta_bayes_tbl %>%
+  filter(type != 'post1000_data')
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  facet_wrap(vars(distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Prior vs Posterior Density Comparison for 10 Coin Tosses")
+```
+
+We want a more direct comparison of the different density plots, so rather than
+plotting the priors against the corresponding posterior, we instead plot the
+different posterior distributions against each other.
+
+```{r data_10_posterior_comparisons, echo=TRUE}
+plot_tbl <- beta_bayes_tbl %>%
+  filter(type == 'post10_data')
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Posterior Density Comparison Plots for N=10")
+```
+
+We see that the prior has a strong effect on our posterior inference as the
+size of the dataset is relatively small, allowing the prior to have significant
+influence.
+
+
+### Analysis of $N=1,000$ Dataset
+
+We start with the analysis of the smaller dataset, 10 Bernoulli trials with a
+success rate of approximately 6 out of 10.
+
+```{r data_1000_prior_posterior_plots, echo=TRUE}
+plot_tbl <- beta_bayes_tbl %>%
+  filter(type != 'post10_data')
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  facet_wrap(vars(distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Prior vs Posterior Density Comparison for 1,000 Coin Tosses")
+```
+
+We want a more direct comparison of the different density plots, so rather than
+plotting the priors against the corresponding posterior, we instead plot the
+different posterior distributions against each other.
+
+```{r data_1000_posterior_comparisons, echo=TRUE}
+plot_tbl <- beta_bayes_tbl %>%
+  filter(type == 'post1000_data', theta >= 0.55, theta <= 0.65)
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Posterior Density Comparison Plots for N=1,000")
+```
+
+
+# Numerical Solutions Using a Discrete Grid
+
+For many applications, the use of simple conjugate priors is not appropriate,
+and we need to deal with the posterior integral calculation itself. Since
+analytical solutions do not exist, we use numerical techniques to approximate
+the integral.
+
+The supplied functions `calc_data_prob()` and `calc_posterior()` perform these
+calculations. The major benefit of this approach is that we can now use
+arbitrary priors and perform the integration numerically.
+
+## Posteriors for $N=10$
+
+We start with our $\text{Beta}(1, 1)$ prior and use our grid approximation to
+integrate the posterior density.
+
+```{r calc_beta_1_1_numeric, echo=TRUE}
+prior_tbl <- beta_bayes_tbl %>%
+  filter(distribution == 'Beta(1,1)', type == 'prior_data') %>%
+  transmute(theta, dens, dens_log = log(dens))
+
+data_loglik_tbl <- calc_data_loglik(cointoss_10, prior_tbl$theta)
+
+num_post_tbl <- calc_posterior(prior_tbl, data_loglik_tbl)
+```
+
+
+
+
+
+Suppose we think the coin has a 3/1 bias, but we do not know for which side. Create a prior that represents this and investigate the posterior for both sets of data.
+
+
+Estimate the posterior density for the bias in the coin assuming you have an equally weighted prior belief of the coin being fair, or biased 3/1 for either side.
+
+
+Investigate the influence of the size of the dataset on the posterior for arbitrary priors.
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```
