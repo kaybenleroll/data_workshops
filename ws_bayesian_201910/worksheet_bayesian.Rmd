@@ -53,6 +53,44 @@ theme_set(theme_cowplot())
 #source('custom_functions.R')
 ```
 
+All code and data for this workshop is available at the following URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+Code is available in the `ws_bayesian_201910/` directory.
+
+
+Much of content of this workshop is based on the book "Doing Bayesian Data
+Analysis" by John Kruschke.
+
+https://sites.google.com/site/doingbayesiandataanalysis/.
+
+
+Another excellent book is "Data Analysis Using Regression and
+Multilevel/Hierarchical Models" by Gelman and Hill
+
+http://www.stat.columbia.edu/~gelman/arm/
+
+
+For a more technical and comprehensive of the area, there is "Bayesian Data
+Analysis" by Gelman, Carlin, Stern, Dunson, Vehtari, and Rubin
+
+http://www.stat.columbia.edu/~gelman/book/
+
+
+Finally, I highly recommend the book ``Statistical Rethinking'' by Richard
+McElreath. It teaches basic statistical principles from a Bayesian perspective.
+
+http://xcelab.net/rm/statistical-rethinking/
+
+
+
+
+
+
+
+
+
 
 # Conditional Probability
 
@@ -164,8 +202,10 @@ We start looking at changing the accuracy of the test from 90% to 100%.
 
 ```{r create_acc_test_data, echo=TRUE}
 calc_acc_prop_func <- function(acc_rate) {
-  sick_prop <- create_medtest_data(10000, base_rate = 0.001, true_rate = acc_rate,
-                                          fa_rate = 0.05) %>%
+  sick_prop <- create_medtest_data(100000,
+                                   base_rate = 0.001,
+                                   true_rate = acc_rate,
+                                   fa_rate = 0.05) %>%
     filter(test_result == TRUE) %>%
     summarise(sick_prop = sum(sick_person) / n()) %>%
     pull(sick_prop)
@@ -190,8 +230,10 @@ probability.
 
 ```{r create_fa_test_data, echo = TRUE}
 calc_fa_prop_func <- function(fa_rate) {
-  sick_prop <- create_medtest_data(10000, base_rate = 0.001, true_rate = 0.99,
-                                          fa_rate = fa_rate) %>%
+  sick_prop <- create_medtest_data(100000,
+                                   base_rate = 0.001,
+                                   true_rate = 0.99,
+                                   fa_rate = fa_rate) %>%
     filter(test_result == TRUE) %>%
     summarise(sick_prop = sum(sick_person) / n()) %>%
     pull(sick_prop)
@@ -216,7 +258,7 @@ What if we have multiple tests?
 fa_vals <- seq(0.001, 0.10, by = 0.001)
 
 calc_fa_prop_func <- function(fa_rate) {
-  sick_prop <- create_two_medtest_data(10000,
+  sick_prop <- create_two_medtest_data(100000,
                                        base_rate = 0.001,
                                        true_rate = 0.99,
                                        fa_rate   = fa_rate) %>%
