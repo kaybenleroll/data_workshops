@@ -1,0 +1,580 @@
+---
+title: "An Introduction to Bayesian Analysis and Bayesian Regression in R"
+subtitle: "Remetrica Conference 2019"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2019-11-14"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls()); gc()
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(cowplot)
+library(vctrs)
+library(knitr)
+library(fs)
+library(snakecase)
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(tidybayes)
+library(insuranceData)
+
+
+conflict_prefer('filter',   'dplyr')
+conflict_prefer('lag',      'dplyr')
+conflict_prefer('select',   'dplyr')
+
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,message = FALSE
+                     ,warning = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+
+options(width = 80L
+       ,warn  = 1
+       ,mc.cores = parallel::detectCores()
+        )
+
+theme_set(theme_cowplot())
+
+rstan_options(auto_write = TRUE)
+
+set.seed(42)
+stan_seed <- 42
+```
+
+
+
+# Introduction
+
+
+## Auto Bodily Injury Data
+
+\
+
+
+```{r show_autobi_data, echo=FALSE}
+data(AutoBi)
+
+autobi_tbl <- AutoBi %>%
+  as_tibble() %>%
+  transmute(
+    case_id  = vec_cast(CASENUM, character()),
+    attorney = (ATTORNEY == 1),
+    male     = case_when(
+      CLMSEX  == 1  ~ 'Male',
+      CLMSEX  == 2  ~ 'Female',
+      is.na(CLMSEX) ~ 'Missing'),
+    marital  = case_when(
+      MARITAL == 1  ~ 'Married',
+      MARITAL == 2  ~ 'Single',
+      MARITAL == 3  ~ 'Widowed',
+      MARITAL == 4  ~ 'Separated',
+      TRUE          ~ 'Other'),
+    claimant_insured = case_when(
+      CLMINSUR == 1  ~ 'Yes',
+      CLMINSUR == 2  ~ 'No',
+      is.na(CLMINSUR)  ~ 'N/A'),
+    seatbelt = case_when(
+      SEATBELT == 1  ~ 'Yes',
+      SEATBELT == 2  ~ 'No',
+      is.na(SEATBELT) ~ 'N/A'),
+    claimant_age = CLMAGE,
+    loss         = LOSS,
+    log_loss     = log(LOSS)
+  ) %>%
+  filter(!is.na(claimant_age))
+
+autobi_tbl %>%
+  head(n = 10) %>%
+  kable()
+```
+
+---
+
+```{r show_bivariate_plot, echo=FALSE}
+attorney_loss_plot <- ggplot(autobi_tbl) +
+  geom_boxplot(aes(x = attorney, y = log_loss)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Attorney") +
+  ylab("Log Loss") +
+  ggtitle("Attorney vs Log Loss Plot")
+
+male_loss_plot <- ggplot(autobi_tbl) +
+  geom_boxplot(aes(x = male, y = log_loss)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Male Gender") +
+  ylab("Log Loss") +
+  ggtitle("Male Gender vs Log Loss Plot")
+
+claimant_loss_plot <- ggplot(autobi_tbl) +
+  geom_boxplot(aes(x = claimant_insured, y = log_loss)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Claimant Insured") +
+  ylab("Log Loss") +
+  ggtitle("Claimant Insured vs Log Loss Plot")
+
+seatbelt_loss_plot <- ggplot(autobi_tbl) +
+  geom_boxplot(aes(x = seatbelt, y = log_loss)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Seatbelt") +
+  ylab("Log Loss") +
+  ggtitle("Seatbelt vs Log Loss Plot")
+
+plot_grid(attorney_loss_plot, male_loss_plot,
+          claimant_loss_plot, seatbelt_loss_plot,
+          ncol = 2)
+```
+
+
+
+# Basic Regression Theory
+
+\
+
+Investigate relationships between quantities
+
+\
+
+
+\begin{eqnarray*}
+y &=& \text{output variable}  \\
+x_i &=& \text{input variables}
+\end{eqnarray*}
+
+
+## Formulating the Problem
+
+\
+
+Observations drawn from Normal distribution
+
+\
+
+$$
+y \sim \mathcal{N}(\mu, \sigma)
+$$
+
+---
+
+Predictors determine mean, $\mu$
+
+\
+
+Choose functional form for this relationship
+
+
+---
+
+### Linear Model
+
+\
+
+$$
+f(x) \to \beta \mathbf{X} \to \mu
+$$
+
+---
+
+### Consequence
+
+\
+
+Each point drawn from an individual distribution
+
+\
+
+$$
+y_i \sim \mathcal{N}\left(\sum \beta_j x_{ji}, \, \sigma\right)
+$$
+
+---
+
+Model fit $\rightarrow$ determine values for $\beta$
+
+
+
+## Model Fitting
+
+\
+
+How do we determine $\beta$?
+
+---
+
+Calculate $\mu$ from data
+
+\
+
+Calculate log-likelihood of measurement, $\mathcal{L}(y \, | \, \mu, \sigma)$
+
+\
+
+Sum over all datapoints
+
+---
+
+```{r show_loglik_heatmap, echo=FALSE}
+construct_loglik_function <- function(data_tbl) {
+  male_vals <- data_tbl %>% pull(male)
+  loss_vals <- data_tbl %>% pull(log_loss)
+
+  param_loglik_func <- function(intercept, male_param, fit_sd, show_prob = 0.01) {
+    if(runif(1) < show_prob) {
+      message(paste0("Int:", intercept, " Male:", male_param))
+    }
+
+    mean_vals <- intercept + male_param * (male_vals == 'Male')
+
+    data_loglik <- map2_dbl(loss_vals, mean_vals,
+                            ~ dnorm(.x, mean = .y, sd = fit_sd, log = TRUE))
+
+    return(sum(data_loglik))
+  }
+
+  return(param_loglik_func)
+}
+
+loss_loglik_func <- construct_loglik_function(autobi_tbl)
+
+loglik_heatmap_data_file <- 'data/loglik_heatmap_tbl.rds'
+
+
+if(!file_exists(loglik_heatmap_data_file)) {
+  intcpt_vals <- seq(-10.0, 10.0, length.out = 250)
+  male_vals   <- seq(-10.0, 10.0, length.out = 250)
+  
+  loglik_heatmap_tbl <- crossing(intcpt = intcpt_vals, male = male_vals) %>%
+    mutate(loglik = map2_dbl(intcpt, male,
+                             loss_loglik_func,
+                             fit_sd = 1.5, show_prob = 0.001))
+  
+  loglik_heatmap_tbl %>% write_rds(loglik_heatmap_data_file)
+} else {
+  loglik_heatmap_tbl <- read_rds(loglik_heatmap_data_file)
+}
+
+
+ggplot(loglik_heatmap_tbl) +
+  geom_tile(aes(x = intcpt, y = male, fill = loglik)) +
+  geom_contour(aes(x = intcpt, y = male, z = loglik), colour = 'black') +
+  geom_point(aes(x = 0.5897, y = 0.0504), size = 3) +
+  scale_fill_gradient(low = 'blue', high = 'red') +
+  xlab("Intercept Parameter") +
+  ylab("Male Parameter") +
+  ggtitle("Heatmap of Log-likelihood Values from Intercept and Male Parameters")
+```
+
+---
+
+Parameter uncertainty
+
+
+# Bayesian Regression
+
+
+## Bayesian Inference Engine
+
+\
+
+Prior Knowledge
+
+$+$
+
+Data
+
+\
+
+$=$
+
+\
+
+Posterior Knowledge
+
+---
+
+Parameters, $\theta$
+
+\
+
+Data, $D$
+
+---
+
+Prior: $p(\theta)$
+
+\
+
+Likelihood: $p(D | \theta)$
+
+\
+
+Posterior: $p(\theta | D)$
+
+---
+
+$$
+p(\theta \, | \, D) = \int p(\theta) \, p(D \, | \, \theta)
+$$
+
+\
+
+Posterior calculation is high-dim integral
+
+---
+
+Use MCMC to sample posterior
+
+---
+
+## Stan, rstan, and rstanarm / brms {data-background="img/stan_logo_tm.png"}
+
+\
+
+Probabilistic Programming Language
+
+\
+
+CmdStan, PyStan, rstan
+
+\
+
+rstanarm and brms
+
+---
+
+```{r fit_bayesian_regression_model, echo=TRUE}
+autobi_stanlm <- stan_lm(
+  log_loss ~ attorney + male + marital + claimant_insured + seatbelt,
+  data            = autobi_tbl,
+  prior           = R2(location = 0.7),
+  chains          = 4,
+  seed            = stan_seed
+)
+```
+
+---
+
+```{r check_fit_diagnostics, echo=FALSE, message=TRUE}
+autobi_stanlm %>%
+  .$stanfit %>%
+  check_hmc_diagnostics()
+```
+
+---
+
+```{r show_fit_traceplots, echo=FALSE}
+autobi_stanlm %>%
+  plot('trace') +
+  ggtitle("Parameter Traceplots") +
+  theme(axis.text.x = element_text(size = 7))
+```
+
+---
+
+```{r show_fit_histograms, echo=FALSE}
+autobi_stanlm %>%
+  plot('hist') +
+  ggtitle("Parameter Histograms") +
+  theme(axis.text.x = element_text(size = 7))
+```
+
+
+## Using Model Outputs
+
+\
+
+
+How do we use these posterior draws?
+
+
+---
+
+```{r plot_autobi_comparison, echo=FALSE}
+sample_12_tbl <- autobi_tbl %>% sample_n(12)
+
+sample_predict_tbl <- sample_12_tbl %>%
+  add_predicted_draws(autobi_stanlm)
+  
+ggplot(sample_predict_tbl) +
+  geom_histogram(aes(x = .prediction), bins = 50) +
+  geom_vline(aes(xintercept = log_loss), colour = 'red') +
+  facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
+  xlab("Log Loss") +
+  ylab("Count") +
+  ggtitle("Posterior Predictive Log Loss Comparion Plot") +
+  theme(axis.text.x = element_text(size = 7))
+```
+
+
+---
+
+A word of caution...
+
+---
+
+Predicting `log(loss)`
+
+---
+
+What about `loss`?
+
+---
+
+```{r plot_diamlog_predictions_natural, echo=FALSE}
+ggplot(sample_predict_tbl %>% mutate(predict_loss = exp(.prediction))) +
+  geom_histogram(aes(x = predict_loss), bins = 50) +
+  geom_vline(aes(xintercept = loss), colour = 'red') +
+  facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
+  xlab("Loss Amount") +
+  ylab("Count") +
+  ggtitle("Posterior Predictive Loss Comparison Plot") +
+  theme(axis.text.x = element_text(size = 7))
+```
+
+---
+
+Induce a uniform distribution?
+
+---
+
+```{r check_logloss_induced_uniform, echo=FALSE}
+plot_tbl <- autobi_tbl %>%
+  add_predicted_draws(autobi_stanlm) %>%
+  summarise(cumlprob = ecdf(.prediction)(log_loss[1]))
+
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = cumlprob), bins = 50) +
+  xlab("Cumulative Probability") +
+  ylab("Frequency") +
+  ggtitle("Induced Cumulative Probability Distribution of Claim Log-Loss")
+```
+
+---
+
+```{r check_exp_logloss_induced_uniform, echo=FALSE}
+plot_tbl <- autobi_tbl %>%
+  add_predicted_draws(autobi_stanlm) %>%
+  summarise(cumlprob = ecdf(exp(.prediction))(loss[1]))
+
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = cumlprob), bins = 50) +
+  xlab("Cumulative Probability") +
+  ylab("Frequency") +
+  ggtitle("Induced Cumulative Probability Distribution of Loss")
+```
+
+
+
+
+# Stan Programs
+
+## Domain Specific Language
+
+\
+
+Compiles to C++
+
+\
+
+Documentation improving rapidly
+
+---
+
+```{r show_radon_nopool, echo=FALSE}
+read_lines("radon_no_pool.stan") %>%
+  cat(sep = '\n')
+```
+
+---
+
+Flexible
+
+\
+
+Censored, truncated data
+
+\
+
+Generative modelling
+
+
+
+
+# Conclusion
+
+
+## Problems and Shortcomings
+
+\
+
+Not a magic bullet
+
+\
+
+Implementation more complex (by design)
+
+
+
+
+## Future Improvements
+
+\
+
+Ecosystem developing rapidly
+
+\
+
+PyStan and arviz
+
+
+
+
+## Further Resources
+
+\
+
+[Stan documentation](https://mc-stan.org/users/documentation/)
+
+\
+
+[Statistical Rethinking](https://xcelab.net/rm/statistical-rethinking/)
+
+\
+
+`rstanarm`, `tidybayes`, `bayesplot`, `shinystan`
+
+
+
+
+## Questions?
+
+\
+
+Email:
+
+mcooney@describedata.com
+
+\
+
+GitHub:
+
+https://github.com/kaybenleroll/data_workshops
+
+
