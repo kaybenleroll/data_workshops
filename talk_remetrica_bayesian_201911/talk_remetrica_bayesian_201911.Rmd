@@ -255,13 +255,13 @@ loglik_heatmap_data_file <- 'data/loglik_heatmap_tbl.rds'
 
 
 if(!file_exists(loglik_heatmap_data_file)) {
-  intcpt_vals <- seq(-10.0, 10.0, length.out = 250)
-  male_vals   <- seq(-10.0, 10.0, length.out = 250)
+  intcpt_vals <- seq(-10.0, 10.0, length.out = 501)
+  male_vals   <- seq(-10.0, 10.0, length.out = 501)
   
   loglik_heatmap_tbl <- crossing(intcpt = intcpt_vals, male = male_vals) %>%
     mutate(loglik = map2_dbl(intcpt, male,
                              loss_loglik_func,
-                             fit_sd = 1.5, show_prob = 0.001))
+                             fit_sd = 1.5, show_prob = 0.0001))
   
   loglik_heatmap_tbl %>% write_rds(loglik_heatmap_data_file)
 } else {
