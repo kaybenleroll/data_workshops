@@ -1,8 +1,8 @@
 ---
 title: "An Introduction to Bayesian Analysis and Bayesian Regression in R"
-subtitle: "Remetrica Conference 2019"
+subtitle: "ReMetrica Conference 2019"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2019-11-14"
+date: "2019-11-13"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -143,7 +143,7 @@ plot_grid(attorney_loss_plot, male_loss_plot,
 
 # Basic Regression Theory
 
-\
+---
 
 Investigate relationships between quantities
 
