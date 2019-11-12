@@ -85,7 +85,7 @@ autobi_tbl <- AutoBi %>%
       MARITAL == 3  ~ 'Widowed',
       MARITAL == 4  ~ 'Separated',
       TRUE          ~ 'Other'),
-    claimant_insured = case_when(
+    insured = case_when(
       CLMINSUR == 1  ~ 'Yes',
       CLMINSUR == 2  ~ 'No',
       is.na(CLMINSUR)  ~ 'N/A'),
@@ -93,11 +93,10 @@ autobi_tbl <- AutoBi %>%
       SEATBELT == 1  ~ 'Yes',
       SEATBELT == 2  ~ 'No',
       is.na(SEATBELT) ~ 'N/A'),
-    claimant_age = CLMAGE,
+    age          = CLMAGE,
     loss         = LOSS,
     log_loss     = log(LOSS)
-  ) %>%
-  filter(!is.na(claimant_age))
+  )
 
 autobi_tbl %>%
   head(n = 10) %>%
@@ -122,7 +121,7 @@ male_loss_plot <- ggplot(autobi_tbl) +
   ggtitle("Male Gender vs Log Loss Plot")
 
 claimant_loss_plot <- ggplot(autobi_tbl) +
-  geom_boxplot(aes(x = claimant_insured, y = log_loss)) +
+  geom_boxplot(aes(x = insured, y = log_loss)) +
   scale_y_continuous(labels = comma) +
   xlab("Claimant Insured") +
   ylab("Log Loss") +
@@ -359,7 +358,7 @@ rstanarm and brms
 
 ```{r fit_bayesian_regression_model, echo=TRUE}
 autobi_stanlm <- stan_lm(
-  log_loss ~ attorney + male + marital + claimant_insured + seatbelt,
+  log_loss ~ attorney + male + marital + insured + seatbelt,
   data            = autobi_tbl,
   prior           = R2(location = 0.7),
   chains          = 4,
