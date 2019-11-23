@@ -35,29 +35,42 @@ library(tidybayes)
 
 source("custom_functions.R")
 
-conflict_prefer('select',  'dplyr')
-conflict_prefer('filter',  'dplyr')
-conflict_prefer('lag',     'dplyr')
+conflict_prefer('select',     'dplyr')
+conflict_prefer('filter',     'dplyr')
+conflict_prefer('lag',        'dplyr')
+conflict_prefer('Position',   'ggplot2')
+conflict_prefer('col_factor', 'scales')
+conflict_prefer('discard',    'scales')
+conflict_prefer('extract',    'rstan')
 
 
 
-options(width = 80L
-       ,warn  = 1
+options(width = 80L,
+        warn  = 1,
+        mc.cores = parallel::detectCores()
         )
+
+rstan_options(auto_write = FALSE)
+
 
 set.seed(42)
 
 theme_set(theme_cowplot())
 
-
-#source('custom_functions.R')
 ```
+
+
+
+---
+
 
 All code and data for this workshop is available at the following URL:
 
 https://github.com/kaybenleroll/data_workshops
 
 Code is available in the `ws_bayesian_201910/` directory.
+
+
 
 
 Much of content of this workshop is based on the book "Doing Bayesian Data
@@ -82,10 +95,6 @@ Finally, I highly recommend the book ``Statistical Rethinking'' by Richard
 McElreath. It teaches basic statistical principles from a Bayesian perspective.
 
 http://xcelab.net/rm/statistical-rethinking/
-
-
-
-
 
 
 
@@ -515,7 +524,7 @@ different posterior distributions against each other.
 
 ```{r data_1000_posterior_comparisons, echo=TRUE}
 plot_tbl <- beta_bayes_tbl %>%
-  filter(type == 'post1000_data', theta >= 0.55, theta <= 0.65)
+  filter(type == 'post1000_data', theta >= 0.35, theta <= 0.45)
 
 ggplot(plot_tbl) +
   geom_line(aes(x = theta, y = dens, colour = distribution)) +
@@ -552,9 +561,9 @@ prior_1_1_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
          dens_log = dbeta(theta, 1, 1, log = TRUE)
          )
 
-data_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
+data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
 
-num_1_1_post_tbl <- calc_posterior(prior_1_1_tbl, data_loglik_tbl)
+num_1_1_post_tbl <- calc_posterior(prior_1_1_tbl, data_10_loglik_tbl)
 
 num_1_1_post_tbl %>% glimpse()
 ```
@@ -582,11 +591,11 @@ ggplot(plot_tbl) +
   ggtitle("Posterior Distribution Beta(1,1) Comparison for Conjugate and Numeric Calculations")
 ```
 
+
 ### Beta(10, 5)
 
-The $\text{Beta}(10,5)$ uniform prior is a natural place to start and we want
-to calculate the numerical integral using our grid approximation to calculate
-the posterior density.
+The $\text{Beta}(10,5)$ prior is alternative prior that lets us investigate
+priors away from a mean of $0.5$.
 
 ```{r calc_beta_10_5_numeric, echo=TRUE}
 prior_10_5_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
@@ -594,9 +603,9 @@ prior_10_5_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
          dens_log = dbeta(theta, 10, 5, log = TRUE)
          )
 
-data_loglik_tbl <- calc_data_loglik(cointoss_10, prior_10_5_tbl$theta)
+data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_10_5_tbl$theta)
 
-num_10_5_post_tbl <- calc_posterior(prior_10_5_tbl, data_loglik_tbl)
+num_10_5_post_tbl <- calc_posterior(prior_10_5_tbl, data_10_loglik_tbl)
 
 num_10_5_post_tbl %>% glimpse()
 ```
@@ -627,8 +636,8 @@ ggplot(plot_tbl) +
 
 We repeat this exercise for the $N=1,000$ dataset.
 
-### Beta(1,1)
 
+### Beta(1,1)
 
 ```{r calc_data1000_beta_1_1_numeric, echo=TRUE}
 prior_1_1_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
@@ -636,9 +645,9 @@ prior_1_1_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
          dens_log = dbeta(theta, 1, 1, log = TRUE)
          )
 
-data_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
+data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
 
-num_1_1_post_tbl <- calc_posterior(prior_1_1_tbl, data_loglik_tbl)
+num_1_1_post_tbl <- calc_posterior(prior_1_1_tbl, data_10_loglik_tbl)
 
 num_1_1_post_tbl %>% glimpse()
 ```
@@ -664,6 +673,7 @@ ggplot(plot_tbl) +
   ggtitle("Posterior Distribution Beta(1,1) Comparison for Conjugate and Numeric Calculations")
 ```
 
+
 ### Beta(10, 5)
 
 ```{r calc_data1000_beta_10_5_numeric, echo=TRUE}
@@ -672,9 +682,9 @@ prior_10_5_tbl <- tibble(theta = seq(0, 1, by = 0.001)) %>%
          dens_log = dbeta(theta, 10, 5, log = TRUE)
          )
 
-data_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_10_5_tbl$theta)
+data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_10_5_tbl$theta)
 
-num_10_5_post_tbl <- calc_posterior(prior_10_5_tbl, data_loglik_tbl)
+num_10_5_post_tbl <- calc_posterior(prior_10_5_tbl, data_1000_loglik_tbl)
 
 num_10_5_post_tbl %>% glimpse()
 ```
@@ -701,13 +711,264 @@ ggplot(plot_tbl) +
 ```
 
 
-Suppose we think the coin has a 3/1 bias, but we do not know for which side. Create a prior that represents this and investigate the posterior for both sets of data.
+## Calculating Posteriors for More Complex Priors
+
+Suppose we know that the trial is biased 3/1, but we do not know the direction
+of the bias.
+
+To construct this prior, we average out the both Beta distributions as our
+prior and then feed this into out posterior calculation.
+
+```{r construct_biased_prior, echo=TRUE}
+biased_prior_tbl <- tibble(
+  type         = 'prior_data',
+  theta        = seq(0, 1, by = 0.001)
+)
 
 
-Estimate the posterior density for the bias in the coin assuming you have an equally weighted prior belief of the coin being fair, or biased 3/1 for either side.
+beta_low_tbl <- biased_prior_tbl %>%
+  mutate(distribution = 'Beta (2,4)',
+         dens         = dbeta(theta, 2, 4))
+
+beta_upr_tbl <- biased_prior_tbl %>%
+  mutate(distribution = 'Beta (4,2)',
+         dens         = dbeta(theta, 4, 2))
+
+biased_prior_tbl <- list(beta_low_tbl, beta_upr_tbl) %>%
+  bind_rows() %>%
+  group_by(theta) %>%
+  summarise(dens = mean(dens)) %>%
+  mutate(distribution = 'Compound Prior',
+         type         = 'prior_data',
+         dens_log     = log(dens))
 
 
-Investigate the influence of the size of the dataset on the posterior for arbitrary priors.
+plot_tbl <- list(
+  beta_low_tbl,
+  beta_upr_tbl,
+  biased_prior_tbl
+  ) %>%
+  bind_rows()
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Density Plot for Biased Prior Distribution")
+```
+
+Now that we have our prior, we plug in our integration calculator and
+investigate the calculated posterior.
+
+
+### 10-Toss Data
+
+For the `cointoss_10` data, we use our likelihood values to calculate the
+posterior.
+
+```{r calculate_biased_posterior_data_10}
+data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
+
+biased_10data_tbl <- calc_posterior(biased_prior_tbl, data_10_loglik_tbl) %>%
+  transmute(theta, type = 'posterior', post_loglik, post_lik)
+
+plot_tbl <- list(
+  biased_prior_tbl  %>% transmute(theta, type, dens),
+  biased_10data_tbl %>% transmute(theta, type, dens = post_lik),
+  beta_bayes_tbl    %>%
+    filter(distribution == 'Beta(2,2)', type == 'post10_data') %>%
+    transmute(theta, type = 'Beta(2,2) posterior', dens)
+  ) %>%
+  bind_rows()
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  xlab(expression(theta)) +
+  ylab("Posterior Density")
+```
+
+
+### 1000-Toss Data
+
+We also perform this comparison for 1,000 data points.
+
+```{r calculate_biased_posterior_data_1000}
+data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
+
+biased_1000data_tbl <- calc_posterior(biased_prior_tbl, data_1000_loglik_tbl) %>%
+  transmute(theta, type = 'posterior', post_loglik, post_lik)
+
+plot_tbl <- list(
+  biased_prior_tbl    %>% transmute(theta, type, dens),
+  biased_1000data_tbl %>% transmute(theta, type, dens = post_lik),
+  beta_bayes_tbl %>%
+    filter(distribution == 'Beta(2,2)', type == 'post1000_data') %>%
+    transmute(theta, type = 'Beta(2,2) posterior', dens)
+  ) %>%
+  bind_rows()
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  xlab(expression(theta)) +
+  ylab("Posterior Density")
+```
+
+
+## Strong Priors
+
+The previous prior ended up concentrating probability mass in the middle of the
+distribution.
+
+We repeat this experiment now with strong priors - first observing the prior
+itself.
+
+```{r construct_biased_strong_prior, echo=TRUE}
+biased_prior_tbl <- tibble(
+  type         = 'prior_data',
+  theta        = seq(0, 1, by = 0.001)
+)
+
+strong_prior_tbl <- construct_additive_prior(biased_prior_tbl, c(20, 40), c(40, 20))
+
+ggplot(strong_prior_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Density Plot for Biased Prior Distribution")
+```
+
+
+We now use our numerical integration routines to calculate the posterior
+distribution due to this prior on the observation of 10 datapoints.
+
+```{r calculate_strong_posterior_data_10}
+use_prior_tbl <- strong_prior_tbl %>%
+  filter(distribution == 'Compound Prior')
+
+data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
+
+strong_10data_tbl <- calc_posterior(use_prior_tbl, data_10_loglik_tbl) %>%
+  transmute(theta, type = 'posterior', post_loglik, post_lik)
+
+plot_tbl <- list(
+  use_prior_tbl %>%
+    transmute(theta, type, dens),
+  strong_10data_tbl %>%
+    transmute(theta, type, dens = post_lik),
+  beta_bayes_tbl %>%
+    filter(distribution == 'Beta(2,2)', type == 'post10_data') %>%
+    transmute(theta, type = 'Beta(2,2) posterior', dens)
+  ) %>%
+  bind_rows()
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  xlab(expression(theta)) +
+  ylab("Posterior Density")
+```
+
+
+We also contrast this with the 1,000 datapoint data.
+
+
+```{r calculate_strong_posterior_data_1000}
+use_prior_tbl <- strong_prior_tbl %>%
+  filter(distribution == 'Compound Prior')
+
+data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
+
+strong_1000data_tbl <- calc_posterior(use_prior_tbl, data_1000_loglik_tbl) %>%
+  transmute(theta, type = 'posterior', post_loglik, post_lik)
+
+plot_tbl <- list(
+  use_prior_tbl %>%
+    transmute(theta, type, dens),
+  strong_1000data_tbl %>%
+    transmute(theta, type, dens = post_lik),
+  beta_bayes_tbl %>%
+    filter(distribution == 'Beta(2,2)', type == 'post1000_data') %>%
+    transmute(theta, type = 'Beta(2,2) posterior', dens)
+  ) %>%
+  bind_rows()
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  xlab(expression(theta)) +
+  ylab("Posterior Density")
+```
+
+
+# First Stan Program
+
+We now turn our attention to writing Stan programs, and showing how we can use
+this flexible probabilistic programming language to model all sorts of complex
+probabilistic models.
+
+
+## Parameterising the Beta Distribution
+
+We have discussed how the Beta distribution, $\text{Beta}(a, b)$, with two
+shape parameters $a$ and $b$ - $a$ corresponding to the count of successful
+trials, and $b$ the failed trials.
+
+While a useful parameterisation, we can convert these variables to $(\mu, K)$.
+
+In this model, we have
+
+\begin{eqnarray*}
+a &=& \mu K   \\
+b &=& (1 - \mu) K
+\end{eqnarray*}
+
+In this parameterisation, $\mu$ is the underlying mean of the distribution and
+$K$ is a measure of the precision of the distribution around this value - the
+higher the value of $K$, the tighter the distribution is around $\mu$.
+
+
+## Binomial Likelihood with Beta Prior
+
+We now look at some Stan code to sample the posterior of a model with a Beta
+prior and a binomial likelihood.
+
+
+```{r show_basic_stan, echo=FALSE, comment = ''}
+read_lines('first_stan_model.stan') %>% cat(sep = '\n')
+```
+
+
+To use Stan, we need to build the model - the Stan code is compiled into a C++
+program and the model is conditioned on the data we provide.
+
+
+```{r build_first_stan_model, echo=TRUE}
+stan_seed <- 42
+
+standata_lst <- list(
+  priorA = 2,
+  priorB = 2,
+  K      = 5,
+  N      = length(cointoss_10),
+  y      = cointoss_10
+)
+
+model_01_stanmodel <- stan_model("first_stan_model.stan")
+
+model_01_stanfit <- sampling(
+  object = model_01_stanmodel,
+  data   = standata_lst,
+  iter   = 500,
+  chains = 8,
+  seed   = stan_seed
+)
+
+
+model_01_stanfit %>% plot()
+```
+
+
+
+
+
 
 
 

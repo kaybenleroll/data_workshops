@@ -2,6 +2,8 @@ data {
   real priorA;
   real priorB;
 
+  real K;
+
   int N;
   int y[N];
 }
@@ -12,18 +14,20 @@ parameters {
 }
 
 model {
-  real K;
-
   real a;
   real b;
 
-  K <- 5;
-
-  a <- mu * K;
-  b <- (1 - mu) * K;
-
-  y ~ bernoulli(theta);
+  a = mu * K;
+  b = (1 - mu) * K;
 
   mu    ~ beta(priorA, priorB);
   theta ~ beta(a, b);
+
+  y ~ bernoulli(theta);
+}
+
+generated quantities {
+  int y_check;
+
+  y_check = bernoulli_rng(theta);
 }

@@ -106,3 +106,36 @@ calc_posterior <- function(prior_tbl, data_loglik_tbl) {
 
   return(bayes_tbl)
 }
+
+
+construct_additive_prior <- function(prior_tbl, one, two) {
+
+  beta_one_tbl <- prior_tbl %>%
+    mutate(distribution = paste0('Beta (', one[1], ',', one[2], ')'),
+           dens         = dbeta(theta, one[1], one[2]))
+
+  beta_two_tbl <- prior_tbl %>%
+    mutate(distribution = paste0('Beta (', two[1], ',', two[2], ')'),
+           dens         = dbeta(theta, two[1], two[2]))
+
+  add_prior_tbl <- list(beta_one_tbl, beta_two_tbl) %>%
+    bind_rows() %>%
+    group_by(theta) %>%
+    summarise(dens = mean(dens)) %>%
+    mutate(distribution = 'Compound Prior',
+           type         = 'prior_data')
+
+
+  all_tbl <- list(
+    beta_one_tbl,
+    beta_two_tbl,
+    add_prior_tbl
+    ) %>%
+    bind_rows() %>%
+    mutate(dens_log = log(dens))
+
+  return(all_tbl)
+}
+
+
+
