@@ -32,6 +32,8 @@ library(scales)
 library(cowplot)
 library(rstan)
 library(tidybayes)
+library(bayesplot)
+
 
 source("custom_functions.R")
 
@@ -50,7 +52,7 @@ options(width = 80L,
         mc.cores = parallel::detectCores()
         )
 
-rstan_options(auto_write = FALSE)
+rstan_options(auto_write = TRUE)
 
 
 set.seed(42)
@@ -944,26 +946,287 @@ program and the model is conditioned on the data we provide.
 stan_seed <- 42
 
 standata_lst <- list(
-  priorA = 2,
-  priorB = 2,
-  K      = 5,
-  N      = length(cointoss_10),
-  y      = cointoss_10
+  prior_sh1 = 2,
+  prior_sh2 = 2,
+  K         = 5,
+  N         = length(cointoss_10),
+  y         = cointoss_10
 )
 
 model_01_stanmodel <- stan_model("first_stan_model.stan")
 
 model_01_stanfit <- sampling(
   object = model_01_stanmodel,
-  data   = standata_lst,
-  iter   = 500,
-  chains = 8,
+  data   = standata_lst %>% list_modify(prior_pd = 1),
+  iter   = 1000,
+  chains = 4,
   seed   = stan_seed
 )
 
 
-model_01_stanfit %>% plot()
+plot(model_01_stanfit, pars = c('theta', 'mu')) +
+  xlab("Value") +
+  ylab("Parameter") +
+  ggtitle("Posterior Plots of the Model Parameters")
 ```
+
+
+# Checking Fit Validity
+
+We need to make sure that the posterior we explore and sample with Stan is
+valid - improper specification of the model will result in invalid inferences.
+
+This problem is real, and needs to be checked against. Unfortunately there are
+no methods to prove a given sample is valid, so we instead rely on heuristics
+and diagnostics.
+
+A first check is to look for divergences, tree-depth issues and the energy
+diagnostic. We want no problems with this as a starting point.
+
+```{r check_model_01_diagnostics, echo=TRUE, warning=TRUE, message=TRUE}
+model_01_stanfit %>% check_hmc_diagnostics()
+```
+
+Another useful diagnostic plot is to visually inspect the traceplots - a line
+plot of each parameter value against the index number of each iteration.
+
+A valid sample means each parameter looks like a 'hairy caterpillar'.
+
+```{r show_model_01_traceplot, echo=TRUE}
+traceplot(model_01_stanfit, pars = c('mu', 'theta'), nrow = 2) +
+  ggtitle("Traceplots of Model Parameters")
+```
+
+
+## Predictive Model Checks
+
+A key component to checking model validity is through the use of *predictive
+checks*. There are two main types of predictive check in this context:
+
+ * *prior predictive checks*, where we do not use the data to condition the
+ model - allowing us to check that our probabilistic model is sensible
+ regardless of the data we observed.
+ * *posterior predictive checks*, where we condition the model with the data
+ and make sure our model outputs are consistent with what we observed from the
+ data.
+
+*Posterior predictive checks* are more common, but both are useful for model
+checking.
+
+We use prior checks to ensure that our models are reasonable and produce values
+that are valid - we think of it as illustrating the possible outputs of the
+model built, regardless of the data observed.
+
+```{r produce_model_01_prior_checks, echo=TRUE}
+model_01_prior_stanfit <- sampling(
+  object = model_01_stanmodel,
+  data   = standata_lst %>% list_modify(prior_pd = 0),
+  iter   = 1000,
+  chains = 4,
+  seed   = stan_seed
+)
+
+
+model_01_prior_stanfit %>% plot(pars = c('theta', 'mu'))
+```
+
+We use the function `tidy_draws()` to combine the outputs of the modelling and
+compare the plots of the prior and posterior parameter distributions.
+
+
+```{r construct_prior_posterior_data, echo=TRUE}
+prior_post_bern_tbl <- list(
+  prior     = model_01_prior_stanfit %>% tidy_draws(),
+  posterior = model_01_stanfit       %>% tidy_draws()
+  ) %>%
+  bind_rows(.id = 'distribution')
+
+prior_post_bern_tbl %>% glimpse()
+```
+
+
+We produce a number of comparison plots for $\mu$ first:
+
+```{r plot_mu_distributions, echo=TRUE}
+ggplot(prior_post_bern_tbl) +
+  geom_histogram(aes(x = mu, fill = distribution),
+                 bins = 30, alpha = 0.5, position = 'identity') +
+  xlab(expression(mu)) +
+  ylab("Frequency") +
+  ggtitle(expression(paste("Comparison Histograms for Prior and Posterior ",
+                           "Distributions for ", mu)))
+
+
+plot_tbl <- prior_post_bern_tbl %>%
+  group_by(distribution) %>%
+  summarise(low_80 = quantile(mu, 0.10),
+            low_50 = quantile(mu, 0.25),
+            median = median(mu),
+            mean   = mean(mu),
+            upr_50 = quantile(mu, 0.75),
+            upr_80 = quantile(mu, 0.90)
+            )
+
+ggplot(plot_tbl, aes(x = distribution)) +
+  geom_errorbar(aes(ymin = low_80, ymax = upr_80), width = 0, size = 1) +
+  geom_errorbar(aes(ymin = low_50, ymax = upr_50), colour = 'red', width = 0, size = 2) +
+  geom_point(aes(y = mean), colour = 'blue', size = 3) +
+  geom_point(aes(y = median), size = 3) +
+  expand_limits(y = 0) +
+  xlab("Distribution") +
+  ylab(expression(mu)) +
+  ggtitle(expression(paste("Comparison 50% and 80% Intervals for Prior and ",
+                           "Posterior Comparisons of ", mu)))
+
+```
+
+
+And now we look at similar plots for $\theta$.
+
+
+```{r plot_theta_distributions, echo=TRUE}
+ggplot(prior_post_bern_tbl) +
+  geom_histogram(aes(x = theta, fill = distribution),
+                 bins = 30, alpha = 0.5, position = 'identity') +
+  xlab(expression(theta)) +
+  ylab("Frequency") +
+  ggtitle(expression(paste("Comparison Histograms for Prior and Posterior ",
+                           "Distributions for ", theta)))
+
+
+plot_tbl <- prior_post_bern_tbl %>%
+  group_by(distribution) %>%
+  summarise(low_80 = quantile(theta, 0.10),
+            low_50 = quantile(theta, 0.25),
+            median = median(theta),
+            mean   = mean(theta),
+            upr_50 = quantile(theta, 0.75),
+            upr_80 = quantile(theta, 0.90)
+            )
+
+ggplot(plot_tbl, aes(x = distribution)) +
+  geom_errorbar(aes(ymin = low_80, ymax = upr_80), width = 0, size = 1) +
+  geom_errorbar(aes(ymin = low_50, ymax = upr_50), colour = 'red', width = 0, size = 2) +
+  geom_point(aes(y = mean), colour = 'blue', size = 3) +
+  geom_point(aes(y = median), size = 3) +
+  expand_limits(y = 0) +
+  xlab("Distribution") +
+  ylab(expression(theta)) +
+  ggtitle(expression(paste("Comparison 50% and 80% Intervals for Prior and ",
+                           "Posterior Comparisons of ", theta)))
+
+```
+
+
+
+## Remodelling with Binomial Likelihood
+
+While using Bernoulli distributions to model binary outcomes, it is better to
+compress our data into counts of successes rather than enumerating them
+separately.
+
+This results in much faster computation so we can build bigger and more
+sophisticated models if we need to.
+
+
+```{r fit_stan_binomial, echo=TRUE}
+t10_count   <- sum(cointoss_10)
+t1000_count <- sum(cointoss_1000)
+```
+
+We now look at our Stan Binomial model.
+
+```{r show_binomial_stan, echo=FALSE, comment = ''}
+read_lines('simple_binomial.stan') %>% cat(sep = '\n')
+```
+
+
+We now construct a dataset to pass into our Binomial model and condition our
+model on it.
+
+The results of this model should be the same as from our Bernoulli version
+(allowing for small variances due to noise).
+
+
+```{r compile_binomial_stan_model, echo=TRUE}
+standata_binom_lst <- list(
+  prior_sh1 = 2,
+  prior_sh2 = 2,
+  K         = 5,
+  n         = 10,
+  k         = t10_count
+)
+
+model_02_stanmodel <- stan_model("simple_binomial.stan")
+
+model_02_stanfit <- sampling(
+  object = model_02_stanmodel,
+  data   = standata_binom_lst %>% list_modify(prior_pd = 1),
+  iter   = 1000,
+  chains = 4,
+  seed   = stan_seed
+)
+
+model_02_prior_stanfit <- sampling(
+  object = model_02_stanmodel,
+  data   = standata_binom_lst %>% list_modify(prior_pd = 0),
+  iter   = 1000,
+  chains = 4,
+  seed   = stan_seed
+)
+
+
+model_02_stanfit %>% check_hmc_diagnostics()
+
+traceplot(model_02_stanfit, pars = c('mu', 'theta'), nrow = 2) +
+  ggtitle("Traceplots of Binomial Model Parameters")
+
+plot(model_02_stanfit, pars = c('theta', 'mu')) +
+  xlab("Value") +
+  ylab("Parameter") +
+  ggtitle("Posterior Plots of the Binomial Model Parameters")
+
+
+prior_post_binom_tbl <- list(
+  prior     = model_02_prior_stanfit %>% tidy_draws(),
+  posterior = model_02_stanfit       %>% tidy_draws()
+  ) %>%
+  bind_rows(.id = 'distribution')
+
+prior_post_bern_tbl %>% glimpse()
+
+
+distrib_compare_tbl <- list(
+  Bernouilli = prior_post_bern_tbl,
+  Binomial   = prior_post_binom_tbl
+  ) %>%
+  bind_rows(.id = 'likelihood')
+
+distrib_compare_tbl %>% glimpse()
+
+
+ggplot(distrib_compare_tbl) +
+  geom_boxplot(aes(x = distribution, y = theta, fill = likelihood),
+               position = position_dodge(width = 0.5), width = 0.3) +
+  xlab("Distribution Type") +
+  ylab(expression(theta)) +
+  ggtitle("Comparison Boxplot of Prior and Posterior Distributions",
+          subtitle = 'Bernouilli and Binomial Likelihoods')
+```
+
+
+
+# Modelling Count Data
+
+So far we have focused on the simplest of probability models - binary outcome
+data where we need to estimate a proportion or probability.
+
+We now extend this concept to count data - we estimate a frequency rate of
+some event per given unit.
+
+
+
+
 
 
 

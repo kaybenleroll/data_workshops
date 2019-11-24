@@ -1,11 +1,13 @@
 data {
-  real priorA;
-  real priorB;
+  real prior_sh1;
+  real prior_sh2;
 
   real K;
 
   int N;
   int y[N];
+
+  int prior_pd;
 }
 
 parameters {
@@ -20,10 +22,11 @@ model {
   a = mu * K;
   b = (1 - mu) * K;
 
-  mu    ~ beta(priorA, priorB);
+  mu    ~ beta(prior_sh1, prior_sh2);
   theta ~ beta(a, b);
 
-  y ~ bernoulli(theta);
+  if(prior_pd == 1)
+    y ~ bernoulli(theta);
 }
 
 generated quantities {
