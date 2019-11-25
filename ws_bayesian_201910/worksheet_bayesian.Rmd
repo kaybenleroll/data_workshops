@@ -900,6 +900,88 @@ ggplot(plot_tbl) +
 ```
 
 
+## Extreme Prior
+
+We repeat this calculation with an extreme prior - one where there is almost
+no probability mass in the middle area.
+
+```{r construct_biased_extreme_prior, echo=TRUE}
+biased_prior_tbl <- tibble(
+  type         = 'prior_data',
+  theta        = seq(0, 1, by = 0.001)
+)
+
+extreme_prior_tbl <- construct_additive_prior(biased_prior_tbl, c(200, 400), c(400, 200))
+
+ggplot(extreme_prior_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = distribution)) +
+  xlab(expression(theta)) +
+  ylab("Density") +
+  ggtitle("Density Plot for Extreme Prior Distribution")
+```
+
+
+We now use our numerical integration routines to calculate the posterior
+distribution due to this prior on the observation of 10 datapoints.
+
+```{r calculate_extreme_posterior_data_10}
+use_prior_tbl <- extreme_prior_tbl %>%
+  filter(distribution == 'Compound Prior')
+
+data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
+
+extreme_10data_tbl <- calc_posterior(use_prior_tbl, data_10_loglik_tbl) %>%
+  transmute(theta, type = 'posterior', post_loglik, post_lik)
+
+plot_tbl <- list(
+  use_prior_tbl %>%
+    transmute(theta, type, dens),
+  strong_10data_tbl %>%
+    transmute(theta, type, dens = post_lik),
+  beta_bayes_tbl %>%
+    filter(distribution == 'Beta(2,2)', type == 'post10_data') %>%
+    transmute(theta, type = 'Beta(2,2) posterior', dens)
+  ) %>%
+  bind_rows()
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  xlab(expression(theta)) +
+  ylab("Posterior Density")
+```
+
+
+We also contrast this with the 1,000 datapoint data.
+
+
+```{r calculate_extreme_posterior_data_1000}
+use_prior_tbl <- extreme_prior_tbl %>%
+  filter(distribution == 'Compound Prior')
+
+data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
+
+extreme_1000data_tbl <- calc_posterior(use_prior_tbl, data_1000_loglik_tbl) %>%
+  transmute(theta, type = 'posterior', post_loglik, post_lik)
+
+plot_tbl <- list(
+  use_prior_tbl %>%
+    transmute(theta, type, dens),
+  strong_1000data_tbl %>%
+    transmute(theta, type, dens = post_lik),
+  beta_bayes_tbl %>%
+    filter(distribution == 'Beta(2,2)', type == 'post1000_data') %>%
+    transmute(theta, type = 'Beta(2,2) posterior', dens)
+  ) %>%
+  bind_rows()
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = theta, y = dens, colour = type)) +
+  xlab(expression(theta)) +
+  ylab("Posterior Density")
+```
+
+
+
 # First Stan Program
 
 We now turn our attention to writing Stan programs, and showing how we can use
