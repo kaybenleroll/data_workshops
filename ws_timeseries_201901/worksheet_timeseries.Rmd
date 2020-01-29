@@ -18,12 +18,12 @@ output:
 ```{r knit_opts, include = FALSE}
 rm(list = ls()); gc()
 
-knitr::opts_chunk$set(tidy  = FALSE
-                     ,cache = FALSE
-                     ,message = FALSE
-                     ,warning = FALSE
-                     ,fig.height =  8
-                     ,fig.width  = 11)
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      message    = FALSE,
+                      warning    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11)
 
 library(conflicted)
 library(tidyverse)
@@ -41,11 +41,12 @@ library(broom)
 conflict_prefer('select',  'dplyr')
 conflict_prefer('filter',  'dplyr')
 conflict_prefer('lag',     'dplyr')
+conflict_prefer('extract', 'magrittr')
 
 
 
-options(width = 80L
-       ,warn  = 1
+options(width = 80L,
+        warn  = 1
         )
 
 set.seed(42)
@@ -202,12 +203,12 @@ airpassengers_tbl %>% print()
 
 
 ggplot(airpassengers_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    expand_limits(y = 0) +
-    xlab('Date') +
-    ylab('Passenger Count') +
-    scale_x_yearmon() +
-    ggtitle('Plot of Air Passenger Time Series')
+  geom_line(aes(x = month, y = value)) +
+  expand_limits(y = 0) +
+  xlab('Date') +
+  ylab('Passenger Count') +
+  scale_x_yearmon() +
+  ggtitle('Plot of Air Passenger Time Series')
 ```
 
 
@@ -219,7 +220,7 @@ included the datafile in this workshop.
 
 ```{r load_maine_unemployment, echo=TRUE}
 maine_ts <- scan('data/Maine.dat', skip = 1) %>%
-    ts(start = 1996, frequency = 12)
+  ts(start = 1996, frequency = 12)
 
 maine_ts %>% print()
 maine_ts %>% plot()
@@ -235,12 +236,12 @@ maine_tbl %>% print()
 
 
 ggplot(maine_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    expand_limits(y = 0) +
-    xlab('Date') +
-    ylab('Unemployment Numbers') +
-    scale_x_yearmon() +
-    ggtitle('Plot of Maine Unemployment Time Series')
+  geom_line(aes(x = month, y = value)) +
+  expand_limits(y = 0) +
+  xlab('Date') +
+  ylab('Unemployment Numbers') +
+  scale_x_yearmon() +
+  ggtitle('Plot of Maine Unemployment Time Series')
 ```
 
 
@@ -269,8 +270,8 @@ First we add time indices via `ts` conversions.
 
 ```{r construct_cbe_timeseries, echo=TRUE}
 cbe_ts <- cbe_raw_tbl %>%
-    as.matrix() %>%
-    ts(start = 1958, frequency = 12)
+  as.matrix() %>%
+  ts(start = 1958, frequency = 12)
 
 cbe_ts %>% head(10)
 cbe_ts %>% plot()
@@ -282,7 +283,7 @@ An alternative approach is to add the time index directly.
 n_data <- cbe_raw_tbl %>% nrow()
 
 cbe_tbl <- cbe_raw_tbl %>%
-    add_column(month = (1958 + (0:(n_data-1)/12)) %>% yearmon, .before = 1)
+  add_column(month = (1958 + (0:(n_data-1)/12)) %>% yearmon, .before = 1)
 
 
 cbe_tbl %>% glimpse()
@@ -294,16 +295,16 @@ Having constructed the tibble, we now construct these time series plots using
 
 ```{r construct_cbe_plots, echo=TRUE}
 plot_tbl <- cbe_tbl %>%
-    gather('product', 'value', -month)
+  gather('product', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = product)) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Production Amount") +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Production Data from Australian Government')
+  geom_line(aes(x = month, y = value, colour = product)) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Production Amount") +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Production Data from Australian Government')
 ```
 
 
@@ -312,17 +313,17 @@ each product:
 
 ```{r plot_cbe_facetted_data, echo=TRUE}
 plot_tbl <- cbe_tbl %>%
-    gather('product', 'value', -month)
+  gather('product', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    facet_grid(rows = vars(product), scales = 'free_y') +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Production Amount") +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Production Data from Australian Government')
+  geom_line(aes(x = month, y = value)) +
+  facet_grid(rows = vars(product), scales = 'free_y') +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Production Amount") +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Production Data from Australian Government')
 ```
 
 
@@ -344,15 +345,15 @@ approvactiv_raw_tbl %>% glimpse()
 
 
 approvactiv_ts <- approvactiv_raw_tbl %>%
-    as.matrix() %>%
-    ts(start = 1996, frequency = 4)
+  as.matrix() %>%
+  ts(start = 1996, frequency = 4)
 
 approvactiv_ts %>% head(10)
 approvactiv_ts %>% plot()
 
 
 approvactiv_tbl <- approvactiv_ts %>%
-    tk_tbl(rename_index = 'quarter')
+  tk_tbl(rename_index = 'quarter')
 
 approvactiv_tbl %>% glimpse()
 approvactiv_tbl %>% print()
@@ -363,17 +364,17 @@ As before, we can produce time plots in `ggplot2`.
 
 ```{r construct_approvactiv_plots, echo=TRUE}
 plot_tbl <- approvactiv_tbl %>%
-    gather('label', 'value', -quarter)
+  gather('label', 'value', -quarter)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = quarter, y = value)) +
-    facet_grid(rows = vars(label), scales = 'free_y') +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Amount") +
-    scale_x_yearqtr() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Building Activity Data from Australian Government')
+  geom_line(aes(x = quarter, y = value)) +
+  facet_grid(rows = vars(label), scales = 'free_y') +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Amount") +
+  scale_x_yearqtr() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Building Activity Data from Australian Government')
 ```
 
 
@@ -391,15 +392,15 @@ the 'tidyverse', as well as the total number of downloads from CRAN.
 cran_data_file <- 'data/cran_download_data.csv'
 
 if(file.exists(cran_data_file)) {
-    cran_data_tbl <- read_csv(cran_data_file)
+  cran_data_tbl <- read_csv(cran_data_file)
 } else {
-    cran_pkgs <- c('dplyr', 'tidyr', 'ggplot2', 'lubridate', 'stringr', 'tibble'
-                  ,'broom', 'jsonlite', 'purrr', 'readr', 'tidyquant')
-      
-
-    cran_data_tbl <- retrieve_cran_download_data(cran_pkgs, '2014-01-01', '2018-12-31')
+  cran_pkgs <- c('dplyr', 'tidyr', 'ggplot2', 'lubridate', 'stringr', 'tibble',
+                 'broom', 'jsonlite', 'purrr', 'readr', 'tidyquant')
     
-    write_csv(cran_data_tbl, path = cran_data_file)
+
+  cran_data_tbl <- retrieve_cran_download_data(cran_pkgs, '2014-01-01', '2018-12-31')
+  
+  cran_data_tbl %>% write_csv(path = cran_data_file)
 }
 
 
@@ -412,11 +413,11 @@ package.
 
 ```{r plot_cran_downloads, echo=TRUE}
 ggplot(cran_data_tbl) +
-    geom_line(aes(x = date, y = count)) +
-    facet_wrap(vars(package), scales = 'free_y') +
-    expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Facetted Lineplots of CRAN Daily Downloads')
+  geom_line(aes(x = date, y = count)) +
+  facet_wrap(vars(package), scales = 'free_y') +
+  expand_limits(y = 0) +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Facetted Lineplots of CRAN Daily Downloads')
 ```
 
 Not all packages have download data as some packages were created after the
@@ -444,9 +445,9 @@ at the end to make it more meaningful and useful.
 
 ```{r combining_airpassengers_australia_data, echo=TRUE}
 ap_econ_combined_tbl <- airpassengers_tbl %>%
-    left_join(cbe_tbl, by = 'month') %>%
-    filter(complete.cases(.)) %>%
-    rename(air = value)
+  left_join(cbe_tbl, by = 'month') %>%
+  filter(complete.cases(.)) %>%
+  rename(air = value)
 
 
 ap_econ_combined_tbl %>% glimpse()
@@ -487,8 +488,8 @@ data into annual numbers.
 
 ```{r aggregate_ap_data_annual, echo=TRUE}
 ap_yearly_dplyr_tbl <- airpassengers_tbl %>%
-    group_by(year = month %>% format('%Y') %>% as.numeric()) %>%
-    summarise(ann_total = sum(value))
+  group_by(year = month %>% format('%Y') %>% as.numeric()) %>%
+  summarise(ann_total = sum(value))
 
 
 ap_yearly_dplyr_tbl %>% glimpse()
@@ -502,14 +503,14 @@ function `tq_transmute`:
 
 ```{r aggregate_ap_annual_transmute, echo=TRUE}
 ap_yearly_tidyquant_tbl <- airpassengers_tbl %>%
-    tq_transmute(
-        select     = value
-       ,mutate_fun = apply.yearly
-       ,FUN        = sum
-       ,na.rm      = TRUE
-       ,col_rename = 'ann_total'
-    ) %>%
-    mutate(year = month %>% format('%Y') %>% as.numeric())
+  tq_transmute(
+    select     = value,
+    mutate_fun = apply.yearly,
+    FUN        = sum,
+    na.rm      = TRUE,
+    col_rename = 'ann_total'
+  ) %>%
+  mutate(year = month %>% format('%Y') %>% as.numeric())
 
 
 ap_yearly_tidyquant_tbl %>% glimpse()
@@ -522,10 +523,10 @@ gives us an idea of the overall trend in the data.
 
 ```{r aggregate_ap_data_annual_lineplot, echo=TRUE}
 ggplot(ap_yearly_tidyquant_tbl) +
-    geom_line(aes(x = year, y = ann_total)) +
-    expand_limits(y = 0) +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Lineplot of the Annual Air Passenger Totals')
+  geom_line(aes(x = year, y = ann_total)) +
+  expand_limits(y = 0) +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Lineplot of the Annual Air Passenger Totals')
 ```
 
 #### Exercises
@@ -543,25 +544,25 @@ writing a custom function that outputs the statistics we require.
 
 ```{r aggregate_ap_annual_transmute_custom, echo=TRUE}
 custom_stats_func <- function(x, na.rm = TRUE, ...) {
-    c(
-          sum    = sum(x, na.rm = na.rm)
-         ,mean   = mean(x, na.rm = na.rm)
-         ,sd     = sd(x, na.rm = na.rm)
-         ,median = median(x, na.rm = na.rm)
-         ,q25    = quantile(x, na.rm = na.rm, probs = 0.25, names = FALSE)
-         ,q75    = quantile(x, na.rm = na.rm, probs = 0.75, names = FALSE)
-    )
+  c(
+    sum    = sum(x, na.rm = na.rm),
+    mean   = mean(x, na.rm = na.rm),
+    sd     = sd(x, na.rm = na.rm),
+    median = median(x, na.rm = na.rm),
+    q25    = quantile(x, na.rm = na.rm, probs = 0.25, names = FALSE),
+    q75    = quantile(x, na.rm = na.rm, probs = 0.75, names = FALSE)
+  )
 }
 
 
 ap_yearly_tidyquant_custom_tbl <- airpassengers_tbl %>%
-    tq_transmute(
-        select     = value
-       ,mutate_fun = apply.yearly
-       ,FUN        = custom_stats_func
-       ,na.rm      = TRUE
-    ) %>%
-    mutate(year = month %>% format('%Y') %>% as.numeric())
+  tq_transmute(
+    select     = value,
+    mutate_fun = apply.yearly,
+    FUN        = custom_stats_func,
+    na.rm      = TRUE
+  ) %>%
+  mutate(year = month %>% format('%Y') %>% as.numeric())
 
 
 ap_yearly_tidyquant_custom_tbl %>% glimpse()
@@ -596,19 +597,19 @@ value of the time series over a fixed window of data.
 
 ```{r rolling_ap_sixmonth_mutate, echo=TRUE}
 ap_rollmean_sixmonth_tbl <- airpassengers_tbl %>%
-    tq_mutate(
-        # tq_mutate args
-        select     = value
-       ,mutate_fun = rollapply 
-        # rollapply args
-       ,width      = 6
-       ,align      = "right"
-       ,FUN        = mean
-        # mean args
-       ,na.rm      = TRUE
-        # tq_mutate args
-       ,col_rename = "mean_6m"
-    )
+  tq_mutate(
+    # tq_mutate args
+    select     = value,
+    mutate_fun = rollapply, 
+    # rollapply args
+    width      = 6,
+    align      = "right",
+    FUN        = mean,
+    # mean args
+    na.rm      = TRUE,
+    # tq_mutate args
+    col_rename = "mean_6m"
+  )
 
 
 ap_rollmean_sixmonth_tbl %>% glimpse()
@@ -621,18 +622,18 @@ moving average.
 
 ```{r rolling_ap_sixmonth_plot, echo=TRUE}
 plot_tbl <- ap_rollmean_sixmonth_tbl %>%
-    rename(orig = value) %>%
-    gather('label', 'value', -month)
+  rename(orig = value) %>%
+  gather('label', 'value', -month)
 
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = label)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Total') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Comparison Plot of the Air Passenger Counts')
+  geom_line(aes(x = month, y = value, colour = label)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Total') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Comparison Plot of the Air Passenger Counts')
 ```
 
 Note that the moving-average series does not start at the same timestamp as
@@ -644,32 +645,32 @@ We can add multiple moving averages to a time series by chaining a series of
 
 ```{r rolling_ap_multiwindow, echo=TRUE}
 ap_rollmean_multi_tbl <- airpassengers_tbl %>%
-    tq_mutate(
-        # tq_mutate args
-        select     = value
-       ,mutate_fun = rollapply
-        # rollapply args
-       ,width      = 6
-       ,align      = "right"
-       ,FUN        = mean
-        # mean args
-       ,na.rm      = TRUE
-        # tq_mutate args
-       ,col_rename = "mean_6m"
-    ) %>%
-    tq_mutate(
-        # tq_mutate args
-        select     = value
-       ,mutate_fun = rollapply 
-        # rollapply args
-       ,width      = 12
-       ,align      = "right"
-       ,FUN        = mean
-        # mean args
-       ,na.rm      = TRUE
-        # tq_mutate args
-       ,col_rename = "mean_12m"
-    )
+  tq_mutate(
+    # tq_mutate args
+    select     = value,
+    mutate_fun = rollapply,
+    # rollapply args
+    width      = 6,
+    align      = "right",
+    FUN        = mean,
+    # mean args
+    na.rm      = TRUE,
+    # tq_mutate args
+    col_rename = "mean_6m"
+  ) %>%
+  tq_mutate(
+    # tq_mutate args
+    select     = value,
+    mutate_fun = rollapply, 
+    # rollapply args
+    width      = 12,
+    align      = "right",
+    FUN        = mean,
+    # mean args
+    na.rm      = TRUE,
+    # tq_mutate args
+    col_rename = "mean_12m"
+  )
   
 
 ap_rollmean_multi_tbl %>% glimpse()
@@ -681,18 +682,18 @@ the different window sizes.
 
 ```{r rolling_ap_multi_plot, echo=TRUE}
 plot_tbl <- ap_rollmean_multi_tbl %>%
-    rename(orig = value) %>%
-    gather('label', 'value', -month)
+  rename(orig = value) %>%
+  gather('label', 'value', -month)
 
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = label)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Total') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Comparison Plot of the Air Passenger Counts')
+  geom_line(aes(x = month, y = value, colour = label)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Total') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Comparison Plot of the Air Passenger Counts')
 ```
 
 The twelve month time series is shorter than the six month series as it has
@@ -704,29 +705,29 @@ deviation, allowing us to include a range of possible values.
 
 ```{r rolling_ap_ribbon, echo=TRUE}
 ribbon_func <- function(x, na.rm = TRUE, ...) {
-    mu    <- mean(x, na.rm = na.rm)
-    sigma <- sd(x, na.rm = na.rm)
-    
-    lower <- mu - 2 * sigma
-    upper <- mu + 2 * sigma
-    
-    return(c(mu = mu, l2sd = lower, u2sd = upper))
+  mu    <- mean(x, na.rm = na.rm)
+  sigma <- sd(x, na.rm = na.rm)
+  
+  lower <- mu - 2 * sigma
+  upper <- mu + 2 * sigma
+  
+  return(c(mu = mu, l2sd = lower, u2sd = upper))
 }
 
 
 ap_roll_ribbon_tbl <- airpassengers_tbl %>%
-    tq_mutate(
-        # tq_mutate args
-        select     = value
-       ,mutate_fun = rollapply 
-        # rollapply args
-       ,width      = 6
-       ,align      = "right"
-       ,by.column  = FALSE
-       ,FUN        = ribbon_func
-        # mean args
-       ,na.rm      = TRUE
-    )
+  tq_mutate(
+    # tq_mutate args
+    select     = value,
+    mutate_fun = rollapply, 
+    # rollapply args
+    width      = 6,
+    align      = "right",
+    by.column  = FALSE,
+    FUN        = ribbon_func,
+    # mean args
+    na.rm      = TRUE
+  )
   
 
 ap_roll_ribbon_tbl %>% glimpse()
@@ -738,16 +739,16 @@ We now plot the original data against the moving average and the mean.
 
 ```{r plot_ap_6m_ribbon_data, echo=TRUE}
 ggplot(ap_roll_ribbon_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    geom_line(aes(x = month, y = mu), colour = 'red') +
-    geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd)
-               ,colour = 'grey', alpha = 0.25) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Total') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Ribbon Plot of the Air Passenger Counts (6 month window)')
+  geom_line(aes(x = month, y = value)) +
+  geom_line(aes(x = month, y = mu), colour = 'red') +
+  geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd),
+              colour = 'grey', alpha = 0.25) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Total') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Ribbon Plot of the Air Passenger Counts (6 month window)')
 ```
 
 
@@ -755,18 +756,18 @@ We now repeat this process with using a twelve-month window for the data.
 
 ```{r rolling_ap_12m_ribbon, echo=TRUE}
 ap_roll_12m_ribbon_tbl <- airpassengers_tbl %>%
-    tq_mutate(
-        # tq_mutate args
-        select     = value
-       ,mutate_fun = rollapply 
-        # rollapply args
-       ,width      = 12
-       ,align      = "right"
-       ,by.column  = FALSE
-       ,FUN        = ribbon_func
-        # mean args
-       ,na.rm      = TRUE
-    )
+  tq_mutate(
+    # tq_mutate args
+    select     = value,
+    mutate_fun = rollapply, 
+    # rollapply args
+    width      = 12,
+    align      = "right",
+    by.column  = FALSE,
+    FUN        = ribbon_func,
+    # mean args
+    na.rm      = TRUE
+  )
   
 
 ap_roll_12m_ribbon_tbl %>% glimpse()
@@ -778,16 +779,16 @@ quantities.
 
 ```{r plot_ap_12m_ribbon_data, echo=TRUE}
 ggplot(ap_roll_12m_ribbon_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    geom_line(aes(x = month, y = mu), colour = 'red') +
-    geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd)
-               ,colour = 'grey', alpha = 0.25) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Total') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Ribbon Plot of the Air Passenger Counts (12 month window)')
+  geom_line(aes(x = month, y = value)) +
+  geom_line(aes(x = month, y = mu), colour = 'red') +
+  geom_ribbon(aes(x = month, ymin = l2sd, ymax = u2sd),
+              colour = 'grey', alpha = 0.25) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Total') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Ribbon Plot of the Air Passenger Counts (12 month window)')
 ```
 
 
@@ -812,7 +813,7 @@ the mechanics of creating first differences.
 
 ```{r ap_firstdiff_mutate, echo=TRUE}
 ap_firstdiff_tbl <- airpassengers_tbl %>%
-    mutate(diff = value - lag(value, n = 1))
+  mutate(diff = value - lag(value, n = 1))
 
 
 ap_firstdiff_tbl %>% glimpse()
@@ -823,18 +824,18 @@ Having calculated the differences, we now produce a lineplot of those values.
 
 ```{r ap_firstdiff_plot, echo=TRUE}
 plot_tbl <- ap_firstdiff_tbl %>%
-    rename(count = value) %>%
-    gather('series', 'value', -month)
+  rename(count = value) %>%
+  gather('series', 'value', -month)
 
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = series)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Value') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Plot of the Air Passenger Counts and First Differences')
+  geom_line(aes(x = month, y = value, colour = series)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Value') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Plot of the Air Passenger Counts and First Differences')
 ```
 
 As we see with this plot, the first differences of the passenger data does not
@@ -881,12 +882,12 @@ We remind ourselves of the lineplot of the raw data.
 
 ```{r plot_airpassenger_exploration, echo=TRUE}
 ggplot(airpassengers_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    xlab('Date') +
-    ylab('Passenger Count') +
-    expand_limits(y = 0) +
-    scale_x_yearmon() +
-    ggtitle('Plot of Air Passenger Time Series')
+  geom_line(aes(x = month, y = value)) +
+  xlab('Date') +
+  ylab('Passenger Count') +
+  expand_limits(y = 0) +
+  scale_x_yearmon() +
+  ggtitle('Plot of Air Passenger Time Series')
 ```
 
 This plot suggests a strong seasonal effect as well as a trend so this is the
@@ -899,13 +900,13 @@ points for the month of June to help us identify years.
 ap_jun_tbl <- airpassengers_tbl %>% filter(format(month, '%m') == '06')
 
 ggplot(airpassengers_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    geom_point(aes(x = month, y = value), data = ap_jun_tbl, size = 2) +
-    expand_limits(y = 0) +
-    xlab('Date') +
-    ylab('Passenger Count') +
-    scale_x_yearmon() +
-    ggtitle('Plot of Air Passenger Time Series')
+  geom_line(aes(x = month, y = value)) +
+  geom_point(aes(x = month, y = value), data = ap_jun_tbl, size = 2) +
+  expand_limits(y = 0) +
+  xlab('Date') +
+  ylab('Passenger Count') +
+  scale_x_yearmon() +
+  ggtitle('Plot of Air Passenger Time Series')
 ```
 
 
@@ -915,11 +916,11 @@ sums or averages, or we could look at moving averages.
 
 ```{r plot_ap_yearly_totals, echo=TRUE}
 ggplot(ap_yearly_tidyquant_tbl) +
-    geom_line(aes(x = year, y = ann_total)) +
-    expand_limits(y = 0) +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Lineplot of the Annual Air Passenger Totals')
+  geom_line(aes(x = year, y = ann_total)) +
+  expand_limits(y = 0) +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Lineplot of the Annual Air Passenger Totals')
 ```
 
 
@@ -930,16 +931,16 @@ of the passenger counts, grouping by month.
 
 ```{r plot_ap_monthly_boxplots, echo=TRUE}
 plot_tbl <- airpassengers_tbl %>%
-    mutate(cal_month = format(month, '%m'))
+  mutate(cal_month = format(month, '%m'))
 
 ggplot(plot_tbl) +
-    geom_boxplot(aes(x = cal_month, y = value)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Count') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Boxplot of the Air Passenger Counts')
+  geom_boxplot(aes(x = cal_month, y = value)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Count') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Boxplot of the Air Passenger Counts')
 ```
 
 We can see some aspects of the data seasonality in this boxplot, but the
@@ -953,16 +954,16 @@ differences.
 
 ```{r plot_ap_diffs_monthly_boxplots, echo=TRUE}
 plot_tbl <- ap_firstdiff_tbl %>%
-    mutate(cal_month = format(month, '%m'))
+  mutate(cal_month = format(month, '%m'))
 
 ggplot(plot_tbl) +
-    geom_boxplot(aes(x = cal_month, y = diff)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Count Changes') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Boxplot of the First Differences of the Air Passenger Counts')
+  geom_boxplot(aes(x = cal_month, y = diff)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Count Changes') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Boxplot of the First Differences of the Air Passenger Counts')
 ```
 
 The seasonality in the data comes through much stronger with this plot. We see
@@ -977,8 +978,8 @@ to month.
 
 ```{r ap_perc_change_explore_struct, echo=TRUE}
 ap_perc_change_tbl <- airpassengers_tbl %>%
-    mutate(cal_month   = format(month, '%m')
-          ,perc_change = value / lag(value, n = 1) - 1)
+  mutate(cal_month   = format(month, '%m'),
+         perc_change = value / lag(value, n = 1) - 1)
 
 
 ap_perc_change_tbl %>% glimpse()
@@ -990,12 +991,12 @@ as before.
 
 ```{r plot_ap_perc_change_lineplot, echo=TRUE}
 ggplot(ap_perc_change_tbl) +
-    geom_line(aes(x = month, y = perc_change)) +
-    expand_limits(y = 0) +
-    xlab('Date') +
-    ylab('Percentage Change') +
-    scale_x_yearmon() +
-    ggtitle('Lineplot of the Percentage Changes of the Air Passenger Counts')
+  geom_line(aes(x = month, y = perc_change)) +
+  expand_limits(y = 0) +
+  xlab('Date') +
+  ylab('Percentage Change') +
+  scale_x_yearmon() +
+  ggtitle('Lineplot of the Percentage Changes of the Air Passenger Counts')
 ```
 
 Much like the arithmetic differences, the percentage changes are centred around
@@ -1003,11 +1004,11 @@ zero, so now we can look at a boxplot of them.
 
 ```{r plot_ap_perc_changes_monthly_boxplots, echo=TRUE}
 ggplot(ap_perc_change_tbl) +
-    geom_boxplot(aes(x = cal_month, y = perc_change)) +
-    xlab('Month') +
-    ylab('Percentage Changes') +
-    scale_x_yearmon() +
-    ggtitle('Boxplot of the Percentage Changes of the Air Passenger Counts')
+  geom_boxplot(aes(x = cal_month, y = perc_change)) +
+  xlab('Month') +
+  ylab('Percentage Changes') +
+  scale_x_yearmon() +
+  ggtitle('Boxplot of the Percentage Changes of the Air Passenger Counts')
 ```
 
 
@@ -1020,10 +1021,10 @@ changes.
 
 ```{r maine_data_exploration, echo=TRUE}
 maine_explore_tbl <- maine_tbl %>%
-    mutate(cal_month   = format(month, '%m')
-          ,diff        = value - lag(value, n = 1)
-          ,perc_change = value / lag(value, n = 1) - 1
-           )
+  mutate(cal_month   = format(month, '%m'),
+         diff        = value - lag(value, n = 1),
+         perc_change = value / lag(value, n = 1) - 1
+         )
 
 
 maine_explore_tbl %>% glimpse()
@@ -1037,13 +1038,13 @@ We start by the standard lineplot of the values.
 
 ```{r plot_maine_lineplot, echo=TRUE}
 ggplot(maine_explore_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    expand_limits(y = 0) +
-    xlab('Time') +
-    ylab('Maine Unemployment Count (thousands)') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Lineplot of the Maine Unemployment Data')
+  geom_line(aes(x = month, y = value)) +
+  expand_limits(y = 0) +
+  xlab('Time') +
+  ylab('Maine Unemployment Count (thousands)') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Lineplot of the Maine Unemployment Data')
 ```
 
 We do not see a trend in this data but the data does seem to have strong
@@ -1056,13 +1057,13 @@ component in this data.
 
 ```{r plot_maine_monthly_boxplot, echo=TRUE}
 ggplot(maine_explore_tbl) +
-    geom_boxplot(aes(x = cal_month, y = value)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Maine Unemployment Count (thousands)') +
-    scale_x_yearmon() +
-    scale_y_continuous(labels = comma) +
-    ggtitle('Monthly Boxplot of the Maine Unemployment Data')
+  geom_boxplot(aes(x = cal_month, y = value)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Maine Unemployment Count (thousands)') +
+  scale_x_yearmon() +
+  scale_y_continuous(labels = comma) +
+  ggtitle('Monthly Boxplot of the Maine Unemployment Data')
 ```
 
 We see definite changes over the months, though the effect does not seem as
@@ -1075,12 +1076,12 @@ line plot.
 
 ```{r plot_maine_diff_lineplot, echo=TRUE}
 ggplot(maine_explore_tbl) +
-    geom_line(aes(x = month, y = diff)) +
-    expand_limits(y = 0) +
-    xlab('Time') +
-    ylab('Maine Unemployment Count Differences') +
-    scale_x_yearmon() +
-    ggtitle('Lineplot of the Differences in Maine Unemployment Data')
+  geom_line(aes(x = month, y = diff)) +
+  expand_limits(y = 0) +
+  xlab('Time') +
+  ylab('Maine Unemployment Count Differences') +
+  scale_x_yearmon() +
+  ggtitle('Lineplot of the Differences in Maine Unemployment Data')
 ```
 
 The original data does not exhibit a strong trend, and the first differences
@@ -1088,12 +1089,12 @@ are similar.
 
 ```{r plot_maine_diff_monthly_boxplot, echo=TRUE}
 ggplot(maine_explore_tbl) +
-    geom_boxplot(aes(x = cal_month, y = diff)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Maine Unemployment Count Differences') +
-    scale_x_yearmon() +
-    ggtitle('Monthly Boxplot of the Maine Unemployment Data')
+  geom_boxplot(aes(x = cal_month, y = diff)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Maine Unemployment Count Differences') +
+  scale_x_yearmon() +
+  ggtitle('Monthly Boxplot of the Maine Unemployment Data')
 ```
 
 We see strong seasonal differences in the monthly data.
@@ -1105,12 +1106,12 @@ We look at the lineplot of the percentage changes next.
 
 ```{r plot_maine_perc_change_lineplot, echo=TRUE}
 ggplot(maine_explore_tbl) +
-    geom_line(aes(x = month, y = perc_change)) +
-    expand_limits(y = 0) +
-    xlab('Time') +
-    ylab('Maine Unemployment Count Percentage Changes') +
-    scale_x_yearmon() +
-    ggtitle('Lineplot of the Percentage Changes in Maine Unemployment Data')
+  geom_line(aes(x = month, y = perc_change)) +
+  expand_limits(y = 0) +
+  xlab('Time') +
+  ylab('Maine Unemployment Count Percentage Changes') +
+  scale_x_yearmon() +
+  ggtitle('Lineplot of the Percentage Changes in Maine Unemployment Data')
 ```
 
 As for the differences, no major trends or patterns emerge from this plot.
@@ -1119,12 +1120,12 @@ We now look for seasonal patterns in the percentage changes.
 
 ```{r plot_maine_perc_change_monthly_boxplot, echo=TRUE}
 ggplot(maine_explore_tbl) +
-    geom_boxplot(aes(x = cal_month, y = perc_change)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Maine Unemployment Count Percentage Changes') +
-    scale_x_yearmon() +
-    ggtitle('Monthly Boxplot of the Percentage Changes in Maine Unemployment Data')
+  geom_boxplot(aes(x = cal_month, y = perc_change)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Maine Unemployment Count Percentage Changes') +
+  scale_x_yearmon() +
+  ggtitle('Monthly Boxplot of the Percentage Changes in Maine Unemployment Data')
 ```
 
 
@@ -1179,8 +1180,8 @@ The `decompose` function in R allows us to build this:
 
 ```{r decompose_ap_simple_additive, echo=TRUE}
 ap_ts_sa_decompose <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    decompose()
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  decompose()
 
 ap_ts_sa_decompose %>% plot()
 ```
@@ -1190,7 +1191,7 @@ output of these routines.
 
 ```{r decompose_ap_simple_additive_tidy, echo=TRUE}
 ap_ts_sa_decompose_tbl <- ap_ts_sa_decompose %>%
-    sw_tidy_decomp(rename_index = 'month')
+  sw_tidy_decomp(rename_index = 'month')
 
 
 ap_ts_sa_decompose_tbl %>% glimpse()
@@ -1206,14 +1207,14 @@ from this, we plot both together.
 
 ```{r plot_passenger_sa_adjusted, echo=TRUE}
 ggplot(ap_ts_sa_decompose_tbl) +
-    geom_line(aes(x = month, y = observed)) +
-    geom_line(aes(x = month, y = seasadj), colour = 'red') +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Count') +
-    scale_x_yearmon() +
-    ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts'
-           ,subtitle = '(seasonal adjustments in red)')
+  geom_line(aes(x = month, y = observed)) +
+  geom_line(aes(x = month, y = seasadj), colour = 'red') +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Count') +
+  scale_x_yearmon() +
+  ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts',
+          subtitle = '(seasonal adjustments in red)')
 
 ```
 
@@ -1223,16 +1224,16 @@ it to 'long' format and plot each quantity separately.
 
 ```{r decompose_ap_sa_tidy_plot, echo=TRUE}
 plot_tbl <- ap_ts_sa_decompose_tbl %>%
-    gather('label', 'value', -month)
+  gather('label', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    facet_grid(rows = vars(label)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Value') +
-    scale_x_yearmon() +
-    ggtitle('Decomposition Plot of the Simple Additive Model')
+  geom_line(aes(x = month, y = value)) +
+  facet_grid(rows = vars(label)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Value') +
+  scale_x_yearmon() +
+  ggtitle('Decomposition Plot of the Simple Additive Model')
 ```
 
 Due to the difference in scales for each parameter, we redo this plot but we
@@ -1241,13 +1242,13 @@ free up the $y$-axis scale.
 
 ```{r decompose_ap_sa_tidy_scales_plot, echo=TRUE}
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    facet_grid(rows = vars(label), scales = 'free_y') +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Value') +
-    scale_x_yearmon() +
-    ggtitle('Decomposition Plot of the Simple Additive Model')
+  geom_line(aes(x = month, y = value)) +
+  facet_grid(rows = vars(label), scales = 'free_y') +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Value') +
+  scale_x_yearmon() +
+  ggtitle('Decomposition Plot of the Simple Additive Model')
 ```
 
 
@@ -1268,8 +1269,8 @@ default plotting system as a quick check.
 
 ```{r decompose_ap_simple_multiplicative, echo=TRUE}
 ap_ts_sm_decompose <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    decompose(type = 'multiplicative')
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  decompose(type = 'multiplicative')
 
 ap_ts_sm_decompose %>% plot()
 ```
@@ -1279,7 +1280,7 @@ plots.
 
 ```{r decompose_ap_simple_multiplicative_tidy, echo=TRUE}
 ap_ts_sm_decompose_tbl <- ap_ts_sm_decompose %>%
-    sw_tidy_decomp(rename_index = 'month')
+  sw_tidy_decomp(rename_index = 'month')
 
 ap_ts_sm_decompose_tbl %>% glimpse()
 ap_ts_sm_decompose_tbl %>% print()
@@ -1293,14 +1294,14 @@ lineplot.
 
 ```{r plot_passenger_sm_adjusted, echo=TRUE}
 ggplot(ap_ts_sm_decompose_tbl) +
-    geom_line(aes(x = month, y = observed)) +
-    geom_line(aes(x = month, y = seasadj), colour = 'red') +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Passenger Count') +
-    scale_x_yearmon() +
-    ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts (Multiplicative Mdodel)'
-           ,subtitle = '(seasonal adjustments in red)')
+  geom_line(aes(x = month, y = observed)) +
+  geom_line(aes(x = month, y = seasadj), colour = 'red') +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Passenger Count') +
+  scale_x_yearmon() +
+  ggtitle('Comparison Lineplot of Passenger Data and Seasonal Counts (Multiplicative Mdodel)',
+          subtitle = '(seasonal adjustments in red)')
 
 ```
 
@@ -1308,16 +1309,16 @@ We then look at the full decomposition plot, and each of the components.
 
 ```{r decompose_ap_sm_tidy_plot, echo=TRUE}
 plot_tbl <- ap_ts_sm_decompose_tbl %>%
-    gather('label', 'value', -month)
+  gather('label', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    facet_grid(rows = vars(label)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Value') +
-    scale_x_yearmon() +
-    ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
+  geom_line(aes(x = month, y = value)) +
+  facet_grid(rows = vars(label)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Value') +
+  scale_x_yearmon() +
+  ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
 ```
 
 
@@ -1326,13 +1327,13 @@ different scales, so we redo the plot with a free $y$-axis.
 
 ```{r decompose_ap_sm_tidy_scales_plot, echo=TRUE}
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value)) +
-    facet_grid(rows = vars(label), scales = 'free_y') +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Value') +
-    scale_x_yearmon() +
-    ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
+  geom_line(aes(x = month, y = value)) +
+  facet_grid(rows = vars(label), scales = 'free_y') +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Value') +
+  scale_x_yearmon() +
+  ggtitle('Decomposition Plot of the Simple Multiplicative Model for the Air Passenger Data')
 ```
 
 #### Exercises
@@ -1386,9 +1387,9 @@ to set this explicitly.
 
 ```{r decompose_ap_stl_periodic, echo=TRUE}
 ap_stl_decompose <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    extract(,1) %>%       # need to use this for compatibility with stl()
-    stl(s.window = 'periodic')
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  extract(,1) %>%       # need to use this for compatibility with stl()
+  stl(s.window = 'periodic')
 
 ap_stl_decompose %>% plot()
 ```
@@ -1398,7 +1399,7 @@ to ease plotting and analysis.
 
 ```{r decompose_ap_stl_periodic_tidy, echo=TRUE}
 ap_stl_decompose_tbl <- ap_stl_decompose %>%
-    sw_tidy_decomp(rename_index = 'month')
+  sw_tidy_decomp(rename_index = 'month')
 
 ap_stl_decompose_tbl %>% glimpse()
 ap_stl_decompose_tbl %>% print()
@@ -1412,16 +1413,16 @@ produce plots for visual inspection.
 
 ```{r create_decomposition_comparisons, echo=TRUE}
 decomp_tbl <- ap_ts_sa_decompose_tbl %>%
-    rename(remainder = random)
+  rename(remainder = random)
 
 stl_tbl <- ap_stl_decompose_tbl
 
 
 decomp_compare_tbl <- list(
-    `Simple Additive` = decomp_tbl
-   ,`STL Periodic`    = stl_tbl
-    ) %>%
-    bind_rows(.id = 'category')
+  `Simple Additive` = decomp_tbl,
+  `STL Periodic`    = stl_tbl
+  ) %>%
+  bind_rows(.id = 'category')
 
 decomp_compare_tbl %>% glimpse()
 decomp_compare_tbl %>% print()
@@ -1429,24 +1430,24 @@ decomp_compare_tbl %>% print()
 
 ```{r plot_decomposition_seasonal, echo=TRUE}
 ggplot(decomp_compare_tbl) +
-    geom_line(aes(x = month, y = season, colour = category)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Seasonal Value') +
-    scale_x_yearmon() +
-    ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
+  geom_line(aes(x = month, y = season, colour = category)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Seasonal Value') +
+  scale_x_yearmon() +
+  ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
 ```
 
 Seasonal values are almost the same, so we now compare trend values.
 
 ```{r plot_decomposition_trends, echo=TRUE}
 ggplot(decomp_compare_tbl) +
-    geom_line(aes(x = month, y = trend, colour = category)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Trend Value') +
-    scale_x_yearmon() +
-    ggtitle('Comparison Plot for Trends between Decompositional Methods')
+  geom_line(aes(x = month, y = trend, colour = category)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Trend Value') +
+  scale_x_yearmon() +
+  ggtitle('Comparison Plot for Trends between Decompositional Methods')
 ```
 
 We see here that the STL with Periodic smoothing window is almost the same as
@@ -1460,9 +1461,9 @@ We can also use robust loess to perform the STL, and compare the results.
 
 ```{r decompose_ap_stl_robust, echo=TRUE}
 ap_stl_robust_decompose <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    extract(,1) %>%       # need to use this for compatibility with stl()
-    stl(s.window = 'periodic', robust = TRUE)
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  extract(,1) %>%       # need to use this for compatibility with stl()
+  stl(s.window = 'periodic', robust = TRUE)
 
 ap_stl_robust_decompose %>% plot()
 ```
@@ -1472,7 +1473,7 @@ to ease plotting and analysis.
 
 ```{r decompose_ap_stl_robust_tidy, echo=TRUE}
 ap_stl_robust_decompose_tbl <- ap_stl_robust_decompose %>%
-    sw_tidy_decomp(rename_index = 'month')
+  sw_tidy_decomp(rename_index = 'month')
 
 ap_stl_robust_decompose_tbl %>% glimpse()
 ap_stl_robust_decompose_tbl %>% print()
@@ -1486,11 +1487,11 @@ We now directly compare all the decompositions.
 
 ```{r create_all_decomp_comparisons, echo=TRUE}
 decomp_compare_tbl <- list(
-    `Simple Additive` = decomp_tbl
-   ,`STL Periodic`    = stl_tbl
-   ,`STL Robust`      = ap_stl_robust_decompose_tbl
-    ) %>%
-    bind_rows(.id = 'category')
+  `Simple Additive` = decomp_tbl,
+  `STL Periodic`    = stl_tbl,
+  `STL Robust`      = ap_stl_robust_decompose_tbl
+  ) %>%
+  bind_rows(.id = 'category')
 
 decomp_compare_tbl %>% glimpse()
 decomp_compare_tbl %>% print()
@@ -1501,12 +1502,12 @@ for the different decompositions.
 
 ```{r plot_all_decomp_seasonal, echo=TRUE}
 ggplot(decomp_compare_tbl) +
-    geom_line(aes(x = month, y = season, colour = category)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Seasonal Value') +
-    scale_x_yearmon() +
-    ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
+  geom_line(aes(x = month, y = season, colour = category)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Seasonal Value') +
+  scale_x_yearmon() +
+  ggtitle('Comparison Plot for Seasonal Values between Decompositional Methods')
 ```
 
 We now look at trend values for the different decompositions.
@@ -1514,12 +1515,12 @@ We now look at trend values for the different decompositions.
 
 ```{r plot_all_decomp_trends, echo=TRUE}
 ggplot(decomp_compare_tbl) +
-    geom_line(aes(x = month, y = trend, colour = category)) +
-    expand_limits(y = 0) +
-    xlab('Month') +
-    ylab('Trend Value') +
-    scale_x_yearmon() +
-    ggtitle('Comparison Plot for Trends between Decompositional Methods')
+  geom_line(aes(x = month, y = trend, colour = category)) +
+  expand_limits(y = 0) +
+  xlab('Month') +
+  ylab('Trend Value') +
+  scale_x_yearmon() +
+  ggtitle('Comparison Plot for Trends between Decompositional Methods')
 ```
 
 
@@ -1549,12 +1550,12 @@ provides some simple plotting routines.
 
 ```{r illustrate_x11_decomposition, echo=TRUE}
 ap_x11_decompose <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    seas(x11 = '')
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  seas(x11 = '')
 
 ap_x11_decompose %>% plot()
 ap_x11_decompose %>%
-    autoplot() + ggtitle("Output of X11 Decomposition on Air Passenger Data")
+  autoplot() + ggtitle("Output of X11 Decomposition on Air Passenger Data")
 ```
 
 
@@ -1571,12 +1572,12 @@ exploration as an exercise.
 
 ```{r illustrate_seats_decomposition, echo=TRUE}
 ap_seats_decompose <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    seas()
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  seas()
 
 ap_seats_decompose %>% plot()
 ap_seats_decompose %>%
-    autoplot() + ggtitle("Output of SEATS Decomposition on Air Passenger Data")
+  autoplot() + ggtitle("Output of SEATS Decomposition on Air Passenger Data")
 ```
 
 
@@ -1710,14 +1711,14 @@ procedures.
 
 ```{r produce_airpassenger_lags, echo=TRUE}
 ap_lags_tbl <- airpassengers_tbl %>%
-    tq_mutate(
-        select     = value
-       ,mutate_fun = lag.xts
-       ,k          = 1:24
-       ,col_rename = paste0('l', 1:24)
-    ) %>%
-    gather('lag_k','lag_val', -month, -value) %>%
-    mutate(lag_k = lag_k %>% str_replace('^l', '') %>% as.integer())
+  tq_mutate(
+    select     = value,
+    mutate_fun = lag.xts,
+    k          = 1:24,
+    col_rename = paste0('l', 1:24)
+  ) %>%
+  gather('lag_k','lag_val', -month, -value) %>%
+  mutate(lag_k = lag_k %>% str_replace('^l', '') %>% as.integer())
 
 ap_lags_tbl %>% glimpse()
 ap_lags_tbl %>% print()
@@ -1738,12 +1739,12 @@ We include these cutoff bounds in the calculation.
 
 ```{r calculate_ap_correlations, echo=TRUE}
 ap_autocorrs_tbl <- ap_lags_tbl %>%
-    group_by(lag_k) %>%
-    summarise(
-        cor          = cor(x = value, y = lag_val, use = "pairwise.complete.obs")
-       ,cutoff_upper =  2 / sqrt(n())
-       ,cutoff_lower = -2 / sqrt(n())
-    )
+  group_by(lag_k) %>%
+  summarise(
+    cor          = cor(x = value, y = lag_val, use = "pairwise.complete.obs"),
+    cutoff_upper =  2 / sqrt(n()),
+    cutoff_lower = -2 / sqrt(n())
+  )
 
 ap_autocorrs_tbl %>% glimpse()
 ap_autocorrs_tbl %>% print()
@@ -1754,12 +1755,12 @@ construct a plot in `ggplot2` to visualise the data.
 
 ```{r show_ap_correlogram, echo=TRUE}
 ggplot(ap_autocorrs_tbl) +
-    geom_line(aes(x = lag_k, y = cor)) +
-    geom_line(aes(x = lag_k, y = cutoff_upper), colour = 'blue', linetype = 'dashed') +
-    geom_line(aes(x = lag_k, y = cutoff_lower), colour = 'blue', linetype = 'dashed') +
-    xlab('Lag') +
-    ylab('Auto-correlation') +
-    ggtitle('Correlogram for the Air Passenger Data')
+  geom_line(aes(x = lag_k, y = cor)) +
+  geom_line(aes(x = lag_k, y = cutoff_upper), colour = 'blue', linetype = 'dashed') +
+  geom_line(aes(x = lag_k, y = cutoff_lower), colour = 'blue', linetype = 'dashed') +
+  xlab('Lag') +
+  ylab('Auto-correlation') +
+  ggtitle('Correlogram for the Air Passenger Data')
 ```
 
 As mentioned above, we can calculate these values directly in R by using
@@ -1767,8 +1768,8 @@ As mentioned above, we can calculate these values directly in R by using
 
 ```{r calculate_ap_acf, echo=TRUE}
 ap_acf <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    Acf()
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  Acf()
 
 ap_acf %>% autoplot() + ggtitle('Correlogram of the Air Passenger Data')
 ```
@@ -1786,8 +1787,8 @@ PACF is almost identical as for the ACF.
 
 ```{r calculate_ap_pacf, echo=TRUE}
 ap_pacf <- airpassengers_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    Pacf()
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  Pacf()
 
 ap_pacf %>% autoplot() + ggtitle('Partial Correlogram of the Air Passenger Data')
 ```
@@ -1835,11 +1836,11 @@ can extend to multivariate time series.
 
 ```{r show_cross_correlation_building, echo=TRUE}
 approvactiv_cross_acf <- approvactiv_ts %>%
-    Acf(plot = FALSE)
+  Acf(plot = FALSE)
 
 approvactiv_cross_acf %>%
-    autoplot() +
-        ggtitle('Cross-correlations of the Australian Building Data')
+  autoplot() +
+    ggtitle('Cross-correlations of the Australian Building Data')
 ```
 
 Not that these plots are not symmetric: the plots on the diagonals give us
@@ -1866,26 +1867,26 @@ with trends and seasonality and calculate cross-correlations.
 
 ```{r check_crosscorrs_trend, echo=TRUE}
 produce_trend_series <- function(strength, trend = 1:100, N = 100) {
-    x <- trend + strength * rnorm(N)
-    y <- trend + strength * rnorm(N)
-    
-    data_tbl <- tibble(
-        i = seq_along(trend)
-       ,x = x
-       ,y = y
-    )
-    
-    return(data_tbl)
+  x <- trend + strength * rnorm(N)
+  y <- trend + strength * rnorm(N)
+  
+  data_tbl <- tibble(
+    i = seq_along(trend),
+    x = x,
+    y = y
+  )
+  
+  return(data_tbl)
 }
 
 gen_data_tbl <- tibble(strength = c(1, 10, 100, 1000)) %>%
-    mutate(data = map(strength, produce_trend_series)) %>%
-    unnest()
+  mutate(data = map(strength, produce_trend_series)) %>%
+  unnest()
 
 ggplot(gen_data_tbl) +
-    geom_line(aes(x = i, y = x)) +
-    geom_line(aes(x = i, y = y), colour = 'red') +
-    facet_wrap(~strength, ncol = 2, scale = 'free_y')
+  geom_line(aes(x = i, y = x)) +
+  geom_line(aes(x = i, y = y), colour = 'red') +
+  facet_wrap(~strength, ncol = 2, scale = 'free_y')
 
 ```
 
@@ -1895,16 +1896,16 @@ of these bivariate series.
 
 ```{r plot_bivariate_trend_ccf, echo=TRUE}
 create_ccf_plot <- function(ccf_data, strength) {
-    autoplot(ccf_data) +
-        ggtitle(paste('Strength', strength))
+  autoplot(ccf_data) +
+    ggtitle(paste('Strength', strength))
 }
 
 gen_data_tbl %>%
-    group_by(strength) %>%
-    summarise(ccf_data = list(Ccf(x, y, plot = FALSE))) %>%
-    mutate(ccf_plot = map2(ccf_data, strength, create_ccf_plot)) %>%
-    pull(ccf_plot) %>%
-    plot_grid(plotlist = ., ncol = 2)
+  group_by(strength) %>%
+  summarise(ccf_data = list(Ccf(x, y, plot = FALSE))) %>%
+  mutate(ccf_plot = map2(ccf_data, strength, create_ccf_plot)) %>%
+  pull(ccf_plot) %>%
+  plot_grid(plotlist = ., ncol = 2)
 ```
 
 As we see, we pick up a lot of cross-correlation with a strong trend, but this
@@ -1915,44 +1916,43 @@ with seasonal effects and then look at the cross-correlations.
 
 ```{r construct_bivariate_seasonal, echo=TRUE}
 produce_seasonal_series <- function(strength, offset = 4, N = 370) {
-    time <- 0:N
+  time <- 0:N
 
-    x <- sin(2 * pi * time / 37)            + strength * rnorm(N+1)
-    y <- sin(2 * pi * (time + offset) / 37) + strength * rnorm(N+1)
-    
-    data_tbl <- tibble(
-        i = seq_along(time)
-       ,x = x
-       ,y = y
-    )
-    
-    return(data_tbl)
+  x <- sin(2 * pi * time / 37)            + strength * rnorm(N+1)
+  y <- sin(2 * pi * (time + offset) / 37) + strength * rnorm(N+1)
+  
+  data_tbl <- tibble(
+    i = seq_along(time),
+    x = x,
+    y = y
+  )
+  
+  return(data_tbl)
 }
 
 gen_data_tbl <- tibble(strength = c(0, 0.1, 0.5, 1, 2, 10)) %>%
-    mutate(data = map(strength, produce_seasonal_series)) %>%
-    unnest()
+  mutate(data = map(strength, produce_seasonal_series)) %>%
+  unnest()
 
 ggplot(gen_data_tbl) +
-    geom_line(aes(x = i, y = x)) +
-    geom_line(aes(x = i, y = y), colour = 'red') +
-    facet_wrap(~ strength, ncol = 3, scale = 'free_y')
+  geom_line(aes(x = i, y = x)) +
+  geom_line(aes(x = i, y = y), colour = 'red') +
+  facet_wrap(~ strength, ncol = 3, scale = 'free_y')
 ```
 
 
 
 ```{r plot_bivariate_seasonal_ccf, echo=TRUE}
 create_ccf_plot <- function(ccf_data, strength) {
-    autoplot(ccf_data) +
-        ggtitle(paste('Strength', strength))
+  autoplot(ccf_data) + ggtitle(paste('Strength', strength))
 }
 
 gen_data_tbl %>%
-    group_by(strength) %>%
-    summarise(ccf_data = list(Ccf(x, y, plot = FALSE))) %>%
-    mutate(ccf_plot = map2(ccf_data, strength, create_ccf_plot)) %>%
-    pull(ccf_plot) %>%
-    plot_grid(plotlist = ., ncol = 3)
+  group_by(strength) %>%
+  summarise(ccf_data = list(Ccf(x, y, plot = FALSE))) %>%
+  mutate(ccf_plot = map2(ccf_data, strength, create_ccf_plot)) %>%
+  pull(ccf_plot) %>%
+  plot_grid(plotlist = ., ncol = 3)
 ```
 
 
@@ -1994,9 +1994,9 @@ as our test dataset.
 
 ```{r ap_forecast_regression_data, echo=TRUE}
 ap_lm_data_tbl <- airpassengers_tbl %>%
-    mutate(month_label = format(month, '%m')
-          ,year_num    = year(month)
-           )
+  mutate(month_label = format(month, '%m'),
+         year_num    = year(month)
+         )
 
 ap_train_tbl <- ap_lm_data_tbl %>% filter(year_num != 1960)
 ap_test_tbl  <- ap_lm_data_tbl %>% filter(year_num == 1960)
@@ -2024,18 +2024,18 @@ We now check the fitted values against the observed.
 
 ```{r ap_forecast_regression_train, echo=TRUE}
 plot_tbl <- ap_base_lm %>%
-    augment() %>%
-    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
-    select(month, observed = value, fitted = .fitted) %>%
-    gather('series', 'value', -month)
+  augment() %>%
+  mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
+  select(month, observed = value, fitted = .fitted) %>%
+  gather('series', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = series)) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle("Comparison Lineplot of Air Passengers vs Linear Model")
+  geom_line(aes(x = month, y = value, colour = series)) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle("Comparison Lineplot of Air Passengers vs Linear Model")
 ```
 
 We see that the additive model here may be less appropriate as a multiplicative
@@ -2046,18 +2046,18 @@ We expect this will continue when we try the model with the test data.
 
 ```{r ap_forecast_regression_test, echo=TRUE}
 plot_tbl <- ap_base_lm %>%
-    augment(newdata = ap_test_tbl) %>%
-    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
-    select(month, observed = value, fitted = .fitted) %>%
-    gather('series', 'value', -month)
+  augment(newdata = ap_test_tbl) %>%
+  mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
+  select(month, observed = value, fitted = .fitted) %>%
+  gather('series', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = series)) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle("Comparison Lineplot of Air Passengers vs Linear Model (1960 points)")
+  geom_line(aes(x = month, y = value, colour = series)) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle("Comparison Lineplot of Air Passengers vs Linear Model (1960 points)")
 ```
 
 
@@ -2066,9 +2066,9 @@ ggplot(plot_tbl) +
 A more appropriate model may be to fit the Poisson model.
 
 ```{r ap_forecast_regression_glm, echo=TRUE}
-ap_base_glm <- glm(value ~ 0 + month_label + year_num
-                  ,data   = ap_train_tbl
-                  ,family = poisson)
+ap_base_glm <- glm(value ~ 0 + month_label + year_num,
+                   data   = ap_train_tbl,
+                   family = poisson)
 
 ap_base_glm %>% glance()
 ap_base_glm %>% tidy()
@@ -2078,18 +2078,18 @@ We now check the fitted values against the observed.
 
 ```{r ap_forecast_regression_glm_train, echo=TRUE}
 plot_tbl <- ap_base_glm %>%
-    augment(type.predict = 'response') %>%
-    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
-    select(month, observed = value, fitted = .fitted) %>%
-    gather('series', 'value', -month)
+  augment(type.predict = 'response') %>%
+  mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
+  select(month, observed = value, fitted = .fitted) %>%
+  gather('series', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = series)) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model")
+  geom_line(aes(x = month, y = value, colour = series)) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model")
 ```
 
 We see that a Poisson model does a better job of capturing the magnitude of
@@ -2098,18 +2098,18 @@ better matched also.
 
 ```{r ap_forecast_regression_glm_test, echo=TRUE}
 plot_tbl <- ap_base_glm %>%
-    augment(newdata = ap_test_tbl, type.predict = 'response') %>%
-    mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
-    select(month, observed = value, fitted = .fitted) %>%
-    gather('series', 'value', -month)
+  augment(newdata = ap_test_tbl, type.predict = 'response') %>%
+  mutate(month = paste(year_num, month_label, sep = '-') %>% as.yearmon()) %>%
+  select(month, observed = value, fitted = .fitted) %>%
+  gather('series', 'value', -month)
 
 ggplot(plot_tbl) +
-    geom_line(aes(x = month, y = value, colour = series)) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model (1960 points)")
+  geom_line(aes(x = month, y = value, colour = series)) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle("Comparison Lineplot of Air Passengers vs Poisson Model (1960 points)")
 ```
 
 
@@ -2164,8 +2164,8 @@ actual values.
 
 ```{r ap_ewma_first, echo=TRUE}
 ap_ewma_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    ets(model = 'ANN')
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  ets(model = 'ANN')
 
 ap_ewma_fit %>% sw_tidy()
 ap_ewma_fit %>% sw_glance()
@@ -2176,21 +2176,21 @@ forecasts for future times, as well as plotting them.
 
 ```{r ap_produce_forecasts, echo=TRUE}
 ap_ewma_forecast <- ap_ewma_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_ewma_forecast_tbl <- ap_ewma_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ggplot(ap_ewma_forecast_tbl) +
-    geom_line  (aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Forecast for Air Passengers with EWMA Model')
+  geom_line  (aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Forecast for Air Passengers with EWMA Model')
 ```
 
 We see that the EWMA model is not effective in terms prediction.
@@ -2199,17 +2199,17 @@ We can compare the fits against the data directly with `sw_augment()`:
 
 ```{r ap_ewma_sweep_augment, echo=TRUE}
 ap_ewma_augment_tbl <- ap_ewma_fit %>%
-    sw_augment(rename_index = 'month')
+  sw_augment(rename_index = 'month')
 
 
 ggplot(ap_ewma_augment_tbl) +
-    geom_line(aes(x = month, y = .actual)) +
-    geom_line(aes(x = month, y = .fitted), colour = 'red') +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Forecast for Air Passengers with EWMA Model')
+  geom_line(aes(x = month, y = .actual)) +
+  geom_line(aes(x = month, y = .fitted), colour = 'red') +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Forecast for Air Passengers with EWMA Model')
 ```
 
 
@@ -2222,8 +2222,8 @@ works any better.
 
 ```{r maine_ewma_model, echo=TRUE}
 maine_ewma_fit <- maine_train_tbl %>%
-    tk_ts(select = value, start = 1996, frequency = 12) %>%
-    ets(model = 'ANN')
+  tk_ts(select = value, start = 1996, frequency = 12) %>%
+  ets(model = 'ANN')
 
 maine_ewma_fit %>% sw_tidy()
 maine_ewma_fit %>% sw_glance()
@@ -2233,21 +2233,21 @@ As before, having fit the EWMA model we now produce forecasts.
 
 ```{r maine_produce_forecasts, echo=TRUE}
 maine_ewma_forecast <- maine_ewma_fit %>%
-    forecast(h = 20, level = c(50, 80))
+  forecast(h = 20, level = c(50, 80))
 
 maine_ewma_forecast_tbl <- maine_ewma_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ggplot(maine_ewma_forecast_tbl) +
-    geom_line  (aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Forecast for Maine Unemployment Data with EWMA Model')
+  geom_line  (aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Forecast for Maine Unemployment Data with EWMA Model')
 ```
 
 In some cases, with such a simple model we may prefer to set values for
@@ -2256,8 +2256,8 @@ the chosen parameters directly into the fitting routine:
 
 ```{r maine_ewma_model_set_params, echo=TRUE}
 maine_ewma_paramfit <- maine_train_tbl %>%
-    tk_ts(select = value, start = 1996, frequency = 12) %>%
-    ets(model = 'ANN', alpha = 0.8)
+  tk_ts(select = value, start = 1996, frequency = 12) %>%
+  ets(model = 'ANN', alpha = 0.8)
 
 maine_ewma_paramfit %>% sw_tidy()
 maine_ewma_paramfit %>% sw_glance()
@@ -2267,21 +2267,21 @@ We now produce forecasts using the set EWMA parameter to see how they compare.
 
 ```{r maine_produce_paramfit_forecasts, echo=TRUE}
 maine_ewma_paramfit_forecast <- maine_ewma_paramfit %>%
-    forecast(h = 20, level = c(50, 80))
+  forecast(h = 20, level = c(50, 80))
 
 maine_ewma_paramfit_forecast_tbl <- maine_ewma_paramfit_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ggplot(maine_ewma_paramfit_forecast_tbl) +
-    geom_line  (aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Forecast for Maine Unemployment Data with Non-Fitted EWMA Model')
+  geom_line  (aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Forecast for Maine Unemployment Data with Non-Fitted EWMA Model')
 ```
 
 
@@ -2317,42 +2317,42 @@ We start with the Air Passenger data, and use the 'AAA' model within `ets()`.
 
 ```{r fit_holtwinters_ts_model, echo=TRUE}
 ap_hw_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    ets(model = 'AAA')
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  ets(model = 'AAA')
 
 ap_hw_fit %>% sw_tidy()
 ap_hw_fit %>% sw_glance()
 
 
 ap_hw_forecast <- ap_hw_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_hw_forecast_tbl <- ap_hw_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ggplot(ap_hw_forecast_tbl) +
-    geom_line  (aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Forecast for Air Passengers with Holt-Winters Model')
+  geom_line  (aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Forecast for Air Passengers with Holt-Winters Model')
 
 
 ap_hw_augment_tbl <- ap_hw_fit %>%
-    sw_augment(rename_index = 'month')
+  sw_augment(rename_index = 'month')
 
 ggplot(ap_hw_augment_tbl) +
-    geom_line(aes(x = month, y = .actual)) +
-    geom_line(aes(x = month, y = .fitted), colour = 'red') +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('sw_augment Output for Holt-Winters Model')
+  geom_line(aes(x = month, y = .actual)) +
+  geom_line(aes(x = month, y = .fitted), colour = 'red') +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('sw_augment Output for Holt-Winters Model')
 ```
 
 For this data the multiplicative trend and errors is not the most appropriate
@@ -2363,28 +2363,28 @@ version of this code.
 
 ```{r fit_ap_mult_hw, echo=TRUE}
 ap_hwmult_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    ets(model = 'MAM')
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  ets(model = 'MAM')
 
 ap_hwmult_forecast <- ap_hwmult_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_hwmult_forecast_tbl <- ap_hwmult_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ap_hwmult_fit %>% sw_tidy()
 ap_hwmult_fit %>% sw_glance()
 
 ggplot(ap_hwmult_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Air Passengers Forecast for Multiplicative Holt-Winters Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Air Passengers Forecast for Multiplicative Holt-Winters Model')
 ```
 
 
@@ -2395,14 +2395,14 @@ process from before.
 
 ```{r fit_maine_hw, echo=TRUE}
 maine_hw_fit <- maine_train_tbl %>%
-    tk_ts(select = value, start = 1996, frequency = 12) %>%
-    ets(model = 'ANN')
+  tk_ts(select = value, start = 1996, frequency = 12) %>%
+  ets(model = 'ANN')
 
 maine_hw_forecast <- maine_hw_fit %>%
-    forecast(h = 20, level = c(50, 80))
+  forecast(h = 20, level = c(50, 80))
 
 maine_hw_forecast_tbl <- maine_hw_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 maine_hw_fit %>% sw_tidy()
@@ -2410,28 +2410,28 @@ maine_hw_fit %>% sw_glance()
 
 
 ggplot(maine_hw_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Additive Holt-Winters Model for the Maine Unemployment Data')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Additive Holt-Winters Model for the Maine Unemployment Data')
 ```
 
 As before, we can try a multiplicative model.
 
 ```{r fit_maine_hwmult, echo=TRUE}
 maine_hwmult_fit <- maine_train_tbl %>%
-    tk_ts(select = value, start = 1996, frequency = 12) %>%
-    ets(model = 'MAM')
+  tk_ts(select = value, start = 1996, frequency = 12) %>%
+  ets(model = 'MAM')
 
 maine_hwmult_forecast <- maine_hwmult_fit %>%
-    forecast(h = 20, level = c(50, 80))
+  forecast(h = 20, level = c(50, 80))
 
 maine_hwmult_forecast_tbl <- maine_hwmult_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 maine_hwmult_fit %>% sw_tidy()
@@ -2439,14 +2439,14 @@ maine_hwmult_fit %>% sw_glance()
 
 
 ggplot(maine_hwmult_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Multiplicative Holt-Winters Model for the Maine Unemployment Data')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Multiplicative Holt-Winters Model for the Maine Unemployment Data')
 ```
 
 We see that including a seasonal component into the model improves the
@@ -2500,27 +2500,27 @@ We now fit the Air Passenger data first.
 
 ```{r fit_ap_auto_ets, echo=TRUE}
 ap_autoets_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    ets(model = 'ZZZ')
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  ets(model = 'ZZZ')
 
 ap_autoets_forecast <- ap_autoets_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_autoets_forecast_tbl <- ap_autoets_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 ap_autoets_fit %>% sw_tidy()
 ap_autoets_fit %>% sw_glance()
 
 ggplot(ap_autoets_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Air Passengers Forecast for Automatic ETS Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Air Passengers Forecast for Automatic ETS Model')
 ```
 
 Having fit the data and selected the model, we now can compare our different
@@ -2528,24 +2528,24 @@ models and how the forecasts compare to each other.
 
 ```{r compare_ap_forecasts, echo=TRUE}
 ap_forecast_compare_tbl <- list(
-    ewma   = ap_ewma_forecast_tbl    %>% filter(key == 'forecast')
-   ,hw     = ap_hw_forecast_tbl      %>% filter(key == 'forecast')
-   ,hwmult = ap_hwmult_forecast_tbl  %>% filter(key == 'forecast')
-   ,auto   = ap_autoets_forecast_tbl %>% filter(key == 'forecast')
-    ) %>%
-    bind_rows(.id = 'model') %>%
-    mutate(month = as.yearmon(month))
+  ewma   = ap_ewma_forecast_tbl    %>% filter(key == 'forecast'),
+  hw     = ap_hw_forecast_tbl      %>% filter(key == 'forecast'),
+  hwmult = ap_hwmult_forecast_tbl  %>% filter(key == 'forecast'),
+  auto   = ap_autoets_forecast_tbl %>% filter(key == 'forecast')
+  ) %>%
+  bind_rows(.id = 'model') %>%
+  mutate(month = as.yearmon(month))
 
 
 ggplot(ap_forecast_compare_tbl) +
-    geom_line(aes(x = month, y = value, colour = model)) +
-    geom_line(aes(x = month, y = value), colour = 'black', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    scale_x_yearmon() +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Comparison of Air Passenger Forecast Models')
+  geom_line(aes(x = month, y = value, colour = model)) +
+  geom_line(aes(x = month, y = value), colour = 'black', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  scale_x_yearmon() +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Comparison of Air Passenger Forecast Models')
 ```
 
 
@@ -2556,14 +2556,14 @@ We now move on to the Maine Unemployment data, and repeat the procedure.
 
 ```{r fit_maine_auto_ets, echo=TRUE}
 maine_autoets_fit <- maine_train_tbl %>%
-    tk_ts(select = value, start = 1996, frequency = 12) %>%
-    ets(model = 'ZZZ')
+  tk_ts(select = value, start = 1996, frequency = 12) %>%
+  ets(model = 'ZZZ')
 
 maine_autoets_forecast <- maine_autoets_fit %>%
-    forecast(h = 20, level = c(50, 80))
+  forecast(h = 20, level = c(50, 80))
 
 maine_autoets_forecast_tbl <- maine_autoets_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 maine_autoets_fit %>% sw_tidy()
@@ -2571,38 +2571,38 @@ maine_autoets_fit %>% sw_glance()
 
 
 ggplot(maine_autoets_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Maine Unemployment Forecast for Automatic ETS Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Maine Unemployment Forecast for Automatic ETS Model')
 ```
 
 As before, we compare the forecasts against one another.
 
 ```{r compare_maine_forecasts, echo=TRUE}
 maine_forecast_compare_tbl <- list(
-    ewma      = maine_ewma_forecast_tbl          %>% filter(key == 'forecast')
-   ,ewmaparam = maine_ewma_paramfit_forecast_tbl %>% filter(key == 'forecast')
-   ,hw        = maine_hw_forecast_tbl            %>% filter(key == 'forecast')
-   ,hwmult    = maine_hwmult_forecast_tbl        %>% filter(key == 'forecast')
-   ,auto      = maine_autoets_forecast_tbl       %>% filter(key == 'forecast')
-    ) %>%
-    bind_rows(.id = 'model') %>%
-    mutate(month = as.yearmon(month))
+  ewma      = maine_ewma_forecast_tbl          %>% filter(key == 'forecast'),
+  ewmaparam = maine_ewma_paramfit_forecast_tbl %>% filter(key == 'forecast'),
+  hw        = maine_hw_forecast_tbl            %>% filter(key == 'forecast'),
+  hwmult    = maine_hwmult_forecast_tbl        %>% filter(key == 'forecast'),
+  auto      = maine_autoets_forecast_tbl       %>% filter(key == 'forecast')
+  ) %>%
+  bind_rows(.id = 'model') %>%
+  mutate(month = as.yearmon(month))
 
 
 ggplot(maine_forecast_compare_tbl) +
-    geom_line(aes(x = month, y = value, colour = model)) +
-    geom_line(aes(x = month, y = value), colour = 'black', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Comparison of Maine Unemployment Forecast Models')
+  geom_line(aes(x = month, y = value, colour = model)) +
+  geom_line(aes(x = month, y = value), colour = 'black', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Comparison of Maine Unemployment Forecast Models')
 ```
 
 
@@ -2665,15 +2665,15 @@ We now calculate the evaluation metrics for the Air Passenger models.
 
 ```{r calculate_ap_metrics, echo=TRUE}
 ap_ets_assess_tbl <- list(
-    ewma    = ap_ewma_forecast
-   ,hw      = ap_hw_forecast
-   ,hwmult  = ap_hwmult_forecast
-   ,autoets = ap_autoets_forecast
-    ) %>%
-    map(accuracy, x = ap_test_tbl$value) %>%
-    map(as_tibble, rownames = 'type') %>%
-    bind_rows(.id = 'model') %>%
-    arrange(type, model)
+  ewma    = ap_ewma_forecast,
+  hw      = ap_hw_forecast,
+  hwmult  = ap_hwmult_forecast,
+  autoets = ap_autoets_forecast
+  ) %>%
+  map(accuracy, x = ap_test_tbl$value) %>%
+  map(as_tibble, rownames = 'type') %>%
+  bind_rows(.id = 'model') %>%
+  arrange(type, model)
 
 ap_ets_assess_tbl %>% print()
 ```
@@ -2682,14 +2682,14 @@ We plot the values.
 
 ```{r plot_ap_metrics, echo=TRUE}
 plot_tbl <- ap_ets_assess_tbl %>%
-    gather('metric', 'value', -model, -type)
+  gather('metric', 'value', -model, -type)
   
 ggplot(plot_tbl) +
-    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
-    facet_wrap(~ metric, scales = 'free_y') +
-    xlab('Model') +
-    ylab('Metric') +
-    ggtitle('Facet Plot for Air Passenger Forecast Metrics')
+  geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+  facet_wrap(~ metric, scales = 'free_y') +
+  xlab('Model') +
+  ylab('Metric') +
+  ggtitle('Facet Plot for Air Passenger Forecast Metrics')
 ```
 
 
@@ -2700,16 +2700,16 @@ We repeat this process for the Maine Unemployment series.
 
 ```{r calculate_maine_metrics, echo=TRUE}
 maine_ets_assess_tbl <- list(
-    ewma    = maine_ewma_forecast
-   ,ewma    = maine_ewma_paramfit_forecast
-   ,hw      = maine_hw_forecast
-   ,hwmult  = maine_hwmult_forecast
-   ,autoets = maine_autoets_forecast
-    ) %>%
-    map(accuracy, x = maine_test_tbl$value) %>%
-    map(as_tibble, rownames = 'type') %>%
-    bind_rows(.id = 'model') %>%
-    arrange(type, model)
+  ewma    = maine_ewma_forecast,
+  ewma    = maine_ewma_paramfit_forecast,
+  hw      = maine_hw_forecast,
+  hwmult  = maine_hwmult_forecast,
+  autoets = maine_autoets_forecast
+  ) %>%
+  map(accuracy, x = maine_test_tbl$value) %>%
+  map(as_tibble, rownames = 'type') %>%
+  bind_rows(.id = 'model') %>%
+  arrange(type, model)
 
 maine_ets_assess_tbl %>% print()
 ```
@@ -2718,14 +2718,14 @@ We plot the values.
 
 ```{r plot_maine_metrics, echo=TRUE}
 plot_tbl <- maine_ets_assess_tbl %>%
-    gather('metric', 'value', -model, -type)
+  gather('metric', 'value', -model, -type)
   
 ggplot(plot_tbl) +
-    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
-    facet_wrap(~ metric, scales = 'free_y') +
-    xlab('Model') +
-    ylab('Metric') +
-    ggtitle('Facet Plot for Maine Unemployment Forecast Metrics')
+  geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+  facet_wrap(~ metric, scales = 'free_y') +
+  xlab('Model') +
+  ylab('Metric') +
+  ggtitle('Facet Plot for Maine Unemployment Forecast Metrics')
 ```
 
 
@@ -2764,22 +2764,22 @@ where $w_t$ is a white-noise series.
 ```{r white_noise_series, echo=TRUE}
 wn_innov <- rnorm(200, 0, 1)
 
-sim_wn_ts <- arima.sim(list()
-                      ,n = length(wn_innov)
-                      ,innov = wn_innov
-                      ,start.innov = rep(0, 100)
+sim_wn_ts <- arima.sim(list(),
+                       n = length(wn_innov),
+                       innov = wn_innov,
+                       start.innov = rep(0, 100)
                       )
 
 sim_wn_ts_tbl <- sim_wn_ts %>%
-    tk_tbl(preserve_index = FALSE) %>%
-    add_column(index = 1:length(sim_wn_ts), .before = 1)
+  tk_tbl(preserve_index = FALSE) %>%
+  add_column(index = 1:length(sim_wn_ts), .before = 1)
 
 ggplot(sim_wn_ts_tbl) +
-    geom_line(aes(x = index, y = value)) +
-    expand_limits(y = 0) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Plot of Generated Gaussian White Noise Series")
+  geom_line(aes(x = index, y = value)) +
+  expand_limits(y = 0) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Plot of Generated Gaussian White Noise Series")
 ```
 
 We also produce a standard and partial correlogram, but expect no significant
@@ -2814,22 +2814,22 @@ With this definition, we can use this as a *data-generating process* to
 construct an example AR(1) model, and visual inspect the results.
 
 ```{r generate_ar1_model, echo=TRUE}
-sim_ar1_ts <- arima.sim(list(ar = 0.5)
-                       ,n     = length(wn_innov)
-                       ,innov = wn_innov
-                       ,start.innov = rep(0, 100)
+sim_ar1_ts <- arima.sim(list(ar = 0.5),
+                        n     = length(wn_innov),
+                        innov = wn_innov,
+                        start.innov = rep(0, 100)
                         )
 
 sim_ar1_ts_tbl <- sim_ar1_ts %>%
-    tk_tbl(preserve_index = FALSE) %>%
-    add_column(index = 1:length(sim_ar1_ts), .before = 1)
+  tk_tbl(preserve_index = FALSE) %>%
+  add_column(index = 1:length(sim_ar1_ts), .before = 1)
 
 ggplot(sim_ar1_ts_tbl) +
-    geom_line(aes(x = index, y = value)) +
-    expand_limits(y = 0) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Plot of Generated AR(1) Series")
+  geom_line(aes(x = index, y = value)) +
+  expand_limits(y = 0) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Plot of Generated AR(1) Series")
 ```
 
 Having generated the AR(1) process, we now look at the correlogram to see what
@@ -2846,23 +2846,23 @@ innovations, but with $\alpha_1 = 1$, $\alpha_2 = -0.25$:
 
 
 ```{r generate_ar2_model, echo=TRUE}
-sim_ar2_ts <- arima.sim(list(ar = c(1, -0.25))
-                       ,n     = length(wn_innov)
-                       ,innov = wn_innov
-                       ,start.innov = rep(0, 100)
+sim_ar2_ts <- arima.sim(list(ar = c(1, -0.25)),
+                        n     = length(wn_innov),
+                        innov = wn_innov,
+                        start.innov = rep(0, 100)
                          )
 
 sim_ar2_ts_tbl <- sim_ar2_ts %>%
-    tk_tbl(preserve_index = FALSE) %>%
-    add_column(index = 1:length(sim_ar2_ts), .before = 1)
+  tk_tbl(preserve_index = FALSE) %>%
+  add_column(index = 1:length(sim_ar2_ts), .before = 1)
 
 
 ggplot(sim_ar2_ts_tbl) +
-    geom_line(aes(x = index, y = value)) +
-    expand_limits(y = 0) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Plot of Generated AR(2) Series")
+  geom_line(aes(x = index, y = value)) +
+  expand_limits(y = 0) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Plot of Generated AR(2) Series")
 ```
 
 We also look at the correlogram for this series.
@@ -2879,23 +2879,23 @@ another AR(2) but this time with both parameters positive:
 
 
 ```{r generate_ar2alt_model, echo=TRUE}
-sim_ar2alt_ts <- arima.sim(list(ar = c(0.5, 0.4))
-                          ,n     = length(wn_innov)
-                          ,innov = wn_innov
-                          ,start.innov = rep(0, 100)
+sim_ar2alt_ts <- arima.sim(list(ar = c(0.5, 0.4)),
+                           n     = length(wn_innov),
+                           innov = wn_innov,
+                           start.innov = rep(0, 100)
                            )
 
 sim_ar2alt_ts_tbl <- sim_ar2alt_ts %>%
-    tk_tbl(preserve_index = FALSE) %>%
-    add_column(index = 1:length(sim_ar2alt_ts), .before = 1)
+  tk_tbl(preserve_index = FALSE) %>%
+  add_column(index = 1:length(sim_ar2alt_ts), .before = 1)
 
 
 ggplot(sim_ar2alt_ts_tbl) +
-    geom_line(aes(x = index, y = value)) +
-    expand_limits(y = 0) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Plot of Generated Alternate AR(2) Series")
+  geom_line(aes(x = index, y = value)) +
+  expand_limits(y = 0) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Plot of Generated Alternate AR(2) Series")
 ```
 
 And the correlogram for this alternate AR(2) series.
@@ -2909,19 +2909,19 @@ To help with intuition we plot these generated data together.
 
 ```{r plot_generated_ar_series, echo=TRUE}
 sim_compare_tbl <- list(
-    wn     = sim_wn_ts_tbl
-   ,ar1    = sim_ar1_ts_tbl
-   ,ar2    = sim_ar2_ts_tbl
-   ,ar2alt = sim_ar2alt_ts_tbl
-    ) %>%
-    bind_rows(.id = 'model')
+  wn     = sim_wn_ts_tbl,
+  ar1    = sim_ar1_ts_tbl,
+  ar2    = sim_ar2_ts_tbl,
+  ar2alt = sim_ar2alt_ts_tbl
+  ) %>%
+  bind_rows(.id = 'model')
 
 
 ggplot(sim_compare_tbl) +
-    geom_line(aes(x = index, y = value, colour = model)) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Generated AR Models Comparison Plot")
+  geom_line(aes(x = index, y = value, colour = model)) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Generated AR Models Comparison Plot")
 ```
 
 
@@ -2945,22 +2945,22 @@ w_t     &=&    \text{is a white-noise process with mean 0 and variance } \sigma^
 
 
 ```{r generate_ma1_model, echo=TRUE}
-sim_ma1_ts <- arima.sim(list(ma = 0.5)
-                       ,n     = length(wn_innov)
-                       ,innov = wn_innov
-                       ,start.innov = rep(0, 100)
+sim_ma1_ts <- arima.sim(list(ma = 0.5),
+                        n     = length(wn_innov),
+                        innov = wn_innov,
+                        start.innov = rep(0, 100)
                         )
 
 sim_ma1_ts_tbl <- sim_ma1_ts %>%
-    tk_tbl(preserve_index = FALSE) %>%
-    add_column(index = 1:length(sim_ma1_ts), .before = 1)
+  tk_tbl(preserve_index = FALSE) %>%
+  add_column(index = 1:length(sim_ma1_ts), .before = 1)
 
 ggplot(sim_ma1_ts_tbl) +
-    geom_line(aes(x = index, y = value)) +
-    expand_limits(y = 0) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Plot of Generated MA(1) Series")
+  geom_line(aes(x = index, y = value)) +
+  expand_limits(y = 0) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Plot of Generated MA(1) Series")
 ```
 
 We check the MA(1) correlogram:
@@ -2974,23 +2974,23 @@ sim_ma1_ts %>% Pacf() %>% autoplot() + ggtitle("ACF for MA(1) Series")
 Like we did before, we now generate an MA(2) model.
 
 ```{r generate_ma2_model, echo=TRUE}
-sim_ma2_ts <- arima.sim(list(ma = c(1, -0.25))
-                       ,n     = length(wn_innov)
-                       ,innov = wn_innov
-                       ,start.innov = rep(0, 100)
+sim_ma2_ts <- arima.sim(list(ma = c(1, -0.25)),
+                        n     = length(wn_innov),
+                        innov = wn_innov,
+                        start.innov = rep(0, 100)
                          )
 
 sim_ma2_ts_tbl <- sim_ma2_ts %>%
-    tk_tbl(preserve_index = FALSE) %>%
-    add_column(index = 1:length(sim_ma2_ts), .before = 1)
+  tk_tbl(preserve_index = FALSE) %>%
+  add_column(index = 1:length(sim_ma2_ts), .before = 1)
 
 
 ggplot(sim_ma2_ts_tbl) +
-    geom_line(aes(x = index, y = value)) +
-    expand_limits(y = 0) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Plot of Generated MA(2) Series")
+  geom_line(aes(x = index, y = value)) +
+  expand_limits(y = 0) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Plot of Generated MA(2) Series")
 ```
 
 Once again we look at the MA(2) series.
@@ -3003,18 +3003,18 @@ sim_ma2_ts %>% Pacf() %>% autoplot() + ggtitle("ACF for MA(2) Series")
 
 ```{r plot_generated_ma_series, echo=TRUE}
 sim_compare_tbl <- list(
-    wn  = sim_wn_ts_tbl
-   ,ma1 = sim_ma1_ts_tbl
-   ,ma2 = sim_ma2_ts_tbl
-    ) %>%
-    bind_rows(.id = 'model')
+  wn  = sim_wn_ts_tbl,
+  ma1 = sim_ma1_ts_tbl,
+  ma2 = sim_ma2_ts_tbl
+  ) %>%
+  bind_rows(.id = 'model')
 
 
 ggplot(sim_compare_tbl) +
-    geom_line(aes(x = index, y = value, colour = model)) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Generated MA Models Comparison Plot")
+  geom_line(aes(x = index, y = value, colour = model)) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Generated MA Models Comparison Plot")
 ```
 
 
@@ -3025,21 +3025,21 @@ and plot them all against each other.
 
 ```{r plot_generated_ar_ma_series, echo=TRUE}
 sim_compare_tbl <- list(
-    wn     = sim_wn_ts_tbl
-   ,ar1    = sim_ar1_ts_tbl
-   ,ar2    = sim_ar2_ts_tbl
-   ,ar2alt = sim_ar2alt_ts_tbl
-   ,ma1    = sim_ma1_ts_tbl
-   ,ma2    = sim_ma2_ts_tbl
-    ) %>%
-    bind_rows(.id = 'model')
+  wn     = sim_wn_ts_tbl,
+  ar1    = sim_ar1_ts_tbl,
+  ar2    = sim_ar2_ts_tbl,
+  ar2alt = sim_ar2alt_ts_tbl,
+  ma1    = sim_ma1_ts_tbl,
+  ma2    = sim_ma2_ts_tbl
+  ) %>%
+  bind_rows(.id = 'model')
 
 
 ggplot(sim_compare_tbl) +
-    geom_line(aes(x = index, y = value, colour = model)) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Generated AR and MA Models Comparison Plot")
+  geom_line(aes(x = index, y = value, colour = model)) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Generated AR and MA Models Comparison Plot")
 ```
 
 
@@ -3069,22 +3069,22 @@ as before.
 
 
 ```{r generate_arma_1_1_model, echo=TRUE}
-sim_arma_1_1_ts <- arima.sim(list(ar = 0.5, ma = 0.5)
-                            ,n     = length(wn_innov)
-                            ,innov = wn_innov
-                            ,start.innov = rep(0, 100)
+sim_arma_1_1_ts <- arima.sim(list(ar = 0.5, ma = 0.5),
+                             n     = length(wn_innov),
+                             innov = wn_innov,
+                             start.innov = rep(0, 100)
                              )
 
 sim_arma_1_1_ts_tbl <- sim_arma_1_1_ts %>%
-    tk_tbl(preserve_index = FALSE) %>%
-    add_column(index = 1:length(sim_arma_1_1_ts), .before = 1)
+  tk_tbl(preserve_index = FALSE) %>%
+  add_column(index = 1:length(sim_arma_1_1_ts), .before = 1)
 
 ggplot(sim_arma_1_1_ts_tbl) +
-    geom_line(aes(x = index, y = value)) +
-    expand_limits(y = 0) +
-    xlab("Index") +
-    ylab("Value") +
-    ggtitle("Plot of Generated ARMA(1,1) Series")
+  geom_line(aes(x = index, y = value)) +
+  expand_limits(y = 0) +
+  xlab("Index") +
+  ylab("Value") +
+  ggtitle("Plot of Generated ARMA(1,1) Series")
 ```
 
 We use `auto.arima()` to fit parameters for this data to see if we recover the
@@ -3092,8 +3092,8 @@ given parameters.
 
 ```{r fit_sim_arma_1_1, echo=TRUE}
 sim_arma_1_1_ts %>%
-    auto.arima() %>%
-    sw_tidy()
+  auto.arima() %>%
+  sw_tidy()
 ```
 
 
@@ -3130,14 +3130,14 @@ equivalent to the ARMA(1, 1) - and then try the ARIMA(1, 1, 1).
 
 ```{r fit_ap_arma_1_1_arima, echo=TRUE}
 ap_arma_1_1_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    Arima(order = c(1, 0, 1))
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  Arima(order = c(1, 0, 1))
 
 ap_arma_1_1_forecast <- ap_arma_1_1_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_arma_1_1_forecast_tbl <- ap_arma_1_1_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ap_arma_1_1_fit %>% sw_tidy()
@@ -3145,28 +3145,28 @@ ap_arma_1_1_fit %>% sw_glance()
 
 
 ggplot(ap_arma_1_1_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Air Passenger Forecast for ARMA(1, 1) Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Air Passenger Forecast for ARMA(1, 1) Model')
 ```
 
 This is not a good model.
 
 ```{r fit_ap_arma_1_1_1_arima, echo=TRUE}
 ap_arma_1_1_1_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    Arima(order = c(1, 1, 1))
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  Arima(order = c(1, 1, 1))
 
 ap_arma_1_1_1_forecast <- ap_arma_1_1_1_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_arma_1_1_1_forecast_tbl <- ap_arma_1_1_1_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ap_arma_1_1_1_fit %>% sw_tidy()
@@ -3174,14 +3174,14 @@ ap_arma_1_1_1_fit %>% sw_glance()
 
 
 ggplot(ap_arma_1_1_1_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Air Passenger Forecast for ARIMA(1, 1, 1) Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Air Passenger Forecast for ARIMA(1, 1, 1) Model')
 ```
 
 This is not a good model either. We need to include a seasonal component to
@@ -3192,14 +3192,14 @@ best model looks like.
 
 ```{r ap_autoarima_fit, echo=TRUE}
 ap_autoarima_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    auto.arima(seasonal = FALSE)
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  auto.arima(seasonal = FALSE)
 
 ap_autoarima_forecast <- ap_autoarima_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_autoarima_forecast_tbl <- ap_autoarima_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ap_autoarima_fit %>% sw_tidy()
@@ -3207,14 +3207,14 @@ ap_autoarima_fit %>% sw_glance()
 
 
 ggplot(ap_autoarima_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Air Passenger Forecast for Auto-ARIMA Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Air Passenger Forecast for Auto-ARIMA Model')
 ```
 
 We will look at including seasonal elements to the ARIMA model shortly.
@@ -3227,28 +3227,28 @@ Unemployment data and move straight to using `auto.arima()` to fit the models.
 
 ```{r maine_autoarima_fit, echo=TRUE}
 maine_autoarima_fit <- maine_train_tbl %>%
-    tk_ts(select = value, start = 1996, frequency = 12) %>%
-    auto.arima(seasonal = FALSE)
+  tk_ts(select = value, start = 1996, frequency = 12) %>%
+  auto.arima(seasonal = FALSE)
 
 maine_autoarima_forecast <- maine_autoarima_fit %>%
-    forecast(h = 20, level = c(50, 80))
+  forecast(h = 20, level = c(50, 80))
 
 maine_autoarima_forecast_tbl <- maine_autoarima_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 maine_autoarima_fit %>% sw_tidy()
 maine_autoarima_fit %>% sw_glance()
 
 
 ggplot(maine_autoarima_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Maine Unemployment Forecast for Auto-ARIMA Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Maine Unemployment Forecast for Auto-ARIMA Model')
 ```
 
 
@@ -3273,14 +3273,14 @@ data.
 
 ```{r ap_sarima_fit, echo=TRUE}
 ap_sarima_fit <- ap_train_tbl %>%
-    tk_ts(select = value, start = 1949, frequency = 12) %>%
-    auto.arima(seasonal = TRUE)
+  tk_ts(select = value, start = 1949, frequency = 12) %>%
+  auto.arima(seasonal = TRUE)
 
 ap_sarima_forecast <- ap_sarima_fit %>%
-    forecast(h = 12, level = c(50, 80))
+  forecast(h = 12, level = c(50, 80))
 
 ap_sarima_forecast_tbl <- ap_sarima_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 ap_sarima_fit %>% sw_tidy()
@@ -3288,14 +3288,14 @@ ap_sarima_fit %>% sw_glance()
 
 
 ggplot(ap_sarima_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Air Passenger Forecast for Seasonal ARIMA Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = ap_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Air Passenger Forecast for Seasonal ARIMA Model')
 ```
 
 
@@ -3304,14 +3304,14 @@ Now we fit the Maine Unemployment data.
 
 ```{r maine_sarima_fit, echo=TRUE}
 maine_sarima_fit <- maine_train_tbl %>%
-    tk_ts(select = value, start = 1996, frequency = 12) %>%
-    auto.arima(seasonal = TRUE)
+  tk_ts(select = value, start = 1996, frequency = 12) %>%
+  auto.arima(seasonal = TRUE)
 
 maine_sarima_forecast <- maine_sarima_fit %>%
-    forecast(h = 20, level = c(50, 80))
+  forecast(h = 20, level = c(50, 80))
 
 maine_sarima_forecast_tbl <- maine_sarima_forecast %>%
-    sw_sweep(rename_index = 'month')
+  sw_sweep(rename_index = 'month')
 
 
 maine_sarima_fit %>% sw_tidy()
@@ -3319,14 +3319,14 @@ maine_sarima_fit %>% sw_glance()
 
 
 ggplot(maine_sarima_forecast_tbl) +
-    geom_line(aes(x = month, y = value, colour = key)) +
-    geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
-    geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
-    expand_limits(y = 0) +
-    xlab("Date") +
-    ylab("Count") +
-    scale_x_yearmon() +
-    ggtitle('Maine Unemployment Forecast for Seasonal ARIMA Model')
+  geom_line(aes(x = month, y = value, colour = key)) +
+  geom_ribbon(aes(x = month, ymin = lo.50, ymax = hi.50), alpha = 0.2) +
+  geom_line  (aes(x = month, y = value), colour = 'red', data = maine_test_tbl) +
+  expand_limits(y = 0) +
+  xlab("Date") +
+  ylab("Count") +
+  scale_x_yearmon() +
+  ggtitle('Maine Unemployment Forecast for Seasonal ARIMA Model')
 ```
 
 
@@ -3342,14 +3342,14 @@ We run the data for the Air Passenger data.
 
 ```{r calculate_ap_evaluations, echo=TRUE}
 ap_metrics_tbl <- ls(pattern = '^ap_.*_forecast$') %>%
-    enframe(value = 'variable') %>%
-    mutate(model    = str_replace(variable, 'ap_(.*)_forecast', '\\1')
-          ,data     = map(variable, get)
-          ,accuracy = map(data, accuracy, x = ap_test_tbl$value)
-          ,acc_tbl  = map(accuracy, as_tibble, rownames = 'type')) %>%
-    select(model, acc_tbl) %>%
-    unnest() %>%
-    arrange(type, model)
+  enframe(value = 'variable') %>%
+  mutate(model    = str_replace(variable, 'ap_(.*)_forecast', '\\1'),
+         data     = map(variable, get),
+         accuracy = map(data, accuracy, x = ap_test_tbl$value),
+         acc_tbl  = map(accuracy, as_tibble, rownames = 'type')) %>%
+  select(model, acc_tbl) %>%
+  unnest() %>%
+  arrange(type, model)
 
 ap_metrics_tbl %>% print()
 ```
@@ -3357,15 +3357,15 @@ ap_metrics_tbl %>% print()
 
 ```{r plot_full_ap_metrics, echo=TRUE}
 plot_tbl <- ap_metrics_tbl %>%
-    gather('metric', 'value', -model, -type)
+  gather('metric', 'value', -model, -type)
   
 ggplot(plot_tbl) +
-    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
-    facet_wrap(~ metric, scales = 'free_y') +
-    xlab('Model') +
-    ylab('Metric') +
-    ggtitle('Facet Plot for Air Passenger Forecast Metrics') +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+  facet_wrap(~ metric, scales = 'free_y') +
+  xlab('Model') +
+  ylab('Metric') +
+  ggtitle('Facet Plot for Air Passenger Forecast Metrics') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 
@@ -3375,29 +3375,29 @@ And we run the data for the Maine Unemployment time series.
 
 ```{r calculate_maine_evaluations, echo=TRUE}
 maine_metrics_tbl <- ls(pattern = '^maine_.*_forecast$') %>%
-    enframe(value = 'variable') %>%
-    mutate(model    = str_replace(variable, 'maine_(.*)_forecast', '\\1')
-          ,data     = map(variable, get)
-          ,accuracy = map(data, accuracy, x = maine_test_tbl$value)
-          ,acc_tbl  = map(accuracy, as_tibble, rownames = 'type')) %>%
-    select(model, acc_tbl) %>%
-    unnest() %>%
-    arrange(type, model)
+  enframe(value = 'variable') %>%
+  mutate(model    = str_replace(variable, 'maine_(.*)_forecast', '\\1'),
+         data     = map(variable, get),
+         accuracy = map(data, accuracy, x = maine_test_tbl$value),
+         acc_tbl  = map(accuracy, as_tibble, rownames = 'type')) %>%
+  select(model, acc_tbl) %>%
+  unnest() %>%
+  arrange(type, model)
 
 maine_metrics_tbl %>% print()
 ```
 
 ```{r plot_full_maine_metrics, echo=TRUE}
 plot_tbl <- maine_metrics_tbl %>%
-    gather('metric', 'value', -model, -type)
+  gather('metric', 'value', -model, -type)
   
 ggplot(plot_tbl) +
-    geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
-    facet_wrap(~ metric, scales = 'free_y') +
-    xlab('Model') +
-    ylab('Metric') +
-    ggtitle('Facet Plot for Maine Unemployment Forecast Metrics') +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  geom_col(aes(x = model, y = value, fill = type), position = 'dodge') +
+  facet_wrap(~ metric, scales = 'free_y') +
+  xlab('Model') +
+  ylab('Metric') +
+  ggtitle('Facet Plot for Maine Unemployment Forecast Metrics') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 
