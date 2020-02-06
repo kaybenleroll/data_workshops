@@ -1,0 +1,887 @@
+---
+title: "Dublin Data Science Workshop on Bootstrap Methods"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, 10 Febuary 2020"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+  pdf_document: default
+---
+
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      message    = FALSE,
+                      warning    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11)
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(vctrs)
+library(cowplot)
+library(rsample)
+library(boot)
+library(EnvStats)
+
+
+source("custom_functions.R")
+
+conflict_prefer('select',     'dplyr')
+conflict_prefer('filter',     'dplyr')
+conflict_prefer('lag',        'dplyr')
+
+
+options(width = 80L,
+        warn  = 1,
+        mc.cores = parallel::detectCores()
+        )
+
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+One of the main aims of statistics is to make inferences about a population
+using one or more random samples of data drawn from that population.
+
+The bootstrap is part of a broader collection of techniques knows as
+*resampling methods* that use Monte Carlo simulation to quantify the sampling
+error in measuremeants.
+
+The basic concepts of the bootstrap are simple, but further improvements
+require an understanding of some statistical concepts.
+
+To motivate this approach, suppose we have a sample of 10 values and want to
+use this to make inferences about the underlying population. Our sample mean
+is $0.5$, giving us a point estimate for the population mean, but how much
+sample error is there?
+
+We return to this example shortly.
+
+
+# Introduction to the Bootstrap
+
+The core concept is that the bootstrap sample is to the sample as the sample
+is to the population.
+
+If we denote $F$ as our sample of size $N$, we resample $F$ with replacement
+$R$ times and denote these bootstrap samples as $F^{*}_{r}$. Each of these
+bootstrap sample is the same size as the original sample, $N$.
+
+We then calculate our statistics of interest on each of these bootstrap samples
+and this gives us an estimate of the uncertainty due to sample error in the
+value of the statistic on the original sample.
+
+Because we are sampling with replacement, some elements of $F$ will appear
+multiple times and some will not appear at all. This is why we end up with a
+distribution of values for the statistics calculated from $F^{*}$.
+
+
+
+To get started with the bootstrap, we will generate data from various
+distributions and then try to recover the parameters of those distributions.
+
+This provides us with intuition for how the bootstrap works, and allows us
+to investigate the effect of things such as the distribution family and the
+effect of the sample size.
+
+
+## Standard Normal Distribution: $\mathcal{N(0,1)}$
+
+We start with the standard normal distribution, $\mathcal{N(0,1)}$, and use
+different sample sizes for our bootstrap technique.
+
+```{r generate_std_norm_data, echo=TRUE}
+F_stdnorm_tbl <- tibble(x = rnorm(10000, mean = 0, sd = 1))
+
+F_stdnorm_tbl %>% glimpse()
+```
+
+We start by using small sample sizes and investigate the bootstrap statistics.
+As we know the underlying parameters used to generate this data, we see how
+well the bootstrap method does at capturing this sample error.
+
+We have a number of ways of calculating bootstrap statistics - we look at more
+sophisticated methods later but for now we use some functions provided by the
+`rsample` package.
+
+
+### Bootstrapping the Mean
+
+
+#### Sample Size $N=10$
+
+We start with a sample size of $N=10$, and we expect the sample error to be
+large in this case.
+
+```{r construct_stdnorm_size_10, echo=TRUE}
+F_stdnorm_10_tbl <- F_stdnorm_tbl %>% head(10)
+
+F_stdnorm_10_tbl %>% pull(x) %>% round(2)
+
+F_stdnorm_10_tbl %>% glimpse()
+```
+
+
+The first thing we do is calculate the sample mean.
+
+```{r stdnorm_10_sample_mean, echo=TRUE}
+F_stdnorm_10_tbl %>% pull(x) %>% mean()
+```
+
+So our sample mean is 0.5 and this is our point estimate for the population
+mean. As discussed in the introduction, how much error is there in this sample?
+
+We now use our bootstrap samples to estimate this. We try different counts of
+bootstrap samples also. The `rsample` package makes this process
+straightforward.
+
+```{r stdnorm_10_bootstrap_mean, echo=TRUE}
+F_stdnorm_10_mean_tbl <- F_stdnorm_10_tbl %>%
+  bootstraps(times = 10000) %>%
+  mutate(btstrp_mean = map_dbl(splits, ~ .x %>% analysis() %>% pull(x) %>% mean())) %>%
+  select(id, btstrp_mean)
+```
+
+We have calculated all our bootstrap means, so we now look at the effect of
+different bootstrap sample size for a single sample size.
+
+```{r stdnorm_10_bootstrap_mean_size_calc, echo=TRUE}
+btstrp_stdnorm_10_mean_plots_tbl <- c(100, 500, 1000, 10000) %>%
+  enframe(name = NULL, value = 'btstrp_size') %>%
+  mutate(boot_data = map(btstrp_size, ~ F_stdnorm_10_mean_tbl %>% head(.x))) %>%
+  unnest(boot_data)
+
+btstrp_stdnorm_10_mean_plots_tbl %>% glimpse()
+```
+
+
+Now that we have the data, we can construct a facetted histogram of the
+bootstrap estimates as well as produce some basic summary statistics.
+
+
+```{r stdnorm_10_bootstrap_mean_size_plots, echo=TRUE}
+btstrp_stdnorm_10_mean_plots_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_mean))) %>%
+  unnest_wider(summ)
+
+
+ggplot(btstrp_stdnorm_10_mean_plots_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_mean)) +
+  geom_hline(aes(yintercept = 0), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 10)")
+
+ggplot(btstrp_stdnorm_10_mean_plots_tbl) +
+  geom_histogram(aes(x = btstrp_mean), bins = 50) +
+  geom_vline(aes(xintercept = 0), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count")
+```
+
+We see there is not much of an impact beyond 500.
+
+
+#### Sample Size $N=100$
+
+We now repeat this procedure but with a larger sample size of 100.
+
+```{r construct_stdnorm_size_100, echo=TRUE}
+F_stdnorm_100_tbl <- F_stdnorm_tbl %>% head(100)
+
+F_stdnorm_100_tbl %>% pull(x) %>% round(2)
+
+F_stdnorm_100_tbl %>% glimpse()
+```
+
+As before, we calculate the sample mean for this sample size:
+
+```{r stdnorm_100_sample_mean, echo=TRUE}
+F_stdnorm_100_tbl %>% pull(x) %>% mean()
+```
+
+Now we need to calculate the bootstrap estimates for the mean - we have wrapped
+this logic into the function `construct_bootstrap_size_plots`
+
+```{r stdnorm_100_bootstrap_tbl, echo=TRUE}
+boot_100_mean_tbl <- F_stdnorm_100_tbl %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_100_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_100_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 0), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_100_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 0), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 100)")
+```
+
+
+
+#### Sample Size $N=1,000$
+
+We now repeat this procedure but with a larger sample size of 1,000.
+
+```{r construct_stdnorm_size_1000, echo=TRUE}
+F_stdnorm_1000_tbl <- F_stdnorm_tbl %>% head(1000)
+
+F_stdnorm_1000_tbl %>% glimpse()
+```
+
+As before, we calculate the sample mean for this sample size:
+
+```{r stdnorm_1000_sample_mean, echo=TRUE}
+F_stdnorm_1000_tbl %>% pull(x) %>% mean()
+```
+
+Now we need to calculate the bootstrap estimates for the mean - we have wrapped
+this logic into the function `construct_bootstrap_size_plots`
+
+```{r stdnorm_1000_bootstrap_tbl, echo=TRUE}
+boot_1000_mean_tbl <- F_stdnorm_1000_tbl %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_1000_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_1000_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 0), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_1000_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 0), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+
+### Bootstrapping Standard Deviation, $\sigma$
+
+Bootstrapping works for any statistic, not just the mean, so let us try this
+out. Estimates of higher-order moments and extremal measures are more sensitive
+to sample noise, so we expect these estimates to be wider.
+
+#### Sample Size $N = 10$
+
+
+```{r stdnorm_10_stddev_bootstrap_tbl, echo=TRUE}
+boot_10_sd_tbl <- F_stdnorm_10_tbl %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(sd)
+
+boot_10_sd_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_10_sd_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 1), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Std Dev Bootstrap Estimates by Size of Bootstrap Sample (N = 10)")
+
+ggplot(boot_10_sd_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 1), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates of Std Dev by Bootstrap Sample Count (Sample Count 10)")
+```
+
+
+#### Sample Size $N = 100$
+
+```{r stdnorm_100_stddev_bootstrap_tbl, echo=TRUE}
+boot_100_sd_tbl <- F_stdnorm_100_tbl %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(sd)
+
+boot_100_sd_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_100_sd_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 1), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Std Dev Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_100_sd_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 1), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates of Std Dev by Bootstrap Sample Count (Sample Count 100)")
+```
+
+
+#### Sample Size $N = 1,000$
+
+```{r stdnorm_1000_stddev_bootstrap_tbl, echo=TRUE}
+boot_1000_sd_tbl <- F_stdnorm_1000_tbl %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(sd)
+
+boot_1000_sd_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_1000_sd_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 1), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Std Dev Bootstrap Estimates by Size of Bootstrap Sample (N = 1,000)")
+
+ggplot(boot_1000_sd_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 1), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates of Std Dev by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+### Comparison of Data and Bootstrap Estimates
+
+It is important to understand the distinction between the distribution of the
+original data, and the distribution of the bootstrap estimates. We expect the
+distribution of bootstrap estimates to have a lower dispersion than that of the
+original data.
+
+It is worth plotting both these to help up compare them.
+
+```{r compare_data_bootstrap_estimates, echo=TRUE}
+boot_data_tbl <- boot_100_mean_tbl %>% filter(btstrp_size == 100)
+
+ggplot() +
+  geom_histogram(aes(x = x), data = F_stdnorm_100_tbl, bins = 50,
+                 alpha = 0.5, fill = 'black') +
+  geom_histogram(aes(x = btstrp_val), data = boot_data_tbl, bins = 50,
+                 alpha = 0.5, fill = 'red') +
+  xlab("Value") +
+  ylab("Frequency Count") +
+  ggtitle("Comparison Plot of Original Data and the Bootstrap Mean Estimates")
+
+```
+
+
+## Count Data: $\lambda = 50$
+
+We now look at count data, such as a Poisson distribution, where the frequency
+rate of events is larger than 1, say $\lambda = 50$.
+
+
+```{r generate_large_count_data, echo=TRUE}
+F_largecount_tbl <- tibble(x = rpois(10000, lambda = 50))
+
+F_largecount_tbl %>% glimpse()
+```
+
+In many cases these counts are well-approximated by using a normal distribution
+with $\mu = \lambda$ and $\sigma = \sqrt(\lambda)$, but we ignore that for the
+moment and just bootstrap lambda.
+
+
+
+### Sample Size $N=10$
+
+
+```{r largecount_10_bootstrap_tbl, echo=TRUE}
+boot_largecount_10_mean_tbl <- F_largecount_tbl %>%
+  head(10) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_largecount_10_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_largecount_10_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 50), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 10)")
+
+ggplot(boot_largecount_10_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 50), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 10)")
+```
+
+### Sample Size $N=100$
+
+
+```{r largecount_100_bootstrap_tbl, echo=TRUE}
+boot_largecount_100_mean_tbl <- F_largecount_tbl %>%
+  head(100) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_largecount_100_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_largecount_100_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 50), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_largecount_100_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 50), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 100)")
+```
+
+
+### Sample Size $N=1,000$
+
+
+```{r largecount_1000_bootstrap_tbl, echo=TRUE}
+boot_largecount_1000_mean_tbl <- F_largecount_tbl %>%
+  head(1000) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_largecount_1000_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_largecount_1000_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 50), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 1,000)")
+
+ggplot(boot_largecount_1000_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 50), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+
+
+## Count Data: $\lambda = 0.05$
+
+For count data where the count rate is much lower than 1, we end up with small
+total counts of events. In those cases, we need to think carefully about the
+size of our data - it is possible we will observe no events at all!
+
+
+
+```{r generate_small_count_data, echo=TRUE}
+F_smallcount_tbl <- tibble(x = rpois(10000, lambda = 0.05))
+
+F_smallcount_tbl %>% glimpse()
+```
+
+In many cases these counts are well-approximated by using a normal distribution
+with $\mu = \lambda$ and $\sigma = \sqrt(\lambda)$, but we ignore that for the
+moment and just bootstrap lambda.
+
+
+
+### Sample Size $N=10$
+
+
+```{r smallcount_10_bootstrap_tbl, echo=TRUE}
+boot_smallcount_10_mean_tbl <- F_smallcount_tbl %>%
+  head(10) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_smallcount_10_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+```
+
+### Sample Size $N=100$
+
+
+```{r smallcount_100_bootstrap_tbl, echo=TRUE}
+boot_smallcount_100_mean_tbl <- F_smallcount_tbl %>%
+  head(100) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_smallcount_100_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_smallcount_100_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 0.05), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_smallcount_100_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 0.05), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 100)")
+```
+
+
+### Sample Size $N=1,000$
+
+
+```{r smallcount_1000_bootstrap_tbl, echo=TRUE}
+boot_smallcount_1000_mean_tbl <- F_smallcount_tbl %>%
+  head(1000) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_smallcount_1000_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_smallcount_1000_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  geom_hline(aes(yintercept = 0.05), colour = 'red') +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 1,000)")
+
+ggplot(boot_smallcount_1000_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  geom_vline(aes(xintercept = 0.05), colour = 'red') +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+
+## Pareto Distribution, $\lambda = 1.5$
+
+
+```{r generate_pareto_data, echo=TRUE}
+F_extreme_tbl <- tibble(x = rpareto(100000, location = 1, shape = 1.5))
+
+F_extreme_tbl %>% glimpse()
+```
+
+
+### Sample Size $N=100$
+
+
+```{r extreme_100_bootstrap_tbl, echo=TRUE}
+boot_extreme_100_mean_tbl <- F_extreme_tbl %>%
+  head(100) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_extreme_100_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_extreme_100_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_extreme_100_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 100)")
+```
+
+#### Estimating the Variance
+
+We also want to bootstrap the standard deviation.
+
+```{r extreme_100_bootstrap_sd_tbl, echo=TRUE}
+boot_extreme_100_sd_tbl <- F_extreme_tbl %>%
+  head(100) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(sd)
+
+boot_extreme_100_sd_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_extreme_100_sd_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_extreme_100_sd_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 100)")
+```
+
+
+
+### Sample Size $N=1,000$
+
+
+```{r extreme_1000_bootstrap_tbl, echo=TRUE}
+boot_extreme_1000_mean_tbl <- F_extreme_tbl %>%
+  head(1000) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_extreme_1000_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_extreme_1000_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 1,000)")
+
+ggplot(boot_extreme_1000_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+#### Estimating the Variance
+
+```{r extreme_1000_bootstrap_sd_tbl, echo=TRUE}
+boot_extreme_1000_sd_tbl <- F_extreme_tbl %>%
+  head(1000) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(sd)
+
+boot_extreme_1000_sd_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_extreme_1000_sd_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 1,000)")
+
+ggplot(boot_extreme_1000_sd_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+
+## Cauchy Distribution
+
+The cauchy distribution is unusual in that neither its mean nor its variance is
+defined, so we want to see how it works when we try to bootstrap sample values.
+
+```{r generate_cauchy_data, echo=TRUE}
+F_cauchy_tbl <- tibble(x = rcauchy(10000, location = 0, scale = 1))
+
+F_cauchy_tbl %>% glimpse()
+```
+
+
+### Sample Size $N=100$
+
+
+```{r cauchy_100_bootstrap_tbl, echo=TRUE}
+boot_cauchy_100_mean_tbl <- F_cauchy_tbl %>%
+  head(100) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_cauchy_100_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_cauchy_100_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_cauchy_100_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 100)")
+```
+
+#### Estimating the Variance
+
+We also want to bootstrap the standard deviation.
+
+```{r cauchy_100_bootstrap_sd_tbl, echo=TRUE}
+boot_cauchy_100_sd_tbl <- F_cauchy_tbl %>%
+  head(100) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(sd)
+
+boot_cauchy_100_sd_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_cauchy_100_sd_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 100)")
+
+ggplot(boot_cauchy_100_sd_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 100)")
+```
+
+
+
+### Sample Size $N=1,000$
+
+
+```{r cauchy_1000_bootstrap_tbl, echo=TRUE}
+boot_cauchy_1000_mean_tbl <- F_cauchy_tbl %>%
+  head(1000) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(mean)
+
+boot_cauchy_1000_mean_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_cauchy_1000_mean_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 1,000)")
+
+ggplot(boot_cauchy_1000_mean_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+#### Estimating the Variance
+
+```{r cauchy_1000_bootstrap_sd_tbl, echo=TRUE}
+boot_cauchy_1000_sd_tbl <- F_cauchy_tbl %>%
+  head(1000) %>%
+  pull(x) %>%
+  construct_bootstrap_size_plots(sd)
+
+boot_cauchy_1000_sd_tbl %>%
+  group_by(btstrp_size) %>%
+  summarise(summ = list(summary(btstrp_val))) %>%
+  unnest_wider(summ)
+
+ggplot(boot_cauchy_1000_sd_tbl) +
+  geom_boxplot(aes(x = vec_cast(btstrp_size, character()), y = btstrp_val)) +
+  xlab("Bootstrap Sample Size") +
+  ylab("Bootstrap Estimate") +
+  ggtitle("Boxplot of Bootstrap Estimates by Size of Bootstrap Sample (N = 1,000)")
+
+ggplot(boot_cauchy_1000_sd_tbl) +
+  geom_histogram(aes(x = btstrp_val), bins = 50) +
+  facet_wrap(vars(btstrp_size), scales = 'free_y') +
+  xlab("Value") +
+  ylab("Frequency") +
+  ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
+```
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+devtools::session_info()
+```
