@@ -30,8 +30,10 @@ library(scales)
 library(vctrs)
 library(cowplot)
 library(rsample)
-library(boot)
 library(EnvStats)
+library(boot)
+library(broom)
+
 
 
 source("custom_functions.R")
@@ -874,6 +876,237 @@ ggplot(boot_cauchy_1000_sd_tbl) +
   ylab("Frequency") +
   ggtitle("Facet Plot of Bootstrap Estimates by Bootstrap Sample Count (Sample Count 1,000)")
 ```
+
+
+# Bootstrapping Bivariate Data
+
+So far we have focused on the use of the bootstrap for estimating the sample
+error in estimating population statistics from sample statistics, but the
+concepts and methods are applicable in general: we can use the bootstrap in a
+wide variety of applications.
+
+To start the generalisation, we switch our attention to bivariate data and the
+bivariate normal in particular.
+
+
+## Bivariate Normal with Low Correlation, $\rho = 0.1$
+
+We follow our previous approach, generating data from a distribution with
+known parameters and then try to recover the parameters from our samples.
+
+```{r generate_bivariate_normal_data, echo=TRUE}
+rho   <- 0.1
+
+Mu    <- c(0, 0)
+Sigma <- matrix(c(1, rho, rho, 1), ncol = 2)
+
+
+
+mvnorm_100_tbl <- MASS::mvrnorm(n = 100, mu = Mu, Sigma = Sigma) %>%
+  set_colnames(c('x', 'y')) %>%
+  as_tibble()
+
+calc_cor <- ~ .x %>% analysis() %>% summarise(cor_val = cor(x, y)) %>% pull(cor_val)
+
+mvnorm_100_boot_cor_tbl <- mvnorm_100_tbl %>%
+  bootstraps(times = 1000) %>%
+  mutate(cor_val = map_dbl(splits, calc_cor))
+
+
+ggplot(mvnorm_100_boot_cor_tbl) +
+  geom_histogram(aes(x = cor_val), bins = 50) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+
+We repeat this experiment but now with 1,000 data points in our sample.
+
+
+```{r generate_bivariate_normal_data_1000, echo=TRUE}
+mvnorm_1000_tbl <- MASS::mvrnorm(n = 1000, mu = Mu, Sigma = Sigma) %>%
+  set_colnames(c('x', 'y')) %>%
+  as_tibble()
+
+calc_cor <- ~ .x %>% analysis() %>% summarise(cor_val = cor(x, y)) %>% pull(cor_val)
+
+mvnorm_1000_boot_cor_tbl <- mvnorm_1000_tbl %>%
+  bootstraps(times = 1000) %>%
+  mutate(cor_val = map_dbl(splits, calc_cor))
+
+
+ggplot(mvnorm_1000_boot_cor_tbl) +
+  geom_histogram(aes(x = cor_val), bins = 50) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+Let's compare the two bootstrap estimates.
+
+
+```{r compare_bootstrap_estimates_correlation, echo=TRUE}
+ggplot() +
+  geom_histogram(aes(x = cor_val), data = mvnorm_100_boot_cor_tbl, bins = 50,
+                 fill = 'black', alpha = 0.5) +
+  geom_histogram(aes(x = cor_val), data = mvnorm_1000_boot_cor_tbl, bins = 50,
+                 fill = 'red', alpha = 0.5) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+
+
+## Bivariate Normal with Medium Correlation, $\rho = 0.5$
+
+We follow our previous approach, generating data from a distribution with
+known parameters and then try to recover the parameters from our samples.
+
+```{r generate_med_bivariate_normal_data, echo=TRUE}
+rho   <- 0.5
+
+Mu    <- c(0, 0)
+Sigma <- matrix(c(1, rho, rho, 1), ncol = 2)
+
+
+mvnorm_med_100_tbl <- MASS::mvrnorm(n = 100, mu = Mu, Sigma = Sigma) %>%
+  set_colnames(c('x', 'y')) %>%
+  as_tibble()
+
+calc_cor <- ~ .x %>% analysis() %>% summarise(cor_val = cor(x, y)) %>% pull(cor_val)
+
+mvnorm_med_100_boot_cor_tbl <- mvnorm_med_100_tbl %>%
+  bootstraps(times = 1000) %>%
+  mutate(cor_val = map_dbl(splits, calc_cor))
+
+
+ggplot(mvnorm_med_100_boot_cor_tbl) +
+  geom_histogram(aes(x = cor_val), bins = 50) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+
+We repeat this experiment but now with 1,000 data points in our sample.
+
+
+```{r generate_med_bivariate_normal_data_1000, echo=TRUE}
+mvnorm_med_1000_tbl <- MASS::mvrnorm(n = 1000, mu = Mu, Sigma = Sigma) %>%
+  set_colnames(c('x', 'y')) %>%
+  as_tibble()
+
+calc_cor <- ~ .x %>% analysis() %>% summarise(cor_val = cor(x, y)) %>% pull(cor_val)
+
+mvnorm_med_1000_boot_cor_tbl <- mvnorm_med_1000_tbl %>%
+  bootstraps(times = 1000) %>%
+  mutate(cor_val = map_dbl(splits, calc_cor))
+
+
+ggplot(mvnorm_med_1000_boot_cor_tbl) +
+  geom_histogram(aes(x = cor_val), bins = 50) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+Let's compare the two bootstrap estimates.
+
+
+```{r compare_bootstrap_estimates_correlation_med, echo=TRUE}
+ggplot() +
+  geom_histogram(aes(x = cor_val), data = mvnorm_med_100_boot_cor_tbl,
+                 bins = 50, fill = 'black', alpha = 0.5) +
+  geom_histogram(aes(x = cor_val), data = mvnorm_med_1000_boot_cor_tbl,
+                 bins = 50, fill = 'red', alpha = 0.5) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+
+## Bivariate Normal with High Correlation, $\rho = 0.8$
+
+We follow our previous approach, generating data from a distribution with
+known parameters and then try to recover the parameters from our samples.
+
+```{r generate_high_bivariate_normal_data, echo=TRUE}
+rho   <- 0.8
+
+Mu    <- c(0, 0)
+Sigma <- matrix(c(1, rho, rho, 1), ncol = 2)
+
+
+mvnorm_high_100_tbl <- MASS::mvrnorm(n = 100, mu = Mu, Sigma = Sigma) %>%
+  set_colnames(c('x', 'y')) %>%
+  as_tibble()
+
+calc_cor <- ~ .x %>% analysis() %>% summarise(cor_val = cor(x, y)) %>% pull(cor_val)
+
+mvnorm_high_100_boot_cor_tbl <- mvnorm_high_100_tbl %>%
+  bootstraps(times = 1000) %>%
+  mutate(cor_val = map_dbl(splits, calc_cor))
+
+
+ggplot(mvnorm_high_100_boot_cor_tbl) +
+  geom_histogram(aes(x = cor_val), bins = 50) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+
+We repeat this experiment but now with 1,000 data points in our sample.
+
+
+```{r generate_high_bivariate_normal_data_1000, echo=TRUE}
+mvnorm_high_1000_tbl <- MASS::mvrnorm(n = 1000, mu = Mu, Sigma = Sigma) %>%
+  set_colnames(c('x', 'y')) %>%
+  as_tibble()
+
+calc_cor <- ~ .x %>% analysis() %>% summarise(cor_val = cor(x, y)) %>% pull(cor_val)
+
+mvnorm_high_1000_boot_cor_tbl <- mvnorm_high_1000_tbl %>%
+  bootstraps(times = 1000) %>%
+  mutate(cor_val = map_dbl(splits, calc_cor))
+
+
+ggplot(mvnorm_high_1000_boot_cor_tbl) +
+  geom_histogram(aes(x = cor_val), bins = 50) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+Let's compare the two bootstrap estimates.
+
+
+```{r compare_bootstrap_estimates_correlation_high, echo=TRUE}
+ggplot() +
+  geom_histogram(aes(x = cor_val), data = mvnorm_high_100_boot_cor_tbl,
+                 bins = 50, fill = 'black', alpha = 0.5) +
+  geom_histogram(aes(x = cor_val), data = mvnorm_high_1000_boot_cor_tbl,
+                 bins = 50, fill = 'red', alpha = 0.5) +
+  geom_vline(aes(xintercept = rho), colour = 'blue') +
+  xlab("Correlation Coefficient") +
+  ylab("Frequency Count") +
+  ggtitle("Bootstrap Estimates of Correlation Co-efficient of Bivariate Normal")
+```
+
+
+
+
+
 
 
 
