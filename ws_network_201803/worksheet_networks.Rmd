@@ -1641,7 +1641,7 @@ summary(dixon_model_04_ergm)
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
-devtools::session_info()
+sessioninfo::session_info()
 ```
 
 
