@@ -73,7 +73,7 @@ https://github.com/kaybenleroll/dublin_r_workshops
 
 The content of this workshop is partly based on the book "Applied Survival
 Analysis Using R" by Dirk F. Moore. The data from this book is available from
-CRAN via the package `asaur`.
+CRAN via the package 'asaur'.
 
 
 ### Example Datasets
@@ -1205,5 +1205,5 @@ telco_model03_coxzph %>% ggcoxzph()
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
-devtools::session_info()
+sessioninfo::session_info()
 ```

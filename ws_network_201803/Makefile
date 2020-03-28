@@ -8,7 +8,7 @@ docker-build-image: Dockerfile
 	docker build -t ${PROJECT_USER}/${PROJECT_NAME} -f Dockerfile .
 
 docker-run:
-	docker run --rm \
+	docker run --rm -d \
 	  -p 8787:8787 \
 	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_NAME}":rw \
 	  -e USER=${DOCKER_USER} \
