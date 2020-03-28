@@ -37,14 +37,15 @@ library(bayesplot)
 
 source("custom_functions.R")
 
-conflict_prefer('select',     'dplyr')
-conflict_prefer('filter',     'dplyr')
-conflict_prefer('lag',        'dplyr')
-conflict_prefer('Position',   'ggplot2')
-conflict_prefer('col_factor', 'scales')
-conflict_prefer('discard',    'scales')
-conflict_prefer('extract',    'rstan')
+conflict_prefer("select",     "dplyr")
+conflict_prefer("filter",     "dplyr")
+conflict_prefer("lag",        "dplyr")
+conflict_prefer("Position",   "ggplot2")
+conflict_prefer("col_factor", "scales")
+conflict_prefer("discard",    "scales")
+conflict_prefer("extract",    "rstan")
 
+conflict_prefer("ggsave",     "ggplot2")
 
 
 options(width = 80L,
@@ -93,7 +94,7 @@ Analysis" by Gelman, Carlin, Stern, Dunson, Vehtari, and Rubin
 http://www.stat.columbia.edu/~gelman/book/
 
 
-Finally, I highly recommend the book ``Statistical Rethinking'' by Richard
+Finally, I highly recommend the book ``Statistical Rethinking"" by Richard
 McElreath. It teaches basic statistical principles from a Bayesian perspective.
 
 http://xcelab.net/rm/statistical-rethinking/
@@ -231,8 +232,8 @@ acc_props_tbl <- tibble(acc_vals = seq(0.90, 1.00, by = 0.001)) %>%
 ggplot(acc_props_tbl) +
     geom_line(aes(x = acc_vals, y = sick_prop)) +
     expand_limits(y = 0) +
-    xlab('False Alarm Rate') +
-    ylab('Proportion of True Positives')
+    xlab("False Alarm Rate") +
+    ylab("Proportion of True Positives")
 
 ```
 
@@ -259,8 +260,8 @@ fa_props_tbl <- tibble(fa_rate = seq(0.001, 0.10, by = 0.001)) %>%
 ggplot(fa_props_tbl) +
     geom_line(aes(x = fa_rate, y = sick_prop)) +
     expand_limits(y = 0) +
-    xlab('False Alarm Rate') +
-    ylab('Proportion of True Positives')
+    xlab("False Alarm Rate") +
+    ylab("Proportion of True Positives")
 ```
 
 What if we have multiple tests?
@@ -284,14 +285,14 @@ sick_2_prop_tbl <- tibble(fa_rate     = fa_vals,
                           sick_2_prop = map_dbl(fa_vals, calc_fa_prop_func))
 
 sick_tbl <- fa_props_tbl %>%
-  inner_join(sick_2_prop_tbl, by = 'fa_rate')
+  inner_join(sick_2_prop_tbl, by = "fa_rate")
 
 ggplot(sick_tbl) +
-  geom_line(aes(x = fa_vals, y = sick_prop), colour = 'red') +
+  geom_line(aes(x = fa_vals, y = sick_prop), colour = "red") +
   geom_line(aes(x = fa_vals, y = sick_2_prop)) +
   expand_limits(y = 0) +
-  xlab('False Alarm Rate') +
-  ylab('Proportion of True Positives')
+  xlab("False Alarm Rate") +
+  ylab("Proportion of True Positives")
 ```
 
 
@@ -317,12 +318,12 @@ $$
 
 In those special cases, the likelihood function has a prior and
 posterior distribution with the same functional form, i.e. the prior
-and the posterior are two members of the same `family' of functions.
+and the posterior are two members of the same "family" of functions.
 
 
 For the rest of this workshop we are going to deal with estimating the
 fairness of a coin, based on the result of multiple coin tosses. We
-define `success' as the toss coming up Heads, and denote this
+define "success" as the toss coming up Heads, and denote this
 probability as $\theta$. Thus,
 
 $$
@@ -415,7 +416,7 @@ successes and $b-1$ failures. To see this, we look at $\text{Beta}(2,4)$.
 
 ```{r inspect_beta_2_4_density, echo=TRUE}
 beta_tbl <- construct_beta_tbl_func(2, 4) %>%
-  mutate(distribution = 'Beta(2,4)')
+  mutate(distribution = "Beta(2,4)")
 
 ggplot(beta_tbl) +
   geom_line(aes(x = theta, y = dens, colour = distribution)) +
@@ -457,7 +458,7 @@ beta_bayes_tbl <- tribble(
          post1000_data = map2(a + a_1000, b + b_1000, construct_beta_tbl_func)
          ) %>%
   select(-a, -b) %>%
-  gather('type', 'data', -distribution) %>%
+  gather("type", "data", -distribution) %>%
   unnest(data)
 
 beta_bayes_tbl %>% glimpse()
@@ -473,7 +474,7 @@ success rate of 4 out of 10.
 
 ```{r data_10_prior_posterior_plots, echo=TRUE}
 plot_tbl <- beta_bayes_tbl %>%
-  filter(type != 'post1000_data')
+  filter(type != "post1000_data")
 
 ggplot(plot_tbl) +
   geom_line(aes(x = theta, y = dens, colour = type)) +
@@ -489,7 +490,7 @@ different posterior distributions against each other.
 
 ```{r data_10_posterior_comparisons, echo=TRUE}
 plot_tbl <- beta_bayes_tbl %>%
-  filter(type == 'post10_data')
+  filter(type == "post10_data")
 
 ggplot(plot_tbl) +
   geom_line(aes(x = theta, y = dens, colour = distribution)) +
@@ -510,7 +511,7 @@ success rate of approximately 6 out of 10.
 
 ```{r data_1000_prior_posterior_plots, echo=TRUE}
 plot_tbl <- beta_bayes_tbl %>%
-  filter(type != 'post10_data')
+  filter(type != "post10_data")
 
 ggplot(plot_tbl) +
   geom_line(aes(x = theta, y = dens, colour = type)) +
@@ -526,7 +527,7 @@ different posterior distributions against each other.
 
 ```{r data_1000_posterior_comparisons, echo=TRUE}
 plot_tbl <- beta_bayes_tbl %>%
-  filter(type == 'post1000_data', theta >= 0.35, theta <= 0.45)
+  filter(type == "post1000_data", theta >= 0.35, theta <= 0.45)
 
 ggplot(plot_tbl) +
   geom_line(aes(x = theta, y = dens, colour = distribution)) +
@@ -575,15 +576,15 @@ density against those calculated by the conjugate distribution.
 
 ```{r compare_data10_beta_1_1_posteriors, echo=TRUE}
 conjugate_tbl <- beta_bayes_tbl %>%
-  filter(distribution == 'Beta(1,1)', type == 'post10_data') %>%
+  filter(distribution == "Beta(1,1)", type == "post10_data") %>%
   select(theta, Conjugate = dens)
 
 numeric_tbl <- num_1_1_post_tbl %>%
   select(theta, Numeric = post_lik)
 
 plot_tbl <- conjugate_tbl %>%
-  inner_join(numeric_tbl, by = 'theta') %>%
-  gather('label', 'value', -theta) %>%
+  inner_join(numeric_tbl, by = "theta") %>%
+  gather("label", "value", -theta) %>%
   filter(!is.na(value))
   
 ggplot(plot_tbl) +
@@ -616,15 +617,15 @@ Like before, we compare the numerical approximation to the conjugate version.
 
 ```{r compare_data10_beta_10_5_posteriors, echo=TRUE}
 conjugate_tbl <- beta_bayes_tbl %>%
-  filter(distribution == 'Beta(10,5)', type == 'post10_data') %>%
+  filter(distribution == "Beta(10,5)", type == "post10_data") %>%
   select(theta, Conjugate = dens)
 
 numeric_tbl <- num_10_5_post_tbl %>%
   select(theta, Numeric = post_lik)
 
 plot_tbl <- conjugate_tbl %>%
-  inner_join(numeric_tbl, by = 'theta') %>%
-  gather('label', 'value', -theta) %>%
+  inner_join(numeric_tbl, by = "theta") %>%
+  gather("label", "value", -theta) %>%
   filter(!is.na(value))
   
 ggplot(plot_tbl) +
@@ -657,15 +658,15 @@ num_1_1_post_tbl %>% glimpse()
 
 ```{r compare_data1000_beta_1_1_posteriors, echo=TRUE}
 conjugate_tbl <- beta_bayes_tbl %>%
-  filter(distribution == 'Beta(1,1)', type == 'post1000_data') %>%
+  filter(distribution == "Beta(1,1)", type == "post1000_data") %>%
   select(theta, Conjugate = dens)
 
 numeric_tbl <- num_1_1_post_tbl %>%
   select(theta, Numeric = post_lik)
 
 plot_tbl <- conjugate_tbl %>%
-  inner_join(numeric_tbl, by = 'theta') %>%
-  gather('label', 'value', -theta) %>%
+  inner_join(numeric_tbl, by = "theta") %>%
+  gather("label", "value", -theta) %>%
   filter(!is.na(value))
   
 ggplot(plot_tbl) +
@@ -694,15 +695,15 @@ num_10_5_post_tbl %>% glimpse()
 
 ```{r compare_data1000_beta_10_5_posteriors, echo=TRUE}
 conjugate_tbl <- beta_bayes_tbl %>%
-  filter(distribution == 'Beta(10,5)', type == 'post1000_data') %>%
+  filter(distribution == "Beta(10,5)", type == "post1000_data") %>%
   select(theta, Conjugate = dens)
 
 numeric_tbl <- num_10_5_post_tbl %>%
   select(theta, Numeric = post_lik)
 
 plot_tbl <- conjugate_tbl %>%
-  inner_join(numeric_tbl, by = 'theta') %>%
-  gather('label', 'value', -theta) %>%
+  inner_join(numeric_tbl, by = "theta") %>%
+  gather("label", "value", -theta) %>%
   filter(!is.na(value))
   
 ggplot(plot_tbl) +
@@ -723,25 +724,25 @@ prior and then feed this into out posterior calculation.
 
 ```{r construct_biased_prior, echo=TRUE}
 biased_prior_tbl <- tibble(
-  type         = 'prior_data',
+  type         = "prior_data",
   theta        = seq(0, 1, by = 0.001)
 )
 
 
 beta_low_tbl <- biased_prior_tbl %>%
-  mutate(distribution = 'Beta (2,4)',
+  mutate(distribution = "Beta (2,4)",
          dens         = dbeta(theta, 2, 4))
 
 beta_upr_tbl <- biased_prior_tbl %>%
-  mutate(distribution = 'Beta (4,2)',
+  mutate(distribution = "Beta (4,2)",
          dens         = dbeta(theta, 4, 2))
 
 biased_prior_tbl <- list(beta_low_tbl, beta_upr_tbl) %>%
   bind_rows() %>%
   group_by(theta) %>%
   summarise(dens = mean(dens)) %>%
-  mutate(distribution = 'Compound Prior',
-         type         = 'prior_data',
+  mutate(distribution = "Compound Prior",
+         type         = "prior_data",
          dens_log     = log(dens))
 
 
@@ -772,14 +773,14 @@ posterior.
 data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
 
 biased_10data_tbl <- calc_posterior(biased_prior_tbl, data_10_loglik_tbl) %>%
-  transmute(theta, type = 'posterior', post_loglik, post_lik)
+  transmute(theta, type = "posterior", post_loglik, post_lik)
 
 plot_tbl <- list(
   biased_prior_tbl  %>% transmute(theta, type, dens),
   biased_10data_tbl %>% transmute(theta, type, dens = post_lik),
   beta_bayes_tbl    %>%
-    filter(distribution == 'Beta(2,2)', type == 'post10_data') %>%
-    transmute(theta, type = 'Beta(2,2) posterior', dens)
+    filter(distribution == "Beta(2,2)", type == "post10_data") %>%
+    transmute(theta, type = "Beta(2,2) posterior", dens)
   ) %>%
   bind_rows()
 
@@ -798,14 +799,14 @@ We also perform this comparison for 1,000 data points.
 data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
 
 biased_1000data_tbl <- calc_posterior(biased_prior_tbl, data_1000_loglik_tbl) %>%
-  transmute(theta, type = 'posterior', post_loglik, post_lik)
+  transmute(theta, type = "posterior", post_loglik, post_lik)
 
 plot_tbl <- list(
   biased_prior_tbl    %>% transmute(theta, type, dens),
   biased_1000data_tbl %>% transmute(theta, type, dens = post_lik),
   beta_bayes_tbl %>%
-    filter(distribution == 'Beta(2,2)', type == 'post1000_data') %>%
-    transmute(theta, type = 'Beta(2,2) posterior', dens)
+    filter(distribution == "Beta(2,2)", type == "post1000_data") %>%
+    transmute(theta, type = "Beta(2,2) posterior", dens)
   ) %>%
   bind_rows()
 
@@ -826,7 +827,7 @@ itself.
 
 ```{r construct_biased_strong_prior, echo=TRUE}
 biased_prior_tbl <- tibble(
-  type         = 'prior_data',
+  type         = "prior_data",
   theta        = seq(0, 1, by = 0.001)
 )
 
@@ -845,12 +846,12 @@ distribution due to this prior on the observation of 10 datapoints.
 
 ```{r calculate_strong_posterior_data_10}
 use_prior_tbl <- strong_prior_tbl %>%
-  filter(distribution == 'Compound Prior')
+  filter(distribution == "Compound Prior")
 
 data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
 
 strong_10data_tbl <- calc_posterior(use_prior_tbl, data_10_loglik_tbl) %>%
-  transmute(theta, type = 'posterior', post_loglik, post_lik)
+  transmute(theta, type = "posterior", post_loglik, post_lik)
 
 plot_tbl <- list(
   use_prior_tbl %>%
@@ -858,8 +859,8 @@ plot_tbl <- list(
   strong_10data_tbl %>%
     transmute(theta, type, dens = post_lik),
   beta_bayes_tbl %>%
-    filter(distribution == 'Beta(2,2)', type == 'post10_data') %>%
-    transmute(theta, type = 'Beta(2,2) posterior', dens)
+    filter(distribution == "Beta(2,2)", type == "post10_data") %>%
+    transmute(theta, type = "Beta(2,2) posterior", dens)
   ) %>%
   bind_rows()
 
@@ -875,12 +876,12 @@ We also contrast this with the 1,000 datapoint data.
 
 ```{r calculate_strong_posterior_data_1000}
 use_prior_tbl <- strong_prior_tbl %>%
-  filter(distribution == 'Compound Prior')
+  filter(distribution == "Compound Prior")
 
 data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
 
 strong_1000data_tbl <- calc_posterior(use_prior_tbl, data_1000_loglik_tbl) %>%
-  transmute(theta, type = 'posterior', post_loglik, post_lik)
+  transmute(theta, type = "posterior", post_loglik, post_lik)
 
 plot_tbl <- list(
   use_prior_tbl %>%
@@ -888,8 +889,8 @@ plot_tbl <- list(
   strong_1000data_tbl %>%
     transmute(theta, type, dens = post_lik),
   beta_bayes_tbl %>%
-    filter(distribution == 'Beta(2,2)', type == 'post1000_data') %>%
-    transmute(theta, type = 'Beta(2,2) posterior', dens)
+    filter(distribution == "Beta(2,2)", type == "post1000_data") %>%
+    transmute(theta, type = "Beta(2,2) posterior", dens)
   ) %>%
   bind_rows()
 
@@ -907,7 +908,7 @@ no probability mass in the middle area.
 
 ```{r construct_biased_extreme_prior, echo=TRUE}
 biased_prior_tbl <- tibble(
-  type         = 'prior_data',
+  type         = "prior_data",
   theta        = seq(0, 1, by = 0.001)
 )
 
@@ -926,12 +927,12 @@ distribution due to this prior on the observation of 10 datapoints.
 
 ```{r calculate_extreme_posterior_data_10}
 use_prior_tbl <- extreme_prior_tbl %>%
-  filter(distribution == 'Compound Prior')
+  filter(distribution == "Compound Prior")
 
 data_10_loglik_tbl <- calc_data_loglik(cointoss_10, prior_1_1_tbl$theta)
 
 extreme_10data_tbl <- calc_posterior(use_prior_tbl, data_10_loglik_tbl) %>%
-  transmute(theta, type = 'posterior', post_loglik, post_lik)
+  transmute(theta, type = "posterior", post_loglik, post_lik)
 
 plot_tbl <- list(
   use_prior_tbl %>%
@@ -939,8 +940,8 @@ plot_tbl <- list(
   strong_10data_tbl %>%
     transmute(theta, type, dens = post_lik),
   beta_bayes_tbl %>%
-    filter(distribution == 'Beta(2,2)', type == 'post10_data') %>%
-    transmute(theta, type = 'Beta(2,2) posterior', dens)
+    filter(distribution == "Beta(2,2)", type == "post10_data") %>%
+    transmute(theta, type = "Beta(2,2) posterior", dens)
   ) %>%
   bind_rows()
 
@@ -956,12 +957,12 @@ We also contrast this with the 1,000 datapoint data.
 
 ```{r calculate_extreme_posterior_data_1000}
 use_prior_tbl <- extreme_prior_tbl %>%
-  filter(distribution == 'Compound Prior')
+  filter(distribution == "Compound Prior")
 
 data_1000_loglik_tbl <- calc_data_loglik(cointoss_1000, prior_1_1_tbl$theta)
 
 extreme_1000data_tbl <- calc_posterior(use_prior_tbl, data_1000_loglik_tbl) %>%
-  transmute(theta, type = 'posterior', post_loglik, post_lik)
+  transmute(theta, type = "posterior", post_loglik, post_lik)
 
 plot_tbl <- list(
   use_prior_tbl %>%
@@ -969,8 +970,8 @@ plot_tbl <- list(
   strong_1000data_tbl %>%
     transmute(theta, type, dens = post_lik),
   beta_bayes_tbl %>%
-    filter(distribution == 'Beta(2,2)', type == 'post1000_data') %>%
-    transmute(theta, type = 'Beta(2,2) posterior', dens)
+    filter(distribution == "Beta(2,2)", type == "post1000_data") %>%
+    transmute(theta, type = "Beta(2,2) posterior", dens)
   ) %>%
   bind_rows()
 
@@ -1015,8 +1016,8 @@ We now look at some Stan code to sample the posterior of a model with a Beta
 prior and a binomial likelihood.
 
 
-```{r show_basic_stan, echo=FALSE, comment = ''}
-read_lines('first_stan_model.stan') %>% cat(sep = '\n')
+```{r show_basic_stan, echo=FALSE, comment = ""}
+read_lines("first_stan_model.stan") %>% cat(sep = "\n")
 ```
 
 
@@ -1046,7 +1047,7 @@ model_01_stanfit <- sampling(
 )
 
 
-plot(model_01_stanfit, pars = c('theta', 'mu')) +
+plot(model_01_stanfit, pars = c("theta", "mu")) +
   xlab("Value") +
   ylab("Parameter") +
   ggtitle("Posterior Plots of the Model Parameters")
@@ -1072,10 +1073,10 @@ model_01_stanfit %>% check_hmc_diagnostics()
 Another useful diagnostic plot is to visually inspect the traceplots - a line
 plot of each parameter value against the index number of each iteration.
 
-A valid sample means each parameter looks like a 'hairy caterpillar'.
+A valid sample means each parameter looks like a "hairy caterpillar".
 
 ```{r show_model_01_traceplot, echo=TRUE}
-traceplot(model_01_stanfit, pars = c('mu', 'theta'), nrow = 2) +
+traceplot(model_01_stanfit, pars = c("mu", "theta"), nrow = 2) +
   ggtitle("Traceplots of Model Parameters")
 ```
 
@@ -1109,7 +1110,7 @@ model_01_prior_stanfit <- sampling(
 )
 
 
-model_01_prior_stanfit %>% plot(pars = c('theta', 'mu'))
+model_01_prior_stanfit %>% plot(pars = c("theta", "mu"))
 ```
 
 We use the function `tidy_draws()` to combine the outputs of the modelling and
@@ -1121,7 +1122,7 @@ prior_post_bern_tbl <- list(
   prior     = model_01_prior_stanfit %>% tidy_draws(),
   posterior = model_01_stanfit       %>% tidy_draws()
   ) %>%
-  bind_rows(.id = 'distribution')
+  bind_rows(.id = "distribution")
 
 prior_post_bern_tbl %>% glimpse()
 ```
@@ -1132,7 +1133,7 @@ We produce a number of comparison plots for $\mu$ first:
 ```{r plot_mu_distributions, echo=TRUE}
 ggplot(prior_post_bern_tbl) +
   geom_histogram(aes(x = mu, fill = distribution),
-                 bins = 30, alpha = 0.5, position = 'identity') +
+                 bins = 30, alpha = 0.5, position = "identity") +
   xlab(expression(mu)) +
   ylab("Frequency") +
   ggtitle(expression(paste("Comparison Histograms for Prior and Posterior ",
@@ -1151,8 +1152,8 @@ plot_tbl <- prior_post_bern_tbl %>%
 
 ggplot(plot_tbl, aes(x = distribution)) +
   geom_errorbar(aes(ymin = low_80, ymax = upr_80), width = 0, size = 1) +
-  geom_errorbar(aes(ymin = low_50, ymax = upr_50), colour = 'red', width = 0, size = 2) +
-  geom_point(aes(y = mean), colour = 'blue', size = 3) +
+  geom_errorbar(aes(ymin = low_50, ymax = upr_50), colour = "red", width = 0, size = 2) +
+  geom_point(aes(y = mean), colour = "blue", size = 3) +
   geom_point(aes(y = median), size = 3) +
   expand_limits(y = 0) +
   xlab("Distribution") +
@@ -1169,7 +1170,7 @@ And now we look at similar plots for $\theta$.
 ```{r plot_theta_distributions, echo=TRUE}
 ggplot(prior_post_bern_tbl) +
   geom_histogram(aes(x = theta, fill = distribution),
-                 bins = 30, alpha = 0.5, position = 'identity') +
+                 bins = 30, alpha = 0.5, position = "identity") +
   xlab(expression(theta)) +
   ylab("Frequency") +
   ggtitle(expression(paste("Comparison Histograms for Prior and Posterior ",
@@ -1188,8 +1189,8 @@ plot_tbl <- prior_post_bern_tbl %>%
 
 ggplot(plot_tbl, aes(x = distribution)) +
   geom_errorbar(aes(ymin = low_80, ymax = upr_80), width = 0, size = 1) +
-  geom_errorbar(aes(ymin = low_50, ymax = upr_50), colour = 'red', width = 0, size = 2) +
-  geom_point(aes(y = mean), colour = 'blue', size = 3) +
+  geom_errorbar(aes(ymin = low_50, ymax = upr_50), colour = "red", width = 0, size = 2) +
+  geom_point(aes(y = mean), colour = "blue", size = 3) +
   geom_point(aes(y = median), size = 3) +
   expand_limits(y = 0) +
   xlab("Distribution") +
@@ -1218,8 +1219,8 @@ t1000_count <- sum(cointoss_1000)
 
 We now look at our Stan Binomial model.
 
-```{r show_binomial_stan, echo=FALSE, comment = ''}
-read_lines('simple_binomial.stan') %>% cat(sep = '\n')
+```{r show_binomial_stan, echo=FALSE, comment = ""}
+read_lines("simple_binomial.stan") %>% cat(sep = "\n")
 ```
 
 
@@ -1260,10 +1261,10 @@ model_02_prior_stanfit <- sampling(
 
 model_02_stanfit %>% check_hmc_diagnostics()
 
-traceplot(model_02_stanfit, pars = c('mu', 'theta'), nrow = 2) +
+traceplot(model_02_stanfit, pars = c("mu", "theta"), nrow = 2) +
   ggtitle("Traceplots of Binomial Model Parameters")
 
-plot(model_02_stanfit, pars = c('theta', 'mu')) +
+plot(model_02_stanfit, pars = c("theta", "mu")) +
   xlab("Value") +
   ylab("Parameter") +
   ggtitle("Posterior Plots of the Binomial Model Parameters")
@@ -1273,7 +1274,7 @@ prior_post_binom_tbl <- list(
   prior     = model_02_prior_stanfit %>% tidy_draws(),
   posterior = model_02_stanfit       %>% tidy_draws()
   ) %>%
-  bind_rows(.id = 'distribution')
+  bind_rows(.id = "distribution")
 
 prior_post_bern_tbl %>% glimpse()
 
@@ -1282,7 +1283,7 @@ distrib_compare_tbl <- list(
   Bernouilli = prior_post_bern_tbl,
   Binomial   = prior_post_binom_tbl
   ) %>%
-  bind_rows(.id = 'likelihood')
+  bind_rows(.id = "likelihood")
 
 distrib_compare_tbl %>% glimpse()
 
@@ -1293,7 +1294,7 @@ ggplot(distrib_compare_tbl) +
   xlab("Distribution Type") +
   ylab(expression(theta)) +
   ggtitle("Comparison Boxplot of Prior and Posterior Distributions",
-          subtitle = 'Bernouilli and Binomial Likelihoods')
+          subtitle = "Bernouilli and Binomial Likelihoods")
 ```
 
 
@@ -1321,5 +1322,5 @@ some event per given unit.
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
-devtools::session_info()
+sessioninfo::session_info()
 ```
