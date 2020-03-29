@@ -1,4 +1,4 @@
-FROM rocker/rstudio:3.6.0
+FROM rocker/tidyverse:3.6.0
 
 
 RUN apt-get update \
@@ -13,9 +13,6 @@ RUN apt-get update \
     liblapack-dev \
   && apt-get clean \
   && install2.r --error \
-    tidyverse \
-    caTools \
-    rprojroot \
     sessioninfo \
     conflicted \
     cowplot \

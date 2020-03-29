@@ -109,7 +109,8 @@ price_table_plot <- ggplot(diamonds) +
   ylab("Price") +
   ggtitle("Table vs Price Plot")
 
-plot_grid(price_carat_plot, price_cut_plot, price_color_plot, price_table_plot,
+plot_grid(price_carat_plot, price_cut_plot,
+          price_color_plot, price_table_plot,
           ncol = 2)
 ```
 
@@ -149,8 +150,10 @@ radon_tbl %>%
 ---
 
 ```{r show_county_radon_boxplots, echo=FALSE}
-show_counties <- c("LAC QUI PARLE", "AITKIN", "KOOCHICHING", "DOUGLAS", "CLAY",
-                   "STEARNS", "RAMSEY", "ST LOUIS")
+show_counties <- c(
+  "LAC QUI PARLE", "AITKIN", "KOOCHICHING", "DOUGLAS", "CLAY", "STEARNS",
+  "RAMSEY", "ST LOUIS"
+  )
 
 radon_mn_eight_tbl <- radon_mn_tbl %>%
   filter(county %in% show_counties)
@@ -267,11 +270,12 @@ diam_loglik_func <- construct_loglik_function(diamonds)
 loglik_heatmap_data_file <- "data/loglik_heatmap_tbl.rds"
 
 if(!file_exists(loglik_heatmap_data_file)) {
-  intcpt_vals <- seq(-4000, -1000, by = 50)
+  intcpt_vals <- seq(-4000,  -500, by = 50)
   carat_vals  <- seq( 6000, 10000, by = 50)
   
   loglik_heatmap_tbl <- crossing(intcpt = intcpt_vals, carat = carat_vals) %>%
-    mutate(loglik = future_map2_dbl(intcpt, carat, diam_loglik_func, fit_sd = 1548, show_prob = 0.001))
+    mutate(loglik = future_map2_dbl(intcpt, carat, diam_loglik_func,
+                                    fit_sd = 1548, show_prob = 0.001))
   
   loglik_heatmap_tbl %>% write_rds(loglik_heatmap_data_file)
 } else {
@@ -509,7 +513,10 @@ What about `price`?
 ---
 
 ```{r plot_diamlog_predictions_natural, echo=FALSE}
-ggplot(sample_diamlog_predict_tbl %>% mutate(predict_price = exp(.prediction))) +
+plot_tbl <- sample_diamlog_predict_tbl %>%
+  mutate(predict_price = exp(.prediction))
+
+ggplot(plot_tbl) +
   geom_histogram(aes(x = predict_price), bins = 50) +
   geom_vline(aes(xintercept = price), colour = "red") +
   facet_wrap(vars(.row), ncol = 4, scales = "free_x") +
@@ -658,7 +665,8 @@ plot_tbl <- radon_mn_tbl %>%
 
 ggplot(plot_tbl) +
   geom_point(aes(x = county, y = mean_val)) +
-  geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size), width = 0) +
+  geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size),
+                width = 0) +
   scale_colour_gradient(low = "blue", high = "red") +
   xlab("County") +
   ylab("Parameter Value") +
@@ -712,7 +720,9 @@ radon_partial_1_draws_tbl <- radon_partial_1_stanlm %>%
 params_county_partial_1_summary_tbl <- radon_partial_1_stanlm %>%
   gather_draws(b[i, v]) %>%
   ungroup() %>%
-  mutate(county = str_replace_all(v, "_", " ") %>% str_replace("county:", "")) %>%
+  mutate(county = str_replace_all(v, "_", " ") %>%
+                  str_replace("county:", "")
+         ) %>%
   group_by(county) %>%
   summarise(mean_val   = mean(.value),
             median_val = median(.value),
@@ -729,7 +739,8 @@ plot_tbl <- radon_mn_tbl %>%
 
 ggplot(plot_tbl) +
   geom_point(aes(x = county, y = mean_val)) +
-  geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size), width = 0) +
+  geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size),
+                width = 0) +
   scale_colour_gradient(low = "blue", high = "red") +
   xlab("County") +
   ylab("Parameter Value") +
@@ -768,7 +779,9 @@ radon_partial_2_draws_tbl <- radon_partial_2_stanlm %>%
 params_county_partial_2_summary_tbl <- radon_partial_2_stanlm %>%
   gather_draws(b[i, v]) %>%
   ungroup() %>%
-  mutate(county = str_replace_all(v, "_", " ") %>% str_replace("county:", "")) %>%
+  mutate(county = str_replace_all(v, "_", " ") %>%
+                  str_replace("county:", "")
+         ) %>%
   group_by(county) %>%
   summarise(mean_val   = mean(.value),
             median_val = median(.value),
@@ -785,7 +798,8 @@ plot_tbl <- radon_mn_tbl %>%
 
 ggplot(plot_tbl) +
   geom_point(aes(x = county, y = mean_val)) +
-  geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size), width = 0) +
+  geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size),
+                width = 0) +
   scale_colour_gradient(low = "blue", high = "red") +
   xlab("County") +
   ylab("Parameter Value") +
