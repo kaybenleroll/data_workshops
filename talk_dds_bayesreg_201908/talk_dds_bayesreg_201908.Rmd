@@ -19,6 +19,8 @@ library(conflicted)
 library(tidyverse)
 library(magrittr)
 library(scales)
+library(purrr)
+library(furrr)
 library(cowplot)
 library(knitr)
 library(fs)
@@ -31,25 +33,28 @@ library(tidybayes)
 
 source("custom_functions.R")
 
-conflict_prefer('filter',   'dplyr')
-conflict_prefer('lag',      'dplyr')
-conflict_prefer('select',   'dplyr')
+conflict_prefer("filter",   "dplyr")
+conflict_prefer("lag",      "dplyr")
+conflict_prefer("select",   "dplyr")
 
 
-knitr::opts_chunk$set(tidy  = FALSE
-                     ,cache = FALSE
-                     ,message = FALSE
-                     ,warning = FALSE
-                     ,fig.height =  8
-                     ,fig.width  = 11)
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      message    = FALSE,
+                      warning    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11
+                      )
 
 
-options(width = 80L
-       ,warn  = 1
-       ,mc.cores = parallel::detectCores()
+options(width = 80L,
+        warn  = 1,
+        mc.cores = parallel::detectCores()
         )
 
 theme_set(theme_cowplot())
+
+plan(multisession)
 
 rstan_options(auto_write = TRUE)
 
@@ -104,8 +109,8 @@ price_table_plot <- ggplot(diamonds) +
   ylab("Price") +
   ggtitle("Table vs Price Plot")
 
-plot_grid(price_carat_plot, price_cut_plot, price_color_plot, price_table_plot
-         ,ncol = 2)
+plot_grid(price_carat_plot, price_cut_plot, price_color_plot, price_table_plot,
+          ncol = 2)
 ```
 
 
@@ -132,7 +137,7 @@ radon_tbl <- read_csv("data/srrs2.dat",
   mutate(log_radon = log(if_else(activity == 0, 0.1, activity)))
 
 radon_mn_tbl <- radon_tbl %>%
-  filter(state == 'MN')
+  filter(state == "MN")
 ```
 
 
@@ -144,8 +149,8 @@ radon_tbl %>%
 ---
 
 ```{r show_county_radon_boxplots, echo=FALSE}
-show_counties <- c('LAC QUI PARLE', 'AITKIN', 'KOOCHICHING', 'DOUGLAS', 'CLAY'
-                  ,'STEARNS', 'RAMSEY', 'ST LOUIS')
+show_counties <- c("LAC QUI PARLE", "AITKIN", "KOOCHICHING", "DOUGLAS", "CLAY",
+                   "STEARNS", "RAMSEY", "ST LOUIS")
 
 radon_mn_eight_tbl <- radon_mn_tbl %>%
   filter(county %in% show_counties)
@@ -259,16 +264,14 @@ Sum over all datapoints
 ```{r show_loglik_heatmap, echo=FALSE}
 diam_loglik_func <- construct_loglik_function(diamonds)
 
-loglik_heatmap_data_file <- 'data/loglik_heatmap_tbl.rds'
+loglik_heatmap_data_file <- "data/loglik_heatmap_tbl.rds"
 
 if(!file_exists(loglik_heatmap_data_file)) {
-  intcpt_vals <- seq(-3000, -1000, by = 25)
-  carat_vals  <- seq( 6500,  8500, by = 25)
+  intcpt_vals <- seq(-4000, -1000, by = 50)
+  carat_vals  <- seq( 6000, 10000, by = 50)
   
   loglik_heatmap_tbl <- crossing(intcpt = intcpt_vals, carat = carat_vals) %>%
-    mutate(loglik = map2_dbl(intcpt, carat
-                            ,diam_loglik_func
-                            ,fit_sd = 1548, show_prob = 0.001))
+    mutate(loglik = future_map2_dbl(intcpt, carat, diam_loglik_func, fit_sd = 1548, show_prob = 0.001))
   
   loglik_heatmap_tbl %>% write_rds(loglik_heatmap_data_file)
 } else {
@@ -278,9 +281,9 @@ if(!file_exists(loglik_heatmap_data_file)) {
 
 ggplot(loglik_heatmap_tbl) +
   geom_tile(aes(x = intcpt, y = carat, fill = loglik)) +
-  geom_contour(aes(x = intcpt, y = carat, z = loglik), colour = 'black') +
+  geom_contour(aes(x = intcpt, y = carat, z = loglik), colour = "black") +
   geom_point(aes(x = -2256, y = 7756), size = 3) +
-  scale_fill_gradient(low = 'blue', high = 'red') +
+  scale_fill_gradient(low = "blue", high = "red") +
   xlab("Intercept Parameter") +
   ylab("Carat Parameter") +
   ggtitle("Heatmap of Log-likelihood Values from Intercept and Carat Parameters")
@@ -366,11 +369,11 @@ rstanarm and brms
 
 ```{r fit_bayesian_regression_model, echo=TRUE}
 diamondprice_stanlm <- stan_lm(
-  price ~ carat + cut + color + clarity
- ,data            = diamonds
- ,prior           = R2(0.7)
- ,chains          = 4
- ,seed            = stan_seed
+  price ~ carat + cut + color + clarity,
+  data            = diamonds,
+  prior           = R2(0.7),
+  chains          = 4,
+  seed            = stan_seed
 )
 ```
 
@@ -386,7 +389,7 @@ diamondprice_stanlm %>%
 
 ```{r show_fit_traceplots, echo=FALSE}
 diamondprice_stanlm %>%
-  plot('trace') +
+  plot("trace") +
   ggtitle("Parameter Traceplots") +
   theme(axis.text.x = element_text(size = 7))
 ```
@@ -395,7 +398,7 @@ diamondprice_stanlm %>%
 
 ```{r show_fit_histograms, echo=FALSE}
 diamondprice_stanlm %>%
-  plot('hist') +
+  plot("hist") +
   ggtitle("Parameter Histograms") +
   theme(axis.text.x = element_text(size = 7))
 ```
@@ -419,8 +422,8 @@ sample_predict_tbl <- sample_12_tbl %>%
   
 ggplot(sample_predict_tbl) +
   geom_histogram(aes(x = .prediction), bins = 50) +
-  geom_vline(aes(xintercept = price), colour = 'red') +
-  facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
+  geom_vline(aes(xintercept = price), colour = "red") +
+  facet_wrap(vars(.row), ncol = 4, scales = "free_x") +
   xlab("Diamond Price") +
   ylab("Count") +
   ggtitle("Posterior Predictive Comparion Plot") +
@@ -441,11 +444,11 @@ Use logs
 diamonds_tbl <- diamonds %>% mutate(log_price = log(price))
 
 diamlog_stanlm <- stan_lm(
-  log_price ~ carat + cut + color + clarity
- ,data            = diamonds_tbl
- ,prior           = R2(0.7)
- ,chains          = 4
- ,seed            = stan_seed
+  log_price ~ carat + cut + color + clarity,
+  data            = diamonds_tbl,
+  prior           = R2(0.7),
+  chains          = 4,
+  seed            = stan_seed
 )
 ```
 
@@ -461,7 +464,7 @@ diamlog_stanlm %>%
 
 ```{r show_diamlog_traceplots, echo=FALSE}
 diamlog_stanlm %>%
-  plot('trace') +
+  plot("trace") +
   ggtitle("Parameter Traceplots") +
   theme(axis.text.x = element_text(size = 7))
 ```
@@ -470,7 +473,7 @@ diamlog_stanlm %>%
 
 ```{r show_diamlog_histograms, echo=FALSE}
 diamlog_stanlm %>%
-  plot('hist') +
+  plot("hist") +
   ggtitle("Parameter Histograms") +
   theme(axis.text.x = element_text(size = 7))
 ```
@@ -484,8 +487,8 @@ sample_diamlog_predict_tbl <- sample_12_tbl %>%
   
 ggplot(sample_diamlog_predict_tbl) +
   geom_histogram(aes(x = .prediction), bins = 50) +
-  geom_vline(aes(xintercept = log_price), colour = 'red') +
-  facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
+  geom_vline(aes(xintercept = log_price), colour = "red") +
+  facet_wrap(vars(.row), ncol = 4, scales = "free_x") +
   xlab("Log Diamond Price") +
   ylab("Count") +
   ggtitle("Posterior Predictive Diamond Log Price Comparison Plot")
@@ -508,8 +511,8 @@ What about `price`?
 ```{r plot_diamlog_predictions_natural, echo=FALSE}
 ggplot(sample_diamlog_predict_tbl %>% mutate(predict_price = exp(.prediction))) +
   geom_histogram(aes(x = predict_price), bins = 50) +
-  geom_vline(aes(xintercept = price), colour = 'red') +
-  facet_wrap(vars(.row), ncol = 4, scales = 'free_x') +
+  geom_vline(aes(xintercept = price), colour = "red") +
+  facet_wrap(vars(.row), ncol = 4, scales = "free_x") +
   xlab("Diamond Price") +
   ylab("Count") +
   ggtitle("Posterior Predictive Diamond Log Price Naturalised Comparison Plot") +
@@ -571,11 +574,11 @@ How do we use structure?
 
 ```{r fit_mn_radon_pooled_model, echo=TRUE}
 radon_full_stanlm <- stan_lm(
-  log_radon ~ floor
- ,data            = radon_mn_tbl
- ,prior           = R2(0.7, what = 'mean')
- ,chains          = 4
- ,seed            = stan_seed
+  log_radon ~ floor,
+  data            = radon_mn_tbl,
+  prior           = R2(0.7, what = "mean"),
+  chains          = 4,
+  seed            = stan_seed
 )
 ```
 
@@ -610,11 +613,11 @@ ggplot(plot_tbl) +
 
 ```{r fit_mn_radon_unpooled_model, echo=TRUE}
 radon_none_stanlm <- stan_lm(
-  log_radon ~ floor + county
- ,data            = radon_mn_tbl
- ,prior           = R2(0.7)
- ,chains          = 4
- ,seed            = stan_seed
+  log_radon ~ floor + county,
+  data            = radon_mn_tbl,
+  prior           = R2(0.7),
+  chains          = 4,
+  seed            = stan_seed
 )
 ```
 
@@ -636,27 +639,27 @@ radon_none_draws_tbl <- radon_none_stanlm %>%
   gather_variables()
 
 params_county_summary_tbl <- radon_none_draws_tbl %>%
-  filter(str_detect(.variable, 'county')) %>%
+  filter(str_detect(.variable, "county")) %>%
   ungroup() %>%
-  mutate(county = str_replace(.variable, 'county', '')) %>%
+  mutate(county = str_replace(.variable, "county", "")) %>%
   group_by(county) %>%
-  summarise(mean_val   = mean(.value)
-           ,median_val = median(.value)
-           ,lower      = quantile(.value, 0.25)
-           ,upper      = quantile(.value, 0.75)
+  summarise(mean_val   = mean(.value),
+            median_val = median(.value),
+            lower      = quantile(.value, 0.25),
+            upper      = quantile(.value, 0.75)
            )
 
 plot_tbl <- radon_mn_tbl %>%
-  count(county, name = 'sample_count') %>%
-  inner_join(params_county_summary_tbl, by = 'county') %>%
-  mutate(county = county %>% to_title_case()
-        ,size   = log(sample_count)
+  count(county, name = "sample_count") %>%
+  inner_join(params_county_summary_tbl, by = "county") %>%
+  mutate(county = county %>% to_title_case(),
+         size   = log(sample_count)
          )
 
 ggplot(plot_tbl) +
   geom_point(aes(x = county, y = mean_val)) +
   geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size), width = 0) +
-  scale_colour_gradient(low = 'blue', high = 'red') +
+  scale_colour_gradient(low = "blue", high = "red") +
   xlab("County") +
   ylab("Parameter Value") +
   ggtitle("50% Credibility Intervals for County Parameter (Full Pooling)") +
@@ -683,11 +686,11 @@ What about partial pooling?
 
 ```{r fit_mn_radon_partial_model, echo=TRUE}
 radon_partial_1_stanlm <- stan_lmer(
-  log_radon ~ 1 + (1 | county)
- ,data            = radon_mn_tbl
- ,prior           = normal(0, 1)
- ,chains          = 4
- ,seed            = stan_seed
+  log_radon ~ 1 + (1 | county),
+  data            = radon_mn_tbl,
+  prior           = normal(0, 1),
+  chains          = 4,
+  seed            = stan_seed
 )
 ```
 
@@ -709,25 +712,25 @@ radon_partial_1_draws_tbl <- radon_partial_1_stanlm %>%
 params_county_partial_1_summary_tbl <- radon_partial_1_stanlm %>%
   gather_draws(b[i, v]) %>%
   ungroup() %>%
-  mutate(county = str_replace_all(v, '_', ' ') %>% str_replace('county:', '')) %>%
+  mutate(county = str_replace_all(v, "_", " ") %>% str_replace("county:", "")) %>%
   group_by(county) %>%
-  summarise(mean_val   = mean(.value)
-           ,median_val = median(.value)
-           ,lower      = quantile(.value, 0.25)
-           ,upper      = quantile(.value, 0.75)
+  summarise(mean_val   = mean(.value),
+            median_val = median(.value),
+            lower      = quantile(.value, 0.25),
+            upper      = quantile(.value, 0.75)
            )
 
 plot_tbl <- radon_mn_tbl %>%
-  count(county, name = 'sample_count') %>%
-  inner_join(params_county_partial_1_summary_tbl, by = 'county') %>%
-  mutate(county = county %>% to_title_case()
-        ,size   = log(sample_count)
+  count(county, name = "sample_count") %>%
+  inner_join(params_county_partial_1_summary_tbl, by = "county") %>%
+  mutate(county = county %>% to_title_case(),
+         size   = log(sample_count)
          )
 
 ggplot(plot_tbl) +
   geom_point(aes(x = county, y = mean_val)) +
   geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size), width = 0) +
-  scale_colour_gradient(low = 'blue', high = 'red') +
+  scale_colour_gradient(low = "blue", high = "red") +
   xlab("County") +
   ylab("Parameter Value") +
   ggtitle("50% Credibility Intervals for County Parameter (Partial Pooling)") +
@@ -739,11 +742,11 @@ ggplot(plot_tbl) +
 
 ```{r fit_mn_radon_partial_2_model, echo=TRUE}
 radon_partial_2_stanlm <- stan_lmer(
-  log_radon ~ floor + (1 | county)
- ,data            = radon_mn_tbl
- ,prior           = normal(0, 1)
- ,chains          = 4
- ,seed            = stan_seed
+  log_radon ~ floor + (1 | county),
+  data            = radon_mn_tbl,
+  prior           = normal(0, 1),
+  chains          = 4,
+  seed            = stan_seed
 )
 ```
 
@@ -765,25 +768,25 @@ radon_partial_2_draws_tbl <- radon_partial_2_stanlm %>%
 params_county_partial_2_summary_tbl <- radon_partial_2_stanlm %>%
   gather_draws(b[i, v]) %>%
   ungroup() %>%
-  mutate(county = str_replace_all(v, '_', ' ') %>% str_replace('county:', '')) %>%
+  mutate(county = str_replace_all(v, "_", " ") %>% str_replace("county:", "")) %>%
   group_by(county) %>%
-  summarise(mean_val   = mean(.value)
-           ,median_val = median(.value)
-           ,lower      = quantile(.value, 0.25)
-           ,upper      = quantile(.value, 0.75)
+  summarise(mean_val   = mean(.value),
+            median_val = median(.value),
+            lower      = quantile(.value, 0.25),
+            upper      = quantile(.value, 0.75)
            )
 
 plot_tbl <- radon_mn_tbl %>%
-  count(county, name = 'sample_count') %>%
-  inner_join(params_county_partial_2_summary_tbl, by = 'county') %>%
-  mutate(county = county %>% to_title_case()
-        ,size   = log(sample_count)
+  count(county, name = "sample_count") %>%
+  inner_join(params_county_partial_2_summary_tbl, by = "county") %>%
+  mutate(county = county %>% to_title_case(),
+         size   = log(sample_count)
          )
 
 ggplot(plot_tbl) +
   geom_point(aes(x = county, y = mean_val)) +
   geom_errorbar(aes(x = county, ymin = lower, ymax = upper, colour = size), width = 0) +
-  scale_colour_gradient(low = 'blue', high = 'red') +
+  scale_colour_gradient(low = "blue", high = "red") +
   xlab("County") +
   ylab("Parameter Value") +
   ggtitle("50% Credibility Intervals for County Parameter (Partial Pooling with floor)") +
@@ -807,7 +810,7 @@ Documentation improving rapidly
 
 ```{r show_radon_nopool, echo=FALSE}
 read_lines("radon_no_pool.stan") %>%
-  cat(sep = '\n')
+  cat(sep = "\n")
 ```
 
 ---
