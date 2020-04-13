@@ -1,7 +1,7 @@
 DOCKER_USER=mcooney
 
 PROJECT_USER=kaybenleroll
-PROJECT_NAME=talk_dds_bayesreg_201908
+PROJECT_NAME=talk_dd_carins_201708
 
 
 docker-build-image: Dockerfile

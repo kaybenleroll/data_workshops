@@ -200,6 +200,9 @@ claim_tbl  <- freMTPLsev  %>% as_data_frame
 
 names(policy_tbl) <- policy_tbl %>% names %>% clean_names
 names(claim_tbl)  <- claim_tbl  %>% names %>% clean_names
+
+claim_tbl <- claim_tbl %>%
+    mutate(policy_id = as.character(policy_id))
 ```
 
 ```{r combine_policies_claims, echo=FALSE}
