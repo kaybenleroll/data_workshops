@@ -1,22 +1,9 @@
-FROM rocker/verse:3.6.0
+FROM kaybenleroll/r_baseimage:base202003
 
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    libclang-dev \
-    libnlopt-dev \
-    libxml2-dev \
-    zlib1g-dev \
-    libicu-dev \
-    libgit2-dev \
-    libssh2-1-dev \
-    libsm-dev \
-    libxt-dev \
-    liblapack-dev \
-    p7zip-full \
-    pbzip2 \
-    clang \
-    clang-7 \
+    byobu \
   && apt-get clean \
   && mkdir -p $HOME/.R \
   && echo "CC=clang" > $HOME/.R/Makevars \
@@ -36,16 +23,5 @@ RUN apt-get update \
   && echo "CXX14FLAGS+= -Wno-unused-variable -Wno-unused-function" >> $HOME/.R/Makevars \
   && echo "CXX14FLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined" >> $HOME/.R/Makevars \
   && install2.r --error \
-    sessioninfo \
-    conflicted \
-    cowplot \
-    furrr \
-    rstan \
-    tidybayes \
-    bayesplot \
-    rstanarm \
-    tidybayes \
-    snakecase \
-    fs \
     revealjs \
     knitr

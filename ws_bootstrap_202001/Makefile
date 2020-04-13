@@ -1,14 +1,9 @@
 DOCKER_USER=mcooney
 
 PROJECT_USER=kaybenleroll
-PROJECT_NAME=talk_dds_bayesreg_201908
+PROJECT_NAME=ws_bootstrap_202001
 
 IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}
-
-
-render-html: talk_dds_bayesreg_201908.Rmd
-	Rscript -e 'rmarkdown::render("talk_dds_bayesreg_201908.Rmd")'
-
 
 
 docker-build-image: Dockerfile
@@ -28,8 +23,3 @@ docker-stop:
 docker-clean:
 	docker rm $(shell docker ps -q -a)
 
-docker-push:
-	docker push ${IMAGE_TAG}
-
-docker-pull:
-	docker pull ${IMAGE_TAG}
