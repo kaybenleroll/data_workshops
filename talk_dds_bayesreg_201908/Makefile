@@ -6,8 +6,8 @@ PROJECT_NAME=talk_dds_bayesreg_201908
 IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}
 
 
-render-html: talk_dds_bayesreg_201908.Rmd
-	Rscript -e 'rmarkdown::render("talk_dds_bayesreg_201908.Rmd")'
+render-html: ${PROJECT_NAME}.Rmd
+	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
 
 
 
