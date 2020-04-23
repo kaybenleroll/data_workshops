@@ -2,13 +2,13 @@ DOCKER_USER=mcooney
 
 PROJECT_USER=kaybenleroll
 PROJECT_NAME=talk_dds_optionsmargin_201903
+PROJECT_TAG=latest
 
-IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}
+IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}:${PROJECT_TAG}
 
 
 render-html: ${PROJECT_NAME}.Rmd
 	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
-
 
 
 docker-build-image: Dockerfile
