@@ -1,4 +1,4 @@
-FROM rocker/tidyverse:3.5.2
+FROM rocker/verse:3.5.2
 
 
 RUN apt-get update \

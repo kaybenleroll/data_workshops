@@ -1,0 +1,17 @@
+.Rhistory
+.RData
+.Rproj.user
+
+*.Rmd
+*.html
+*.pdf 
+
+*_cache
+*_files
+
+data/*
+img/*
+
+.git
+
+.bash*
