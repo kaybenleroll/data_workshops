@@ -1,0 +1,6 @@
+install.packages("ggplot2")
+install.packages("data.table")
+install.packages("MASS")
+install.packages("corpcor")
+install.packages("gridExtra")
+install.packages("rstan")

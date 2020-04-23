@@ -1,0 +1,100 @@
+---
+title: "Lightning Talk on rstanarm"
+author: "Mick Cooney"
+date: "`r Sys.Date()`"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+---
+
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(data.table)
+library(dtplyr)
+
+library(rstan)
+library(rstanarm)
+
+options(width = 90L)
+```
+
+Quick and dirty `rstan`
+
+\
+
+Pre-compiled regression models
+
+\
+
+Uses familiar syntax
+
+
+## Regression Example
+
+```{r ols_lm, echo=TRUE}
+mpg_lm <- lm(cty ~ manufacturer + displ + cyl, data = mpg)
+
+summary(mpg_lm)
+```
+
+
+## rstanarm Version
+
+```{r rstanarm_lm, echo=TRUE, results='hide', cache=TRUE}
+mpg_stanlm <- stan_lm(cty ~ manufacturer + displ + cyl, data = mpg
+                     ,prior = R2(location = 0.6))
+```
+
+---
+
+```{r rstanarm_lm_summary, echo=TRUE}
+summary(mpg_stanlm)
+```
+
+## Traceplots
+
+```{r traceplots_lm_code, echo=TRUE, results='hide'}
+trace_plot <- plot(mpg_stanlm, 'trace')
+```
+
+---
+
+```{r traceplots_lm_plots, echo=FALSE, results='hide'}
+plot(trace_plot)
+```
+
+## Output Plots
+
+```{r plots_lm_code, echo=TRUE, results='hide'}
+output_plot <- plot(mpg_stanlm)
+```
+
+---
+
+```{r plots_lm_plots, echo=FALSE, results='hide'}
+plot(output_plot)
+```
+
+
+## And More!
+
+`stan_glm()`
+
+\
+
+`stan_lmer()`
+
+\
+
+`stan_glmer()`
+
+
+## Thank You!!!

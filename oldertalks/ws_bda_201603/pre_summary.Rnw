@@ -1,0 +1,230 @@
+\documentclass[11pt]{beamer}
+
+\makeatletter
+\g@addto@macro\@verbatim\tiny
+\makeatother
+
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+
+
+\usetheme[compress]{Berlin}
+
+
+\title[Bayesian Workshop Summary]{Bayesian Workshop Summary}
+\author{Mick Cooney\\ michael.cooney@applied.ai}
+\date{26 May 2016}
+
+
+<<setoptions, include=TRUE, echo=FALSE, cache=FALSE, results='hide', message=FALSE>>=
+library(data.table)
+library(ggplot2)
+library(scales)
+library(gridExtra)
+library(rstan)
+
+source("lib.R")
+
+opts_knit$set(root.dir = '.')
+
+opts_chunk$set(fig.path = '');
+opts_chunk$set(fig.align = 'center');
+opts_chunk$set(out.width  = '11cm');
+opts_chunk$set(out.height =  '6cm');
+
+opts_chunk$set(size = 'tiny');
+
+set.seed(42);
+
+@
+
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+@
+
+
+\begin{document}
+
+
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Prior Beliefs}
+
+<<beta_priors, echo=FALSE, results='show'>>=
+theta_seq <- seq(0, 1, by = 0.001)
+
+beta_002002 <- dbeta(theta_seq,   2,   2)
+beta_010010 <- dbeta(theta_seq,  10,  10)
+beta_100100 <- dbeta(theta_seq, 100, 100)
+beta_016006 <- dbeta(theta_seq,  16,   6)
+
+plotdata_dt <- rbind(data.table(label = "Beta(2,2)",     x = theta_seq, dens = beta_002002)
+                    ,data.table(label = "Beta(10,10)",   x = theta_seq, dens = beta_010010)
+                    ,data.table(label = "Beta(100,100)", x = theta_seq, dens = beta_100100)
+                    ,data.table(label = "Beta(16,6)",    x = theta_seq, dens = beta_016006)
+                     )
+
+ggplot(data = plotdata_dt) +
+    geom_line(aes(x = x, y = dens, colour = label)) +
+    xlab(expression(theta)) +
+    ylab("Probability Density")
+@
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Updated Posterior for 6H, 4T}
+
+<<data_update, echo=FALSE, results='show'>>=
+
+post_002002 <- dbeta(theta_seq,   8,   6)
+post_010010 <- dbeta(theta_seq,  16,  14)
+post_100100 <- dbeta(theta_seq, 106, 104)
+post_016006 <- dbeta(theta_seq,  22,  18)
+
+plotdata_dt <- rbind(data.table(distrib = 'Beta(2,2)',   label = "Prior",     x = theta_seq, dens = beta_002002)
+                    ,data.table(distrib = 'Beta(2,2)',   label = "Posterior", x = theta_seq, dens = post_002002)
+                    ,data.table(distrib = 'Beta(10,10)', label = "Prior",     x = theta_seq, dens = beta_010010)
+                    ,data.table(distrib = 'Beta(10,10)', label = "Posterior", x = theta_seq, dens = post_010010)
+                    ,data.table(distrib = 'Beta(100,100)', label = "Prior",     x = theta_seq, dens = beta_100100)
+                    ,data.table(distrib = 'Beta(100,100)', label = "Posterior", x = theta_seq, dens = post_100100)
+                    ,data.table(distrib = 'Beta(16,6)', label = "Prior",     x = theta_seq, dens = beta_016006)
+                    ,data.table(distrib = 'Beta(16,6)', label = "Posterior", x = theta_seq, dens = post_016006)
+                     )
+
+ggplot(data = plotdata_dt) +
+    geom_line(aes(x = x, y = dens, colour = label)) +
+    xlab(expression(theta)) +
+    ylab("Probability Density") +
+    facet_wrap(~distrib, scales='free')
+
+@
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Stan}
+
+
+<<stan_code, echo=FALSE>>=
+stantext <- readLines("binarytrial_full.stan")
+
+cat(stantext[18:39], sep = "\n")
+@
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Hierarchial Models}
+
+<<calc_hier_sample, echo=FALSE, results='hide', message=FALSE, warning=FALSE>>=
+stan_file <- 'binarytrial_full.stan'
+
+warmup_count <-  250
+sample_count <-  250
+chain_count  <-    8
+
+binomial_050_dt <- generate_hierarchical_binomial_data(tests = 50,  total_trials = 2500)
+binomial_500_dt <- generate_hierarchical_binomial_data(tests = 500, total_trials = 2500)
+
+binomial_alt_stanmodel <- stan_model(stan_file, verbose = FALSE)
+
+standata_lst <- list(n_tests = binomial_050_dt[, length(unique(test_id))]
+                    ,trials  = binomial_050_dt$trials
+                    ,success = binomial_050_dt$success
+                    ,priorShape = 10
+                    ,priorRate  = 1
+                     )
+
+binomial_var050_stanfit <- sampling(binomial_alt_stanmodel
+                                   ,data      = standata_lst
+                                   ,algorithm = "NUTS"
+                                   ,warmup    = warmup_count
+                                   ,iter      = warmup_count + sample_count
+                                   ,chains    = chain_count
+                                   ,verbose   = FALSE
+                                    )
+
+
+standata_lst <- list(n_tests = binomial_500_dt[, length(unique(test_id))]
+                    ,trials  = binomial_500_dt$trials
+                    ,success = binomial_500_dt$success
+                    ,priorShape = 10
+                    ,priorRate  = 1
+                     )
+
+binomial_var500_stanfit <- sampling(binomial_alt_stanmodel
+                                   ,data      = standata_lst
+                                   ,algorithm = "NUTS"
+                                   ,warmup    = warmup_count
+                                   ,iter      = warmup_count + sample_count
+                                   ,chains    = chain_count
+                                   ,verbose   = FALSE
+                                    )
+
+@
+
+<<show_hier_plot, echo=FALSE, results='show'>>=
+trace1_plot <- traceplot(binomial_var050_stanfit, pars = c("mu", "K")) +
+    expand_limits(y = c(0,1)) +
+    ggtitle("Stan Output for 500 Coins, 50 Tosses - (mu = 0.5, K = 20)")
+
+trace2_plot <- traceplot(binomial_var500_stanfit, pars = c("mu", "K")) +
+    expand_limits(y = c(0,1)) +
+    ggtitle("Stan Output for 50 Coins, 250 Tosses - (mu = 0.5, K = 20)")
+
+grid.arrange(trace1_plot, trace2_plot, nrow = 2)
+@
+
+\end{frame}
+
+
+
+%%%
+%%%  New Frame
+%%%
+
+\begin{frame}[fragile]{Hierarchial Models}
+
+
+<<show_zoom_plot, echo=FALSE, results='show'>>=
+trace1_plot <- traceplot(binomial_var050_stanfit, pars = c("mu", "K")) +
+    expand_limits(y = c(0.4,0.6)) +
+    ggtitle("Stan Output for 500 Coins, 50 Tosses - (mu = 0.5, K = 20)")
+
+trace2_plot <- traceplot(binomial_var500_stanfit, pars = c("mu", "K")) +
+    expand_limits(y = c(0.4,0.6)) +
+    ggtitle("Stan Output for 50 Coins, 250 Tosses - (mu = 0.5, K = 20)")
+
+grid.arrange(trace1_plot, trace2_plot, nrow = 2)
+@
+
+\end{frame}
+
+
+\end{document}

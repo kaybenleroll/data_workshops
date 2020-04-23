@@ -1,0 +1,15 @@
+.RData
+.Rhistory
+cache/*
+*.pdf
+*.tex
+
+
+
+*.aux
+*.log
+*.snm
+*.toc
+*.out
+*.nav
+*.vrb

@@ -1,0 +1,371 @@
+---
+title: "El Dorado"
+subtitle: "A Data Science Competition"
+author: "Mick Cooney"
+date: "March 27, 2017"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,fig.height =  8
+                     ,fig.width  = 11)
+
+library(tidyverse)
+library(cowplot)
+
+options(width = 90L)
+```
+
+
+```{r load_data, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+height_mean      <- 400
+
+island_data_tbl  <- read_csv("data/island_data.csv")
+sample_data_tbl  <- read_csv("data/sample_data.csv")
+auction_data_tbl <- read_csv("data/auction_parcels.csv")
+```
+
+
+# Background
+
+## Dublin R - May 2016
+
+![](img/patoreilly.jpg)
+
+Pat O'Reilly - AllState
+
+"Anyone can fit an elephant"
+
+
+---
+
+Regularisation
+
+\
+
+L1, L2, ElasticNet
+
+
+---
+
+![](img/porel_island.png)
+
+Island with gold reserves $\rightarrow$ Predict deposits
+
+
+---
+
+![](img/light_bulb.png)
+
+---
+
+Never a good thing
+
+---
+
+![](img/pint.jpg)
+
+
+---
+
+"That would be really cool!"
+
+\
+
+"You should definitely do that"
+
+
+---
+
+"So how are you thinking of generating the data..."
+
+
+# The El Dorado Competition
+
+## Basic Idea
+
+```{r plot_elevation_data, message=FALSE, echo=FALSE, fig.height=7, fig.width=10}
+ggplot(island_data_tbl) +
+    geom_tile(aes(x = Easting, y = Northing, fill = elevation)) +
+    scale_fill_gradient2(low = 'blue', mid = 'green', high = 'brown', midpoint = height_mean)
+```
+
+---
+
+Mine gold, make profit
+
+\
+
+Bid price, extraction costs, profit margins
+
+
+
+## Design Goals
+
+\
+
+Emphasise use of prediction, accuracy less important
+
+\
+
+Something for everyone
+
+---
+
+Vickrey auction: Highest bidder wins, pays second highest price
+
+\
+
+Easy to understand, code, fast to run
+
+---
+
+Harder to 'game'
+
+---
+
+Starting capital
+
+\
+
+50 parcels of land, sequential auctions
+
+
+---
+
+\[
+\text{Score} = \text{Start} - \text{Bids Paid} - \text{Extraction Costs} + \text{Sales}
+\]
+
+
+
+# Logistics
+
+
+
+## Generating Data
+
+\
+
+Online datasets pointless
+
+\
+
+How do I generate data?
+
+---
+
+![](img/dougal.jpg)
+
+---
+
+Make it up!
+
+---
+
+Hard to reverse engineer
+
+\
+
+No 'true' model
+
+---
+
+2D Gaussian Processes
+
+\
+
+$$
+150 \times 150 = 22,500 \; \text{land parcels}
+$$
+
+
+---
+
+Tested with simple models
+
+
+## Submissions
+
+\
+
+5,000 parcels in training set
+
+\
+
+Team submits bids for each parcel
+
+\
+
+```{r show_sample_bids, echo=FALSE}
+read_lines('data/sample_bid_short.csv') %>%
+    cat(sep = '\n')
+```
+
+---
+
+Simple Shiny app
+
+\
+
+CSV upload with time stamp
+
+\
+
+Buggy as hell - didn't work at all
+
+
+---
+
+Manual submissions - emails
+
+---
+
+Never again!
+
+---
+
+12 submissions
+
+---
+
+![](img/success_baby.jpg)
+
+
+# Results
+
+## Results Night
+
+\
+
+Facebook, mid-September 2016
+
+\
+
+7-8 teams
+
+\
+
+Most teams single person
+
+---
+
+Speakers described approach (5-10 mins)
+
+\
+
+Clustering, Cersei Lannister, Qlik
+
+\
+
+Mini-competitions
+
+---
+
+Hospital
+
+
+## Final Scores
+
+\
+
+
+* 3rd Place (54,468,017)
+* 2nd Place (55,418,322)
+* 1st Place (96,020,955)
+
+---
+
+### Winning Approach
+
+\
+
+Unsophisticated model
+
+\
+
+Use variables to predict unknown variables to then predict gold
+
+\
+
+Focus on most profitable parcels
+
+\
+
+Overspend on auctions
+
+---
+
+
+![](img/stephen_redmond.jpg)
+
+
+
+
+# Wrapping Up
+
+## What I Learned
+
+\
+
+I am bad at web code
+
+\
+
+It was a lot of fun
+
+\
+
+Definitely want to do it again
+
+---
+
+On that note ...
+
+
+## The Cannonball Run Competition
+
+![](img/cannonball_run.jpg)
+
+
+---
+
+Pricing car insurance
+
+\
+
+Competitive quotes
+
+\
+
+Most money wins
+
+---
+
+Coming Soon to an Internet Near You!
+
+
+## Any Questions?
+
+\
+
+mickcooney@gmail.com
+
+\
+
+michael.cooney@barnett-waddingham.co.uk
+
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops
+
+(talk_mldeldorado_201703)
