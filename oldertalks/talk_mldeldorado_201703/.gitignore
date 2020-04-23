@@ -1,0 +1,5 @@
+.Rhistory
+.RData
+
+img/*.png
+img/*.jpg

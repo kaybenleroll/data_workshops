@@ -1,0 +1,5 @@
+*.tex
+*.pdf
+
+.RData
+.Rhistory

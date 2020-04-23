@@ -1,0 +1,563 @@
+---
+title: "An Introduction to Probability using Simulation"
+subtitle: "DataFest Tbilisi 2017"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2017-11-15"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    fig_caption: yes
+    theme: cerulean
+  pdf_document: default
+---
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+library(tidyverse)
+library(scales)
+library(purrr)
+library(cowplot)
+
+options(width = 80L
+       ,warn  = 1)
+
+knitr::opts_chunk$set(tidy  = FALSE
+                     ,cache = FALSE
+                     ,warning = FALSE
+                     ,message = FALSE
+                     ,fig.height =  7
+                     ,fig.width  = 11)
+
+
+set.seed(42)
+```
+
+
+# Law of Large Numbers
+
+
+$$
+\lim_{n \to \infty} \frac{1}{N} \sum f(X_n) p(X_n) \to E[f(X)]
+$$
+
+```{r lln_norm_identity_data, echo=TRUE}
+N <- 2^(0:25)
+
+x_vals <- rnorm(max(N), 0, 1)
+
+y_vals <- map_dbl(N, function(i) mean(x_vals[1:i]))
+
+ggplot() +
+    geom_line(aes(x = N, y = y_vals)) +
+    scale_x_log10(labels = comma) +
+    xlab("Sample Size") +
+    ylab("Average Value")
+```
+
+$$
+f(X) = x^2
+$$
+
+
+```{r lln_norm_xsq_data, echo=TRUE}
+y_vals <- map_dbl(N, function(i) mean((x_vals[1:i])^2))
+
+ggplot() +
+    geom_line(aes(x = N, y = y_vals)) +
+    scale_x_log10(labels = comma) +
+    xlab("Sample Size") +
+    ylab("Average Value")
+```
+
+```{r create_calc_function, echo=TRUE}
+calc_expect <- function(size, x_vals, func) {
+    return(mean(func(x_vals[1:size])))
+}
+
+y_id_vals <- map_dbl(N, calc_expect, x_vals = x_vals, func = function(x) x)
+y_sq_vals <- map_dbl(N, calc_expect, x_vals = x_vals, func = function(x) x*x)
+
+
+sim_id_tbl <- rerun(5, data_frame(size = N
+                                 ,vals = map_dbl(N, calc_expect, x_vals = rnorm(max(N), 0, 1), func = function(x) x))) %>%
+    bind_rows(.id = 'sim_id')
+
+ggplot(sim_id_tbl) +
+    geom_line(aes(x = size, y = vals, group = sim_id)) +
+    scale_x_log10(labels = comma) +
+    xlab('Sample Size') +
+    ylab('Expectation')
+
+
+sim_sq_tbl <- rerun(5, data_frame(size = N
+                                 ,vals = map_dbl(N, calc_expect, x_vals = rnorm(max(N), 0, 1), func = function(x) x*x))) %>%
+    bind_rows(.id = 'sim_id')
+
+ggplot(sim_sq_tbl) +
+    geom_line(aes(x = size, y = vals, group = sim_id)) +
+    scale_x_log10(labels = comma) +
+    xlab('Sample Size') +
+    ylab('Expectation')
+```
+
+## Uniform Distribution
+
+```{r uniform_expectation, echo=TRUE}
+sim_id_tbl <- rerun(5, data_frame(size = N
+                                 ,vals = map_dbl(N, calc_expect, x_vals = runif(max(N), 0, 1), func = function(x) x))) %>%
+    bind_rows(.id = 'sim_id')
+
+ggplot(sim_id_tbl) +
+    geom_line(aes(x = size, y = vals, group = sim_id)) +
+    scale_x_log10(labels = comma) +
+    xlab('Sample Size') +
+    ylab('Expectation')
+
+
+sim_sq_tbl <- rerun(5, data_frame(size = N
+                                 ,vals = map_dbl(N, calc_expect, x_vals = runif(max(N), 0, 1), func = function(x) x*x))) %>%
+    bind_rows(.id = 'sim_id')
+
+ggplot(sim_sq_tbl) +
+    geom_line(aes(x = size, y = vals, group = sim_id)) +
+    scale_x_log10(labels = comma) +
+    xlab('Sample Size') +
+    ylab('Expectation')
+```
+
+## Cauchy Distribution
+
+```{r cauchy_expectation, echo=TRUE}
+sim_id_tbl <- rerun(5
+   ,data_frame(size = N
+              ,vals = map_dbl(N, calc_expect, x_vals = rcauchy(max(N), 0, 1), func = function(x) x))) %>%
+    bind_rows(.id = 'sim_id')
+
+ggplot(sim_id_tbl) +
+    geom_line(aes(x = size, y = vals, group = sim_id)) +
+    scale_x_log10(labels = comma) +
+    xlab('Sample Size') +
+    ylab('Expectation')
+
+
+sim_sq_tbl <- rerun(5
+    ,data_frame(size = N
+               ,vals = map_dbl(N, calc_expect, x_vals = rcauchy(max(N), 0, 1), func = function(x) x*x))) %>%
+    bind_rows(.id = 'sim_id')
+
+ggplot(sim_sq_tbl) +
+    geom_line(aes(x = size, y = vals, group = sim_id)) +
+    scale_x_log10(labels = comma) +
+    xlab('Sample Size') +
+    ylab('Expectation')
+```
+
+# Expected Value
+
+```{r roll_d6, echo=TRUE}
+n_roll <- 10000
+
+onedice <- sample(1:6, n_roll, replace = TRUE)
+
+ggplot() +
+    geom_histogram(aes(x = onedice), bins = 6) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(onedice)
+
+twodice_indiv <- matrix(sample(1:6, 2 * n_roll, replace = TRUE), ncol = 2)
+twodice <- rowSums(twodice_indiv)
+
+ggplot() +
+    geom_histogram(aes(x = onedice), bins = 12) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(twodice)
+
+
+threedice_indiv <- matrix(sample(1:6, 3 * n_roll, replace = TRUE), ncol = 3)
+threedice <- rowSums(threedice_indiv)
+
+ggplot() +
+    geom_histogram(aes(x = threedice), bins = 16) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(threedice)
+
+
+drop_lowest <- function(x) x %>% sort(decreasing = TRUE) %>% .[1:3] %>% sum
+
+topthree_indiv <- matrix(sample(1:6, 4 * n_roll, replace = TRUE), ncol = 4)
+topthree <- apply(topthree_indiv, 1, drop_lowest)
+
+ggplot() +
+    geom_histogram(aes(x = topthree), bins = 16) +
+    scale_y_continuous(labels = comma) +
+    xlab("Dice Roll") +
+    ylab("Count")
+
+mean(topthree)
+```
+
+
+# Bayes Rule
+
+A disease affects 1 in 1,000 people. A test for the disease exists, and gives
+a positive result 99% of the time when performed on a sick patient. If the
+person is not sick, it has a false alarm rate of 5%.
+
+Given a person tests positive, what is the probability of the person being
+sick?
+
+```{r bayes_rule_basic, echo=TRUE}
+n_sim <- 1000000
+
+base_rate <- 0.001
+true_rate <- 0.99
+fa_rate   <- 0.05
+
+data_tbl <- data_frame(id = 1:n_sim) %>%
+    mutate(sick_person = sample(c(TRUE, FALSE)
+                               ,n_sim
+                               ,prob = c(base_rate, 1 - base_rate)
+                               ,replace = TRUE))
+
+sick_tbl    <- data_tbl %>% filter(sick_person == TRUE)
+notsick_tbl <- data_tbl %>% filter(sick_person == FALSE)
+
+sick_tbl <- sick_tbl %>%
+    mutate(test_result = sample(c(TRUE, FALSE)
+                               ,n()
+                               ,prob = c(true_rate, 1 - true_rate)
+                               ,replace = TRUE))
+
+notsick_tbl <- notsick_tbl %>%
+    mutate(test_result = sample(c(TRUE, FALSE)
+                               ,n()
+                               ,prob = c(fa_rate, 1 - fa_rate)
+                               ,replace = TRUE))
+
+
+data_tbl <- list(sick_tbl, notsick_tbl) %>%
+    bind_rows() %>%
+    arrange(id)
+```
+
+* How many people are sick?
+* How many people test positive?
+* Of the people with a positive result, how many are actually sick?
+
+```{r check_proportions, echo=TRUE}
+data_tbl %>% filter(sick_person == TRUE) %>% nrow()
+
+data_tbl %>% filter(test_result == TRUE) %>% nrow()
+
+data_tbl %>%
+    filter(test_result == TRUE) %>%
+    summarise(n_sick = sum(sick_person), sick_prop = n_sick / n())
+```
+
+How does this depend on the false alarm rate?
+
+```{r create_test_result_data, echo = TRUE}
+create_medtest_data <- function(n_sim = 1e6, base_rate = 0.001, true_rate = 0.99, fa_rate = 0.05) {
+    data_tbl <- data_frame(id = 1:n_sim) %>%
+    mutate(sick_person = sample(c(TRUE, FALSE)
+                               ,n_sim
+                               ,prob = c(base_rate, 1 - base_rate)
+                               ,replace = TRUE))
+
+    sick_tbl    <- data_tbl %>% filter(sick_person == TRUE)
+    notsick_tbl <- data_tbl %>% filter(sick_person == FALSE)
+
+    sick_tbl <- sick_tbl %>%
+        mutate(test_result = sample(c(TRUE, FALSE)
+                                   ,n()
+                                   ,prob = c(true_rate, 1 - true_rate)
+                                   ,replace = TRUE))
+
+    notsick_tbl <- notsick_tbl %>%
+        mutate(test_result = sample(c(TRUE, FALSE)
+                                   ,n()
+                                   ,prob = c(fa_rate, 1 - fa_rate)
+                                   ,replace = TRUE))
+
+
+    data_tbl <- list(sick_tbl, notsick_tbl) %>%
+        bind_rows() %>%
+        arrange(id)
+
+    return(data_tbl)
+}
+
+fa_vals <- seq(0.001, 0.10, by = 0.001)
+
+sick_prop <- map_dbl(fa_vals, function(fa) create_medtest_data(10000, base_rate = 0.001, true_rate = 0.99, fa_rate = fa) %>%
+            filter(test_result == TRUE) %>%
+            summarise(sick_prop = sum(sick_person) / n()) %>%
+            pull(sick_prop)
+        )
+
+ggplot() +
+    geom_line(aes(x = fa_vals, y = sick_prop)) +
+    expand_limits(y = 0) +
+    xlab('False Alarm Rate') +
+    ylab('Proportion of True Positives')
+```
+
+What if we have multiple tests?
+
+```{r bayes_rule_multiple_tests, echo=TRUE}
+create_two_medtest_data <- function(n_sim = 1e6, base_rate = 0.001, true_rate = 0.99, fa_rate = 0.05) {
+    data_tbl <- data_frame(id = 1:n_sim) %>%
+    mutate(sick_person = sample(c(TRUE, FALSE)
+                               ,n_sim
+                               ,prob = c(base_rate, 1 - base_rate)
+                               ,replace = TRUE))
+
+    sick_tbl    <- data_tbl %>% filter(sick_person == TRUE)
+    notsick_tbl <- data_tbl %>% filter(sick_person == FALSE)
+
+    sick_tbl <- sick_tbl %>%
+        mutate(test_result_1 = sample(c(TRUE, FALSE)
+                                     ,n()
+                                     ,prob = c(true_rate, 1 - true_rate)
+                                     ,replace = TRUE)
+              ,test_result_2 = sample(c(TRUE, FALSE)
+                                     ,n()
+                                     ,prob = c(true_rate, 1 - true_rate)
+                                     ,replace = TRUE)
+               )
+
+    notsick_tbl <- notsick_tbl %>%
+        mutate(test_result_1 = sample(c(TRUE, FALSE)
+                                     ,n()
+                                     ,prob = c(fa_rate, 1 - fa_rate)
+                                     ,replace = TRUE)
+              ,test_result_2 = sample(c(TRUE, FALSE)
+                                     ,n()
+                                     ,prob = c(fa_rate, 1 - fa_rate)
+                                     ,replace = TRUE)
+               )
+
+
+    data_tbl <- list(sick_tbl, notsick_tbl) %>%
+        bind_rows() %>%
+        arrange(id)
+
+    return(data_tbl)
+}
+
+fa_vals <- seq(0.001, 0.10, by = 0.001)
+
+sick_2_prop <- map_dbl(fa_vals
+                      ,function(fa) create_two_medtest_data(10000, base_rate = 0.001, true_rate = 0.99, fa_rate = fa) %>%
+        filter(test_result_1 == TRUE, test_result_2 == TRUE) %>%
+        summarise(sick_prop = sum(sick_person) / n()) %>%
+        pull(sick_prop)
+    )
+
+ggplot() +
+    geom_line(aes(x = fa_vals, y = sick_prop), colour = 'red') +
+    geom_line(aes(x = fa_vals, y = sick_2_prop)) +
+    expand_limits(y = 0) +
+    xlab('False Alarm Rate') +
+    ylab('Proportion of True Positives')
+
+```
+
+
+# Curse of Dimensionality
+
+The "no-one is average" principle
+
+```{r curse_of_dimensionality, echo=TRUE}
+n_dim     <- 20
+n_samples <- 10000
+
+data_sample <- matrix(rnorm(n_dim * n_samples, 0, 1), n_samples, n_dim)
+
+calc_norms <- function(i) apply(data_sample[, 1:i], 1, function(x) sqrt(sum(x * x)))
+
+norms <- map(2:n_dim, calc_norms)
+
+plot_tbl <- data_frame(dist = norms) %>%
+    mutate(size = 2:n_dim) %>%
+    unnest()
+
+ggplot(plot_tbl) +
+    geom_histogram(aes(x = dist), bins = 50) +
+    facet_wrap(~size) +
+    scale_y_continuous(labels = comma) +
+    xlab("Distance") +
+    ylab("Count")
+```
+
+Distance matrix gets large quickly, so just going to sample the average
+distances.
+
+
+```{r calculate_average_distance, echo=TRUE}
+calc_avg_dist <- function(samp_points, n_iter = 100) {
+    idx <- sample(1:n_samples, n_iter, replace = TRUE)
+    
+    dists <- samp_points[idx,] %>% dist %>% as.vector
+    
+    return(mean(dists))
+}
+
+mean_dists_tbl <- rerun(5, data_frame(size = 2:n_dim) %>%
+    mutate(dist = map_dbl(2:n_dim
+                         ,function(i) calc_avg_dist(data_sample[,1:i], 100)))
+    ) %>%
+    bind_rows()
+
+ggplot(mean_dists_tbl) +
+    geom_point(aes(x = size, y = dist)) +
+    expand_limits(y = 0) +
+    xlab("Dimensions") +
+    ylab("Euclidean Data")
+```
+
+How much of a unit sphere is in the unit cube?
+
+```{r unit_sphere_cube, echo=TRUE}
+n_dim     <- 20
+n_samples <- 1000000
+
+data_unitcube <- matrix(runif(n_dim * n_samples, 0, 1), n_samples, n_dim)
+
+calc_sphere_prop <- function(i) {
+    data_mat <- data_unitcube[,1:i]
+
+    dists <- apply(data_mat, 1, function(x) sqrt(sum(x * x)))    
+    
+    return(length(dists[dists <= 1]) / length(dists))
+}
+
+
+sphere_prop <- map_dbl(2:n_dim, calc_sphere_prop)
+
+ggplot() +
+    geom_line(aes(x = 2:n_dim, y = sphere_prop)) +
+    expand_limits(y = 0) +
+    xlab("Dimension") +
+    ylab("Proportion")
+```
+
+
+# Central Limit Theorem
+
+## Normal Distribution
+
+```{r show_clt_normal_data, echo=TRUE}
+n_dim     <- 50
+n_samples <- 10000
+
+clt_count <- c(2, 3, 4, 5, 10, 20, 30, 50)
+
+data_clt <- matrix(rnorm(n_dim * n_samples, 0, 1), n_samples, n_dim)
+
+clt_norm_data_tbl <- data_frame(vals = map(clt_count, function(i) rowMeans(data_clt[,1:i]))) %>%
+    mutate(size     = clt_count
+          ,size_str = factor(clt_count)
+           ) %>%
+    unnest()
+
+
+ggplot(clt_norm_data_tbl) +
+    geom_line(aes(x = vals, colour = size_str), stat = 'density') +
+    xlab("Mean of Sample") +
+    ylab("Probability Density")
+
+clt_norm_data_tbl %>%
+    group_by(size) %>%
+    summarise(mean_val = mean(vals), sd_vals = sd(vals)) %>%
+    ungroup %>%
+    mutate(clt_sd = 1 / sqrt(size))
+```
+
+
+## Uniform Distribution
+
+```{r show_clt_uniform_data, echo=TRUE}
+n_dim     <- 50
+n_samples <- 10000
+
+clt_count <- c(2, 3, 4, 5, 10, 20, 30, 50)
+
+data_clt <- matrix(runif(n_dim * n_samples, 0, 1), n_samples, n_dim)
+
+clt_unif_data_tbl <- data_frame(vals = map(clt_count, function(i) rowMeans(data_clt[,1:i]))) %>%
+    mutate(size     = clt_count
+          ,size_str = factor(clt_count)
+           ) %>%
+    unnest()
+
+
+ggplot(clt_unif_data_tbl) +
+    geom_line(aes(x = vals, colour = size_str), stat = 'density') +
+    xlab("Mean of Sample") +
+    ylab("Probability Density")
+
+clt_unif_data_tbl %>%
+    group_by(size) %>%
+    summarise(mean_val = mean(vals), sd_vals = sd(vals)) %>%
+    ungroup %>%
+    mutate(clt_sd = 1 / sqrt(12 * size))
+```
+
+
+## Poisson Distribution
+
+```{r show_clt_lowpoisson_data, echo=TRUE}
+n_dim     <- 50
+n_samples <- 10000
+
+clt_count <- c(2, 3, 4, 5, 10, 20, 30, 50)
+
+data_clt <- matrix(rpois(n_dim * n_samples, 0.05), n_samples, n_dim)
+
+clt_lowpois_data_tbl <- data_frame(vals = map(clt_count, function(i) rowMeans(data_clt[,1:i]))) %>%
+    mutate(size     = clt_count
+          ,size_str = factor(clt_count)
+           ) %>%
+    unnest()
+
+
+ggplot(clt_lowpois_data_tbl) +
+    geom_histogram(aes(x = vals), bins = 50) +
+    facet_wrap(~size) +
+    scale_y_continuous(labels = comma) +
+    xlab("Mean of Sample") +
+    ylab("Count")
+
+clt_lowpois_data_tbl %>%
+    group_by(size) %>%
+    summarise(mean_val = mean(vals), sd_vals = sd(vals)) %>%
+    ungroup %>%
+    mutate(clt_sd = sqrt(0.05) / sqrt(size))
+```
+
+
+
+
+---
+
+Thank You!!!
+
+\
+
+mickcooney@gmail.com
+
+\
+
+https://github.com/kaybenleroll/dublin_r_workshops

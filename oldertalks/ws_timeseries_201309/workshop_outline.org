@@ -1,0 +1,34 @@
+* Introduction
+** Concept of a time series
+** Introduct the ts() object in R
+** Plotting a time series
+* Decompositional Models
+** Trends and Seasonality
+** Estimating trend and seasonal components
+** Using decompose() and stl()
+* Correlations
+** Explain autocorrelation
+** Explain partial autocorrelation
+** Show how to display the correlogram
+
+* Simple Forecasting Methods
+** Leading variables
+** Cross-correlations
+** Bass model
+** Exponential smoothing and Holt-Winters
+* Stochastic Methods and Regression
+** White noise and random walks
+** Using autoregression models
+** Linear models and using GLS
+** Harmonic seasonal models
+** Forecasting from regression
+* Stationary Models
+** AR and MA models
+** Explain combined ARMA models
+** Concept of Parsimony
+* Non-stationary models
+** Non-seasonal ARIMA models
+** Seasonal ARIMA models
+** ARCH models
+* Spectral Analysis
+**

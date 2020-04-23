@@ -1,6 +1,10 @@
 DOCKER_USER=mcooney
+
 PROJECT_USER=kaybenleroll
 PROJECT_NAME=ws_bayesian_201910
+
+render-html: ${PROJECT_NAME}.Rmd
+	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
 
 
 docker-build-image: Dockerfile

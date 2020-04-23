@@ -1,0 +1,445 @@
+\documentclass[10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fullpage}
+\usepackage{hyperref}
+
+
+\newcounter{wssection}
+\newcounter{wsexercise}[wssection]
+
+
+\newcommand{\worksheetsection}[1]{
+  \vspace{10mm}
+  \stepcounter{wssection}
+  \noindent \Large \textbf{\thewssection. #1} \normalsize
+  \vspace{3mm}
+}
+
+
+\newcommand{\worksheetexercise}{
+  \stepcounter{wsexercise}
+  \vspace{5mm} \noindent \textbf{Exercise \thewssection.\thewsexercise \;}
+}
+
+\newcommand{\worksheetbreak} {
+  \vspace{3mm} \noindent
+}
+
+\title{Dublin R Workshop on Gaussian Processes}
+\author{Mick Cooney\\michael.cooney@applied.ai}
+\date{January 2016}
+
+\begin{document}
+
+\maketitle
+
+<<init, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+opts_knit$set(root.dir = ".");
+
+opts_chunk$set(fig.path = './');
+opts_chunk$set(fig.align = 'center');
+opts_chunk$set(out.width  = '16cm');
+opts_chunk$set(out.height = '12cm');
+
+opts_chunk$set(size = 'scriptsize');
+
+source("lib.R");
+
+set.seed(42);
+@
+
+\noindent
+\begin{center}
+\url{https://bitbucket.org/kaybenleroll/dublin_r_workshops}.
+\end{center}
+
+\noindent
+Code is available in the \texttt{wsgp201601/} directory.
+
+\vspace{10mm}
+
+\worksheetbreak
+Part of this workshop is based on an interesting blog post I came
+across on \href{http://www.r-bloggers.com}{R-Bloggers} by James Keirstead:
+
+\begin{center}
+\url{http://www.jameskeirstead.ca/blog/gaussian-process-regression-with-r/}
+\end{center}
+
+\worksheetbreak
+Another good blog post to get started is ``Basic Regression in
+Gaussian Processes'' by Carl Boettiger:
+
+\begin{center}
+\url{http://www.carlboettiger.info/2012/10/17/basic-regression-in-gaussian-processes.html}
+\end{center}
+
+\worksheetbreak
+The key text for this topic is Gaussian Processes by Rasmussen and
+Williams. The book is available in PDF online and is excellent though
+a little dense. It has also been described as using a style that is
+``an affront to mathematical notation'' but I am not enough of an
+expert to comment beyond noting that it can be confusing.
+
+\begin{center}
+\url{http://www.gaussianprocess.org/}
+\end{center}
+
+\worksheetbreak
+I highly recommend you look at that site and book if exploring further.
+
+
+
+%%%
+%%%
+%%% SECTION: Introduction
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Introduction}
+
+\noindent
+In probability theory and statistics, Gaussian processes are a family
+of statistical distributions in which time plays a role.
+
+\worksheetbreak
+In a Gaussian process, every point in some input space is associated
+with a normally distributed random variable. Moreover, every finite
+collection of those random variables has a multivariate normal
+distribution.
+
+\worksheetbreak
+The distribution of a Gaussian process is the joint distribution of
+all those (infinitely many) random variables, and as such, it is a
+distribution over functions.
+
+\worksheetbreak
+Before we can do any work, we first need to determine how to
+computationally generate these Gaussian Processes. If we take a single
+sample from a Gaussian Process, what do we have?
+
+\worksheetbreak
+A statistical process is a generalisation of a distribution. A
+distribution describes random variables that are scalars or
+vectors. For a process, it describes functions.
+
+\worksheetbreak
+At first glance this may appear problematic, but by taking finite
+samples of the function we can use approximations that are good
+enough. As a result, we treat a function $f(x)$ as a vector, with each
+component of the vector being the value of the function $f(x)$ at each
+discrete step.
+
+\worksheetbreak
+To generate these values, each realization of the process is a draw
+from a multivariate normal distribution. For simplicity we assume the
+distribution is zero-mean, $\mu_i = 0, \; \forall i$.
+
+\worksheetbreak
+We now need to focus on what to use for $\Sigma$ the covariance matrix
+for the distribution. There are a number of ways to generate this, but
+we will use the following method as a default:
+
+\[ \Sigma_{ij} = \exp \left(-\frac{1}{2} * \left( \frac{|x_i - x_j|}{l} \right)^2 \right), \; l > 0 \]
+
+
+<<covar_entries, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE >>=
+
+l <- 1;
+
+x_seq <- seq(-5, 5, by = 0.01);
+qplot(x_seq, exp(-0.5 * abs(x_seq / l))
+     ,geom = 'line'
+     ,xlab = expression(x_i - x_j)
+     ,ylab = expression(Sigma, '_ij')) + expand_limits(y = 0);
+
+@
+
+\worksheetbreak
+The intuition here is that we are generating smooth and continuous
+functions by ensuring that closer points of the function are more
+highly correlated.
+
+\worksheetexercise Generate 1000 points from a normal distribution
+with $\mu = 0.0003$ and $\sigma = 0.01$. \emph{HINT:} The R function
+\texttt{rnorm()} can be used to do this.
+
+\worksheetexercise Perform some simple checks to ensure you have
+sampled this data properly. Summary statistics, simple plots of the
+data and other exploratory methods may be of use for this.
+
+\worksheetexercise Generate 1000 points from a multivariate normal
+distribution using the following parameters:
+
+\begin{equation*}
+\mu = \begin{bmatrix} 1.0 \\ 1.0 \end{bmatrix}
+      \; \Sigma = \begin{bmatrix} 1.0 & 0.5  \\ 0.5 & 1.0 \end{bmatrix}
+\end{equation*}
+
+\noindent
+\emph{HINT:} The function \texttt{mvrnorm} from the \texttt{MASS}
+package is a useful function to do this, though there are others.
+
+\worksheetexercise Using summary checks and visualisations, check that
+the generated data is consistent with what was requested.
+
+\worksheetexercise Using the above distribution, suppose we know that
+$x_1 = 0.5$. What can we infer about the value of $x_2$? It may make
+sense to generate more data points to do this.
+
+\worksheetexercise Repeat the above task for a 3D multivariate normal.
+
+\worksheetexercise Generate 50 samples of a Gaussian Process using
+zero means and the above covariance function with $x \in (-1, 1)$ and
+step size of $0.01$. Plot the output.
+
+\worksheetexercise Repeat the above process but with a step size of
+$0.1$ and $0.001$.
+
+\worksheetexercise How do the realizations compare with one another?
+Does the step size have much of an effect on the output?
+
+\vspace{6mm}
+
+<<gp_plot, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE >>=
+
+x_seq <- seq(-1, 1, by = 0.01);
+
+sigma <- calc_covar(x_seq, x_seq, 1);
+
+gp_data <- MASS::mvrnorm(50, rep(0, length(x_seq)), sigma);
+
+plot_dt <- melt(gp_data);
+setDT(plot_dt);
+
+plot_dt[, x := x_seq[Var2]];
+
+qplot(x, value, data = plot_dt, geom = 'line', group = Var1, size = I(0.3),
+      xlab = expression(x), ylab = expression(f(x)))
+
+@
+
+
+%%%
+%%%
+%%% SECTION: Gaussian Processes and Simple Regression
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Gaussian Processes and Simple Regression}
+
+\noindent
+Now that we know how to generate Gaussian Processes, we can focus on
+how we use them in various situations.
+
+\worksheetbreak
+In the simplest case, we have a bunch of data that we wish to `fit'
+the functions to. This process can naturally adapt to uncertainty in
+the data, but for the moment we will assume we want to fit to exact
+values.
+
+<<data_plot, echo=TRUE, cache=FALSE, results='show', warning=FALSE, message=FALSE>>=
+data_dt <- data.table(x=c(-4,-3,-2,-1, 0, 1, 2, 4),
+                      y=c(-2, 0, 1, 1, 2, 2,-1, 1))
+
+qplot(x, y, data = data_dt, geom = 'point', xlim = c(-5,5), ylim = c(-5,5))
+@
+
+\worksheetbreak
+Conceptually, we sample from the GP, only keeping those functions that
+satisfy the conditions imposed by the data.
+
+\worksheetbreak
+From a computational point of view this will be horribly inefficient,
+so instead we condition on the data and generate from a modified
+process that satisfies the data.
+
+\worksheetbreak
+We first describe some notation. In this workshop, we will use $x$ to
+denote the discrete input values over which we evaluate the process
+realisations. So each GP will have a realisation $f(x)$.
+
+\worksheetbreak
+We will denote the data we which to use to fit the GPs as $D$, and the
+components of $D$ as being $D_x$ and $D_y$. Hopefully this will make
+the equations simpler the understand than in the book or blogpost.
+
+\worksheetbreak
+So, after some mathematics and algebraic manipulation, we see that we
+can conditionally sample the GP by modifying $\mu$ and $\Sigma$ in the
+multivariate normal from which we sample:
+
+\begin{eqnarray*}
+\mu &=& k(x, D_x) \, k(D_x, D_x)^{-1} D_y\\
+\Sigma &=& k(x, x) - k(x, D_x) \, k(D_x, D_x)^{-1} \, k(D_x, x)
+\end{eqnarray*}
+
+\worksheetexercise Using the data in \texttt{data\_dt}, calculate the
+modified parameters $\mu$ and $\Sigma$, using an interval of $(-5, 5)$
+for x with a discrete step size of $0.01$. \emph{HINT:} You may find
+`\texttt{\%*\%}' and \texttt{solve()} useful for this.
+
+\worksheetexercise Use these parameters to create 50 samples that fits
+the data. Plot the output.
+
+\worksheetexercise Calculate the resulting inference for the $f(2.5)$
+with a band of $80\%$.
+
+\worksheetexercise Repeat the above process but using 1,000
+samples. How does this affect our $80\%$ interval?
+
+\worksheetexercise Repeat the above with a $0.005$ interval for
+$x$. How does this affect the inference of $f(2.5)$?
+
+\worksheetbreak
+
+<<gp_fitted_plot, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+x_seq <- seq(-5, 5, by = 0.01);
+
+data_dt <- data.table(x=c(-4,-3,-2,-1, 0, 1, 2, 4),
+                      y=c(-2, 0, 1, 1, 2, 2,-1, 1))
+
+kxx_inv <- solve(calc_covar(data_dt$x, data_dt$x));
+
+Mu    <- calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% data_dt$y;
+Sigma <- calc_covar(x_seq, x_seq) -
+    calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% calc_covar(data_dt$x, x_seq);
+
+gp_data <- MASS::mvrnorm(100, Mu, Sigma);
+
+plot_dt <- melt(gp_data);
+setDT(plot_dt);
+
+plot_dt[, x := x_seq[Var2]];
+
+ggplot() +
+    geom_line(aes(x, value, group = Var1), data = plot_dt, size = I(0.3), alpha = I(0.2)) +
+    geom_point(aes(x, y), data = data_dt, colour = 'red') +
+    xlab(expression(x)) +
+    ylab(expression(f(x)));
+
+@
+
+
+%%%
+%%%
+%%% SECTION: Capturing Uncertainty in Regression
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Capturing Uncertainty in Regression}
+
+\noindent
+In many cases, we do not have exact measurements for our data and wish
+to capture this uncertainty in our approach. Gaussian processes handle
+this in a natural way: rather than enforcing a hard constraint for
+each data point, we instead require that the sample goes `close' to
+it. We add a probability distribution around each point, and the
+samples obey this `soft' constraint.
+
+\worksheetbreak
+For the moment we assume the noise around each observation is normal
+and i.i.d. but GP's can handle more complicated covariance
+structures. We denote the standard deviation of this noise as
+$\sigma$.
+
+\worksheetbreak
+Once again, we use some theory and algebra to get:
+
+\begin{eqnarray*}
+\mu &=& k(x, D_x) \, (k(D_x, D_x) + \sigma^2 I)^{-1} D_y\\
+\Sigma &=& k(x, x) - k(x, D_x) \, (k(D_x, D_x) + \sigma^2 I)y^{-1} \, k(D_x, x)
+\end{eqnarray*}
+
+\worksheetexercise Using the data in \texttt{data\_dt} and a noise std
+dev of $0.1$, calculate the modified parameters $\mu$ and $\Sigma$,
+using an interval of $(-5, 5)$ for x with a discrete step size of
+$0.01$.
+
+\worksheetexercise Use these parameters to create 50 samples that fits
+the data. Plot the output.
+
+\worksheetexercise Calculate the resulting inference for the $f(2.5)$
+with a band of $80\%$. How does this compare to the inference for the
+noise-free data?
+
+\worksheetexercise Investigate the effect of reducing the step size to
+$0.005$.
+
+\worksheetbreak
+
+<<gp_noisy_fitted_plot, echo=FALSE, cache=FALSE, results='hide', warning=FALSE, message=FALSE>>=
+x_seq <- seq(-5, 5, by = 0.01);
+
+noise_sigma <- 0.1;
+
+data_dt <- data.table(x=c(-4,-3,-2,-1, 0, 1, 2, 4),
+                      y=c(-2, 0, 1, 1, 2, 2,-1, 1))
+
+kxx_inv <- solve(calc_covar(data_dt$x, data_dt$x) + noise_sigma^2 * diag(1, nrow(data_dt)));
+
+Mu    <- calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% data_dt$y;
+Sigma <- calc_covar(x_seq, x_seq) -
+    calc_covar(x_seq, data_dt$x) %*% kxx_inv %*% calc_covar(data_dt$x, x_seq);
+
+gp_data <- MASS::mvrnorm(100, Mu, Sigma);
+
+plot_dt <- melt(gp_data);
+setDT(plot_dt);
+
+plot_dt[, x := x_seq[Var2]];
+
+data_dt[, ymin := y - 3 * noise_sigma];
+data_dt[, ymax := y + 3 * noise_sigma];
+
+ggplot() +
+    geom_line(aes(x, value, group = Var1), data = plot_dt, size = I(0.3), alpha = I(0.2)) +
+    geom_point(aes(x, y), data = data_dt, colour = 'red') +
+    geom_errorbar(aes(x = x, ymin = ymin, ymax = ymax), data = data_dt, colour = 'red', width = 0.1) +
+    xlab(expression(x)) +
+    ylab(expression(f(x)));
+@
+
+
+%%%
+%%%
+%%% SECTION: Gaussian Processes in the Wild
+%%%
+%%%
+
+\pagebreak
+\worksheetsection{Gaussian Processes in the Wild}
+
+\noindent
+When using GPs in anger, we do not want to be doing all that linear
+algebra are sampling, so we use R packages to do as much of the work
+as possible.
+
+\worksheetbreak
+There are a number of packages that implement Gaussian processes, and
+the simplest seems to be the package \texttt{kernlab}.
+
+\worksheetexercise Use the \texttt{gausspr()} function with the data
+from the previous section to predict a value for $f(2.5)$. Assume
+there is no noise in the data.
+
+\worksheetexercise Repeat the process but with an additive noise term
+for $y$ of $0.1$.
+
+\worksheetexercise Use the provided functions
+\texttt{regression\_func()} and \texttt{add\_additive\_noise()} to
+generate 20 data points for the function in the rectangle
+$((-5,-5), (5,5))$. with $0.1$ as additive noise.
+
+\worksheetexercise Infer values for data that is not in your sample
+and compare the actual value of the function. What effect does the
+variance input to the GP regression have on the quality of the
+inference?
+
+
+\end{document}

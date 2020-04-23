@@ -1,0 +1,6 @@
+.RData
+data/*.csv
+data/*.zip
+data/*.7z
+data/data_dictionary.txt
+data/*.rda
