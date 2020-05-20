@@ -21,7 +21,7 @@ docker-run:
 	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_NAME}":rw \
 	  -e USER=${DOCKER_USER} \
 	  -e PASSWORD=quickpass \
-		--name ${CONTAINER_NAME} \
+	  --name ${CONTAINER_NAME} \
 	  ${IMAGE_TAG}
 
 docker-stop:

@@ -62,15 +62,12 @@ stan_seed <- 42
 
 ![](img/maurice_moss.png)
 
-## An Example
-
-\
-
-Anecdotes???
+## An Example?
 
 ---
 
-DATA!
+Anecdotes???
+
 
 
 ## Meetups
@@ -116,14 +113,164 @@ Informal help
 
 ![](img/shit_be_broke.png)
 
+---
+
+![](img/star_wars_fail.jpg)
+
+---
+
+![](img/miracle_step2.jpg)
+
+---
+
+![](img/research_comic_phd.jpg)
+
+## What To Do?
+
+---
+
+![](img/great_idea.jpg)
+
+---
+
+Reproducibility
+
+
+
+# Reproducible Research
+
+---
+
+![](img/reproresearch_spectrum.jpg)
+
+
+## Aspects
+
+\
+
+
+1. Source Control
+1. Workbooks
+1. Makefiles
+1. Containers and Docker
+
+
+
 # Source Control
+
+---
+
+![](img/file_naming.jpg)
+
+---
+
+![](img/phd_final.jpg)
+
+---
+
+![](img/twitter_filename.jpg)
+
+---
+
+![](img/shit_be_broke.png)
+
+
+## git
+
+\
+
+Track changes
+
+\
+
+Collaboration
+
+---
+
+![](img/github.jpg)
+
+---
+
+Issue tracking
+
+\
+
+Branch management
+
 
 
 # Workbooks
 
+---
+
+What is research?
+
+---
+
+Outcome unknown...
+
+---
+
+Try lots of stuff...
+
+---
+
+![](img/bacon_studio.jpg)
+
+---
+
+![](img/shit_be_broke.png)
+
+---
+
+![](img/newton_notebooks.jpg)
+
+---
+
+![](img/lab_notebooks.jpg)
+
+---
+
+Record of work
+
+---
+
+![](img/workbook_screenshot.jpg)
 
 
 # Makefiles
+
+
+---
+
+![](img/carins_folder.jpg)
+
+---
+
+![](img/makefile_dependency.jpg)
+
+---
+
+![](img/bacon_studio.jpg)
+
+---
+
+![](img/shit_be_broke.png)
+
+
+## Dependency Management
+
+---
+
+make and Makefiles
+
+---
+
+Directed Acyclic Graph (DAG)
+
+---
+
+![](img/secdb_example.jpg)
 
 
 
