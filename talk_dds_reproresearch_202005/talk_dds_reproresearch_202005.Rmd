@@ -151,6 +151,12 @@ Reproducibility
 
 1. Source Control
 1. Workbooks
+
+---
+
+
+1. Source Control
+1. Workbooks
 1. Makefiles
 1. Containers and Docker
 
@@ -237,6 +243,15 @@ Record of work
 
 ![](img/workbook_screenshot.jpg)
 
+---
+
+Jupyter vs Zeppelin vs Rmarkdown
+
+---
+
+NOT for production
+
+
 
 # Makefiles
 
@@ -273,13 +288,64 @@ Directed Acyclic Graph (DAG)
 ![](img/secdb_example.jpg)
 
 
+---
+
+sysadmin tasks
+
 
 
 # Containers and Docker
 
 
+## Rewind
+
+---
+
+![](img/lolcat_help.jpg)
+
+---
+
+![](img/onward.png)
+
+---
+
+![](img/github.jpg)
+
+---
+
+```
+Quitting from lines 272-288 (10_carinspricing_exploration.Rmd) 
+Error in `[.tbl_df`(policyprop_dt, claim_count > 0) : 
+  object 'claim_count' not found
+Calls: <Anonymous> ... ggplot -> [ -> [.grouped_df -> NextMethod -> [.tbl_df
+
+Execution halted
+```
+
+---
+
+![](img/shit_be_broke.png)
+
+## Docker
 
 
+![](img/docker.png)
+
+---
+
+Lightweight containers
+
+\
+
+Library versioning
+
+---
+
+Issues
+
+---
+
+APIs (Yahoo! Finance)
 
 
 # Summary
