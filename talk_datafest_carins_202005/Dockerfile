@@ -1,26 +1,27 @@
-FROM rocker/verse:3.5.2
-
+FROM rocker/verse:4.0.0
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    liblapack-dev \
+    byobu \
+    htop \
   && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* \
   && install2.r --error \
+    broom \
     caTools \
-    rprojroot \
     conflicted \
     cowplot \
-    snakecase \
-    MASS \
-    broom \
-    modelr \
+    furrr \
     knitr \
-    revealjs \
-    import \
+    modelr \
+    MASS \
     poweRlaw \
-    xts \
+    revealjs \
+    rprojroot \
+    sessioninfo \
+    snakecase \
     sp \
-    sessioninfo
+    xts
 
 RUN cd /tmp \
   && wget http://cas.uqam.ca/pub/R/src/contrib/CASdatasets_1.0-9.tar.gz \

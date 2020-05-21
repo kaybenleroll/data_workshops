@@ -1,8 +1,8 @@
 ---
 title: "An Introduction to Insurance Pricing, GLMs and Model Validation"
-subtitle: "Insurely You're Joking Dublin"
+subtitle: "DataFest Tbilisi 2020"
 author: "Mick Cooney <mickcooney@gmail.com>"
-date: "2019-02-11"
+date: "2020-05-23"
 output:
   revealjs::revealjs_presentation:
     css: custom.css
@@ -14,68 +14,47 @@ output:
 ---
 
 ```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
-rm(list = ls()); gc()
-
-import::from(rlang     ,as_integer)
-import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
-import::from(magrittr  ,"%>%", set_colnames)
-import::from(readr     ,read_csv, write_csv, read_rds, write_rds, cols
-                       ,col_character)
-import::from(dplyr     ,n, filter, select, group_by, ungroup, pull, count
-                       ,arrange, desc, vars, distinct, sample_n, sample_frac
-                       ,top_n, bind_rows, if_else
-                       ,summarise, summarise_at, summarise_if, summarise_all
-                       ,mutate, mutate_at, mutate_if, mutate_all
-                       ,transmute, transmute_at, transmute_if, transmute_all
-                       ,inner_join, left_join, semi_join, anti_join)
-import::from(tidyr     ,gather, spread, nest, unnest, replace_na)
-import::from(ggplot2   ,ggplot, aes, xlab, ylab, ggtitle
-                       ,geom_histogram, geom_boxplot, geom_bar, geom_col
-                       ,geom_line, geom_vline, geom_hline, geom_smooth
-                       ,geom_point, geom_errorbar
-                       ,scale_x_continuous, scale_y_continuous 
-                       ,expand_limits, theme, element_text, facet_grid
-                       ,facet_wrap, theme_set, theme)
-import::from(scales    ,comma)
-import::from(cowplot   ,theme_cowplot, plot_grid)
-import::from(purrr     ,map, map2, map_int, map_dbl, map_chr, reduce)
-import::from(stringr   ,str_replace, str_extract, str_replace, str_replace_all
-                       ,str_trim, str_detect)
-import::from(snakecase ,to_snake_case)
-import::from(MASS      ,gamma.shape)
-import::from(broom     ,tidy, glance, augment)
-import::from(forcats   ,fct_relevel)
-import::from(modelr    ,crossv_mc)
-import::from(poweRlaw  ,rplcon)
-import::from(knitr     ,kable)
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(vctrs)
+library(scales)
+library(cowplot)
+library(furrr)
+library(MASS)
+library(broom)
+library(modelr)
+library(poweRlaw)
+library(knitr)
+library(snakecase)
 
 
-import::from('custom_functions.R' ,powerlaw_claimsize_count
-                                  ,create_crossval_assessment
-                                  ,create_claimrate_assessment
-                                  ,create_pricing_function
-                                  ,create_claim_simulator
-                                  ,construct_model_assessment
-                                  ,construct_pricing_assessment
-             )
+conflict_prefer("select",   "dplyr")
+conflict_prefer("filter",   "dplyr")
+conflict_prefer("select",   "dplyr")
+
+source("custom_functions.R")
 
 
-knitr::opts_chunk$set(tidy  = FALSE
-                     ,cache = FALSE
-                     ,message = FALSE
-                     ,warning = FALSE
-                     ,fig.height =  8
-                     ,fig.width  = 11)
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      message    = FALSE,
+                      warning    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11)
 
 
-options(width = 80L
-       ,warn  = 1
+options(width = 80L,
+        warn  =   1,
+        mc.cores = parallel::detectCores()
         )
 
 theme_set(theme_cowplot())
 
-
 set.seed(42)
+
+plan(multisession)
 ```
 
 
@@ -86,7 +65,7 @@ n_sim <- 500
 
 # Background
 
-## Computational Actuarial Science
+---
 
 ![](img/charpentier_cover.jpg)
 
@@ -240,12 +219,12 @@ freMTPLsev %>% head(n = 15) %>% kable(digits = 2)
 
 ```{r basic_data_transforms, echo=FALSE}
 policy_tbl <- freMTPLfreq %>%
-    as_tibble() %>%
-    mutate(PolicyID = as.character(PolicyID))
+  as_tibble() %>%
+  mutate(PolicyID = as.character(PolicyID))
 
 claim_tbl  <- freMTPLsev %>%
-    as_tibble() %>%
-    mutate(PolicyID = as.character(PolicyID))
+  as_tibble() %>%
+  mutate(PolicyID = as.character(PolicyID))
 
 names(policy_tbl) <- policy_tbl %>% names() %>% to_snake_case()
 names(claim_tbl)  <- claim_tbl  %>% names() %>% to_snake_case()
@@ -253,15 +232,15 @@ names(claim_tbl)  <- claim_tbl  %>% names() %>% to_snake_case()
 
 ```{r combine_policies_claims, echo=FALSE}
 policy_claims_tbl <- claim_tbl %>%
-    group_by(policy_id) %>%
-    summarise(claim_count = n()
-             ,claim_total = sum(claim_amount))
+  group_by(policy_id) %>%
+  summarise(claim_count = n(),
+            claim_total = sum(claim_amount))
 
 combined_tbl <- policy_tbl %>%
-    left_join(policy_claims_tbl, by = 'policy_id') %>%
-    mutate(claim_count = ifelse(is.na(claim_count), 0, claim_count)
-          ,claim_total = ifelse(is.na(claim_total), 0, claim_total)
-           )
+  left_join(policy_claims_tbl, by = 'policy_id') %>%
+  mutate(claim_count = ifelse(is.na(claim_count), 0, claim_count),
+         claim_total = ifelse(is.na(claim_total), 0, claim_total)
+         )
 
 combined_tbl %>% head() %>% kable(digits = 2)
 ```
@@ -295,22 +274,22 @@ Create histograms, bar charts etc
 
 ```{r explore_claim_count, echo=FALSE, fig.height=7.5, fig.width=11}
 ggplot(combined_tbl) +
-    geom_bar(aes(x = claim_count)) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claim Count") +
-    ylab("Policy Count") +
-    ggtitle("Histogram of Claim Counts per Policy")
+  geom_bar(aes(x = claim_count)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Claim Count") +
+  ylab("Policy Count") +
+  ggtitle("Histogram of Claim Counts per Policy")
 ```
 
 ---
 
 ```{r explore_claim_count_nonzero, echo=FALSE, fig.height=8, fig.width=11}
 ggplot(combined_tbl %>% filter(claim_count > 0)) +
-    geom_bar(aes(x = claim_count)) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claim Count") +
-    ylab("Policy Count") +
-    ggtitle("Histogram of Claim Counts per Policy with Claims")
+  geom_bar(aes(x = claim_count)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Claim Count") +
+  ylab("Policy Count") +
+  ggtitle("Histogram of Claim Counts per Policy with Claims")
 ```
 
 ---
@@ -319,24 +298,24 @@ ggplot(combined_tbl %>% filter(claim_count > 0)) +
 
 ```{r explore_claim_amount, echo=FALSE, fig.height=7.5, fig.width=11}
 ggplot(claim_tbl) +
-    geom_histogram(aes(x = claim_amount), bins = 50) +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claim Amount") +
-    ylab("Policy Count") +
-    ggtitle("Histogram of Claim Amounts")
+  geom_histogram(aes(x = claim_amount), bins = 50) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  xlab("Claim Amount") +
+  ylab("Policy Count") +
+  ggtitle("Histogram of Claim Amounts")
 ```
 
 ---
 
 ```{r explore_claim_amount_operational, echo=FALSE, fig.height=8, fig.width=11}
 ggplot(claim_tbl %>% filter(claim_amount <= 25000)) +
-    geom_histogram(aes(x = claim_amount), bins = 50) +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Claim Amount") +
-    ylab("Policy Count") +
-    ggtitle("Histogram of Non-Large Claim Amounts")
+  geom_histogram(aes(x = claim_amount), bins = 50) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  xlab("Claim Amount") +
+  ylab("Policy Count") +
+  ggtitle("Histogram of Non-Large Claim Amounts")
 ```
 
 ---
@@ -346,11 +325,11 @@ ggplot(claim_tbl %>% filter(claim_amount <= 25000)) +
 
 ```{r explore_exposure, echo=FALSE, fig.height=7.5, fig.width=11}
 ggplot(combined_tbl) +
-    geom_histogram(aes(x = exposure), bins = 50) +
-    scale_y_continuous(labels = comma) +
-    xlab("Policy Exposure") +
-    ylab("Policy Count") +
-    ggtitle("Histogram of Exposures in Policies")
+  geom_histogram(aes(x = exposure), bins = 50) +
+  scale_y_continuous(labels = comma) +
+  xlab("Policy Exposure") +
+  ylab("Policy Count") +
+  ggtitle("Histogram of Exposures in Policies")
 ```
 
 ---
@@ -359,11 +338,11 @@ ggplot(combined_tbl) +
 
 ```{r explore_driver_age, echo=FALSE, fig.height=7.5, fig.width=11}
 ggplot(combined_tbl) +
-    geom_histogram(aes(x = driver_age), bins = 30) +
-    scale_y_continuous(labels = comma) +
-    xlab("Driver Age") +
-    ylab("Policy Count") +
-    ggtitle("Histogram of Driver Ages")
+  geom_histogram(aes(x = driver_age), bins = 30) +
+  scale_y_continuous(labels = comma) +
+  xlab("Driver Age") +
+  ylab("Policy Count") +
+  ggtitle("Histogram of Driver Ages")
 ```
 
 ---
@@ -372,11 +351,11 @@ ggplot(combined_tbl) +
 
 ```{r explore_car_age, echo=FALSE, fig.height=7.5, fig.width=11}
 ggplot(combined_tbl) +
-    geom_histogram(aes(x = car_age), bins = 50) +
-    scale_y_continuous(labels = comma) +
-    xlab("Car Age") +
-    ylab("Policy Count") +
-    ggtitle("Histogram of Car Age")
+  geom_histogram(aes(x = car_age), bins = 50) +
+  scale_y_continuous(labels = comma) +
+  xlab("Car Age") +
+  ylab("Policy Count") +
+  ggtitle("Histogram of Car Age")
 ```
 
 ---
@@ -385,11 +364,14 @@ ggplot(combined_tbl) +
 
 ```{r explore_region, echo=FALSE, fig.height=7.5, fig.width=11}
 ggplot(combined_tbl) +
-    geom_bar(aes(x = region)) +
-    scale_y_continuous(labels = comma) +
-    xlab("Region") +
-    ylab("Policy Count") +
-    ggtitle("Barplot of Region")
+  geom_bar(aes(x = region)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Region") +
+  ylab("Policy Count") +
+  ggtitle("Barplot of Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        strip.text.x = element_text(size = 8)
+        )
 ```
 
 
@@ -412,10 +394,10 @@ Boxplots, Scatterplots, Heatmaps, etc
 
 ```{r boxplot_driver_age_claim_count, echo=FALSE, fig.height=7.5, fig.width = 11}
 ggplot(combined_tbl) +
-    geom_boxplot(aes(x = claim_count %>% as.character, y = driver_age)) +
-    xlab("Claim Count") +
-    ylab("Driver Age") +
-    ggtitle("Boxplot of Driver Ages by Claim Count")
+  geom_boxplot(aes(x = vec_cast(claim_count, character()), y = driver_age)) +
+  xlab("Claim Count") +
+  ylab("Driver Age") +
+  ggtitle("Boxplot of Driver Ages by Claim Count")
 ```
 
 ---
@@ -424,12 +406,12 @@ ggplot(combined_tbl) +
 
 ```{r faceted_plot_claim_count_region, echo=FALSE, fig.height=7.5, fig.width=11}
 ggplot(combined_tbl) +
-    geom_bar(aes(x = claim_count)) +
-    scale_y_continuous(labels = comma) +
-    facet_wrap(~region, scales = 'free_y') +
-    xlab("Claim Count") +
-    ylab("Policy Count") +
-    ggtitle("Claim Counts by Policy Facetted by Region")
+  geom_bar(aes(x = claim_count)) +
+  scale_y_continuous(labels = comma) +
+  facet_wrap(~region, scales = 'free_y') +
+  xlab("Claim Count") +
+  ylab("Policy Count") +
+  ggtitle("Claim Counts by Policy Facetted by Region")
 ```
 
 
@@ -445,26 +427,28 @@ Power-law scaling
 logsize <- seq(0, 7, by = 0.1)
 
 powerlaw_tbl <- tibble(
-    logsize = logsize
-   ,count   = map_int(logsize, powerlaw_claimsize_count, claimdata_tbl = claim_tbl)
+  logsize = logsize,
+  count   = map_int(logsize,
+                    powerlaw_claimsize_count,
+                    claimdata_tbl = claim_tbl)
 )
 
 ggplot(powerlaw_tbl) +
-    geom_line(aes(x = logsize, y = log(count))) +
-    xlab('Log of Claim Size') +
-    ylab('Log of Claim Count') +
-    ggtitle("Power-law Scaling of Claim Sizes")
+  geom_line(aes(x = logsize, y = log(count))) +
+  xlab('Log of Claim Size') +
+  ylab('Log of Claim Count') +
+  ggtitle("Power-law Scaling of Claim Sizes")
 ```
 
 ---
 
 ```{r plot_power_law_scaling_linefit, echo=FALSE, warning=FALSE}
 ggplot(powerlaw_tbl %>% filter(logsize >= 3)) +
-    geom_line(aes(x = logsize, y = log(count))) +
-    geom_smooth(aes(x = logsize, y = log(count)), method = 'lm', se = TRUE) +
-    xlab('Log of Claim Size') +
-    ylab('Log of Claim Count') +
-    ggtitle("Fitted Scaling for Large Claim Sizes")
+  geom_line(aes(x = logsize, y = log(count))) +
+  geom_smooth(aes(x = logsize, y = log(count)), method = 'lm', se = TRUE) +
+  xlab('Log of Claim Size') +
+  ylab('Log of Claim Count') +
+  ggtitle("Fitted Scaling for Large Claim Sizes")
 ```
 
 ---
@@ -488,8 +472,8 @@ Definitely want finite $\mu$...
 
 ```{r calculate_power_law_scaling, echo=TRUE}
 pl_tbl <- powerlaw_tbl %>%
-    filter(logsize >= 3, count > 0) %>%
-    mutate(logcount  = log(count))
+  filter(logsize >= 3, count > 0) %>%
+  mutate(logcount  = log(count))
 
 pl_lm <- lm(logcount ~ logsize, data = pl_tbl)
 ```
@@ -501,9 +485,9 @@ pl_lm <- lm(logcount ~ logsize, data = pl_tbl)
 pl_lm %>% tidy() %>% kable()
 
 pl_scaling <- pl_lm %>%
-    tidy() %>%
-    filter(term == 'logsize') %>%
-    pull(estimate)
+  tidy() %>%
+  filter(term == 'logsize') %>%
+  pull(estimate)
 
 pl_scaling <- -pl_scaling
 ```
@@ -639,8 +623,8 @@ Predict per-policy poisson rate
 
 ```{r calculate_overall_claim_rate, echo=TRUE}
 combined_tbl %>%
-    summarise(claim_rate = sum(claim_count) / sum(exposure)) %>%
-    pull(claim_rate)
+  summarise(claim_rate = sum(claim_count) / sum(exposure)) %>%
+  pull(claim_rate)
 ```
 
 ---
@@ -649,21 +633,27 @@ combined_tbl %>%
 
 ```{r plot_region_claim_rate, echo=FALSE, fig.height=7.5, fig.width=11}
 claimrate_region_tbl <- combined_tbl %>%
-    group_by(region) %>%
-    summarise(tot_claim    = sum(claim_count)
-             ,tot_exposure = sum(exposure)
-             ,claim_rate   = tot_claim / tot_exposure
-             ,rate_upper = qgamma(0.75, shape = tot_claim, rate = tot_exposure)
-             ,rate_lower = qgamma(0.25, shape = tot_claim, rate = tot_exposure)
-              )
+  group_by(region) %>%
+  summarise(tot_claim    = sum(claim_count),
+            tot_exposure = sum(exposure),
+            claim_rate   = tot_claim / tot_exposure,
+            rate_upper = qgamma(0.75, shape = tot_claim, rate = tot_exposure),
+            rate_lower = qgamma(0.25, shape = tot_claim, rate = tot_exposure)
+            )
 
 ggplot(claimrate_region_tbl) +
-    geom_point(aes(x = region, y = claim_rate)) +
-    geom_errorbar(aes(x = region, ymin = rate_lower, ymax = rate_upper), width = 0) +
-    expand_limits(y = 0) +
-    xlab('Region') +
-    ylab('Claim Rate') +
-    ggtitle("Plot of Claim Rate by Region")
+  geom_point(aes(x = region, y = claim_rate)) +
+  geom_errorbar(aes(x = region,
+                    ymin = rate_lower,
+                    ymax = rate_upper),
+                width = 0) +
+  expand_limits(y = 0) +
+  xlab('Region') +
+  ylab('Claim Rate') +
+  ggtitle("Plot of Claim Rate by Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        strip.text.x = element_text(size = 8)
+        )
 ```
 
 ---
@@ -672,22 +662,23 @@ ggplot(claimrate_region_tbl) +
 
 ```{r plot_driver_age_claim_rate, echo=FALSE, fig.height=7.5, fig.width=11}
 claimrate_driverage_tbl <- combined_tbl %>%
-    group_by(driver_age) %>%
-    summarise(tot_claim    = sum(claim_count)
-             ,tot_exposure = sum(exposure)
-             ,claim_rate   = tot_claim / tot_exposure
-             ,rate_upper = qgamma(0.75, shape = tot_claim, rate = tot_exposure)
-             ,rate_lower = qgamma(0.25, shape = tot_claim, rate = tot_exposure)
-              )
+  group_by(driver_age) %>%
+  summarise(tot_claim    = sum(claim_count),
+            tot_exposure = sum(exposure),
+            claim_rate   = tot_claim / tot_exposure,
+            rate_upper = qgamma(0.75, shape = tot_claim, rate = tot_exposure),
+            rate_lower = qgamma(0.25, shape = tot_claim, rate = tot_exposure)
+            )
 
 ggplot(claimrate_driverage_tbl) +
-    geom_point(aes(x = driver_age, y = claim_rate)) +
-    geom_errorbar(aes(x = driver_age, ymin = rate_lower, ymax = rate_upper), width = 0) +
-    expand_limits(y = 0) +
-    xlab('Driver Age') +
-    ylab('Claim Rate') +
-    ggtitle("Claim Rate by Driver Age"
-           ,subtitle = 'Uncertainty is inter-quartile values for Gamma distribution')
+  geom_point(aes(x = driver_age, y = claim_rate)) +
+  geom_errorbar(aes(x = driver_age, ymin = rate_lower, ymax = rate_upper),
+                width = 0) +
+  expand_limits(y = 0) +
+  xlab('Driver Age') +
+  ylab('Claim Rate') +
+  ggtitle("Claim Rate by Driver Age",
+          subtitle = 'Uncertainty is inter-quartile values for Gamma distribution')
 ```
 
 ---
@@ -700,17 +691,17 @@ Non-linear relationship
 
 ```{r create_cat_driver_age_variables, echo=FALSE, fig.height=7.5}
 policy_tbl <- policy_tbl %>%
-    mutate(cat_driver_age = cut(driver_age, c(17, 22, 26, 42, 74, Inf)))
+  mutate(cat_driver_age = cut(driver_age, c(17, 22, 26, 42, 74, Inf)))
 
 ggplot(policy_tbl) +
-    geom_bar(aes(x = cat_driver_age)) +
-    scale_y_continuous(labels = comma) +
-    xlab("Binned Driver Age") +
-    ylab("Count") +
-    ggtitle("Barplot of Driver Ages after Binning")
+  geom_bar(aes(x = cat_driver_age)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Binned Driver Age") +
+  ylab("Count") +
+  ggtitle("Barplot of Driver Ages after Binning")
 
 policy_tbl <- policy_tbl %>%
-    mutate(cat_driver_age = fct_relevel(cat_driver_age, '(26,42]'))
+  mutate(cat_driver_age = fct_relevel(cat_driver_age, '(26,42]'))
 ```
 
 ---
@@ -719,19 +710,19 @@ policy_tbl <- policy_tbl %>%
 
 
 ```{r model_gas, echo=TRUE}
-gas_glm <- glm(claim_nb ~ 0 + gas
-              ,offset = log(exposure)
-              ,data   = policy_tbl
-              ,family = poisson)
+gas_glm <- glm(claim_nb ~ 0 + gas,
+               offset = log(exposure),
+               data   = policy_tbl,
+               family = poisson)
 ```
 
 #### Model Diagnostics
 
 ```{r model_gas_glance, echo=FALSE}
 gas_glm %>%
-    glance() %>%
-    gather('diagnostic', 'value') %>%
-    kable(digits = 2)
+  glance() %>%
+  gather('diagnostic', 'value') %>%
+  kable(digits = 2)
 ```
 
 ---
@@ -747,19 +738,19 @@ gas_glm %>% tidy() %>% kable(digits = 4)
 ### Adding Driver Age
 
 ```{r model_gas_driverage, echo=TRUE}
-expmodel2_glm <- glm(claim_nb ~ gas + cat_driver_age
-                    ,offset = log(exposure)
-                    ,data   = policy_tbl
-                    ,family = poisson)
+expmodel2_glm <- glm(claim_nb ~ gas + cat_driver_age,
+                     offset = log(exposure),
+                     data   = policy_tbl,
+                     family = poisson)
 ```
 
 #### Model Diagnostics
 
 ```{r model_gas_driverage_glance, echo=FALSE}
 expmodel2_glm %>%
-    glance() %>%
-    gather('diagnostic', 'value') %>%
-    kable(digits = 2)
+  glance() %>%
+  gather('diagnostic', 'value') %>%
+  kable(digits = 2)
 ```
 
 ---
@@ -791,77 +782,86 @@ Plot parameters together
 
 ```{r region_barplot_redux, echo=FALSE}
 ggplot(combined_tbl) +
-    geom_bar(aes(x = region)) +
-    scale_y_continuous(labels = comma) +
-    xlab("Region") +
-    ylab("Policy Count") +
-    ggtitle("Barplot of Region")
+  geom_bar(aes(x = region)) +
+  scale_y_continuous(labels = comma) +
+  xlab("Region") +
+  ylab("Policy Count") +
+  ggtitle("Barplot of Region")
 ```
 
 ---
 
 ```{r calculate_secretweapon_data, echo=FALSE}
 secretweapon_tbl <- policy_tbl %>%
-    split(.$region) %>%
-    map(~ glm(claim_nb ~ cat_driver_age + gas + car_age + density +
-                         cat_driver_age:gas
-             ,offset = log(exposure)
-             ,family = poisson
-             ,data = .)) %>%
-    map(tidy) %>%
-    bind_rows(.id = 'region')
+  split(.$region) %>%
+  future_map(~ glm(claim_nb ~ cat_driver_age + gas + car_age + density +
+                              cat_driver_age:gas,
+                   offset = log(exposure),
+                   family = poisson,
+                   data = .)) %>%
+  map(tidy) %>%
+  bind_rows(.id = 'region')
 ```
 
 ```{r plot_secretweapon_params_all, echo=FALSE, fig.height=7.5}
 ggplot(secretweapon_tbl) +
-    geom_point(aes(x = region, y = estimate)) +
-    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
-    expand_limits(y = 0) +
-    facet_wrap(~term, scales='free_y') +
-    xlab("Region") +
-    ylab("Parameter Value") +
-    ggtitle("Claim Frequency Model Outputs by Region") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5)
-         ,strip.text.x = element_text(size = 8)
-          )
+  geom_point(aes(x = region, y = estimate)) +
+  geom_errorbar(aes(x = region,
+                    ymin = estimate - 2 * std.error,
+                    ymax = estimate + 2 * std.error),
+                width = 0) +
+  expand_limits(y = 0) +
+  facet_wrap(~term, scales='free_y') +
+  xlab("Region") +
+  ylab("Parameter Value") +
+  ggtitle("Claim Frequency Model Outputs by Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        strip.text.x = element_text(size = 8)
+        )
 ```
 
 ---
 
 ```{r plot_secretweapon_parameters_1, echo=FALSE}
 secretweapon_tbl <- secretweapon_tbl %>%
-    filter(!grepl("driver_age\\(74", term))
+  filter(str_detect(term, "driver_age\\(74", negate = TRUE))
 
-first_params <- c("(Intercept)"
-                 ,"gasRegular"
-                 ,"cat_driver_age(17,22]"
-                 ,"cat_driver_age(22,26]"
-                 ,"cat_driver_age(42,74]"
+first_params <- c("(Intercept)",
+                  "gasRegular",
+                  "cat_driver_age(17,22]",
+                  "cat_driver_age(22,26]",
+                  "cat_driver_age(42,74]"
                   )
 
 ggplot(secretweapon_tbl %>% filter(term %in% first_params)) +
-    geom_point(aes(x = region, y = estimate)) +
-    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
-    expand_limits(y = 0) +
-    facet_wrap(~term, scales='free_y') +
-    xlab("Region") +
-    ylab("Parameter Value") +
-    ggtitle("Claim Frequency Model Outputs by Region") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  geom_point(aes(x = region, y = estimate)) +
+  geom_errorbar(aes(x    = region,
+                    ymin = estimate - 2 * std.error,
+                    ymax = estimate + 2 * std.error),
+                width = 0) +
+  expand_limits(y = 0) +
+  facet_wrap(vars(term), scales='free_y') +
+  xlab("Region") +
+  ylab("Parameter Value") +
+  ggtitle("Claim Frequency Model Outputs by Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 ---
 
 ```{r plot_secretweapon_parameters_2, echo=FALSE, fig.height=7.5}
 ggplot(secretweapon_tbl %>% filter(!term %in% first_params)) +
-    geom_point(aes(x = region, y = estimate)) +
-    geom_errorbar(aes(x = region, ymin = estimate - 2 * std.error, ymax = estimate + 2 * std.error), width = 0) +
-    expand_limits(y = 0) +
-    facet_wrap(~term, scales='free_y') +
-    xlab("Region") +
-    ylab("Parameter Value") +
-    ggtitle("Claim Frequency Model Outputs by Region") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  geom_point(aes(x = region, y = estimate)) +
+  geom_errorbar(aes(x = region,
+                    ymin = estimate - 2 * std.error,
+                    ymax = estimate + 2 * std.error),
+                width = 0) +
+  expand_limits(y = 0) +
+  facet_wrap(~term, scales='free_y') +
+  xlab("Region") +
+  ylab("Parameter Value") +
+  ggtitle("Claim Frequency Model Outputs by Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 
@@ -880,10 +880,10 @@ Take logs?
 
 ```{r distribution_log_claim_amount, echo=FALSE}
 ggplot(claim_tbl) +
-    geom_histogram(aes(x = log(claim_amount)), bins = 50) +
-    xlab('Log(Claim Size)') +
-    ylab("Probability Density") +
-    ggtitle("Histogram of Log of the Claim Size")
+  geom_histogram(aes(x = log(claim_amount)), bins = 50) +
+  xlab('Log(Claim Size)') +
+  ylab("Probability Density") +
+  ggtitle("Histogram of Log of the Claim Size")
 ```
 
 ---
@@ -892,21 +892,21 @@ ggplot(claim_tbl) +
 
 ```{r construct_claim_reg, echo=FALSE}
 claimreg_tbl <- policy_tbl %>%
-    inner_join(claim_tbl, by = 'policy_id')
+  inner_join(claim_tbl, by = 'policy_id')
 ```
 
 ```{r model_log_claims, echo=TRUE}
-expclaim_lm <- lm(log(claim_amount) ~ gas + power + car_age
-                 ,data = claimreg_tbl)
+expclaim_lm <- lm(log(claim_amount) ~ gas + power + car_age,
+                  data = claimreg_tbl)
 ```
 
 #### Model Diagnostics
 
 ```{r model_log_claims_glance, echo=FALSE}
 expclaim_lm %>%
-    glance() %>%
-    gather('diagnostic', 'value') %>%
-    kable(digits = 4)
+  glance() %>%
+  gather('diagnostic', 'value') %>%
+  kable(digits = 4)
 ```
 
 ---
@@ -932,16 +932,16 @@ sigma <- summary(expclaim_lm)$sigma
 mult_fact <- exp(0.5 * sigma * sigma)
 
 plot_tbl <- claimreg_tbl %>%
-    mutate(predict_claim = (expclaim_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
+  mutate(predict_claim = (expclaim_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
 
 ggplot(plot_tbl) +
-    geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
-    expand_limits(y = 0) +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Actual Claim Amount") +
-    ylab("Predicted Amount") +
-    ggtitle("Plot of Predicted vs Actual Claim Amount")
+  geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
+  expand_limits(y = 0) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  xlab("Actual Claim Amount") +
+  ylab("Predicted Amount") +
+  ggtitle("Plot of Predicted vs Actual Claim Amount")
 ```
 
 ---
@@ -951,17 +951,17 @@ ggplot(plot_tbl) +
 ```{r model_log_claims_filtered, echo=TRUE}
 claimreg_tbl <- claimreg_tbl %>% filter(claim_amount < 25000)
 
-expclaim2_lm <- lm(log(claim_amount) ~ gas + power + car_age
-                  ,data = claimreg_tbl)
+expclaim2_lm <- lm(log(claim_amount) ~ gas + power + car_age,
+                   data = claimreg_tbl)
 ```
 
 #### Model Diagnostics
 
 ```{r model_log_claims_filtered_glance, echo=FALSE}
 expclaim2_lm %>%
-    glance() %>%
-    gather('diagnostic', 'value') %>%
-    kable(digits = 4)
+  glance() %>%
+  gather('diagnostic', 'value') %>%
+  kable(digits = 4)
 ```
 
 ---
@@ -979,16 +979,16 @@ sigma <- summary(expclaim2_lm)$sigma
 mult_fact <- exp(0.5 * sigma * sigma)
 
 plot_tbl <- claimreg_tbl %>%
-    mutate(predict_claim = (expclaim2_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
+  mutate(predict_claim = (expclaim2_lm %>% predict(type = 'response') %>% exp()) * mult_fact)
 
 ggplot(plot_tbl) +
-    geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
-    expand_limits(y = 0) +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Actual Claim Amount") +
-    ylab("Predicted Amount") +
-    ggtitle("Plot of Predicted vs Actual Claim Amount for Non-Large Losses")
+  geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
+  expand_limits(y = 0) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  xlab("Actual Claim Amount") +
+  ylab("Predicted Amount") +
+  ggtitle("Plot of Predicted vs Actual Claim Amount for Non-Large Losses")
 ```
 
 ---
@@ -1005,9 +1005,9 @@ Fit a Gamma?
 
 ```{r fit_claims_gamma, echo=TRUE}
 claimgamma_glm <- glm(claim_amount ~ gas + power + car_age + cat_driver_age +
-                                     cat_driver_age:power
-                     ,family = Gamma(link = 'log')
-                     ,data   = claimreg_tbl)
+                                     cat_driver_age:power,
+                      family = Gamma(link = 'log'),
+                      data   = claimreg_tbl)
 ```
 
 \
@@ -1017,9 +1017,9 @@ claimgamma_glm <- glm(claim_amount ~ gas + power + car_age + cat_driver_age +
 
 ```{r claims_gamma_glance, echo=FALSE}
 claimgamma_glm %>%
-    glance() %>%
-    gather('diagnostic', 'value') %>%
-    kable(digits = 2)
+  glance() %>%
+  gather('diagnostic', 'value') %>%
+  kable(digits = 2)
 ```
 
 ---
@@ -1028,26 +1028,26 @@ claimgamma_glm %>%
 
 ```{r claims_gamma_tidy, echo=FALSE}
 claimgamma_glm %>%
-    tidy() %>%
-    arrange(abs(estimate)) %>%
-    head(n = 20) %>%
-    kable(digits = 4)
+  tidy() %>%
+  arrange(abs(estimate)) %>%
+  head(n = 20) %>%
+  kable(digits = 4)
 ```
 
 ---
 
 ```{r visualise_claims_gamma_model, echo=FALSE}
 plot_tbl <- claimreg_tbl %>%
-    mutate(predict_claim = claimgamma_glm %>% predict(type = 'response'))
+  mutate(predict_claim = claimgamma_glm %>% predict(type = 'response'))
 
 ggplot(plot_tbl) +
-    geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
-    expand_limits(y = 0) +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Actual Claim Amount") +
-    ylab("Predicted Amount") +
-    ggtitle("Actual vs Expected Plot for Claim Size")
+  geom_point(aes(x = claim_amount, y = predict_claim), alpha = 0.1) +
+  expand_limits(y = 0) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  xlab("Actual Claim Amount") +
+  ylab("Predicted Amount") +
+  ggtitle("Actual vs Expected Plot for Claim Size")
 ```
 
 ---
@@ -1123,26 +1123,26 @@ In-Sample and Out-of-Sample
 
 ```{r simulate_claim_counts, echo=FALSE}
 sampledata_tbl <- policy_tbl %>%
-    sample_n(20000)
+  sample_n(20000)
 
 
 crossval_tbl <- crossv_mc(sampledata_tbl, 20, 0.25, id = 'fold_id') %>%
-    mutate(assess    = map2(train, test, create_crossval_assessment)
-          ,observed  = map_int(assess, 'observed_count')
-          ,predicted = map    (assess, 'predicted_count')
-          ,cuml_prob = map_dbl(assess, 'cuml_prob')
-           )
+  mutate(assess    = map2(train, test, create_crossval_assessment),
+         observed  = map_int(assess, 'observed_count'),
+         predicted = map    (assess, 'predicted_count'),
+         cuml_prob = map_dbl(assess, 'cuml_prob')
+         )
 
 plot_tbl <- crossval_tbl %>%
-    unnest(predicted)
+  unnest(predicted)
 
 ggplot(plot_tbl) +
-    geom_histogram(aes(x = predicted), bins = 25) +
-    geom_vline(aes(xintercept = observed), colour = 'red') +
-    facet_wrap(~ fold_id, ncol = 5) +
-    xlab("Claim Count") +
-    ylab("Count") +
-    ggtitle("Claim Count Assessment Plot for Claim Frequency")
+  geom_histogram(aes(x = predicted), bins = 25) +
+  geom_vline(aes(xintercept = observed), colour = 'red') +
+  facet_wrap(~ fold_id, ncol = 5) +
+  xlab("Claim Count") +
+  ylab("Count") +
+  ggtitle("Claim Count Assessment Plot for Claim Frequency")
 ```
 
 ---
@@ -1248,32 +1248,34 @@ Multiply through for loss calculation
 
 ```{r assess_claim_size_uniformity_histogram, echo=FALSE, fig.height=7}
 claimsize_assess_tbl <- claimgamma_glm %>%
-    augment(type.predict = 'response') %>%
-    mutate(claim_gamma_shape = gamma.shape(claimgamma_glm)$alpha
-          ,claim_gamma_rate  = claim_gamma_shape / .fitted
-          ,claim_prob        = pgamma(claim_amount, shape = claim_gamma_shape, rate = claim_gamma_rate)
-           ) %>%
-    arrange(claim_prob) %>%
-    mutate(prob_order = 1:n())
+  augment(type.predict = 'response') %>%
+  mutate(claim_gamma_shape = gamma.shape(claimgamma_glm)$alpha,
+         claim_gamma_rate  = claim_gamma_shape / .fitted,
+         claim_prob        = pgamma(claim_amount,
+                                    shape = claim_gamma_shape,
+                                    rate = claim_gamma_rate)
+         ) %>%
+  arrange(claim_prob) %>%
+  mutate(prob_order = 1:n())
 
 ggplot(claimsize_assess_tbl) +
-    geom_histogram(aes(x = claim_prob), bins = 50) +
-    expand_limits(y = c(0, 1)) +
-    scale_y_continuous(labels = comma) +
-    xlab('Claim Size Probability') +
-    ylab('Order') +
-    ggtitle('Claim Size Model Assessment - Histogram')
+  geom_histogram(aes(x = claim_prob), bins = 50) +
+  expand_limits(y = c(0, 1)) +
+  scale_y_continuous(labels = comma) +
+  xlab('Claim Size Probability') +
+  ylab('Order') +
+  ggtitle('Claim Size Model Assessment - Histogram')
 ```
 
 ---
 
 ```{r assess_claim_size_uniformity_qqplot, echo=FALSE, fig.height=7}
 ggplot(claimsize_assess_tbl) +
-    geom_line(aes(x = prob_order, y = claim_prob)) +
-    expand_limits(y = c(0, 1)) +
-    xlab('Probability Ordering') +
-    ylab('Claim Size Probability') +
-    ggtitle('Claim Size Model Assessment - Lineplot')
+  geom_line(aes(x = prob_order, y = claim_prob)) +
+  expand_limits(y = c(0, 1)) +
+  xlab('Probability Ordering') +
+  ylab('Claim Size Probability') +
+  ggtitle('Claim Size Model Assessment - Lineplot')
 ```
 
 
@@ -1293,10 +1295,10 @@ Remove cars older than 20 years
 
 ```{r filter_data, echo=FALSE}
 quotepolicy_tbl <- policy_tbl %>%
-    filter(driver_age <= 75, car_age <= 20)
+  filter(driver_age <= 75, car_age <= 20)
 
 quoteclaim_tbl <- claim_tbl %>%
-    filter(claim_amount < 25000)
+  filter(claim_amount < 25000)
 ```
 
 Total size of dataset after filters: `r quotepolicy_tbl %>% nrow %>% comma`
@@ -1323,30 +1325,30 @@ Take 100,000 policies for test
 
 ```{r split_data, echo=FALSE}
 aggclaims_tbl <- quoteclaim_tbl %>%
-    group_by(policy_id) %>%
-    summarise(claim_count = n()
-             ,claim_total = sum(claim_amount)
-              )
+  group_by(policy_id) %>%
+  summarise(claim_count = n(),
+            claim_total = sum(claim_amount)
+            )
 
 attr_combined_tbl <- quotepolicy_tbl %>%
-    left_join(aggclaims_tbl, by = 'policy_id') %>%
-    replace_na(list(claim_count = 0L
-                   ,claim_total = 0))
+  left_join(aggclaims_tbl, by = 'policy_id') %>%
+  replace_na(list(claim_count = 0L,
+                  claim_total = 0))
 
 testpolicies_tbl  <- attr_combined_tbl %>%
-    sample_n(100000, replace = FALSE) %>%
-    arrange(policy_id)
+  sample_n(100000, replace = FALSE) %>%
+  arrange(policy_id)
 
 trainpolicies_tbl <- attr_combined_tbl %>%
-    anti_join(testpolicies_tbl, by = 'policy_id') %>%
-    arrange(policy_id)
+  anti_join(testpolicies_tbl, by = 'policy_id') %>%
+  arrange(policy_id)
 
 tribble(
-    ~Dataset,                                      ~Size
-   , "Train",   trainpolicies_tbl %>% nrow() %>% comma() 
-   ,  "Test",   testpolicies_tbl  %>% nrow() %>% comma()
-    ) %>%
-    kable(align = 'lr')
+    ~Dataset,                                      ~Size,
+     "Train",   trainpolicies_tbl %>% nrow() %>% comma(),
+      "Test",   testpolicies_tbl  %>% nrow() %>% comma()
+  ) %>%
+  kable(align = 'lr')
 ```
 
 ---
@@ -1354,19 +1356,19 @@ tribble(
 ## Model Claim Rate
 
 ```{r model_claimrate_driverage, echo=TRUE}
-model_01_glm <- glm(claim_nb ~ cat_driver_age
-                   ,offset = log(exposure)
-                   ,family = poisson
-                   ,data   = trainpolicies_tbl)
+model_01_glm <- glm(claim_nb ~ cat_driver_age,
+                    offset = log(exposure),
+                    family = poisson,
+                    data   = trainpolicies_tbl)
 ```
 
 ### Model Diagnostics
 
 ```{r model_claimrate_01_glance, echo=FALSE}
 model_01_glm %>%
-    glance() %>%
-    gather('diagnostic', 'value') %>%
-    kable(digits = 2)
+  glance() %>%
+  gather('diagnostic', 'value') %>%
+  kable(digits = 2)
 ```
 
 ---
@@ -1383,19 +1385,19 @@ model_01_glm %>% tidy() %>% kable(digits = 4)
 
 ```{r model_claimrate_02, echo=TRUE}
 model_02_glm <- glm(claim_nb ~ gas + cat_driver_age + car_age + density +
-                               cat_driver_age:gas
-                   ,offset = log(exposure)
-                   ,family = poisson
-                   ,data   = trainpolicies_tbl)
+                               cat_driver_age:gas,
+                    offset = log(exposure),
+                    family = poisson,
+                    data   = trainpolicies_tbl)
 ```
 
 ### Model Diagnostics
 
 ```{r model_claimrate_02_glance, echo=FALSE}
 model_02_glm %>%
-    glance() %>%
-    gather('diagnostic', 'value') %>%
-    kable(digits = 2)
+  glance() %>%
+  gather('diagnostic', 'value') %>%
+  kable(digits = 2)
 ```
 
 ---
@@ -1419,28 +1421,30 @@ Use predictive checks as before
 ```{r assess_claimfrequency_model, echo=FALSE}
 assessment_count <- 20
 
-claimfreq_assessment_tbl <- crossv_mc(trainpolicies_tbl
-                                     ,assessment_count
-                                     ,test = 0.25
-                                     ,id = 'fold_id') %>%
-    mutate(assess    = map2(train, test, create_claimrate_assessment, n_sim = n_sim)
-          ,observed  = map_int(assess, 'observed_count')
-          ,predicted = map(assess, 'predicted_count')
-          ,cuml_prob = map_dbl(assess, 'cuml_prob')
-           )
+claimfreq_assessment_tbl <- crossv_mc(trainpolicies_tbl,
+                                      assessment_count,
+                                      test = 0.25,
+                                      id = 'fold_id') %>%
+  mutate(assess    = map2(train, test,
+                          create_claimrate_assessment,
+                          n_sim = n_sim),
+         observed  = map_int(assess, 'observed_count'),
+         predicted = map(assess, 'predicted_count'),
+         cuml_prob = map_dbl(assess, 'cuml_prob')
+  )
 
 plot_tbl <- claimfreq_assessment_tbl %>%
-    unnest(predicted)
+  unnest(predicted)
 
 ggplot(plot_tbl) +
-    geom_histogram(aes(x = predicted), bins = 25) +
-    geom_vline(aes(xintercept = observed), colour = 'red') +
-    facet_wrap(~ fold_id, ncol = 5) +
-    scale_x_continuous(labels = comma) +
-    xlab("Claim Count") +
-    ylab("Count") +
-    ggtitle("Claim Count Assessment Plot for Claim Frequency Model") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  geom_histogram(aes(x = predicted), bins = 25) +
+  geom_vline(aes(xintercept = observed), colour = 'red') +
+  facet_wrap(~ fold_id, ncol = 5) +
+  scale_x_continuous(labels = comma) +
+  xlab("Claim Count") +
+  ylab("Count") +
+  ggtitle("Claim Count Assessment Plot for Claim Frequency Model") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 ---
@@ -1460,8 +1464,8 @@ Assume average claim size
 
 ```{r calculate_mean_claim_size, echo=TRUE}
 claim_tbl %>%
-    filter(claim_amount <= 25000) %>%
-    summarise(mean_amount = mean(claim_amount))
+  filter(claim_amount <= 25000) %>%
+  summarise(mean_amount = mean(claim_amount))
 ```
 
 \
@@ -1470,11 +1474,11 @@ Use this for claim prediction
 
 ```{r create_claimsize_model, echo=FALSE}
 modelclaim_tbl <- quoteclaim_tbl %>%
-    inner_join(quotepolicy_tbl, by = 'policy_id')
+  inner_join(quotepolicy_tbl, by = 'policy_id')
 
-claimsize_glm <- glm(claim_amount ~ cat_driver_age
-                    ,family = Gamma(link = 'log')
-                    ,data   = modelclaim_tbl)
+claimsize_glm <- glm(claim_amount ~ cat_driver_age,
+                     family = Gamma(link = 'log'),
+                     data   = modelclaim_tbl)
 ```
 
 
@@ -1484,8 +1488,8 @@ claimsize_glm <- glm(claim_amount ~ cat_driver_age
 
 ```{r estimate_largeloss_rate, echo=FALSE}
 largeclaim_count <- claim_tbl %>%
-    filter(claim_amount >= 25000) %>%
-    nrow()
+  filter(claim_amount >= 25000) %>%
+  nrow()
 
 largeclaim_prop <- largeclaim_count / (policy_tbl$exposure %>% sum)
 ```
@@ -1525,12 +1529,12 @@ $\mu = `r expected_loss_print`$
 
 ```{r show_largeclaim_data, echo=FALSE}
 tribble(
-                   ~Quantity,                                                     ~Value
-   ,      "Loss Expectation", expected_loss                     %>% round(2) %>% comma()
-   ,"Large Claim Proportion", largeclaim_prop                   %>%  sprintf("%8.6f", .)
-   ,     "Large-loss Charge", (largeclaim_prop * expected_loss) %>% round(2) %>% comma()
-    ) %>%
-    kable(align = c('lr'))
+                   ~Quantity,                                                     ~Value,
+          "Loss Expectation", expected_loss                     %>% round(2) %>% comma(),
+    "Large Claim Proportion", largeclaim_prop                   %>%  sprintf("%8.6f", .),
+         "Large-loss Charge", (largeclaim_prop * expected_loss) %>% round(2) %>% comma()
+  ) %>%
+  kable(align = c('lr'))
 ```
 
 ---
@@ -1540,10 +1544,10 @@ tribble(
 
 ```{r create_premium_quoter_function, echo=FALSE}
 premium_quoter <- create_pricing_function(
-    claimrate_model_glm = model_02_glm
-   ,claimsize_model_glm = claimsize_glm
-   ,largeloss_charge    = largeclaim_prop * expected_loss
-   ,quote_ratio         = 0.35
+  claimrate_model_glm = model_02_glm,
+  claimsize_model_glm = claimsize_glm,
+  largeloss_charge    = largeclaim_prop * expected_loss,
+  quote_ratio         = 0.35
 )
 ```
 
@@ -1552,15 +1556,15 @@ premium_quoter <- create_pricing_function(
 sampledata_tbl <- trainpolicies_tbl %>% sample_n(100000)
 
 pricing_tbl <- premium_quoter(sampledata_tbl) %>%
-    mutate(policy_id = sampledata_tbl$policy_id)
+  mutate(policy_id = sampledata_tbl$policy_id)
 ```
 
 ```{r show_premium_table, echo=FALSE}
 pricing_tbl %>%
-    select(policy_id, expect_price, largeloss_charge, risk_premium, quote_price) %>%
-    arrange(policy_id) %>%
-    head(n = 20) %>%
-    kable(digits = 2)
+  select(policy_id, expect_price, largeloss_charge, risk_premium, quote_price) %>%
+  arrange(policy_id) %>%
+  head(n = 20) %>%
+  kable(digits = 2)
 ```
 
 
@@ -1602,27 +1606,29 @@ Loss cost
 
 ```{r construct_train_valid_datasets, echo=FALSE}
 insamp_tbl <- trainpolicies_tbl %>%
-    sample_n(100000) %>%
-    arrange(policy_id)
+  sample_n(100000) %>%
+  arrange(policy_id)
 
 outsamp_tbl <- trainpolicies_tbl %>%
-    anti_join(insamp_tbl, by = 'policy_id') %>%
-    sample_n(50000) %>%
-    arrange(policy_id)
+  anti_join(insamp_tbl, by = 'policy_id') %>%
+  sample_n(50000) %>%
+  arrange(policy_id)
 
-simulate_claim_data <- create_claim_simulator(claimfreq_glm     = model_02_glm
-                                             ,claimsev_glm      = claimsize_glm
-                                             ,largeloss_freq    = largeclaim_prop
-                                             ,largeloss_scaling = pl_scaling)
+simulate_claim_data <- create_claim_simulator(
+  claimfreq_glm     = model_02_glm,
+  claimsev_glm      = claimsize_glm,
+  largeloss_freq    = largeclaim_prop,
+  largeloss_scaling = pl_scaling
+)
 ```
 
 ```{r sanity_check_training, echo=FALSE}
-insamp_assess_lst <- simulate_claim_data(insamp_tbl
-                                        ,variable_claim_size = FALSE
-                                        ,model_large_losses  = TRUE
-                                        ,n_sim = n_sim
+insamp_assess_lst <- simulate_claim_data(insamp_tbl,
+                                         variable_claim_size = FALSE,
+                                         model_large_losses  = TRUE,
+                                         n_sim = n_sim
                                         ) %>%
-    construct_model_assessment("In-Sample Data")
+  construct_model_assessment("In-Sample Data")
 ```
 
 ```{r check_training_data_claim_count, echo=FALSE, fig.height=7.5}
@@ -1640,12 +1646,12 @@ insamp_assess_lst$losscost_plot %>% print()
 ### Assess Out-of-Sample Data
 
 ```{r model_validation_oos, echo=FALSE}
-outsamp_assess_lst <- simulate_claim_data(outsamp_tbl
-                                         ,variable_claim_size = FALSE
-                                         ,model_large_losses = TRUE
-                                         ,n_sim = n_sim
-                                            ) %>%
-    construct_model_assessment("Out-of-Sample Data")
+outsamp_assess_lst <- simulate_claim_data(outsamp_tbl,
+                                          variable_claim_size = FALSE,
+                                          model_large_losses = TRUE,
+                                          n_sim = n_sim
+                                          ) %>%
+  construct_model_assessment("Out-of-Sample Data")
 ```
 
 ```{r check_oos_data_claim_count, echo=FALSE, fig.height=7.5}
@@ -1663,17 +1669,18 @@ outsamp_assess_lst$losscost_plot %>% print()
 
 ```{r simulate_claim_size, echo=FALSE}
 insamp_varsize_assess_lst <- simulate_claim_data(
-        insamp_tbl
-       ,variable_claim_size = TRUE
-       ,n_sim = n_sim
-    ) %>%
-    construct_model_assessment("In-Sample Data - Variable Claim Size")
+    insamp_tbl,
+    variable_claim_size = TRUE,
+    n_sim = n_sim
+  ) %>%
+  construct_model_assessment("In-Sample Data - Variable Claim Size")
 
 outsamp_varsize_assess_lst <- simulate_claim_data(
-        outsamp_tbl
-       ,variable_claim_size = TRUE
-       ,n_sim               = n_sim
-    ) %>% construct_model_assessment("Out-of-Sample Data - Variable Claim Size")
+    outsamp_tbl,
+    variable_claim_size = TRUE,
+    n_sim               = n_sim
+  ) %>%
+  construct_model_assessment("Out-of-Sample Data - Variable Claim Size")
 ```
 
 ```{r simulate_claim_size_insample_plot, echo=FALSE, fig.height=7}
@@ -1689,45 +1696,46 @@ outsamp_varsize_assess_lst$losscost_plot %>% print()
 ---
 
 ```{r show_all_plot, echo=FALSE}
-plot_grid(insamp_assess_lst$losscost_plot  +
-              ggtitle("In-Sample, Fixed Claim Size"
-                     ,subtitle = insamp_assess_lst$losscost_plot$labels$subtitle)
-         ,outsamp_assess_lst$losscost_plot +
-             ggtitle("Out-of-Sample, Fixed Claim Size"
-                    ,subtitle = outsamp_assess_lst$losscost_plot$labels$subtitle)
-         ,insamp_varsize_assess_lst$losscost_plot  +
-             ggtitle("In-Sample, Variable Claim Size"
-                    ,subtitle = insamp_varsize_assess_lst$losscost_plot$labels$subtitle)
-         ,outsamp_varsize_assess_lst$losscost_plot +
-             ggtitle("Out-of-Sample, Variable Claim Size"
-                    ,subtitle = outsamp_varsize_assess_lst$losscost_plot$labels$subtitle)
-         ,ncol = 2
-          )
+plot_grid(
+  insamp_assess_lst$losscost_plot  +
+    ggtitle("In-Sample, Fixed Claim Size",
+            subtitle = insamp_assess_lst$losscost_plot$labels$subtitle),
+  outsamp_assess_lst$losscost_plot +
+    ggtitle("Out-of-Sample, Fixed Claim Size",
+            subtitle = outsamp_assess_lst$losscost_plot$labels$subtitle),
+  insamp_varsize_assess_lst$losscost_plot  +
+    ggtitle("In-Sample, Variable Claim Size",
+            subtitle = insamp_varsize_assess_lst$losscost_plot$labels$subtitle),
+  outsamp_varsize_assess_lst$losscost_plot +
+    ggtitle("Out-of-Sample, Variable Claim Size",
+            subtitle = outsamp_varsize_assess_lst$losscost_plot$labels$subtitle),
+  ncol = 2
+)
 ```
 
 ## Assess Attritional Pricing
 
 ```{r construct_premium_quoter_function, echo=FALSE}
 premium_quoter <- create_pricing_function(
-    claimrate_model_glm = model_02_glm
-   ,claimsize_model_glm = claimsize_glm
-   ,largeloss_charge    = largeclaim_prop * expected_loss
-   ,quote_ratio         = 0.35
+  claimrate_model_glm = model_02_glm,
+  claimsize_model_glm = claimsize_glm,
+  largeloss_charge    = largeclaim_prop * expected_loss,
+  quote_ratio         = 0.35
 )
 
 insamp_pricing_tbl <- premium_quoter(insamp_tbl)
 
 insamp_pricing_assess_lst <- insamp_assess_lst$data_tbl %>%
-    inner_join(insamp_pricing_tbl, by = 'policy_id') %>%
-    construct_pricing_assessment('In-Sample Attritional Pricing Comparison')
+  inner_join(insamp_pricing_tbl, by = 'policy_id') %>%
+  construct_pricing_assessment('In-Sample Attritional Pricing Comparison')
 
 
 
 outsamp_pricing_tbl <- premium_quoter(outsamp_tbl)
 
 outsamp_pricing_assess_lst <- outsamp_assess_lst$data_tbl %>%
-    inner_join(outsamp_pricing_tbl, by = 'policy_id') %>%
-    construct_pricing_assessment('Out-of-Sample Attritional Pricing Comparison')
+  inner_join(outsamp_pricing_tbl, by = 'policy_id') %>%
+  construct_pricing_assessment('Out-of-Sample Attritional Pricing Comparison')
 ```
 
 ```{r plot_insample_pricing_assessment, echo=FALSE, fig.height=7}
@@ -1749,21 +1757,21 @@ outsamp_pricing_assess_lst$assess_plot %>% print()
 
 ```{r assess_largeloss_insamp_pricing, echo=FALSE, fig.height=7.5}
 obs_ll_loss <- claim_tbl %>%
-    semi_join(insamp_pricing_assess_lst$data_tbl, by = 'policy_id') %>%
-    filter(claim_amount > 25000) %>%
-    pull(claim_amount) %>%
-    sum()
+  semi_join(insamp_pricing_assess_lst$data_tbl, by = 'policy_id') %>%
+  filter(claim_amount > 25000) %>%
+  pull(claim_amount) %>%
+  sum()
 
 sim_ll_loss <- insamp_pricing_assess_lst$data_tbl$largeloss_claimsize %>% reduce(`+`)
 
 ggplot() +
-    geom_histogram(aes(x = sim_ll_loss), bins = 50) +
-    geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Simulated Loss Cost") +
-    ylab("Simulation Count") +
-    ggtitle("In-Sample Plot of Simulated Large Losses vs Observed")
+  geom_histogram(aes(x = sim_ll_loss), bins = 50) +
+  geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  xlab("Simulated Loss Cost") +
+  ylab("Simulation Count") +
+  ggtitle("In-Sample Plot of Simulated Large Losses vs Observed")
 ```
 
 ---
@@ -1772,21 +1780,21 @@ ggplot() +
 
 ```{r assess_largeloss_outsamp_pricing, echo=FALSE, fig.height=7.5}
 obs_ll_loss <- claim_tbl %>%
-    semi_join(outsamp_pricing_assess_lst$data_tbl, by = 'policy_id') %>%
-    filter(claim_amount > 25000) %>%
-    pull(claim_amount) %>%
-    sum()
+  semi_join(outsamp_pricing_assess_lst$data_tbl, by = 'policy_id') %>%
+  filter(claim_amount > 25000) %>%
+  pull(claim_amount) %>%
+  sum()
 
 sim_ll_loss <- outsamp_pricing_assess_lst$data_tbl$largeloss_claimsize %>% reduce(`+`)
 
 ggplot() +
-    geom_histogram(aes(x = sim_ll_loss), bins = 50) +
-    geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
-    scale_x_continuous(labels = comma) +
-    scale_y_continuous(labels = comma) +
-    xlab("Simulated Loss Cost") +
-    ylab("Simulation Count") +
-    ggtitle("Out-of-Sample Plot of Simulated Large Losses vs Observed")
+  geom_histogram(aes(x = sim_ll_loss), bins = 50) +
+  geom_vline(aes(xintercept = obs_ll_loss), colour = 'red') +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  xlab("Simulated Loss Cost") +
+  ylab("Simulation Count") +
+  ggtitle("Out-of-Sample Plot of Simulated Large Losses vs Observed")
 ```
 
 
