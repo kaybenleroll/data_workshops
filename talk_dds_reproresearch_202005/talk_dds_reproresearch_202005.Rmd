@@ -1,0 +1,502 @@
+---
+title: "Reproducible Research 2.0"
+subtitle: "Dublin Data Science"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "2020-05-21"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+
+conflict_prefer("filter",   "dplyr")
+conflict_prefer("lag",      "dplyr")
+conflict_prefer("select",   "dplyr")
+
+
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      message    = FALSE,
+                      warning    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11
+                      )
+
+
+options(width = 80L,
+        warn  = 1,
+        mc.cores = parallel::detectCores()
+        )
+
+
+set.seed(42)
+```
+
+
+
+#  What is Reproducible Research?
+
+
+---
+
+![](img/buzzword_bingo.png)
+
+
+## An Example?
+
+---
+
+Anecdotes???
+
+
+
+## Meetups
+
+\
+
+Dublin Data Science
+
+\
+
+Insurely You're Joking (Dublin|London)
+
+\
+
+Anyone who will have me
+
+---
+
+Talks
+
+\
+
+Workshops
+
+\
+
+Informal help
+
+---
+
+![](img/maurice_moss.png)
+
+---
+
+![](img/lolcat_help.jpg)
+
+---
+
+![](img/hadley_wickham.jpg)
+
+---
+
+![](img/onward.png)
+
+---
+
+![](img/shit_be_broke.png)
+
+---
+
+![](img/star_wars_fail.jpg)
+
+
+## What To Do?
+
+---
+
+![](img/great_idea.jpg)
+
+---
+
+Reproducibility
+
+---
+
+![](img/miracle_step2.jpg)
+
+---
+
+![](img/research_comic_phd.jpg)
+
+
+
+
+# Reproducible Research
+
+---
+
+![](img/reproresearch_spectrum.jpg)
+
+
+---
+
+\
+
+
+1. Source Control
+1. Workbooks
+
+---
+
+\
+
+
+1. Source Control
+1. Workbooks
+1. Makefiles
+1. Containers and Docker
+
+
+
+# Source Control
+
+---
+
+![](img/file_naming.jpg)
+
+---
+
+![](img/phd_final.jpg)
+
+---
+
+![](img/twitter_filename.jpg)
+
+---
+
+![](img/shit_be_broke.png)
+
+
+## git
+
+\
+
+Track changes
+
+\
+
+Collaboration
+
+---
+
+![](img/github.jpg)
+
+---
+
+Issue tracking
+
+\
+
+Branch management
+
+
+
+# Workbooks
+
+---
+
+What is research?
+
+---
+
+Outcome unknown...
+
+---
+
+Try lots of stuff...
+
+---
+
+![](img/bacon_studio.jpg)
+
+---
+
+![](img/shit_be_broke.png)
+
+---
+
+![](img/newton_notebooks.jpg)
+
+---
+
+![](img/lab_notebooks.jpg)
+
+---
+
+Record of work
+
+---
+
+![](img/workbook_screenshot.jpg)
+
+---
+
+Jupyter vs Zeppelin vs Rmarkdown
+
+---
+
+NOT for production
+
+
+
+# Makefiles
+
+
+---
+
+![](img/carins_folder.jpg)
+
+---
+
+![](img/makefile_dependency.jpg)
+
+---
+
+![](img/bacon_studio.jpg)
+
+---
+
+![](img/shit_be_broke.png)
+
+
+## Dependency Management
+
+---
+
+make and Makefiles
+
+---
+
+Directed Acyclic Graph (DAG)
+
+---
+
+![](img/secdb_example.jpg)
+
+
+---
+
+sysadmin tasks
+
+---
+
+```
+IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}
+
+CONTAINER_NAME=repro_research
+
+render-html: ${PROJECT_NAME}.Rmd
+	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
+
+docker-build-image: Dockerfile
+	docker build -t ${IMAGE_TAG} -f Dockerfile .
+
+docker-run:
+	docker run --rm -d \
+	  -p 8787:8787 \
+	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_NAME}":rw \
+	  -e USER=${DOCKER_USER} \
+	  -e PASSWORD=quickpass \
+	  --name ${CONTAINER_NAME} \
+	  ${IMAGE_TAG}
+```
+
+
+# Containers and Docker
+
+
+## Rewind
+
+---
+
+![](img/lolcat_help.jpg)
+
+---
+
+![](img/onward.png)
+
+---
+
+![](img/github.jpg)
+
+---
+
+```
+Quitting from lines 272-288 (10_carinspricing_exploration.Rmd) 
+Error in `[.tbl_df`(policyprop_dt, claim_count > 0) : 
+  object 'claim_count' not found
+Calls: <Anonymous> ... ggplot -> [ -> [.grouped_df -> NextMethod -> [.tbl_df
+
+Execution halted
+```
+
+---
+
+![](img/shit_be_broke.png)
+
+---
+
+## Docker
+
+
+![](img/docker.png)
+
+---
+
+Lightweight containers
+
+\
+
+Library versioning
+
+---
+
+![](img/rocker_dockerhub.jpg)
+
+---
+
+```
+FROM rocker/verse:4.0.0
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    byobu \
+  && apt-get clean \
+  && install2.r --error \
+    conflicted \
+    cowplot \
+    knitr \
+    revealjs \
+    snakecase
+```
+
+---
+
+Issues
+
+---
+
+APIs (Yahoo! Finance)
+
+
+# Summary
+
+## Aspects
+
+\
+
+
+1. Source Control
+1. Workbooks
+1. Makefiles
+1. Containers and Docker
+
+---
+
+### Source Control
+
+\
+
+https://web.archive.org/web/20180924182907/http://hginit.com/
+
+\
+
+https://ohshitgit.com/
+
+\
+
+https://git-scm.com/book/en/v2
+
+---
+
+### Workbooks
+
+\
+
+https://www.dataquest.io/blog/jupyter-notebook-tutorial/
+
+\
+
+https://zeppelin.apache.org/docs/0.5.5-incubating/
+
+\
+
+https://rmarkdown.rstudio.com/articles_intro.html
+
+
+---
+
+### Makefiles
+
+\
+
+http://matt.might.net/articles/intro-to-make/
+
+\
+
+https://edoras.sdsu.edu/doc/make.html
+
+\
+
+https://www.gnu.org/software/make/manual/html_node/index.html
+
+
+---
+
+### Docker
+
+\
+
+http://ropenscilabs.github.io/r-docker-tutorial/
+
+\
+
+https://docker-curriculum.com/
+
+\
+
+https://docs.docker.com/get-started/
+
+
+---
+
+## Extras
+
+\
+
+[Software Carpentry](https://software-carpentry.org/)
+
+\
+
+https://gitlab.com/ecohealthalliance/drake-gitlab-docker-example
+
+\
+
+
+
+
+## Questions?
+
+\
+
+Email:
+
+mickcooney@gmail.com
+
+\
+
+GitHub:
+
+https://github.com/kaybenleroll/data_workshops
+
+
+
+

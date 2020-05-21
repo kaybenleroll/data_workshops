@@ -8,13 +8,14 @@ RUN echo "deb http://deb.debian.org/debian unstable main" >> /etc/apt/sources.li
     byobu \
     ccache \
     libquantlib0-dev/unstable \
+  && rm -rf /var/lib/apt/lists/* \
   && apt-get clean \
   && apt-get -y autoremove \
   && install2.r --error \
     conflicted \
-    revealjs \
-    knitr \
+    cowplot \
     kableExtra \
-    RQuantLib \
-    cowplot
+    knitr \
+    revealjs \
+    RQuantLib
 
