@@ -48,9 +48,6 @@ set.seed(42)
 
 ![](img/buzzword_bingo.png)
 
----
-
-![](img/maurice_moss.png)
 
 ## An Example?
 
@@ -88,12 +85,15 @@ Informal help
 
 ---
 
-![](img/hadley_wickham.jpg)
-
+![](img/maurice_moss.png)
 
 ---
 
 ![](img/lolcat_help.jpg)
+
+---
+
+![](img/hadley_wickham.jpg)
 
 ---
 
@@ -107,13 +107,6 @@ Informal help
 
 ![](img/star_wars_fail.jpg)
 
----
-
-![](img/miracle_step2.jpg)
-
----
-
-![](img/research_comic_phd.jpg)
 
 ## What To Do?
 
@@ -124,6 +117,15 @@ Informal help
 ---
 
 Reproducibility
+
+---
+
+![](img/miracle_step2.jpg)
+
+---
+
+![](img/research_comic_phd.jpg)
+
 
 
 
@@ -284,6 +286,28 @@ Directed Acyclic Graph (DAG)
 
 sysadmin tasks
 
+---
+
+```
+IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}
+
+CONTAINER_NAME=repro_research
+
+render-html: ${PROJECT_NAME}.Rmd
+	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
+
+docker-build-image: Dockerfile
+	docker build -t ${IMAGE_TAG} -f Dockerfile .
+
+docker-run:
+	docker run --rm -d \
+	  -p 8787:8787 \
+	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_NAME}":rw \
+	  -e USER=${DOCKER_USER} \
+	  -e PASSWORD=quickpass \
+	  --name ${CONTAINER_NAME} \
+	  ${IMAGE_TAG}
+```
 
 
 # Containers and Docker
@@ -336,6 +360,23 @@ Library versioning
 ---
 
 ![](img/rocker_dockerhub.jpg)
+
+---
+
+```
+FROM rocker/verse:4.0.0
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    byobu \
+  && apt-get clean \
+  && install2.r --error \
+    conflicted \
+    cowplot \
+    knitr \
+    revealjs \
+    snakecase
+```
 
 ---
 
