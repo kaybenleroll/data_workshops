@@ -1,7 +1,7 @@
 DOCKER_USER=mcooney
 
 PROJECT_USER=kaybenleroll
-PROJECT_NAME=talk_dds_optionsmargin_201903
+PROJECT_NAME=talk_idsc_terrorism_201906
 PROJECT_TAG=latest
 
 IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}:${PROJECT_TAG}

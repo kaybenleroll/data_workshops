@@ -1,4 +1,4 @@
-FROM rocker/verse:3.5.2
+FROM rocker/verse:3.5.3
 
 
 RUN echo "deb http://deb.debian.org/debian unstable main" >> /etc/apt/sources.list \
@@ -6,16 +6,10 @@ RUN echo "deb http://deb.debian.org/debian unstable main" >> /etc/apt/sources.li
   && apt-get -y upgrade \
   && apt-get install -y --no-install-recommends \
     byobu \
-    ccache \
-    libquantlib0-dev/unstable \
-  && rm -rf /var/lib/apt/lists/* \
   && apt-get clean \
   && apt-get -y autoremove \
   && install2.r --error \
-    conflicted \
+    import \
     cowplot \
-    kableExtra \
     knitr \
-    revealjs \
-    RQuantLib
-
+    feather

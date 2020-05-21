@@ -11,8 +11,6 @@ output:
 ---
 
 ```{r knit_opts, include=FALSE}
-rm(list = ls()); gc()
-
 import::from(rlang     ,as_integer, as_character)
 import::from(tibble    ,as_tibble, tibble, tribble, add_column, glimpse)
 import::from(magrittr  ,"%>%", set_colnames)
