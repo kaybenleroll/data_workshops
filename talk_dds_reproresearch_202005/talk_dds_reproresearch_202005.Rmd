@@ -2,7 +2,7 @@
 title: "Reproducible Research 2.0"
 subtitle: "Dublin Data Science"
 author: "Mick Cooney <mickcooney@gmail.com>"
-date: "2019-08-21"
+date: "2020-05-21"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -15,13 +15,6 @@ output:
 ```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
 library(conflicted)
 library(tidyverse)
-library(magrittr)
-library(scales)
-library(purrr)
-library(cowplot)
-library(knitr)
-library(fs)
-library(snakecase)
 
 conflict_prefer("filter",   "dplyr")
 conflict_prefer("lag",      "dplyr")
@@ -42,11 +35,8 @@ options(width = 80L,
         mc.cores = parallel::detectCores()
         )
 
-theme_set(theme_cowplot())
-
 
 set.seed(42)
-stan_seed <- 42
 ```
 
 
@@ -144,7 +134,7 @@ Reproducibility
 ![](img/reproresearch_spectrum.jpg)
 
 
-## Aspects
+---
 
 \
 
@@ -153,6 +143,8 @@ Reproducibility
 1. Workbooks
 
 ---
+
+\
 
 
 1. Source Control
@@ -326,6 +318,8 @@ Execution halted
 
 ![](img/shit_be_broke.png)
 
+---
+
 ## Docker
 
 
@@ -341,6 +335,10 @@ Library versioning
 
 ---
 
+![](img/rocker_dockerhub.jpg)
+
+---
+
 Issues
 
 ---
@@ -349,6 +347,100 @@ APIs (Yahoo! Finance)
 
 
 # Summary
+
+## Aspects
+
+\
+
+
+1. Source Control
+1. Workbooks
+1. Makefiles
+1. Containers and Docker
+
+---
+
+### Source Control
+
+\
+
+https://web.archive.org/web/20180924182907/http://hginit.com/
+
+\
+
+https://ohshitgit.com/
+
+\
+
+https://git-scm.com/book/en/v2
+
+---
+
+### Workbooks
+
+\
+
+https://www.dataquest.io/blog/jupyter-notebook-tutorial/
+
+\
+
+https://zeppelin.apache.org/docs/0.5.5-incubating/
+
+\
+
+https://rmarkdown.rstudio.com/articles_intro.html
+
+
+---
+
+### Makefiles
+
+\
+
+http://matt.might.net/articles/intro-to-make/
+
+\
+
+https://edoras.sdsu.edu/doc/make.html
+
+\
+
+https://www.gnu.org/software/make/manual/html_node/index.html
+
+
+---
+
+### Docker
+
+\
+
+http://ropenscilabs.github.io/r-docker-tutorial/
+
+\
+
+https://docker-curriculum.com/
+
+\
+
+https://docs.docker.com/get-started/
+
+
+---
+
+## Extras
+
+\
+
+[Software Carpentry](https://software-carpentry.org/)
+
+\
+
+https://gitlab.com/ecohealthalliance/drake-gitlab-docker-example
+
+\
+
+
+
 
 ## Questions?
 
