@@ -13,38 +13,21 @@ output:
 ---
 
 ```{r knit_opts, include=FALSE, warning=FALSE, message=FALSE}
-rm(list = ls()); gc()
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(cowplot)
+library(knitr)
+library(kableExtra)
+library(RQuantLib)
 
-import::from(rlang      ,as_integer)
-import::from(tibble     ,as_tibble, tibble, tribble, add_column, glimpse)
-import::from(magrittr   ,"%>%", set_colnames)
-import::from(readr      ,read_csv, write_csv, read_rds, write_rds, cols
-                        ,col_character)
-import::from(dplyr      ,mutate, filter, select, group_by, slice, ungroup
-                        ,left_join, inner_join, anti_join, semi_join
-                        ,summarise, summarise_at, vars, distinct, sample_n
-                        ,pull, if_else, count, arrange, bind_rows, mutate_all)
-import::from(tidyr      ,gather, spread, nest, unnest, replace_na, crossing)
-import::from(ggplot2    ,ggplot, aes, xlab, ylab, ggtitle
-                        ,geom_histogram, geom_boxplot, geom_bar, geom_col
-                        ,geom_line, geom_vline, geom_hline, geom_smooth
-                        ,geom_point, geom_errorbar, geom_tile
-                        ,scale_x_continuous, scale_y_continuous 
-                        ,expand_limits, theme, element_text, facet_grid
-                        ,facet_wrap, theme_set, theme)
-import::from(scales     ,comma)
-import::from(cowplot    ,theme_cowplot, plot_grid)
-import::from(purrr      ,map, map2, map_int, map_dbl, map_chr, map2_dbl, reduce)
-import::from(knitr      ,kable)
-import::from(kableExtra ,kable_styling, row_spec)
-import::from(RQuantLib  ,AmericanOption, EuropeanOption)
+conflict_prefer("filter",    "dplyr")
+conflict_prefer("select",    "dplyr")
 
 
-import::from('custom_functions.R'  ,calc_call_price
-                                   ,calc_option_price_greeks
-                                   ,leverage_pricer
-                                   ,construct_margin_calc_details
-                                   ,construct_margin_data)
+
+source("custom_functions.R")
 
 
 
@@ -708,18 +691,18 @@ S = 100.00, t = 0.5 &\implies& `r p3`
 ```{r plot_time_decay_atm_option, echo=FALSE, fig.height=7.5}
 moneyness_tbl <- tribble(
             ~moneyness,     ~S
-   ,"Out of the Money",  99.50
+   ,"Out of the Money",  95.00
    ,    "At the Money", 100.00
-   ,    "In the Money", 100.50
+   ,    "In the Money", 105.00
 )
 
-option_decay_tbl <- crossing(moneyness = moneyness_tbl$moneyness, T = (1:40) / 252) %>%
+option_decay_tbl <- crossing(moneyness = moneyness_tbl$moneyness, T = 1:40) %>%
     inner_join(moneyness_tbl, by = 'moneyness') %>%
     mutate(price = map2_dbl(S, T, calc_call_price)
-          ,days_passed = 40 - (252 * T)
+          ,days_passed = 40 - T
            ) %>%
-    arrange(S, days_passed) %>%
     group_by(S = as.character(S)) %>%
+    arrange(days_passed) %>%
     mutate(price_prop = price / price[1]) %>%
     ungroup()
 
