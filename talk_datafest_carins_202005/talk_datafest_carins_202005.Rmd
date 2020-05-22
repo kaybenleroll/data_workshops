@@ -59,7 +59,7 @@ plan(multisession)
 
 
 ```{r set_default_params, echo=FALSE}
-n_sim <- 500
+n_sim <- 1000
 ```
 
 
@@ -238,9 +238,8 @@ policy_claims_tbl <- claim_tbl %>%
 
 combined_tbl <- policy_tbl %>%
   left_join(policy_claims_tbl, by = 'policy_id') %>%
-  mutate(claim_count = ifelse(is.na(claim_count), 0, claim_count),
-         claim_total = ifelse(is.na(claim_total), 0, claim_total)
-         )
+  replace_na(list(claim_count = 0L,
+                  claim_total = 0L))
 
 combined_tbl %>% head() %>% kable(digits = 2)
 ```
@@ -394,7 +393,7 @@ Boxplots, Scatterplots, Heatmaps, etc
 
 ```{r boxplot_driver_age_claim_count, echo=FALSE, fig.height=7.5, fig.width = 11}
 ggplot(combined_tbl) +
-  geom_boxplot(aes(x = vec_cast(claim_count, character()), y = driver_age)) +
+  geom_boxplot(aes(x = as.character(claim_count), y = driver_age)) +
   xlab("Claim Count") +
   ylab("Driver Age") +
   ggtitle("Boxplot of Driver Ages by Claim Count")
