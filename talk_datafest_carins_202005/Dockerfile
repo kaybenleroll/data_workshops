@@ -1,6 +1,7 @@
 FROM rocker/verse:4.0.0
 
 RUN apt-get update \
+  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends \
     byobu \
     htop \

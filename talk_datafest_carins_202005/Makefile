@@ -16,9 +16,6 @@ render-html: ${PROJECT_NAME}.Rmd
 	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
 
 
-
-
-
 docker-build-image: Dockerfile
 	docker build -t ${IMAGE_TAG} -f Dockerfile .
 
