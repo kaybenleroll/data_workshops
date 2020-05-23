@@ -368,7 +368,7 @@ ggplot(combined_tbl) +
   xlab("Region") +
   ylab("Policy Count") +
   ggtitle("Barplot of Region") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+  theme(axis.text.x  = element_text(angle = 90, vjust = 0.5),
         strip.text.x = element_text(size = 8)
         )
 ```
@@ -785,7 +785,10 @@ ggplot(combined_tbl) +
   scale_y_continuous(labels = comma) +
   xlab("Region") +
   ylab("Policy Count") +
-  ggtitle("Barplot of Region")
+  ggtitle("Barplot of Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        strip.text.x = element_text(size = 8)
+        )
 ```
 
 ---
