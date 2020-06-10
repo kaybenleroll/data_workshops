@@ -1,0 +1,186 @@
+---
+title: "The Virtues of Simplicity"
+subtitle: "Google Adopt-a-Startup"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2020-06-10"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+library(conflicted)
+library(tidyverse)
+library(cowplot)
+library(CASdatasets)
+library(rsample)
+
+
+options(width = 80L,
+        warn  = 1)
+
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      warning    = FALSE,
+                      message    = FALSE,
+                      fig.height =     7,
+                      fig.width  =    11)
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+data(freMTPLfreq)
+```
+
+
+# Introduction
+
+
+## Who Am I?
+
+\
+
+Former quant
+
+\
+
+Insurance
+
+\
+
+Specialty risks
+
+
+
+## Layout
+
+\
+
+The KISS Principle
+
+\
+
+Data Quality
+
+
+
+# The KISS Principle
+
+---
+
+![](img/kiss_band.png)
+
+---
+
+Keep It Simple, Stupid
+
+---
+
+![](img/einstein.png)
+
+\
+
+*"Everything should be made as simple as possible, but no simpler."*
+
+
+
+# Data Quality
+
+---
+
+EVERYONE thinks they have good data
+
+---
+
+Rarely true...
+
+
+## Simple Test
+
+---
+
+Is it being used?
+
+
+## Visualisation and Exploration
+
+---
+
+```{r load_mtpl_data, echo=FALSE}
+freq_tbl <- freMTPLfreq %>%
+  as_tibble()
+
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(.groups = "drop",
+            rate = sum(ClaimNb) / sum(Exposure))
+
+
+ggplot(region_rate_tbl) +
+  geom_point(aes(x = Region, y = rate), size = 3) +
+  expand_limits(y = 0) +
+  xlab("Region") +
+  ylab("Claim Rate") +
+  ggtitle("Exploratory Plot of Claim Rate by Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+---
+
+```{r plot_bootstrapped_claim_rates, echo=FALSE}
+calc_region_rate <- function(bootstrap_split) {
+  bootstrap_tbl <- bootstrap_split %>%
+    as_tibble() %>%
+    group_by(Region) %>%
+    summarise(.groups = "drop",
+              rate = sum(ClaimNb) / sum(Exposure))
+  
+  return(bootstrap_tbl)
+}
+
+bootstrap_freq_tbl <- freq_tbl %>%
+  bootstraps(times = 100) %>%
+  mutate(freq_data = map(splits, calc_region_rate)) %>%
+  select(id, freq_data) %>%
+  unnest(freq_data) %>%
+  group_by(Region) %>%
+  summarise(.groups = "drop",
+            low    = quantile(rate, probs = 0.25),
+            mean   = mean(rate),
+            top    = quantile(rate, probs = 0.75),
+            median = median(rate)
+            )
+
+ggplot(bootstrap_freq_tbl) +
+  geom_errorbar(aes(x = Region, ymin = low, ymax = top), width = 0, size = 1) +
+  geom_point(aes(x = Region, y = mean), size = 3) +
+  geom_point(aes(x = Region, y = median), colour = 'red', size = 2) +
+  expand_limits(y = 0) +
+  xlab("Region") +
+  ylab("Claim Rate") +
+  ggtitle("50% Claim Rate Uncertainty Estimates for Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+# Summary
+
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops
