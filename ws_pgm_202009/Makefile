@@ -1,7 +1,7 @@
 DOCKER_USER=mcooney
 
 PROJECT_USER=kaybenleroll
-PROJECT_NAME=ws_bayesian_201910
+PROJECT_NAME=ws_pgm_202009
 
 render-html: ${PROJECT_NAME}.Rmd
 	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
@@ -16,6 +16,7 @@ docker-run:
 	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_NAME}":rw \
 	  -e USER=${DOCKER_USER} \
 	  -e PASSWORD=quickpass \
+		--name workshop \
 	  ${PROJECT_USER}/${PROJECT_NAME}
 
 docker-stop:

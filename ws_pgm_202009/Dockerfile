@@ -1,8 +1,17 @@
-FROM kaybenleroll/r_baseimage:base202003
+FROM kaybenleroll/r_baseimage:base202007
 
-RUN apt-get update \
+RUN install2.r --error BiocManager
+
+COPY build/docker_install_bioc_pkgs.R /tmp/
+
+RUN Rscript /tmp/docker_install_bioc_pkgs.R \
+  && apt-get update \
   && apt-get install -y --no-install-recommends \
     liblapack-dev \
   && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* \
   && install2.r --error \
-    bayesplot
+    bnlearn \
+    gRain \
+    gRbase
+
