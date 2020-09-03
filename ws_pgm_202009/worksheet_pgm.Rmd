@@ -1,0 +1,111 @@
+---
+title: "Dublin Data Science Workshop on Probabilistic Graphical Models"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Monday, 21 September 2020"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+  pdf_document: default
+---
+
+
+```{r knit_opts, include = FALSE}
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      message    = FALSE,
+                      warning    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11)
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(cowplot)
+
+
+source("custom_functions.R")
+
+resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+
+
+options(width    = 80L,
+        warn     = 1,
+        mc.cores = parallel::detectCores()
+        )
+
+
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+
+---
+
+
+All code and data for this workshop is available at the following URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+Code is available in the `ws_pgm_202009/` directory.
+
+
+
+Content in this workshop is based on the book
+[Probabalistic Graphical Models: Principles and Techniques](http://www.springer.com/us/book/9781461422983)
+by Soren Hojsgaard.
+
+![](img/graphical_models_cover.png)
+
+
+
+
+Also look at the vignettes for the packages
+[`gRain`](https://cran.r-project.org/web/packages/gRain/index.html)
+and
+[`gRbase`](https://cran.r-project.org/web/packages/gRbase/index.html)
+
+
+Remember that this topic is massive. I could easily give a full
+semester course on this stuff to really do it justice, so most of this
+workshop is just me working through the material as I learn it.
+
+
+As a result, it is highly likely this worksheet and code contains
+typos, errors, logical flaws and other mistakes in need of correction
+in this workshop, so if you note any, please let me know so I can try
+to fix them!
+
+
+If you want to look into this topic more, there is an old Coursera
+course by Daphne Koller (tough going but excellent):
+
+https://www.coursera.org/learn/probabilistic-graphical-models
+
+
+
+This course was based on her textbook
+
+[Probabalistic Graphical Models: Principles and Techniques](http://pgm.stanford.edu/)
+
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
