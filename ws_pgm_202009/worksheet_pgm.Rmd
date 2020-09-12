@@ -481,11 +481,16 @@ print(mother_cpt)
 father_cpt <- cptable(~ father, values = genotype_probs, levels = genotypes)
 print(father_cpt)
 
+p_inheritance <- prob_tbl %>%
+  arrange(father, mother, child) %>%
+  pull(prob)
+
 child_cpt  <- cptable(~ child | mother + father,
-                      values = prob_tbl %>% arrange(father, mother, child) %>% pull(prob),
+                      values = p_inheritance,
                       levels = genotypes)
 print(child_cpt)
 ```
+
 
 Using the CPTs, we construct the Bayesian network:
 
@@ -499,32 +504,317 @@ plot(genetic_family_grain)
 ```
 
 
+## Querying the Network
+
+By using the `gRain` package it allows us to use the in-built functionality to
+query the network.
+
+To start with, we want to see the marginal distribution of alleles for the
+father.
+
+```{r query_father_marginal_distribution, echo=TRUE}
+querygrain(genetic_family_grain, nodes = "father")
+```
+
+We can also look at the joint distribution of the mother and child:
+
+
+```{r query_mother_child_joint_distribution, echo=TRUE}
+querygrain(
+  genetic_family_grain,
+  nodes = c("child", "mother"),
+  type  = "joint"
+)
+```
+
+We can pass this output to `ftable()` if we want:
+
+
+```{r query_mother_child_ftable, echo=TRUE}
+querygrain(
+    genetic_family_grain,
+    nodes = c("child", "mother"),
+    type  = "joint"
+    ) %>%
+  ftable(col.vars = "child")
+```
+
+
+We can also produce the conditional distributions for each of the possible
+values for the father given values of the mother and child.
+
+```{r show_father_conditional_tables, echo=TRUE}
+querygrain(
+    genetic_family_grain,
+    nodes = c("father", "child", "mother"),
+    type  = "conditional"
+  ) %>%
+  ftable(col.vars = "father")
+```
+
+
+## Paternity Test
+
+Now suppose we know that a child has genotype $AB$, and the mother has genotype
+$BB$. Given that a man has genotype $AB$, what can we say about the chances of
+the man being the father of the child?
+
+This is a more complicated question than it sounds, as we need to think about
+a few different ideas. We make use of the `pEvidence()` and `setEvidence()`.
 
 
 
+```{r family_fmc_evidence, echo=TRUE}
+p_fmc <- genetic_family_grain %>%
+  setEvidence(evidence = list(mother = "BB", child = "AB", father = "AB"))
 
+p_fmc %>% print()
+p_fmc %>% pEvidence()
+```
+
+So we now have a probability for finding this particular combination of alleles
+in a mother / father / child grouping.
+
+So now we calculate the probability of any given man being $AB$?
+
+```{r family_f_evidence, echo=TRUE}
+p_f <- genetic_family_grain %>%
+  setEvidence(evidence = list(father = "AB"))
+
+p_f %>% print()
+p_f %>% pEvidence()
+```
+
+
+Finally, we look at the probability of the child being $AB$ with a mother $BB$.
+
+```{r family_mc_evidence, echo=TRUE}
+p_mc <- genetic_family_grain %>%
+  setEvidence(evidence = list(mother = "BB", child = "AB"))
+
+p_mc %>% print()
+p_mc %>% pEvidence()
+```
+
+So now we need to look at the various ratios of these probabilities to assess
+probabilities.
+
+```{r calculate_conditional_probabilities, echo=TRUE}
+p_man <- pEvidence(p_fmc) / pEvidence(p_f)
+
+p_father <- p_man / pEvidence(p_mc)
+```
+
+
+## Extended Genetic Family
+
+We can now extend this model to add extended families, such as uncle/aunts and
+grandparents.
+
+
+```{r create_extended_family_network, echo=TRUE}
+c_mf <- parray(c("child", "mother", "father"),
+               levels = rep(list(genotypes), 3),
+               values = p_inheritance
+               )
+
+f_gmgf <- parray(c("father", "grandmother", "grandfather"),
+                 levels = rep(list(genotypes), 3),
+                 values = p_inheritance
+                 )
+
+u_gmgf <- parray(c("uncle", "grandmother", "grandfather"),
+                 levels = rep(list(genotypes), 3),
+                 values = p_inheritance
+                 )
+
+m  <- parray("mother",      levels = list(genotypes), values = genotype_probs)
+gf <- parray("grandfather", levels = list(genotypes), values = genotype_probs)
+gm <- parray("grandmother", levels = list(genotypes), values = genotype_probs)
+
+
+extended_family_grain <- list(c_mf, m, f_gmgf, u_gmgf, gm, gf) %>%
+  compileCPT() %>%
+  grain()
+
+extended_family_grain %>% iplot()
 
 ```
-\worksheetexercise Construct the probability tables for the three
-nodes in the chart. \emph{HINT:} Look at the function
-\texttt{cptable()} for this.
 
-\worksheetexercise Build the Bayesian network and plot it out.
 
-\worksheetexercise What is the marginal distribution of the father's
-genotype?
+Now suppose the man is dead and we do not have any genetic information for him,
+but we know his brother tests as $AA$. How does this affect the evidence for
+potential paternity?
 
-\worksheetexercise What is the joint distribution of mother and child?
+```{r family_uncle_evidence, echo=TRUE}
+p_uncle <- extended_family_grain %>%
+  setEvidence(evidence = list(mother = "BB", child = "AB", uncle = "AA"))
 
-\worksheetexercise What is the conditional joint distribution of the
-father, given values for mother and child?
-
-\worksheetexercise A mother with a genotype $BB$ has a child with
-genotype $AB$. Given that a man has genotype $AB$, how can we
-determine if the man is likely to be the child's father?
-
-\worksheetexercise Construct the Bayesian network as seen below.
+p_uncle %>% print()
+p_uncle %>% pEvidence()
 ```
+
+We also want to show how we calculate similar values by using `querygrain()`.
+
+```{r family_uncle_querygrain, echo=TRUE}
+extended_family_grain %>%
+  querygrain(nodes = c("child", "mother", "uncle"),
+             type = "joint") %>%
+  ftable(col.vars = "uncle")
+```
+
+
+# Chest-Clinic Network
+
+We now turn our attention to the 'Chest-Clinic Network' as an example of a 
+Bayesian network.
+
+Based on research by Lauritzen and Spiegelhalter, we construct a network based
+on the following domain knowledge:
+
+
+> Shortness-of-breath (dyspnoea) may be due to tuberculosis, lung cancer or
+> bronchitis, or none of them, or more than one of them. A recent visit to Asia
+> increases the chances of tuberculosis, while smoking is known to be a risk
+> factor for both lung cancer and bronchitis.  The results of a single chest
+> X-ray do not discriminate between lung cancer and tuberculosis, as neither
+> does the presence or absence of dyspnoea.
+
+We use this knowledge to construct a Bayesian network - breaking up the above
+into discrete pieces of knowledge.
+
+```{r construct_chest_clinic_dag, echo=TRUE}
+chestclinic_dag <- list(
+    "asia",
+    c("tub", "asia"),
+    "smoke",
+    c("lung", "smoke"),
+    c("bronc", "smoke"),
+    c("either", "lung", "tub"),
+    c("xray", "either"),
+    c("dysp", "bronc", "either")
+    ) %>%
+  dag()
+
+chestclinic_dag %>% plot()
+```
+
+Now that we have our network, we can use data to construct the CPTs. Assuming
+no data is missing, we can use a tibble of data to set the probabilities.
+
+```{r load_chest_sim_data, echo=TRUE}
+data(chestSim500)
+data(chestSim1000)
+data(chestSim10000)
+
+
+chestdata_500_tbl   <- chestSim500   %>% as_tibble()
+chestdata_1000_tbl  <- chestSim1000  %>% as_tibble()
+chestdata_10000_tbl <- chestSim10000 %>% as_tibble()
+
+chestdata_500_tbl   %>% glimpse()
+chestdata_1000_tbl  %>% glimpse()
+chestdata_10000_tbl %>% glimpse()
+```
+
+We now can build multiple networks for each of the datasets we have.
+
+
+```{r construct_chestclinic_grain_network, echo=TRUE}
+chestsim_500_grain <- chestclinic_dag %>%
+  grain(data = chestdata_500_tbl, smooth = 0.1) %>%
+  compile(propagate = TRUE)
+
+chestsim_1000_grain <- chestclinic_dag %>%
+  grain(data = chestdata_1000_tbl, smooth = 0.1) %>%
+  compile(propagate = TRUE)
+
+chestsim_10000_grain <- chestclinic_dag %>%
+  grain(data = chestdata_10000_tbl, smooth = 0.1) %>%
+  compile(propagate = TRUE)
+```
+
+The unconditional probability of a patient having lung cancer should match
+the proportion of cases in the dataset.
+
+```{r calculate_500_unconditional_prob, echo=TRUE}
+chestsim_500_grain %>%
+  querygrain(nodes = "lung", type = "joint")
+
+chestdata_500_tbl %>%
+  count(lung, name = "count") %>%
+  mutate(prob = count / sum(count))
+```
+
+We do the same thing for the other networks we constructed.
+
+First we look at the 1,000 row dataset.
+
+```{r calculate_1000_unconditional_prob, echo=TRUE}
+chestsim_1000_grain %>%
+  querygrain(nodes = "lung", type = "joint")
+
+chestdata_1000_tbl %>%
+  count(lung, name = "count") %>%
+  mutate(prob = count / sum(count))
+```
+
+
+Now we look at the network based on 10,000 datapoints.
+
+```{r calculate_10000_unconditional_prob, echo=TRUE}
+chestsim_10000_grain %>%
+  querygrain(nodes = "lung", type = "joint")
+
+chestdata_10000_tbl %>%
+  count(lung, name = "count") %>%
+  mutate(prob = count / sum(count))
+```
+
+
+## Using Evidence
+
+We can use given evidence to adjust the conditional probabilities.
+
+Suppose the individual has visited Asia and has dyspnoea, what is the
+conditional probability that the person has lung cancer?
+
+```{r chestclinic_500_asia_dysp_query, echo=TRUE}
+chestsim_500_grain %>%
+  querygrain(
+    nodes    = "lung",
+    evidence = list(asia = 'yes', dysp = 'yes'),
+    type     = "marginal"
+    )
+```
+
+Given this evidence we see the probability of lung cancer has now increased to
+around 6.5\%.
+
+We repeat this exercise for the 1,000 network and see what probability it
+shows.
+
+```{r chestclinic_1000_asia_dysp_query, echo=TRUE}
+chestsim_1000_grain %>%
+  querygrain(
+    nodes    = "lung",
+    evidence = list(asia = 'yes', dysp = 'yes'),
+    type     = "marginal"
+    )
+```
+
+In this network, the probability is 10%.
+
+```{r chestclinic_10000_asia_dysp_query, echo=TRUE}
+chestsim_10000_grain %>%
+  querygrain(
+    nodes    = "lung",
+    evidence = list(asia = 'yes', dysp = 'yes'),
+    type     = "marginal"
+    )
+```
+
+As before, the probability is about 10\%.
 
 
 
