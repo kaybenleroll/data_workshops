@@ -1596,15 +1596,16 @@ P(D_1) = \{0, \, 0, \, 0, \, 0, \, 0.5, \, 0.5 \}
 P(D_2) = \{0, \, 0, \, 0.5, \, 0.5, \, 0, \, 0 \}
 \]</span></p>
 <p>because <span class="math inline">\(D_1 = 5 \implies D_2 = 4\)</span> and <span class="math inline">\(D_1 = 6 \implies D_2 = 3\)</span></p>
-<p>Thus, while we conceptually think of <span class="math inline">\(D_1\)</span> and <span class="math inline">\(D_2\)</span> as being independent of one another, they become dependent if we have knowledge of <span class="math inline">\(T\)</span>. In this case we say that <span class="math inline">\(D_1\)</span> and <span class="math inline">\(D_2\)</span> are <em>conditionally dependent on one another given</em> <span class="math inline">\(T\)</span>.</p>
+<p>Thus, while we conceptually think of <span class="math inline">\(D_1\)</span> and <span class="math inline">\(D_2\)</span> as being independent of one another, they become dependent if we have knowledge of <span class="math inline">\(T\)</span>.</p>
+<p>In this case we say that <span class="math inline">\(D_1\)</span> and <span class="math inline">\(D_2\)</span> are <em>conditionally dependent on one another given</em> <span class="math inline">\(T\)</span>.</p>
 <p>Now we define new variables, <span class="math inline">\(X_1\)</span> and <span class="math inline">\(X_2\)</span>:</p>
 <p><span class="math display">\[
 X_1 =
 \begin{cases}
-  1 \text{ iff } T \text{ even}\\
+  1 \text{ iff } T \text{ is even}\\
   0 \text{ otherwise}
 \end{cases}
-\;
+\; \; \;
 X_2 =
 \begin{cases}
   1 \text{ iff } T &gt;= 9\\
@@ -2110,7 +2111,7 @@ chestsim_10000_grain &lt;- chestclinic_dag %&gt;%
 ##  version  R version 4.0.0 (2020-04-24)
 ##  os       Ubuntu 20.04 LTS            
 ##  system   x86_64, linux-gnu           
-##  ui       X11                         
+##  ui       RStudio                     
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
@@ -2162,6 +2163,7 @@ chestsim_10000_grain &lt;- chestclinic_dag %&gt;%
 ##  modelr         0.1.8   2020-05-19 [1] RSPM (R 4.0.0)
 ##  munsell        0.5.0   2018-06-12 [1] RSPM (R 4.0.0)
 ##  nlme           3.1-147 2020-04-13 [2] CRAN (R 4.0.0)
+##  packrat        0.5.0   2018-11-14 [1] RSPM (R 4.0.0)
 ##  pillar         1.4.4   2020-05-05 [1] RSPM (R 4.0.0)
 ##  pkgconfig      2.0.3   2019-09-22 [1] RSPM (R 4.0.0)
 ##  purrr        * 0.3.4   2020-04-17 [1] RSPM (R 4.0.0)
@@ -2174,6 +2176,7 @@ chestsim_10000_grain &lt;- chestclinic_dag %&gt;%
 ##  Rgraphviz      2.32.0  2020-04-27 [1] Bioconductor  
 ##  rlang          0.4.6   2020-05-02 [1] RSPM (R 4.0.0)
 ##  rmarkdown      2.2     2020-05-31 [1] RSPM (R 4.0.0)
+##  rsconnect      0.8.16  2019-12-13 [1] RSPM (R 4.0.0)
 ##  rstudioapi     0.11    2020-02-07 [1] RSPM (R 4.0.0)
 ##  rvest          0.3.5   2019-11-08 [1] RSPM (R 4.0.0)
 ##  scales       * 1.1.1   2020-05-11 [1] RSPM (R 4.0.0)
