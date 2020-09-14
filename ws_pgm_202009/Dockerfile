@@ -1,4 +1,4 @@
-FROM kaybenleroll/r_baseimage:base202007
+FROM kaybenleroll/r_baseimage:base202009
 
 RUN install2.r --error BiocManager
 

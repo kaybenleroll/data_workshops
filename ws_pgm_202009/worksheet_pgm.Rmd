@@ -172,8 +172,11 @@ $$
 of the total being 11?
 
 *Answer:* We do not know anything about $D_1$ or $D_2$, so there are two
-outcomes that result in $T = 11$: $(D_1 = 5, D_2 = 6)$ or
-$(D_1 = 6, D_2 = 5)$. Thus, the probability of rolling 11 is
+outcomes that result in $T = 11$:
+
+$$(D_1 = 5, D_2 = 6) \text{ or } (D_1 = 6, D_2 = 5).$$
+
+Thus, the probability of rolling 11 is
 
 $$
 P(T = 11) = \frac{2}{36} = 0.05556
@@ -221,8 +224,10 @@ because $D_1 = 5 \implies D_2 = 4$ and $D_1 = 6 \implies D_2 = 3$
 
 
 Thus, while we conceptually think of $D_1$ and $D_2$ as being independent of
-one another, they become dependent if we have knowledge of $T$. In this case we
-say that $D_1$ and $D_2$ are *conditionally dependent on one another given* $T$.
+one another, they become dependent if we have knowledge of $T$.
+
+In this case we say that $D_1$ and $D_2$ are *conditionally dependent on one
+another given* $T$.
 
 
 Now we define new variables, $X_1$ and $X_2$:
@@ -230,10 +235,10 @@ Now we define new variables, $X_1$ and $X_2$:
 $$
 X_1 =
 \begin{cases}
-  1 \text{ iff } T \text{ even}\\
+  1 \text{ iff } T \text{ is even}\\
   0 \text{ otherwise}
 \end{cases}
-\;
+\; \; \;
 X_2 =
 \begin{cases}
   1 \text{ iff } T >= 9\\
