@@ -1,7 +1,7 @@
 ---
 title: "Dublin Data Science Workshop on Probabilistic Graphical Models"
 author: "Mick Cooney <mickcooney@gmail.com>"
-date: "Monday, 21 September 2020"
+date: "Monday, 14 September 2020"
 output:
   html_document:
     fig_caption: yes
@@ -682,6 +682,7 @@ on the following domain knowledge:
 
 We use this knowledge to construct a Bayesian network - breaking up the above
 into discrete pieces of knowledge.
+
 
 ```{r construct_chest_clinic_dag, echo=TRUE}
 chestclinic_dag <- list(
