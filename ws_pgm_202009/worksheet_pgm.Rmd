@@ -284,14 +284,13 @@ sprinkler_grain %>% plot()
 ```
 
 
-Two events can cause grass to be wet: Either the sprinkler is on or
-it is raining. Rain has a direct effect on the use of the sprinkler
-(namely that when it rains, the sprinkler is usually not turned on).
+Two events can cause grass to be wet: Either the sprinkler is on or it is
+raining. Rain has a direct effect on the use of the sprinkler (namely that when
+it rains, the sprinkler is usually not turned on).
 
 
-This can be modeled with a Bayesian network. The variables
-(R)ain, (S)prinkler, Wet(G)rass have two possible values: (y)es
-and (n)o.
+This can be modeled with a Bayesian network. The variables (R)ain, (S)prinkler,
+Wet(G)rass have two possible values: (y)es and (n)o.
 
 
 We can factorise the joint probability mass function as
