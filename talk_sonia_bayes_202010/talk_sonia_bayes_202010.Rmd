@@ -1,0 +1,209 @@
+---
+title: "An Introduction to Bayesian Reasoning"
+subtitle: "Society of Northern Ireland Actuaries"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "6 October 2020"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+---
+
+```{r knit_opts, include=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(magrittr)
+library(cowplot)
+library(rstan)
+library(bayesplot)
+library(tidybayes)
+
+source("custom_functions.R")
+
+resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+
+
+
+options(width = 80L,
+        warn  =   1,
+        mc.cores = parallel::detectCores()
+        )
+
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      warning    = FALSE,
+                      message    = FALSE,
+                      fig.height =     7,
+                      fig.width  =    11)
+
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+stan_seed <- 42
+```
+
+
+
+
+# Bayesian Inference Engine
+
+---
+
+Prior Knowledge
+
+$+$
+
+Data
+
+\
+
+$=$
+
+\
+
+Posterior Knowledge
+
+---
+
+Parameters, $\theta$
+
+\
+
+Data, $D$
+
+---
+
+Prior: $p(\theta)$
+
+\
+
+Likelihood: $p(D | \theta)$
+
+\
+
+Posterior: $p(\theta | D)$
+
+---
+
+$$
+p(\theta \, | \, D) = \int p(\theta) \, p(D \, | \, \theta)
+$$
+
+\
+
+Posterior calculation is high-dim integral
+
+---
+
+Use MCMC to sample posterior
+
+
+# Quick Example
+
+```{r load_monthly_returns, echo=FALSE}
+spy_returns_tbl <- read_rds("data/spy_returns_tbl.rds")
+```
+
+
+## SPY Monthly Returns
+
+
+```{r plot_asset_monthly_returns, echo=FALSE}
+ggplot(spy_returns_tbl) +
+  geom_histogram(aes(x = monthly_return), bins = 50) +
+  scale_x_continuous(labels = label_percent()) +
+  xlab("Asset Return") +
+  ylab("Frequency Count") +
+  ggtitle("Histogram of Monthly SPY Returns from Jan 2020")
+```
+
+---
+
+```{r plot_cumulative_return, echo=FALSE}
+plot_tbl <- spy_returns_tbl %>%
+  mutate(cuml_return = monthly_return %>% add(1) %>% cumprod())
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = date, y = cuml_return)) +
+  scale_y_continuous(labels = label_percent()) +
+  xlab("Date") +
+  ylab("Cumulative Return") +
+  ggtitle("Lineplot of the SPY Cumulative Returns")
+```
+
+---
+
+```{r asset_returns_stanmodel, cache=FALSE, warning=TRUE, echo=FALSE, results='hide'}
+stan_file <- "asset_returns.stan"
+
+standata_lst <- list(
+  y = spy_returns_tbl %>% pull(monthly_return),
+  N = spy_returns_tbl %>% nrow(),
+  
+  return_prior_mu = 0.0,
+  return_prior_sd = 0.1,
+  
+  vol_prior_mu    = -1.6,
+  vol_prior_sd    =  0.2
+)
+
+
+asset_returns_stanmodel <- stan_model(stan_file)
+
+asset_returns_stanfit <- sampling(
+  object = asset_returns_stanmodel,
+  data   = standata_lst,
+  iter   = 1000,
+  chains = 4,
+  seed   = stan_seed
+)
+
+asset_returns_draws_tbl <- asset_returns_stanfit %>%
+  tidy_draws()
+
+```
+
+```{r plot_posterior_histograms, echo=FALSE}
+plot_tbl <- asset_returns_draws_tbl %>%
+  select(.draw, mu, sigma) %>%
+  gather("param", "value", -.draw)
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(param), scales = "free_x") +
+  xlab("Posterior Value") +
+  ylab("Frequency Count") +
+  ggtitle("Histogram of Parameter Posterior Distributions")
+```
+
+---
+
+```{r plot_joint_posterior_distribution, echo=FALSE}
+ggplot(asset_returns_draws_tbl) +
+  geom_point(aes(x = mu, y = sigma)) +
+  ggtitle("Plot of Joint Posterior Distribution of mu and sigma")
+```
+
+
+
+
+# Thank You!
+
+\
+
+Mick Cooney
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops
+
+
+
+
