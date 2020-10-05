@@ -172,8 +172,11 @@ $$
 of the total being 11?
 
 *Answer:* We do not know anything about $D_1$ or $D_2$, so there are two
-outcomes that result in $T = 11$: $(D_1 = 5, D_2 = 6)$ or
-$(D_1 = 6, D_2 = 5)$. Thus, the probability of rolling 11 is
+outcomes that result in $T = 11$:
+
+$$(D_1 = 5, D_2 = 6) \text{ or } (D_1 = 6, D_2 = 5).$$
+
+Thus, the probability of rolling 11 is
 
 $$
 P(T = 11) = \frac{2}{36} = 0.05556
@@ -221,8 +224,10 @@ because $D_1 = 5 \implies D_2 = 4$ and $D_1 = 6 \implies D_2 = 3$
 
 
 Thus, while we conceptually think of $D_1$ and $D_2$ as being independent of
-one another, they become dependent if we have knowledge of $T$. In this case we
-say that $D_1$ and $D_2$ are *conditionally dependent on one another given* $T$.
+one another, they become dependent if we have knowledge of $T$.
+
+In this case we say that $D_1$ and $D_2$ are *conditionally dependent on one
+another given* $T$.
 
 
 Now we define new variables, $X_1$ and $X_2$:
@@ -230,10 +235,10 @@ Now we define new variables, $X_1$ and $X_2$:
 $$
 X_1 =
 \begin{cases}
-  1 \text{ iff } T \text{ even}\\
+  1 \text{ iff } T \text{ is even}\\
   0 \text{ otherwise}
 \end{cases}
-\;
+\; \; \;
 X_2 =
 \begin{cases}
   1 \text{ iff } T >= 9\\
@@ -279,14 +284,13 @@ sprinkler_grain %>% plot()
 ```
 
 
-Two events can cause grass to be wet: Either the sprinkler is on or
-it is raining. Rain has a direct effect on the use of the sprinkler
-(namely that when it rains, the sprinkler is usually not turned on).
+Two events can cause grass to be wet: Either the sprinkler is on or it is
+raining. Rain has a direct effect on the use of the sprinkler (namely that when
+it rains, the sprinkler is usually not turned on).
 
 
-This can be modeled with a Bayesian network. The variables
-(R)ain, (S)prinkler, Wet(G)rass have two possible values: (y)es
-and (n)o.
+This can be modeled with a Bayesian network. The variables (R)ain, (S)prinkler,
+Wet(G)rass have two possible values: (y)es and (n)o.
 
 
 We can factorise the joint probability mass function as
@@ -323,7 +327,11 @@ probabilities:
 yn <- c("yes", "no")
 
 ## P(R)
-p_R <- parray("Rain", levels = list(yn), values = c(.2, .8));
+p_R <- parray(
+  varNames = "Rain",
+  levels = list(yn),
+  values = c(0.2, 0.8)
+)
 
 ## P(S|R)
 p_S_R <- parray(
@@ -485,9 +493,12 @@ p_inheritance <- prob_tbl %>%
   arrange(father, mother, child) %>%
   pull(prob)
 
-child_cpt  <- cptable(~ child | mother + father,
-                      values = p_inheritance,
-                      levels = genotypes)
+child_cpt <- cptable(
+  ~ child | mother + father,
+  values = p_inheritance,
+  levels = genotypes
+  )
+
 print(child_cpt)
 ```
 
@@ -513,26 +524,27 @@ To start with, we want to see the marginal distribution of alleles for the
 father.
 
 ```{r query_father_marginal_distribution, echo=TRUE}
-querygrain(genetic_family_grain, nodes = "father")
+genetic_family_grain %>%
+  querygrain(nodes = "father")
 ```
 
 We can also look at the joint distribution of the mother and child:
 
 
 ```{r query_mother_child_joint_distribution, echo=TRUE}
-querygrain(
-  genetic_family_grain,
-  nodes = c("child", "mother"),
-  type  = "joint"
-)
+genetic_family_grain %>%
+  querygrain(
+    nodes = c("child", "mother"),
+    type  = "joint"
+  )
 ```
 
 We can pass this output to `ftable()` if we want:
 
 
 ```{r query_mother_child_ftable, echo=TRUE}
-querygrain(
-    genetic_family_grain,
+genetic_family_grain %>%
+  querygrain(
     nodes = c("child", "mother"),
     type  = "joint"
     ) %>%
@@ -544,11 +556,11 @@ We can also produce the conditional distributions for each of the possible
 values for the father given values of the mother and child.
 
 ```{r show_father_conditional_tables, echo=TRUE}
-querygrain(
-    genetic_family_grain,
+genetic_family_grain %>%
+  querygrain(
     nodes = c("father", "child", "mother"),
     type  = "conditional"
-  ) %>%
+    ) %>%
   ftable(col.vars = "father")
 ```
 
@@ -566,7 +578,9 @@ a few different ideas. We make use of the `pEvidence()` and `setEvidence()`.
 
 ```{r family_fmc_evidence, echo=TRUE}
 p_fmc <- genetic_family_grain %>%
-  setEvidence(evidence = list(mother = "BB", child = "AB", father = "AB"))
+  setEvidence(
+    evidence = list(mother = "BB", child = "AB", father = "AB")
+    )
 
 p_fmc %>% print()
 p_fmc %>% pEvidence()
@@ -590,7 +604,9 @@ Finally, we look at the probability of the child being $AB$ with a mother $BB$.
 
 ```{r family_mc_evidence, echo=TRUE}
 p_mc <- genetic_family_grain %>%
-  setEvidence(evidence = list(mother = "BB", child = "AB"))
+  setEvidence(
+    evidence = list(mother = "BB", child = "AB")
+    )
 
 p_mc %>% print()
 p_mc %>% pEvidence()
@@ -613,20 +629,23 @@ grandparents.
 
 
 ```{r create_extended_family_network, echo=TRUE}
-c_mf <- parray(c("child", "mother", "father"),
-               levels = rep(list(genotypes), 3),
-               values = p_inheritance
-               )
+c_mf <- parray(
+  varNames = c("child", "mother", "father"),
+  levels   = rep(list(genotypes), 3),
+  values   = p_inheritance
+  )
 
-f_gmgf <- parray(c("father", "grandmother", "grandfather"),
-                 levels = rep(list(genotypes), 3),
-                 values = p_inheritance
-                 )
+f_gmgf <- parray(
+  varNames = c("father", "grandmother", "grandfather"),
+  levels   = rep(list(genotypes), 3),
+  values = p_inheritance
+  )
 
-u_gmgf <- parray(c("uncle", "grandmother", "grandfather"),
-                 levels = rep(list(genotypes), 3),
-                 values = p_inheritance
-                 )
+u_gmgf <- parray(
+  varNames = c("uncle", "grandmother", "grandfather"),
+  levels   = rep(list(genotypes), 3),
+  values   = p_inheritance
+  )
 
 m  <- parray("mother",      levels = list(genotypes), values = genotype_probs)
 gf <- parray("grandfather", levels = list(genotypes), values = genotype_probs)
@@ -638,7 +657,6 @@ extended_family_grain <- list(c_mf, m, f_gmgf, u_gmgf, gm, gf) %>%
   grain()
 
 extended_family_grain %>% iplot()
-
 ```
 
 
@@ -658,8 +676,10 @@ We also want to show how we calculate similar values by using `querygrain()`.
 
 ```{r family_uncle_querygrain, echo=TRUE}
 extended_family_grain %>%
-  querygrain(nodes = c("child", "mother", "uncle"),
-             type = "joint") %>%
+  querygrain(
+    nodes = c("child", "mother", "uncle"),
+    type  = "joint"
+    ) %>%
   ftable(col.vars = "uncle")
 ```
 
