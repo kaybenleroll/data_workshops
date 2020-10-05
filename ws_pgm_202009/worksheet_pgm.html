@@ -1657,7 +1657,11 @@ P(G|S,R) &amp;= 0.99 &amp; P(G|S, \neg R) &amp;= 0.9 &amp; P(G|\neg S, R) &amp;=
 <pre class="r"><code>yn &lt;- c(&quot;yes&quot;, &quot;no&quot;)
 
 ## P(R)
-p_R &lt;- parray(&quot;Rain&quot;, levels = list(yn), values = c(.2, .8));
+p_R &lt;- parray(
+  varNames = &quot;Rain&quot;,
+  levels = list(yn),
+  values = c(0.2, 0.8)
+)
 
 ## P(S|R)
 p_S_R &lt;- parray(
@@ -1762,9 +1766,12 @@ print(father_cpt)</code></pre>
   arrange(father, mother, child) %&gt;%
   pull(prob)
 
-child_cpt  &lt;- cptable(~ child | mother + father,
-                      values = p_inheritance,
-                      levels = genotypes)
+child_cpt &lt;- cptable(
+  ~ child | mother + father,
+  values = p_inheritance,
+  levels = genotypes
+  )
+
 print(child_cpt)</code></pre>
 <pre><code>## {v, pa(v)} :
 ##  chr [1:3] &quot;child&quot; &quot;mother&quot; &quot;father&quot;
@@ -1783,25 +1790,26 @@ plot(genetic_family_grain)</code></pre>
 <h2><span class="header-section-number">3.1</span> Querying the Network</h2>
 <p>By using the <code>gRain</code> package it allows us to use the in-built functionality to query the network.</p>
 <p>To start with, we want to see the marginal distribution of alleles for the father.</p>
-<pre class="r"><code>querygrain(genetic_family_grain, nodes = &quot;father&quot;)</code></pre>
+<pre class="r"><code>genetic_family_grain %&gt;%
+  querygrain(nodes = &quot;father&quot;)</code></pre>
 <pre><code>## $father
 ## father
 ##   AA   AB   BB 
 ## 0.49 0.42 0.09</code></pre>
 <p>We can also look at the joint distribution of the mother and child:</p>
-<pre class="r"><code>querygrain(
-  genetic_family_grain,
-  nodes = c(&quot;child&quot;, &quot;mother&quot;),
-  type  = &quot;joint&quot;
-)</code></pre>
+<pre class="r"><code>genetic_family_grain %&gt;%
+  querygrain(
+    nodes = c(&quot;child&quot;, &quot;mother&quot;),
+    type  = &quot;joint&quot;
+  )</code></pre>
 <pre><code>##      mother
 ## child    AA    AB    BB
 ##    AA 0.343 0.147 0.000
 ##    AB 0.147 0.210 0.063
 ##    BB 0.000 0.063 0.027</code></pre>
 <p>We can pass this output to <code>ftable()</code> if we want:</p>
-<pre class="r"><code>querygrain(
-    genetic_family_grain,
+<pre class="r"><code>genetic_family_grain %&gt;%
+  querygrain(
     nodes = c(&quot;child&quot;, &quot;mother&quot;),
     type  = &quot;joint&quot;
     ) %&gt;%
@@ -1812,11 +1820,11 @@ plot(genetic_family_grain)</code></pre>
 ## AB           0.147 0.210 0.063
 ## BB           0.000 0.063 0.027</code></pre>
 <p>We can also produce the conditional distributions for each of the possible values for the father given values of the mother and child.</p>
-<pre class="r"><code>querygrain(
-    genetic_family_grain,
+<pre class="r"><code>genetic_family_grain %&gt;%
+  querygrain(
     nodes = c(&quot;father&quot;, &quot;child&quot;, &quot;mother&quot;),
     type  = &quot;conditional&quot;
-  ) %&gt;%
+    ) %&gt;%
   ftable(col.vars = &quot;father&quot;)</code></pre>
 <pre><code>##              father   AA   AB   BB
 ## child mother                      
@@ -1835,7 +1843,9 @@ plot(genetic_family_grain)</code></pre>
 <p>Now suppose we know that a child has genotype <span class="math inline">\(AB\)</span>, and the mother has genotype <span class="math inline">\(BB\)</span>. Given that a man has genotype <span class="math inline">\(AB\)</span>, what can we say about the chances of the man being the father of the child?</p>
 <p>This is a more complicated question than it sounds, as we need to think about a few different ideas. We make use of the <code>pEvidence()</code> and <code>setEvidence()</code>.</p>
 <pre class="r"><code>p_fmc &lt;- genetic_family_grain %&gt;%
-  setEvidence(evidence = list(mother = &quot;BB&quot;, child = &quot;AB&quot;, father = &quot;AB&quot;))
+  setEvidence(
+    evidence = list(mother = &quot;BB&quot;, child = &quot;AB&quot;, father = &quot;AB&quot;)
+    )
 
 p_fmc %&gt;% print()</code></pre>
 <pre><code>## Independence network: Compiled: TRUE Propagated: TRUE 
@@ -1864,7 +1874,9 @@ p_f %&gt;% print()</code></pre>
 <pre><code>## [1] 0.42</code></pre>
 <p>Finally, we look at the probability of the child being <span class="math inline">\(AB\)</span> with a mother <span class="math inline">\(BB\)</span>.</p>
 <pre class="r"><code>p_mc &lt;- genetic_family_grain %&gt;%
-  setEvidence(evidence = list(mother = &quot;BB&quot;, child = &quot;AB&quot;))
+  setEvidence(
+    evidence = list(mother = &quot;BB&quot;, child = &quot;AB&quot;)
+    )
 
 p_mc %&gt;% print()</code></pre>
 <pre><code>## Independence network: Compiled: TRUE Propagated: TRUE 
@@ -1884,20 +1896,23 @@ p_father &lt;- p_man / pEvidence(p_mc)</code></pre>
 <div id="extended-genetic-family" class="section level2">
 <h2><span class="header-section-number">3.3</span> Extended Genetic Family</h2>
 <p>We can now extend this model to add extended families, such as uncle/aunts and grandparents.</p>
-<pre class="r"><code>c_mf &lt;- parray(c(&quot;child&quot;, &quot;mother&quot;, &quot;father&quot;),
-               levels = rep(list(genotypes), 3),
-               values = p_inheritance
-               )
+<pre class="r"><code>c_mf &lt;- parray(
+  varNames = c(&quot;child&quot;, &quot;mother&quot;, &quot;father&quot;),
+  levels   = rep(list(genotypes), 3),
+  values   = p_inheritance
+  )
 
-f_gmgf &lt;- parray(c(&quot;father&quot;, &quot;grandmother&quot;, &quot;grandfather&quot;),
-                 levels = rep(list(genotypes), 3),
-                 values = p_inheritance
-                 )
+f_gmgf &lt;- parray(
+  varNames = c(&quot;father&quot;, &quot;grandmother&quot;, &quot;grandfather&quot;),
+  levels   = rep(list(genotypes), 3),
+  values = p_inheritance
+  )
 
-u_gmgf &lt;- parray(c(&quot;uncle&quot;, &quot;grandmother&quot;, &quot;grandfather&quot;),
-                 levels = rep(list(genotypes), 3),
-                 values = p_inheritance
-                 )
+u_gmgf &lt;- parray(
+  varNames = c(&quot;uncle&quot;, &quot;grandmother&quot;, &quot;grandfather&quot;),
+  levels   = rep(list(genotypes), 3),
+  values   = p_inheritance
+  )
 
 m  &lt;- parray(&quot;mother&quot;,      levels = list(genotypes), values = genotype_probs)
 gf &lt;- parray(&quot;grandfather&quot;, levels = list(genotypes), values = genotype_probs)
@@ -1927,8 +1942,10 @@ p_uncle %&gt;% print()</code></pre>
 <pre><code>## [1] 0.037485</code></pre>
 <p>We also want to show how we calculate similar values by using <code>querygrain()</code>.</p>
 <pre class="r"><code>extended_family_grain %&gt;%
-  querygrain(nodes = c(&quot;child&quot;, &quot;mother&quot;, &quot;uncle&quot;),
-             type = &quot;joint&quot;) %&gt;%
+  querygrain(
+    nodes = c(&quot;child&quot;, &quot;mother&quot;, &quot;uncle&quot;),
+    type  = &quot;joint&quot;
+    ) %&gt;%
   ftable(col.vars = &quot;uncle&quot;)</code></pre>
 <pre><code>##              uncle       AA       AB       BB
 ## child mother                                 
@@ -2116,7 +2133,7 @@ chestsim_10000_grain &lt;- chestclinic_dag %&gt;%
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2020-09-14                  
+##  date     2020-10-05                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package      * version date       lib source        
@@ -2176,7 +2193,6 @@ chestsim_10000_grain &lt;- chestclinic_dag %&gt;%
 ##  Rgraphviz      2.32.0  2020-04-27 [1] Bioconductor  
 ##  rlang          0.4.6   2020-05-02 [1] RSPM (R 4.0.0)
 ##  rmarkdown      2.2     2020-05-31 [1] RSPM (R 4.0.0)
-##  rsconnect      0.8.16  2019-12-13 [1] RSPM (R 4.0.0)
 ##  rstudioapi     0.11    2020-02-07 [1] RSPM (R 4.0.0)
 ##  rvest          0.3.5   2019-11-08 [1] RSPM (R 4.0.0)
 ##  scales       * 1.1.1   2020-05-11 [1] RSPM (R 4.0.0)
