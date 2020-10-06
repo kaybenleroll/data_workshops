@@ -4,6 +4,8 @@
 
 // The input data is a vector 'y' of length 'N' - consisting of the returns
 data {
+  int<lower=0,upper=1> prior_pd;
+
   int<lower=0> N;
   vector[N] y;
 
@@ -25,9 +27,17 @@ parameters {
 // accordingly.
 
 model {
-  mu ~ normal(return_prior_mu, return_prior_sd);
+  mu    ~ normal(return_prior_mu, return_prior_sd);
   sigma ~ lognormal(vol_prior_mu, vol_prior_sd);
 
-  y ~ normal(mu, sigma);
+  if(prior_pd == 1) {
+    y ~ normal(mu, sigma);
+  }
 }
 
+/// We want to generate some data to help us do posterior predictive checks
+generated quantities {
+  real y_sim;
+
+  y_sim = normal_rng(mu, sigma);
+}

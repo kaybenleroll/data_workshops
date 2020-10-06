@@ -68,6 +68,21 @@ Posterior Knowledge
 
 ---
 
+## Discrete Variables
+
+\
+
+$$
+P(A \, | B) = \frac{P(B \, | A) P(A)}{P(B)} 
+$$
+
+
+---
+
+## Continuous Variables
+
+\
+
 Parameters, $\theta$
 
 \
@@ -113,7 +128,7 @@ spy_returns_tbl <- read_rds("data/spy_returns_tbl.rds")
 
 ```{r plot_asset_monthly_returns, echo=FALSE}
 ggplot(spy_returns_tbl) +
-  geom_histogram(aes(x = monthly_return), bins = 50) +
+  geom_histogram(aes(x = monthly_return), bins = 30) +
   scale_x_continuous(labels = label_percent()) +
   xlab("Asset Return") +
   ylab("Frequency Count") +
@@ -140,6 +155,8 @@ ggplot(plot_tbl) +
 stan_file <- "asset_returns.stan"
 
 standata_lst <- list(
+  prior_pd = 0,
+  
   y = spy_returns_tbl %>% pull(monthly_return),
   N = spy_returns_tbl %>% nrow(),
   
@@ -152,6 +169,14 @@ standata_lst <- list(
 
 
 asset_returns_stanmodel <- stan_model(stan_file)
+
+asset_returns_prior_stanfit <- sampling(
+  object = asset_returns_stanmodel,
+  data   = standata_lst %>% list_modify(prior_pd = 1),
+  iter   = 1000,
+  chains = 4,
+  seed   = stan_seed
+)
 
 asset_returns_stanfit <- sampling(
   object = asset_returns_stanmodel,
@@ -172,7 +197,7 @@ plot_tbl <- asset_returns_draws_tbl %>%
   gather("param", "value", -.draw)
 
 ggplot(plot_tbl) +
-  geom_histogram(aes(x = value), bins = 50) +
+  geom_histogram(aes(x = value), bins = 30) +
   facet_wrap(vars(param), scales = "free_x") +
   xlab("Posterior Value") +
   ylab("Frequency Count") +
@@ -188,6 +213,19 @@ ggplot(asset_returns_draws_tbl) +
 ```
 
 
+## Model Checks
+
+```{r plot_data_posterior_distributions, echo=FALSE}
+ggplot() +
+  geom_line(aes(x = monthly_return), stat = "density",
+            data = spy_returns_tbl) +
+  geom_line(aes(x = y_sim), stat = "density",
+            data = asset_returns_draws_tbl,
+            colour = "red") +
+  xlab("Monthly Return") +
+  ylab("Probability Density") +
+  ggtitle("Comparison PDFs for Empirical Data and Posterior Predictive Distribution")
+```
 
 
 # Thank You!

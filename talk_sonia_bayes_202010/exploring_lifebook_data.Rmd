@@ -121,9 +121,6 @@ First we load the dataset.
 ### We may wish to set column typs
 data_col_types <- cols(
   prem_freq = col_character()
-  #  VAR1 = col_character()
-  # ,VAR2 = col_date()
-  # ,VAR3 = col_number()
 )
 
 ### Data is loaded into dataset rawdata_tbl here
@@ -339,7 +336,7 @@ we create a vector of those variable names.
 
 ```{r collect_highcount_variables, echo=TRUE}
 highcount_vars <- catvar_valuecount_tbl %>%
-  filter(level_count >= dataexp_level_excl_thresh,
+  filter(level_count >= level_exclusion_threshold,
          level_count < row_count) %>%
   pull(var_name)
 
