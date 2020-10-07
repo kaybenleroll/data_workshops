@@ -24,10 +24,18 @@ CONTAINER_NAME=soniatalk
 
 
 
-render-html: ${PROJECT_NAME}.Rmd
-	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
+render-html: exploring_lifebook_data.Rmd talk_sonia_bayes_202010.Rmd
+	Rscript -e 'rmarkdown::render("exploring_lifebook_data.Rmd")'
+	Rscript -e 'rmarkdown::render("talk_sonia_bayes_202010.Rmd")'
 
 
+create-slides-pdf:
+	docker run --rm -t \
+	  -v `pwd`:/slides \
+	  astefanutti/decktape \
+	  --size 1920x1080 \
+	  /slides/talk_sonia_bayes_202010.html \
+	  talk_sonia_bayes_202010.pdf
 
 
 ### Docker targets
