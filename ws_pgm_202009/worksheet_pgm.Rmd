@@ -397,7 +397,7 @@ space $\{AA, AB, BA\}$.
 We are interested in the joint distribution of genotypes for a group of people.
 
 
-```{r genetics_graph, echo=FALSE, results='hide'}
+```{r genetics_graph, echo=FALSE, results="hide"}
 ab <- c("A", "B")
 
 genetics_cptlist <- list(
@@ -617,8 +617,10 @@ probabilities.
 
 ```{r calculate_conditional_probabilities, echo=TRUE}
 p_man <- pEvidence(p_fmc) / pEvidence(p_f)
+print(p_man)
 
 p_father <- p_man / pEvidence(p_mc)
+print(p_father)
 ```
 
 
@@ -686,7 +688,7 @@ extended_family_grain %>%
 
 # Chest-Clinic Network
 
-We now turn our attention to the 'Chest-Clinic Network' as an example of a 
+We now turn our attention to the "Chest-Clinic Network" as an example of a 
 Bayesian network.
 
 Based on research by Lauritzen and Spiegelhalter, we construct a network based
@@ -719,6 +721,67 @@ chestclinic_dag <- list(
 
 chestclinic_dag %>% plot()
 ```
+
+
+## Constructing the Bayesian Network
+
+```{r construct_chestclinic_bayesian_network, echo=TRUE}
+a    <- cptable(~ asia,
+                values = c(1, 99),
+                levels = yn)
+t_a  <- cptable(~ tub | asia,
+                values = c(5, 95, 1, 99),
+                levels = yn)
+s    <- cptable(~ smoke,
+                values = c(5, 5),
+                levels = yn)
+l_s  <- cptable(~ lung | smoke,
+                values = c(1, 9, 1, 99),
+                levels = yn)
+b_s  <- cptable(~ bronc | smoke,
+                values = c(6, 4, 3, 7),
+                levels = yn)
+e_lt <- cptable(~ either | lung + tub,
+                values = c(1, 0, 1, 0, 1, 0, 0, 1),
+                levels = yn)
+x_e  <- cptable(~ xray | either,
+                values = c(98, 2, 5, 95),
+                levels = yn)
+d_be <- cptable(~ dysp | bronc + either,
+                values = c(9, 1, 7, 3, 8, 2, 1, 9),
+                levels = yn)
+
+chestclinic_cpt_grain <- list(a, t_a, s, l_s, b_s, e_lt, x_e, d_be) %>%
+  compileCPT() %>%
+  grain()
+
+chestclinic_cpt_grain %>% summary()
+```
+
+We first should check some of the various conditional probabilities to ensure
+we have built the network correctly:
+
+```{r chestclinic_network_probability_check, echo=TRUE}
+chestclinic_cpt_grain %>%
+  querygrain(
+    nodes = c("xray", "either"),
+    type  = "conditional"
+  )
+
+
+chestclinic_cpt_grain %>%
+  querygrain(
+    nodes = c("dysp", "bronc", "either"),
+    type  = "conditional"
+    ) %>%
+  ftable(row.vars = c("either", "bronc"))
+```
+
+
+
+
+
+## Building Networks from Data
 
 Now that we have our network, we can use data to construct the CPTs. Assuming
 no data is missing, we can use a tibble of data to set the probabilities.
@@ -804,7 +867,7 @@ conditional probability that the person has lung cancer?
 chestsim_500_grain %>%
   querygrain(
     nodes    = "lung",
-    evidence = list(asia = 'yes', dysp = 'yes'),
+    evidence = list(asia = "yes", dysp = "yes"),
     type     = "marginal"
     )
 ```
@@ -819,10 +882,11 @@ shows.
 chestsim_1000_grain %>%
   querygrain(
     nodes    = "lung",
-    evidence = list(asia = 'yes', dysp = 'yes'),
+    evidence = list(asia = "yes", dysp = "yes"),
     type     = "marginal"
     )
 ```
+
 
 In this network, the probability is 10%.
 
@@ -830,7 +894,7 @@ In this network, the probability is 10%.
 chestsim_10000_grain %>%
   querygrain(
     nodes    = "lung",
-    evidence = list(asia = 'yes', dysp = 'yes'),
+    evidence = list(asia = "yes", dysp = "yes"),
     type     = "marginal"
     )
 ```
@@ -838,6 +902,134 @@ chestsim_10000_grain %>%
 As before, the probability is about 10\%.
 
 
+## Marginal Proportions for Diseases
+
+We also want to calculate the different marginal probabilities for the three
+conditions - Tuberculosis, Lung cancer and Dyspnoea - according to the
+different
+
+```{r calculate_marginal_proportions, echo=TRUE}
+chestclinic_cpt_grain %>%
+  querygrain(
+    nodes = c("lung", "bronc", "tub"),
+    type  = "marginal"
+    )
+
+chestsim_500_grain %>%
+  querygrain(
+    nodes = c("lung", "bronc", "tub"),
+    type  = "marginal"
+    )
+
+chestsim_1000_grain %>%
+  querygrain(
+    nodes = c("lung", "bronc", "tub"),
+    type  = "marginal"
+    )
+
+chestsim_10000_grain %>%
+  querygrain(
+    nodes = c("lung", "bronc", "tub"),
+    type  = "marginal"
+    )
+```
+
+
+# Scaling Up Bayesian Networks
+
+
+All of the above approaches are example of the `Brute Force' approach
+which is done by calculating the full joint distribution for the
+network $p(V)$ as a multiple of the CPTs that comprise it.
+
+
+$$
+p(V) = p(a) \, p(t|a) \, p(s) \, p(l|s) \, p(b|s) \, p(e|t, l) \, p(d|e, b) \, p(x|e)
+$$
+
+
+This gives $p(V)$ represented by a table with $2^8 = 256$ entries.
+
+We then marginalise and condition as desired to calculate whatever
+probabilities we need.
+
+The scaling of this approach is bad. A network with 80 variables, each with 10
+values has a joint probability space of $10^{80}$, approximately the count of
+atoms in the universe.
+
+
+We are going to need a bigger boat...
+
+So, we must find an approach that does not require the full joint distribution,
+instead focusing on the the low dimensional CPTs and send `messages' between
+them.
+
+To use a network it first needs to be *compiled* and then *propagated*.
+
+Compilation of a network based on CPTs is first *moralized* --- edges are added
+between the parents of each node, and then directed edges are replaced with
+undirected ones. It is then *triangulated* to form a triangulated graph.
+
+The CPTs are transformed into *clique potentials* defined on the cliques of the
+chordal graph.
+
+We see this process as below:
+
+
+```{r chestclinic_compile_process, echo=TRUE}
+chestclinic_moralized    <- chestclinic_dag %>% moralize()
+chestclinic_triangulated <- chestclinic_moralized %>% triangulate()
+
+chestclinic_triangulated %>% plot()
+```
+
+
+Once we create the DAG, we view the triangulated data as a junction tree. The
+messages passed between connected nodes on the graph involve the common
+variables in the nodes, and propagating the information involves a double pass
+down and up the tree.
+
+```{r chestclinic_rip_plot, echo=FALSE}
+chestclinic_triangulated %>%
+  rip() %>%
+  plot()
+```
+
+We now repeat the process from the above section, but now use the this approach
+to calculate our probabilities.
+
+```{r chestclinic_evidence_propagation, echo=TRUE}
+chestsim500_ev_grain <- chestsim_500_grain %>%
+  setFinding(nodes = "asia", states = "yes", propagate = FALSE) %>%
+  setFinding(nodes = "dysp", states = "yes", propagate = FALSE) %>%
+  propagate()
+```
+
+We now use this network to perform the same calculations. As a reminder, this
+is calculating the marginal, joint and conditional probability for lung cancer
+and bronchitis given that the person recently visited Asia and exhibited
+shortness of breath (*dyspnoea*).
+
+
+```{r chestclinic_evidence_probabilities, echo=TRUE}
+chestsim500_ev_grain %>%
+  querygrain(
+    nodes = c("lung", "bronc"),
+    type  = "marginal"
+    )
+  
+chestsim500_ev_grain %>%
+  querygrain(
+    nodes = c("lung", "bronc"),
+    type  = "joint"
+    )
+  
+chestsim500_ev_grain %>%
+  querygrain(
+    nodes = c("lung", "bronc"),
+    type  = "conditional"
+    )
+```
 
 
 
