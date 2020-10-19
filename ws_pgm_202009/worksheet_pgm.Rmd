@@ -261,8 +261,6 @@ We start with *Bayesian Networks* - where the nodes on the graph represent
 discrete random variables.
 
 
-
-
 ## The Sprinkler Network
 
 We start with a basic example of a Bayes Network: the sprinkler network.
@@ -392,7 +390,7 @@ $A$ or $B$ (in practice there can be 10 or 20 different values).
 A *genotype* is an unordered pair of alleles: $AA$, $AB$, or $BB$.
 
 The genotype of a person at a specific marker is a random variable with state
-space $\{AA, AB, BA\}$.
+space $\{AA, AB, BB\}$.
 
 We are interested in the joint distribution of genotypes for a group of people.
 
