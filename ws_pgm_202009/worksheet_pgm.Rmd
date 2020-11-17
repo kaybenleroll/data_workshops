@@ -29,6 +29,8 @@ library(magrittr)
 library(scales)
 library(cowplot)
 library(gRain)
+library(bnlearn)
+library(rbmn)
 
 
 source("custom_functions.R")
@@ -36,10 +38,11 @@ source("custom_functions.R")
 resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
 
 
-options(width    = 80L,
-        warn     = 1,
-        mc.cores = parallel::detectCores()
-        )
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallel::detectCores()
+  )
 
 
 
@@ -100,6 +103,12 @@ This course was based on her textbook
 
 ![](img/pgm_koller_cover.png)
 
+The Gaussian Graphical Models section of the workshop is based on material
+found in the book "Bayes Networks With Examples in R" by Scutari and Denis.
+
+![](img/bayesian_network.jpg)
+
+
 
 # Basic Concepts
 
@@ -120,7 +129,7 @@ The concept of *conditional independence* is related to that of
 $C$, then $A$ and $B$ are *conditionally independent* given $C$, written
 
 $$
-A \perp B \, | \, C,
+A \perp B \mid C,
 $$
 
 iff, for every given value $c$ in $C$, $A$ and $B$ are independent in the
@@ -132,7 +141,7 @@ probability mass function, then one characteristic of $A \perp B \, | \, C$
 is that
 
 $$
-f(a, b \, | \, c) = f(a \, | \, c) f(b \, | \, c).
+f(a, b \mid c) = f(a \mid c) f(b \mid c).
 $$
 
 
@@ -148,7 +157,7 @@ Finally, we will also make heavy use of Bayes' Rule, the standard
 formula for relating conditional probabilities:
 
 $$
-P(A|B) = \frac{P(A,B)}{P(B)} = \frac{P(B|A) P(A)}{P(B)}.
+P(A \mid B) = \frac{P(A, B)}{P(B)} = \frac{P(B \mid A) P(A)}{P(B)}.
 $$
 
 
@@ -190,7 +199,7 @@ $$
 outcome of those six possible rolls.
 
 $$
-P(T = 11 \, | \, D_1 = 5) = \frac{1}{6} = 0.1667
+P(T = 11 \mid D_1 = 5) = \frac{1}{6} = 0.1667
 $$
 
 ### Exercises
@@ -294,13 +303,13 @@ Wet(G)rass have two possible values: (y)es and (n)o.
 We can factorise the joint probability mass function as
 
 $$
-p_{GSR}(g, s, r) = p_{G|SR}(g | s, r) p_{S|R}(s | r) p_R(r)
+p_{GSR}(g, s, r) = p_{G \mid SR}(g \mid s, r) p_{S \mid R}(s \mid r) p_R(r)
 $$
 
 or overloading the notation a little:
 
 $$
-P(G, S, R) = P(G \, | \, S, R) \; P(S, R) = P(G \, | \, S, R) \; P(S \, | \, R) \; P(R)
+P(G, S, R) = P(G \mid S, R) \; P(S, R) = P(G \mid S, R) \; P(S \mid R) \; P(R)
 $$
 
 
@@ -423,7 +432,9 @@ list here:
 So in this case we have the the joint probability distribution as
 being
 
-\[ P(m, f, c) = P(m) \, P(f) \, P(c \, | \, m, f) \]
+\[
+P(m, f, c) = P(m) \, P(f) \, P(c \mid m, f)
+\]
 
 
 
@@ -942,7 +953,7 @@ network $p(V)$ as a multiple of the CPTs that comprise it.
 
 
 $$
-p(V) = p(a) \, p(t|a) \, p(s) \, p(l|s) \, p(b|s) \, p(e|t, l) \, p(d|e, b) \, p(x|e)
+p(V) = p(a) \, p(t \mid a) \, p(s) \, p(l \mid s) \, p(b \mid s) \, p(e \mid t, l) \, p(d \mid e, b) \, p(x \mid e)
 $$
 
 
@@ -1028,6 +1039,118 @@ chestsim500_ev_grain %>%
     type  = "conditional"
     )
 ```
+
+
+# Networks with Continuous Variables
+
+All our Bayesian networks up to this point have focused on networks with
+discrete variables, and we want to extend our knowledge to building and using
+these networks.
+
+For the purposes of this workshop, we will focus on Gaussian Bayesian networks:
+networks where all the continuous variables are distributed according to
+Gaussian densities (both univariate and multivariate) as well as the following
+assumptions:
+
+  * every node follows a normal distribution,
+  * nodes without any parent, known as root nodes, are described by the
+  respective marginal distributions,
+  * the conditioning effect of the parent nodes is given by an additive linear
+  term in the mean, and does not affect the variance,
+  * the local distribution of each node can be equivalently expressed as a
+  Gaussian linear model which includes an intercept and the node’s parents,
+  without any interaction terms.
+
+
+## Crop Analysis
+
+We start with an example where we wish to analyse the crop yield of a
+particular plant. To do this, we have a number of things to consider:
+
+  1. The genetic and environmental potential of the plant
+  1. Vegatative mass
+  1. Harvest mass - the *crop*
+  
+For the first point, we construct two *latent* variables, $G$ and $E$ to
+measure the *(G)enetic potential* and *(E)nvironmental potential* of the plant.
+
+We also want to measure various aspects of the *(V)egatative mass*, as these
+are indicators to the quality of the plant and hence affect the quality and
+quantity of the crop yield. Thus, we also have the variable $V$.
+
+The crop is a function of the vegatative mass and so is measured by the
+*(N)umber of seeds* and their *mean (W)eight* - giving us variables $N$ and
+$W$.
+
+Finally, the *(C)rop* is determined by the number of seeds and the weight.
+
+Converting all of the above into a Bayesian network, we can visualise it as
+follows.
+
+```{r construct_crop_bn_dag, echo=TRUE}
+plant_crop_dag <- list(
+    "G",
+    "E",
+    c("V", "G", "E"),
+    c("N", "V"),
+    c("W", "V"),
+    c("C", "N", "W")
+    ) %>%
+  dag()
+
+plant_crop_dag %>% plot()
+```
+
+If we were to specify a full joint probability distribution for $p$ variables,
+this means we need $p$ means, $p$ variances and $\frac{1}{2}p(p-1)$ elements
+of the correlation matrix and need to ensure that the correlation matrix is
+positive definite.
+
+Thus, this problem scales as $\mathcal{O}(N^2)$.
+
+By using this graphical model, we only need to specify the various local,
+conditional distributions, simplifying the problem.
+
+### Setting Up the Network and Conditional Distributions
+
+Before we add these distributions we want to construct the model.
+
+```{r construct_plant_crop_network_model, echo=TRUE}
+plant_crop_dagbnlearn <- model2network("[G][E][V|G:E][N|V][W|V][C|N:W]")
+
+plant_crop_dagbnlearn %>% print()
+```
+
+Suppose for example, we specify the following conditional distributions:
+
+\begin{eqnarray*}
+G &\sim& \mathcal{N}(50, 10^2)                                             \\
+E &\sim& \mathcal{N}(50, 10^2)                                             \\
+V \mid G = g, E = e &\sim& \mathcal{N}(−10.35534 + 0.5 g + 0.70711 e, 5^2) \\
+N \mid V = v &\sim& \mathcal{N}(45 + 0.1 v, 9.949874 ^ 2)                  \\
+W \mid V = v &\sim& \mathcal{N}(15 + 0.7 v, 7.141428^2)                     \\
+C \mid N = n, W = w &\sim& \mathcal{N}(0.3n + 0.7w, 6.25^2)
+\end{eqnarray*}
+
+We now set up these conditional distributions.
+
+```{r gbn_conditional_dists, echo=TRUE}
+disE <- list(coef = c("(Intercept)" = 50), sd = 10)
+disG <- list(coef = c("(Intercept)" = 50), sd = 10)
+disV <- list(coef = c("(Intercept)" = -10.35534, E = 0.70711, G = 0.5), sd = 5)
+disN <- list(coef = c("(Intercept)" = 45, V = 0.1), sd = 9.949874)
+disW <- list(coef = c("(Intercept)" = 15, V = 0.7), sd = 7.141428)
+disC <- list(coef = c("(Intercept)" = 0, N = 0.3, W = 0.7), sd = 6.25)
+
+dis_lst = list(E = disE, G = disG, V = disV, N = disN, W = disW, C = disC)
+
+
+plant_crop_bnlearn <- custom.fit(plant_crop_dagbnlearn, dist = dis_lst)
+```
+
+
+
+
 
 
 
