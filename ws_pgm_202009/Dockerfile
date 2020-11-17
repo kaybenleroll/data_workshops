@@ -1,4 +1,4 @@
-FROM kaybenleroll/r_baseimage:base202009
+FROM kaybenleroll/r_baseimage:base202010
 
 RUN install2.r --error BiocManager
 
@@ -12,6 +12,12 @@ RUN Rscript /tmp/docker_install_bioc_pkgs.R \
   && rm -rf /var/lib/apt/lists/* \
   && install2.r --error \
     bnlearn \
+    ggm \
     gRain \
-    gRbase
+    gRbase \
+    gRc \
+    gRim \
+    GGMselect \
+    rbmn \
+    tidygraph
 
