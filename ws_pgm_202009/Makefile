@@ -40,6 +40,7 @@ docker-run:
 	  -e USER=${DOCKER_USER} \
 	  -e PASSWORD=quickpass \
 	  -e USERID=${DOCKER_UID} \
+	  -e GROUPID=${DOCKER_GID} \
 	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_FOLDER}":rw \
 	  --name ${CONTAINER_NAME} \
 	  ${IMAGE_TAG}
