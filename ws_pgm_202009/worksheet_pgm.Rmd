@@ -3,6 +3,12 @@ title: "Dublin Data Science Workshop on Probabilistic Graphical Models"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Monday, 14 September 2020"
 output:
+  rmdformats::readthedown:
+    fig_caption: yes
+    theme: cerulean
+    toc_depth: 3
+    use_bookdown: yes
+
   html_document:
     fig_caption: yes
     number_sections: yes
@@ -11,6 +17,7 @@ output:
     toc_depth: 3
     toc_float:
       smooth_scroll: FALSE
+
   pdf_document: default
 ---
 
@@ -951,8 +958,16 @@ chestsim_10000_grain %>%
 ```
 
 
-# Scaling Up Bayesian Networks
+# Additional Topics
 
+Before we finish the topic of Bayesian networks with categorical variables,
+there are a number of topics worth discussion briefly: in particular, how to
+scale the model to larger numbers of variables and levels, and how to use the
+data to determine possible configurations of the network in terms of
+relationships between variables.
+
+
+## Scaling Up Bayesian Networks
 
 All of the above approaches are example of the `Brute Force' approach
 which is done by calculating the full joint distribution for the
@@ -1048,6 +1063,68 @@ chestsim500_ev_grain %>%
 ```
 
 
+## Learning Network Structure
+
+One final topic to think about is using the data to infer a model to explain
+it - so called *model selection* or *structural learning*.
+
+Note that rather than using the data to determine the parameters of the model,
+we instead use the data to infer the *structure* of the model, that is, what
+the Bayesian network will look like.
+
+For the chest clinic, we already know what the structure was, so we can
+compare the output of the various structural learning approaches to see how
+well it does.
+
+Before we do that, we will plot the 'true' network:
+
+```{r plot_reminder_chestclinic_dag, echo=TRUE}
+chestclinic_dag %>% plot()
+```
+
+We now try a number of approaches to learn the structure - starting with the
+*hill climbing* algorithm implemented via `hc()`.
+
+
+```{r show_hillclimbing_500_dag, echo=TRUE}
+chestSim500 %>%
+  hc() %>%
+  amat() %>%
+  ggm::essentialGraph() %>%
+  as("graphNEL") %>%
+  plot()
+```
+
+We see that most of the network structure has been 'learned' from the data,
+apart from the relationship between "asia" and "tub" - presumably as this
+effect is small and thus weakly signalled within the data.
+
+We repeat this exercise with `chestSim10000` as this may allow us to pick that
+relationship out.
+
+```{r show_hillclimbing_10000_dag, echo=TRUE}
+chestSim10000 %>%
+  hc() %>%
+  amat() %>%
+  ggm::essentialGraph() %>%
+  as("graphNEL") %>%
+  plot()
+```
+
+We can try one larger set of data with 100,000 entries.
+
+```{r show_hillclimbing_100k_dag, echo=TRUE}
+data(chestSim100000)
+
+chestSim100000 %>%
+  hc() %>%
+  amat() %>%
+  ggm::essentialGraph() %>%
+  as("graphNEL") %>%
+  plot()
+```
+
+
 
 # Networks with Continuous Variables
 
@@ -1095,7 +1172,7 @@ Finally, the *(C)rop* is determined by the number of seeds and the weight.
 Converting all of the above into a Bayesian network, we can visualise it as
 follows:
 
-```{r construct_crop_bn_dag, echo=FALSE}
+```{r construct_crop_bn_dag, echo=FALSE, fig.cap="Plot of the Crop Network"}
 plant_crop_dag <- list(
     "G",
     "E",
