@@ -13,12 +13,16 @@ RUN Rscript /tmp/docker_install_bioc_pkgs.R \
   && rm -rf /var/lib/apt/lists/* \
   && install2.r --error \
     bnlearn \
+    catnet \
+    deal \
     ggm \
     gRain \
     gRbase \
     gRc \
     gRim \
     GGMselect \
+    pcalg \
     rbmn \
+    rmdformats \
     tidygraph
 
