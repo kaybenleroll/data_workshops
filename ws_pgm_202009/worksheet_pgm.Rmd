@@ -1236,7 +1236,8 @@ dist_N <- list(coef = c("(Intercept)" = 45, V = 0.1), sd = 9.949874)
 dist_W <- list(coef = c("(Intercept)" = 15, V = 0.7), sd = 7.141428)
 dist_C <- list(coef = c("(Intercept)" = 0, N = 0.3, W = 0.7), sd = 6.25)
 
-distrib_lst = list(E = dist_E, G = dist_G, V = dist_V, N = dist_N, W = dist_W, C = dist_C)
+distrib_lst = list(E = dist_E, G = dist_G, V = dist_V, N = dist_N, W = dist_W,
+                   C = dist_C)
 
 
 plant_crop_bnlearn <- custom.fit(plant_crop_dagbnlearn, dist = distrib_lst)
@@ -1251,17 +1252,18 @@ before in the discrete case.
 
 Due to the use of Gaussian densities, we can use exact inference on this
 network. This has the benefit of calculating exact conditional probabilities,
-but imposes limits on the types of questions that can be ask.
+but imposes limits on the types of questions we can ask.
 
 As a result, we will focus on methods of *approximate inference* - that is, the
 use of Monte Carlo simulation to provide statistical estimates of the
 parameters of interest.
 
-This gives us much more flexibility in terms of the types of questions we can
-ask, at the cost of producing answers that are only approximately correct.
+We gain more flexibility in terms of the types of questions we can ask, at the
+cost of producing answers that are only approximately correct.
 
-That said, the error in this estimate is more often than not much smaller than
-any errors due to the choice of the model.
+That said, errors in this estimate are more often smaller than errors due to
+the choice of model. In practice, "model error" is a much bigger concern.
+
 
 
 ### Naive Simulation
@@ -1434,8 +1436,8 @@ without fully realising each of the iterations.
 plant_crop_importance_tbl <- cpdist(
     plant_crop_bnlearn,
     nodes    = c("E", "G"),
-    evidence = (C > 80),
-    n = 1000000
+    evidence = (C > 80 & V < 40),
+    n = 100000000
     ) %>%
   as_tibble()
 
@@ -1466,6 +1468,31 @@ ggplot(comparison_tbl) +
   xlab("Environmental Potential") +
   ylab("Genetic Potential") +
   ggtitle("Comparison Plot of (E,G) Where C > 80")
+```
+
+To use 'likelihood weighting' we need to set our `evidence` parameter in a
+different way - we can set the values of the nodes directly as a list, or we
+can set an upper and lower bound for a uniform set of values.
+
+```{r construct_plant_crop_importance_lw_sample, echo=TRUE}
+plant_crop_importance_lw_tbl <- cpdist(
+    plant_crop_bnlearn,
+    nodes    = c("E", "G"),
+    evidence = list(C = c(80, 100), V = c(0, 40)),
+    n        = 1000,
+    method   = "lw"
+    ) %>%
+  as_tibble()
+
+plant_crop_importance_tbl %>% glimpse()
+```
+
+We can produce a similar plot as before.
+
+```{r plot_plant_crop_lw_scatter, echo=TRUE}
+ggplot(plant_crop_importance_lw_tbl) +
+  geom_point(aes(x = E, y = G)) +
+  labs(x = "E", y = "G")
 ```
 
 
