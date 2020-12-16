@@ -1,0 +1,4 @@
+*.Rmd
+*.html
+
+data/*.xlsx
