@@ -1600,7 +1600,9 @@ $(document).ready(function () {
     <h2><a href="#content">Data Science Soup to Nuts: Retrieving Retail Data</a></h2>
     <div id="table-of-contents">
       <ul>
-      <li><a href="#r-environment"><span class="toc-section-number">1</span> R Environment</a></li>
+      <li><a href="#retrieve-dataset"><span class="toc-section-number">1</span> Retrieve Dataset</a></li>
+      <li><a href="#perform-basic-data-preparation"><span class="toc-section-number">2</span> Perform Basic Data Preparation</a></li>
+      <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
       </ul>
     </div>
     
@@ -1614,20 +1616,45 @@ $(document).ready(function () {
 <p>All code and data for this workshop is available at the following URL:</p>
 <p><a href="https://github.com/kaybenleroll/data_workshops" class="uri">https://github.com/kaybenleroll/data_workshops</a></p>
 <p>Code is available in the <code>ws_soupnuts_202101/</code> directory.</p>
+<div id="retrieve-dataset" class="section level1">
+<h1><span class="header-section-number">1</span> Retrieve Dataset</h1>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">curl_download</span>(</span>
+<span id="cb1-2"><a href="#cb1-2"></a>  <span class="st">&quot;https://archive.ics.uci.edu/ml/machine-learning-databases/00502/online_retail_II.xlsx&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3"></a>  <span class="dt">destfile =</span> <span class="st">&quot;data/online_retail_II.xlsx&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4"></a>  <span class="dt">quiet    =</span> <span class="ot">FALSE</span>,</span>
+<span id="cb1-5"><a href="#cb1-5"></a>  <span class="dt">mode     =</span> <span class="st">&quot;wb&quot;</span></span>
+<span id="cb1-6"><a href="#cb1-6"></a>  )</span></code></pre></div>
+</div>
+<div id="perform-basic-data-preparation" class="section level1">
+<h1><span class="header-section-number">2</span> Perform Basic Data Preparation</h1>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>data_tbl &lt;-<span class="st"> </span><span class="kw">read_excel</span>(<span class="st">&quot;data/online_retail_II.xlsx&quot;</span>)</span>
+<span id="cb2-2"><a href="#cb2-2"></a></span>
+<span id="cb2-3"><a href="#cb2-3"></a>data_tbl <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 525,461
+## Columns: 8
+## $ Invoice       &lt;chr&gt; &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;4894…
+## $ StockCode     &lt;chr&gt; &quot;85048&quot;, &quot;79323P&quot;, &quot;79323W&quot;, &quot;22041&quot;, &quot;21232&quot;, &quot;22064&quot;,…
+## $ Description   &lt;chr&gt; &quot;15CM CHRISTMAS GLASS BALL 20 LIGHTS&quot;, &quot;PINK CHERRY LIG…
+## $ Quantity      &lt;dbl&gt; 12, 12, 12, 48, 24, 24, 24, 10, 12, 12, 24, 12, 10, 18,…
+## $ InvoiceDate   &lt;dttm&gt; 2009-12-01 07:45:00, 2009-12-01 07:45:00, 2009-12-01 0…
+## $ Price         &lt;dbl&gt; 6.95, 6.75, 6.75, 2.10, 1.25, 1.65, 1.25, 5.95, 2.55, 3…
+## $ `Customer ID` &lt;dbl&gt; 13085, 13085, 13085, 13085, 13085, 13085, 13085, 13085,…
+## $ Country       &lt;chr&gt; &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;…</code></pre>
+</div>
 <div id="r-environment" class="section level1">
-<h1><span class="header-section-number">1</span> R Environment</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>sessioninfo<span class="op">::</span><span class="kw">session_info</span>()</span></code></pre></div>
+<h1><span class="header-section-number">3</span> R Environment</h1>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>sessioninfo<span class="op">::</span><span class="kw">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.0.2 (2020-06-22)
 ##  os       Ubuntu 20.04.1 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       RStudio                     
+##  ui       X11                         
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2020-12-16                  
+##  date     2021-01-07                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
@@ -1670,11 +1697,12 @@ $(document).ready(function () {
 ##  munsell       0.5.0   2018-06-12 [1] RSPM (R 4.0.0)
 ##  pillar        1.4.6   2020-07-10 [1] RSPM (R 4.0.2)
 ##  pkgconfig     2.0.3   2019-09-22 [1] RSPM (R 4.0.0)
+##  ps            1.4.0   2020-10-07 [1] RSPM (R 4.0.2)
 ##  purrr       * 0.3.4   2020-04-17 [1] RSPM (R 4.0.0)
 ##  R6            2.4.1   2019-11-12 [1] RSPM (R 4.0.0)
 ##  Rcpp          1.0.5   2020-07-06 [1] RSPM (R 4.0.2)
 ##  readr       * 1.4.0   2020-10-05 [1] RSPM (R 4.0.2)
-##  readxl        1.3.1   2019-03-13 [1] RSPM (R 4.0.2)
+##  readxl      * 1.3.1   2019-03-13 [1] RSPM (R 4.0.2)
 ##  reprex        0.3.0   2019-05-16 [1] RSPM (R 4.0.0)
 ##  rlang         0.4.8   2020-10-08 [1] RSPM (R 4.0.2)
 ##  rmarkdown     2.4     2020-09-30 [1] RSPM (R 4.0.2)
@@ -1689,6 +1717,7 @@ $(document).ready(function () {
 ##  tidyr       * 1.1.2   2020-08-27 [1] RSPM (R 4.0.2)
 ##  tidyselect    1.1.0   2020-05-11 [1] RSPM (R 4.0.0)
 ##  tidyverse   * 1.3.0   2019-11-21 [1] RSPM (R 4.0.0)
+##  utf8          1.1.4   2018-05-24 [1] RSPM (R 4.0.0)
 ##  vctrs         0.3.4   2020-08-29 [1] RSPM (R 4.0.2)
 ##  withr         2.3.0   2020-09-22 [1] RSPM (R 4.0.2)
 ##  xfun          0.18    2020-09-29 [1] RSPM (R 4.0.2)
