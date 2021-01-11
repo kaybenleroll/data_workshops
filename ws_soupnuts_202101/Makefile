@@ -19,10 +19,23 @@ GITHUB_USER=$(shell gh config get gh_user)
 
 CONTAINER_NAME=workshop
 
+### Project build targets
+.SUFFIXES: .Rmd .html .dot .png
 
+RMD_FILES  := $(wildcard *.Rmd)
+HTML_FILES := $(patsubst %.Rmd,%.html,$(RMD_FILES))
 
-render-html: ${PROJECT_NAME}.Rmd
-	Rscript -e 'rmarkdown::render("${PROJECT_NAME}.Rmd")'
+all-html: $(HTML_FILES)
+
+.Rmd.html:
+	Rscript -e 'rmarkdown::render("$<")'
+
+.dot.png: %.dot
+	dot -Tpng -o$*.png $<
+
+full_deps.dot:
+	makefile2graph all-html > full_deps.dot
+
 
 
 
