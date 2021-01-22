@@ -23,13 +23,6 @@ output:
 
 
 ```{r knit_opts, include = FALSE}
-knitr::opts_chunk$set(tidy       = FALSE,
-                      cache      = FALSE,
-                      message    = FALSE,
-                      warning    = FALSE,
-                      fig.height =     8,
-                      fig.width  =    11)
-
 library(conflicted)
 library(tidyverse)
 library(magrittr)
@@ -37,6 +30,8 @@ library(readxl)
 library(scales)
 library(cowplot)
 library(curl)
+library(glue)
+library(fs)
 
 
 source("custom_functions.R")
@@ -44,13 +39,20 @@ source("custom_functions.R")
 resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
 
 
-options(
-  width    = 80L,
-  warn     = 1,
-  mc.cores = parallel::detectCores()
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
   )
 
-
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
 
 set.seed(42)
 
@@ -71,26 +73,60 @@ Code is available in the `ws_soupnuts_202101/` directory.
 
 # Retrieve Dataset
 
+We now want to retrieve the dataset used for this project, which is available
+at the UCI Machine Learning Repository.
 
 ```{r retrieve_online_retail_data, echo=TRUE}
-curl_download(
-  "https://archive.ics.uci.edu/ml/machine-learning-databases/00502/online_retail_II.xlsx",
-  destfile = "data/online_retail_II.xlsx",
-  quiet    = FALSE,
-  mode     = "wb"
+data_url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/00502/online_retail_II.xlsx"
+
+xlsx_datafile     <- "data/online_retail_II.xlsx"
+retrieve_datafile <- "data/retail_data_tbl.rds"
+
+create_excel_datetime <- function(x)
+  (x * (60 * 60 * 24)) %>% as.POSIXct(origin = "1899-12-30", tz = "GMT")
+
+
+if(!file_exists(retrieve_datafile)) {
+  curl_download(
+    data_url,
+    destfile = xlsx_datafile,
+    quiet    = FALSE,
+    mode     = "wb"
+    )
+
+  
+  data_cols <- cols(
+    .default      = col_character(),
+    Quantity      = col_number(),
+    InvoiceDate   = col_number(),
+    Price         = col_number()
   )
+
+  retail_data_tbl <- excel_sheets(xlsx_datafile) %>%
+    enframe(name = NULL, value = "excel_sheet") %>%
+    mutate(
+      data = map(excel_sheet, read_excel,
+                 path      = xlsx_datafile,
+                 col_types = "text")
+      ) %>%
+    unnest(data) %>%
+    format_csv() %>%
+    read_csv(col_types = data_cols) %>%
+    mutate(
+      InvoiceDate = create_excel_datetime(InvoiceDate)
+      )
+
+  retail_data_tbl %>% write_rds(file = retrieve_datafile)
+} else {
+  message(glue("Datafile {retrieve_datafile} found. Skipping download."))
+  
+  retail_data_tbl <- read_rds(file = retrieve_datafile)
+}
+
+retail_data_tbl %>% glimpse()
 ```
 
 
-
-# Perform Basic Data Preparation
-
-
-```{r load_retail_data, echo=TRUE}
-data_tbl <- read_excel("data/online_retail_II.xlsx")
-
-data_tbl %>% glimpse()
-```
 
 
 
