@@ -36,6 +36,7 @@ library(forcats)
 library(snakecase)
 library(lubridate)
 library(evir)
+library(DT)
 
 
 source("custom_functions.R")
@@ -177,7 +178,9 @@ data_tbl %>% glimpse()
 ```
 
 
-## Check for Duplicated Entries
+# Perform Basic Checks on Data
+
+## Check/Remove Duplicated Data
 
 Now that we have data across multiple sheets in the Excel file we need to see
 if the data is duplicated across the sheets.
@@ -216,13 +219,24 @@ data_tbl <- data_tbl %>%
   group_by(excel_sheet, invoice_date, invoice_id, stock_code) %>%
   mutate(row_id = 1:n()) %>%
   ungroup() %>%
-  filter(row_id == 1)
+  filter(row_id == 1) %>%
+  select(-row_id)
 
 data_tbl %>% glimpse()
 ```
 
+## Check Dates
 
+We now want to check for missing dates in this dataset.
 
+```{r check_missing_dates, echo=TRUE}
+data_tbl %>%
+  select(invoice_date, invoice_dow) %>%
+  distinct() %>%
+  mutate(date_diff = invoice_date - lag(invoice_date)) %>%
+  filter(date_diff > 1) %>%
+  datatable()
+```
 
 
 ## Check Missing Values
@@ -414,8 +428,9 @@ if (length(drop_vars) > 0) {
 ```
 
 
-
-
+```{r write_to_disk, echo=TRUE}
+data_tbl %>% write_rds("data/retail_data.rds")
+```
 
 ```{r, echo=FALSE}
 #knitr::knit_exit()
@@ -796,12 +811,12 @@ various time period such as daily, weekly and monthly to see how it looks.
 ```{r construct_timeseries_data, echo=TRUE}
 ts_data_tbl <- data_tbl %>%
   mutate(
-    ts_week = format(invoice_dttm, "%Y-%U"),
+    ts_week  = format(invoice_dttm, "%Y-%U"),
     ts_month = format(invoice_dttm, "%Y-%m")
     )
 
 ts_daily_tbl <- ts_data_tbl %>%
-  group_by(invoice_date) %>%
+  group_by(label = invoice_date %>% format("%Y-%m-%d")) %>%
   summarise(
     .groups = "drop",
 
@@ -819,7 +834,7 @@ ggplot(ts_daily_tbl) +
 
 
 ts_weekly_tbl <- ts_data_tbl %>%
-  group_by(ts_week) %>%
+  group_by(label = ts_week) %>%
   summarise(
     .groups = "drop",
 
@@ -837,7 +852,7 @@ ggplot(ts_weekly_tbl) +
 
 
 ts_monthly_tbl <- ts_data_tbl %>%
-  group_by(ts_month) %>%
+  group_by(label = ts_month) %>%
   summarise(
     .groups = "drop",
 
@@ -854,6 +869,20 @@ ggplot(ts_monthly_tbl) +
   ggtitle("Lineplot of Total Spend by Month")
 ```
 
+To avoid dealing with multiple files for the time series, we combine them into
+a single object.
+
+```{r combine_ts_tbl, echo=TRUE}
+ts_data_tbl <- list(
+    daily   = ts_daily_tbl,
+    weekly  = ts_weekly_tbl,
+    monthly = ts_monthly_tbl
+    ) %>%
+  bind_rows(.id = "series") %>%
+  arrange(series, period_date)
+
+ts_data_tbl %>% write_rds("data/retail_timeseries_tbl.rds")
+```
 
 
 # R Environment
