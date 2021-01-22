@@ -37,6 +37,9 @@ full_deps.dot:
 	makefile2graph all-html > full_deps.dot
 
 
+exploring_retail_data.html: retrieve_retail_data.html
+
+
 
 
 
