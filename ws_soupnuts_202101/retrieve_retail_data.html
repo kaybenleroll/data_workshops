@@ -1601,8 +1601,7 @@ $(document).ready(function () {
     <div id="table-of-contents">
       <ul>
       <li><a href="#retrieve-dataset"><span class="toc-section-number">1</span> Retrieve Dataset</a></li>
-      <li><a href="#perform-basic-data-preparation"><span class="toc-section-number">2</span> Perform Basic Data Preparation</a></li>
-      <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
+      <li><a href="#r-environment"><span class="toc-section-number">2</span> R Environment</a></li>
       </ul>
     </div>
     
@@ -1618,32 +1617,70 @@ $(document).ready(function () {
 <p>Code is available in the <code>ws_soupnuts_202101/</code> directory.</p>
 <div id="retrieve-dataset" class="section level1">
 <h1><span class="header-section-number">1</span> Retrieve Dataset</h1>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">curl_download</span>(</span>
-<span id="cb1-2"><a href="#cb1-2"></a>  <span class="st">&quot;https://archive.ics.uci.edu/ml/machine-learning-databases/00502/online_retail_II.xlsx&quot;</span>,</span>
-<span id="cb1-3"><a href="#cb1-3"></a>  <span class="dt">destfile =</span> <span class="st">&quot;data/online_retail_II.xlsx&quot;</span>,</span>
-<span id="cb1-4"><a href="#cb1-4"></a>  <span class="dt">quiet    =</span> <span class="ot">FALSE</span>,</span>
-<span id="cb1-5"><a href="#cb1-5"></a>  <span class="dt">mode     =</span> <span class="st">&quot;wb&quot;</span></span>
-<span id="cb1-6"><a href="#cb1-6"></a>  )</span></code></pre></div>
-</div>
-<div id="perform-basic-data-preparation" class="section level1">
-<h1><span class="header-section-number">2</span> Perform Basic Data Preparation</h1>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>data_tbl &lt;-<span class="st"> </span><span class="kw">read_excel</span>(<span class="st">&quot;data/online_retail_II.xlsx&quot;</span>)</span>
-<span id="cb2-2"><a href="#cb2-2"></a></span>
-<span id="cb2-3"><a href="#cb2-3"></a>data_tbl <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 525,461
-## Columns: 8
+<p>We now want to retrieve the dataset used for this project, which is available
+at the UCI Machine Learning Repository.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>data_url &lt;-<span class="st"> &quot;https://archive.ics.uci.edu/ml/machine-learning-databases/00502/online_retail_II.xlsx&quot;</span></span>
+<span id="cb1-2"><a href="#cb1-2"></a></span>
+<span id="cb1-3"><a href="#cb1-3"></a>xlsx_datafile     &lt;-<span class="st"> &quot;data/online_retail_II.xlsx&quot;</span></span>
+<span id="cb1-4"><a href="#cb1-4"></a>retrieve_datafile &lt;-<span class="st"> &quot;data/retail_data_tbl.rds&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5"></a></span>
+<span id="cb1-6"><a href="#cb1-6"></a>create_excel_datetime &lt;-<span class="st"> </span><span class="cf">function</span>(x)</span>
+<span id="cb1-7"><a href="#cb1-7"></a>  (x <span class="op">*</span><span class="st"> </span>(<span class="dv">60</span> <span class="op">*</span><span class="st"> </span><span class="dv">60</span> <span class="op">*</span><span class="st"> </span><span class="dv">24</span>)) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">as.POSIXct</span>(<span class="dt">origin =</span> <span class="st">&quot;1899-12-30&quot;</span>, <span class="dt">tz =</span> <span class="st">&quot;GMT&quot;</span>)</span>
+<span id="cb1-8"><a href="#cb1-8"></a></span>
+<span id="cb1-9"><a href="#cb1-9"></a></span>
+<span id="cb1-10"><a href="#cb1-10"></a><span class="cf">if</span>(<span class="op">!</span><span class="kw">file_exists</span>(retrieve_datafile)) {</span>
+<span id="cb1-11"><a href="#cb1-11"></a>  <span class="kw">curl_download</span>(</span>
+<span id="cb1-12"><a href="#cb1-12"></a>    data_url,</span>
+<span id="cb1-13"><a href="#cb1-13"></a>    <span class="dt">destfile =</span> xlsx_datafile,</span>
+<span id="cb1-14"><a href="#cb1-14"></a>    <span class="dt">quiet    =</span> <span class="ot">FALSE</span>,</span>
+<span id="cb1-15"><a href="#cb1-15"></a>    <span class="dt">mode     =</span> <span class="st">&quot;wb&quot;</span></span>
+<span id="cb1-16"><a href="#cb1-16"></a>    )</span>
+<span id="cb1-17"><a href="#cb1-17"></a></span>
+<span id="cb1-18"><a href="#cb1-18"></a>  </span>
+<span id="cb1-19"><a href="#cb1-19"></a>  data_cols &lt;-<span class="st"> </span><span class="kw">cols</span>(</span>
+<span id="cb1-20"><a href="#cb1-20"></a>    <span class="dt">.default      =</span> <span class="kw">col_character</span>(),</span>
+<span id="cb1-21"><a href="#cb1-21"></a>    <span class="dt">Quantity      =</span> <span class="kw">col_number</span>(),</span>
+<span id="cb1-22"><a href="#cb1-22"></a>    <span class="dt">InvoiceDate   =</span> <span class="kw">col_number</span>(),</span>
+<span id="cb1-23"><a href="#cb1-23"></a>    <span class="dt">Price         =</span> <span class="kw">col_number</span>()</span>
+<span id="cb1-24"><a href="#cb1-24"></a>  )</span>
+<span id="cb1-25"><a href="#cb1-25"></a></span>
+<span id="cb1-26"><a href="#cb1-26"></a>  retail_data_tbl &lt;-<span class="st"> </span><span class="kw">excel_sheets</span>(xlsx_datafile) <span class="op">%&gt;%</span></span>
+<span id="cb1-27"><a href="#cb1-27"></a><span class="st">    </span><span class="kw">enframe</span>(<span class="dt">name =</span> <span class="ot">NULL</span>, <span class="dt">value =</span> <span class="st">&quot;excel_sheet&quot;</span>) <span class="op">%&gt;%</span></span>
+<span id="cb1-28"><a href="#cb1-28"></a><span class="st">    </span><span class="kw">mutate</span>(</span>
+<span id="cb1-29"><a href="#cb1-29"></a>      <span class="dt">data =</span> <span class="kw">map</span>(excel_sheet, read_excel,</span>
+<span id="cb1-30"><a href="#cb1-30"></a>                 <span class="dt">path      =</span> xlsx_datafile,</span>
+<span id="cb1-31"><a href="#cb1-31"></a>                 <span class="dt">col_types =</span> <span class="st">&quot;text&quot;</span>)</span>
+<span id="cb1-32"><a href="#cb1-32"></a>      ) <span class="op">%&gt;%</span></span>
+<span id="cb1-33"><a href="#cb1-33"></a><span class="st">    </span><span class="kw">unnest</span>(data) <span class="op">%&gt;%</span></span>
+<span id="cb1-34"><a href="#cb1-34"></a><span class="st">    </span><span class="kw">format_csv</span>() <span class="op">%&gt;%</span></span>
+<span id="cb1-35"><a href="#cb1-35"></a><span class="st">    </span><span class="kw">read_csv</span>(<span class="dt">col_types =</span> data_cols) <span class="op">%&gt;%</span></span>
+<span id="cb1-36"><a href="#cb1-36"></a><span class="st">    </span><span class="kw">mutate</span>(</span>
+<span id="cb1-37"><a href="#cb1-37"></a>      <span class="dt">InvoiceDate =</span> <span class="kw">create_excel_datetime</span>(InvoiceDate)</span>
+<span id="cb1-38"><a href="#cb1-38"></a>      )</span>
+<span id="cb1-39"><a href="#cb1-39"></a></span>
+<span id="cb1-40"><a href="#cb1-40"></a>  retail_data_tbl <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">write_rds</span>(<span class="dt">file =</span> retrieve_datafile)</span>
+<span id="cb1-41"><a href="#cb1-41"></a>} <span class="cf">else</span> {</span>
+<span id="cb1-42"><a href="#cb1-42"></a>  <span class="kw">message</span>(<span class="kw">glue</span>(<span class="st">&quot;Datafile {retrieve_datafile} found. Skipping download.&quot;</span>))</span>
+<span id="cb1-43"><a href="#cb1-43"></a>  </span>
+<span id="cb1-44"><a href="#cb1-44"></a>  retail_data_tbl &lt;-<span class="st"> </span><span class="kw">read_rds</span>(<span class="dt">file =</span> retrieve_datafile)</span>
+<span id="cb1-45"><a href="#cb1-45"></a>}</span>
+<span id="cb1-46"><a href="#cb1-46"></a></span>
+<span id="cb1-47"><a href="#cb1-47"></a>retail_data_tbl <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 1,067,371
+## Columns: 9
+## $ excel_sheet   &lt;chr&gt; &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;…
 ## $ Invoice       &lt;chr&gt; &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;4894…
 ## $ StockCode     &lt;chr&gt; &quot;85048&quot;, &quot;79323P&quot;, &quot;79323W&quot;, &quot;22041&quot;, &quot;21232&quot;, &quot;22064&quot;,…
 ## $ Description   &lt;chr&gt; &quot;15CM CHRISTMAS GLASS BALL 20 LIGHTS&quot;, &quot;PINK CHERRY LIG…
 ## $ Quantity      &lt;dbl&gt; 12, 12, 12, 48, 24, 24, 24, 10, 12, 12, 24, 12, 10, 18,…
 ## $ InvoiceDate   &lt;dttm&gt; 2009-12-01 07:45:00, 2009-12-01 07:45:00, 2009-12-01 0…
 ## $ Price         &lt;dbl&gt; 6.95, 6.75, 6.75, 2.10, 1.25, 1.65, 1.25, 5.95, 2.55, 3…
-## $ `Customer ID` &lt;dbl&gt; 13085, 13085, 13085, 13085, 13085, 13085, 13085, 13085,…
+## $ `Customer ID` &lt;chr&gt; &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;…
 ## $ Country       &lt;chr&gt; &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;…</code></pre>
 </div>
 <div id="r-environment" class="section level1">
-<h1><span class="header-section-number">3</span> R Environment</h1>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>sessioninfo<span class="op">::</span><span class="kw">session_info</span>()</span></code></pre></div>
+<h1><span class="header-section-number">2</span> R Environment</h1>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>sessioninfo<span class="op">::</span><span class="kw">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.0.2 (2020-06-22)
@@ -1654,7 +1691,7 @@ $(document).ready(function () {
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-01-07                  
+##  date     2021-01-22                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
@@ -1678,10 +1715,10 @@ $(document).ready(function () {
 ##  evaluate      0.14    2019-05-28 [1] RSPM (R 4.0.0)
 ##  fansi         0.4.1   2020-01-08 [1] RSPM (R 4.0.0)
 ##  forcats     * 0.5.0   2020-03-01 [1] RSPM (R 4.0.0)
-##  fs            1.5.0   2020-07-31 [1] RSPM (R 4.0.2)
+##  fs          * 1.5.0   2020-07-31 [1] RSPM (R 4.0.2)
 ##  generics      0.0.2   2018-11-29 [1] RSPM (R 4.0.0)
 ##  ggplot2     * 3.3.2   2020-06-19 [1] RSPM (R 4.0.1)
-##  glue          1.4.2   2020-08-27 [1] RSPM (R 4.0.2)
+##  glue        * 1.4.2   2020-08-27 [1] RSPM (R 4.0.2)
 ##  gtable        0.3.0   2019-03-25 [1] RSPM (R 4.0.0)
 ##  haven         2.3.1   2020-06-01 [1] RSPM (R 4.0.2)
 ##  hms           0.5.3   2020-01-08 [1] RSPM (R 4.0.0)

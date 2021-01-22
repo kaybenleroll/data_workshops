@@ -8,6 +8,7 @@ RUN apt-get update \
   && install2.r --error \
     actuar \
     BTYD \
+    evir \
     fitdistrplus \
     rfm \
     survival \
