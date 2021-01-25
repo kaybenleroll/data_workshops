@@ -165,7 +165,9 @@ data_tbl <- data_tbl %>%
     invoice_hour   = format(invoice_dttm, "%H"),
     invoice_minute = format(invoice_dttm, "%M"),
     invoice_woy    = format(invoice_dttm, "%V"),
-    invoice_ym     = format(invoice_dttm, "%Y%m")
+    invoice_ym     = format(invoice_dttm, "%Y%m"),
+
+    stock_amount   = price * quantity
     ) %>%
   group_by(invoice_ym) %>%
   mutate(
@@ -237,6 +239,15 @@ data_tbl %>%
   filter(date_diff > 1) %>%
   datatable()
 ```
+
+It appears that there are no missing dates in this dataset, though we may need
+to account for the fact that the business is not open all the time as there
+are gaps in dates for one day every weekend, as well as being closed over the
+Easter and Christmas holidays.
+
+For our time series analysis on a daily basis we may be able to ignore this
+wrinkle in our dataset.
+
 
 
 ## Check Missing Values
@@ -437,6 +448,7 @@ data_tbl %>% write_rds("data/retail_data.rds")
 ```
 
 
+
 # Univariate Data Exploration
 
 Now that we have loaded the data we can prepare it for some basic data
@@ -540,7 +552,7 @@ for (plot_varname in categorical_vars) {
     mutate(f = fct_relabel(f, str_trunc, width = 15))
 
   explore_plot <- ggplot(plot_tbl) +
-    geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
+    geom_bar(aes(x = f, weight = n)) +
     xlab(plot_varname) +
     ylab("Count") +
     scale_y_continuous(labels = label_comma()) +
@@ -802,11 +814,56 @@ ggplot(customer_data_tbl) +
 customer_data_tbl %>% pull(customer_spend) %>% hill()
 ```
 
+### Stock Level Data
 
-## Construct Time-Series Data
+```{r plot_stock_price_counts, echo=TRUE}
+stock_price_counts_tbl <- data_tbl %>%
+  group_by(stock_code) %>%
+  summarise(
+    .groups = "drop",
+    
+    n_prices    = n(),
+    min_price   = min(price),
+    p25_price   = quantile(price, 0.25),
+    mean_price  = mean(price) %>% round(2),
+    p50_price   = median(price),
+    p75_price   = quantile(price, 0.75),
+    max_price   = max(price),
+    range_price = (max_price - min_price) / mean_price
+    )
+
+stock_price_counts_tbl %>% datatable()
+  
+stock_distinct_price_counts_tbl <- data_tbl %>%
+  select(stock_code, price) %>%
+  distinct() %>%
+  group_by(stock_code) %>%
+  summarise(
+    .groups = "drop",
+    
+    n_prices    = n(),
+    min_price   = min(price),
+    p25_price   = quantile(price, 0.25),
+    mean_price  = mean(price) %>% round(2),
+    p50_price   = median(price),
+    p75_price   = quantile(price, 0.75),
+    max_price   = max(price),
+    range_price = (max_price - min_price) / mean_price
+    )
+
+stock_distinct_price_counts_tbl %>% datatable()
+```
+
+
+
+
+
+## Construct Time-Series / Date-Based Data
 
 Another way to look at this data is to combine all the invoice values by
 various time period such as daily, weekly and monthly to see how it looks.
+
+### Create Univariate Time-Series of Amounts
 
 ```{r construct_timeseries_data, echo=TRUE}
 ts_data_tbl <- data_tbl %>%
@@ -883,6 +940,40 @@ ts_data_tbl <- list(
 
 ts_data_tbl %>% write_rds("data/retail_timeseries_tbl.rds")
 ```
+
+
+### Calendar-Based Boxplots
+
+We have aggregated our data across time periods, but it is also worth looking
+at both transaction-level and invoice-level amount over time.
+
+```{r lineitem_calendar_boxplot, echo=TRUE}
+ggplot(data_tbl) +
+  geom_boxplot(aes(x = invoice_woy, y = stock_amount, group = invoice_woy)) +
+  xlab("Week of Year") +
+  ylab("Transaction Amount") +
+  ggtitle("Boxplot of Transaction Sizes by Week of Year")
+```
+
+
+
+```{r invoice_calendar_boxplot, echo=TRUE}
+plot_tbl <- data_tbl %>%
+  group_by(invoice_woy, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    invoice_amount = sum(total_)
+  )
+
+ggplot(data_tbl) +
+  geom_boxplot(aes(x = invoice_woy, y = total_paid, group = invoice_woy)) +
+  xlab("Week of Year") +
+  ylab("Transaction Amount") +
+  ggtitle("Boxplot of Transaction Sizes by Week of Year")
+```
+
+
 
 
 # R Environment

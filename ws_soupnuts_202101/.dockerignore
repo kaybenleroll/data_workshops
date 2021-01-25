@@ -1,4 +1,8 @@
+.Rproj.user
+
 *.Rmd
 *.html
 
 data/*.xlsx
+data/*.rds
+data/*.sh
