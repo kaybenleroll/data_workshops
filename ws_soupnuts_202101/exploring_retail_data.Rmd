@@ -156,6 +156,8 @@ new variables calculated from existing variables in the data.
 data_tbl <- data_tbl %>%
   rename(invoice_id = invoice) %>%
   mutate(
+    stock_code_upr = stock_code %>% str_to_upper(),
+    
     cancellation   = str_detect(invoice_id, "^C"),
     invoice_dttm   = invoice_date,
     invoice_date   = invoice_date %>% as.Date(),
@@ -218,7 +220,7 @@ can remove them.
 
 ```{r remove_duplicated_entries, echo=TRUE}
 data_tbl <- data_tbl %>%
-  group_by(excel_sheet, invoice_date, invoice_id, stock_code) %>%
+  group_by(invoice_date, invoice_id, stock_code) %>%
   mutate(row_id = 1:n()) %>%
   ungroup() %>%
   filter(row_id == 1) %>%
@@ -744,7 +746,32 @@ rm(plot_var, plot_tbl)
 
 # Custom Explorations
 
-In this section we perform various 
+In this section we perform various data explorations.
+
+
+## Custom Checks for Data Integrity
+
+We want to check the transaction data for consistency, so we create a table
+of all distinct 
+
+```{r check_stock_codes, echo=TRUE}
+stock_codes_lookup_tbl <- data_tbl %>%
+  select(stock_code_upr, description) %>%
+  distinct() %>%
+  arrange(stock_code_upr, description) %>%
+  drop_na(description)
+
+stock_codes_lookup_tbl %>% glimpse()
+```
+
+We now take a look at the first 50 rows of this table to get a sense of any
+possible duplication of `stock_code`.
+
+```{r plot_stock_codes_distinct_50, echo=TRUE}
+stock_codes_lookup_tbl %>% datatable()
+```
+
+
 
 ## Explore Aggregate Amounts
 
@@ -813,6 +840,7 @@ ggplot(customer_data_tbl) +
 ```{r customer_spend_hill_plot, echo=TRUE}
 customer_data_tbl %>% pull(customer_spend) %>% hill()
 ```
+
 
 ### Stock Level Data
 
@@ -950,6 +978,7 @@ at both transaction-level and invoice-level amount over time.
 ```{r lineitem_calendar_boxplot, echo=TRUE}
 ggplot(data_tbl) +
   geom_boxplot(aes(x = invoice_woy, y = stock_amount, group = invoice_woy)) +
+  scale_y_log10(labels = label_comma()) +
   xlab("Week of Year") +
   ylab("Transaction Amount") +
   ggtitle("Boxplot of Transaction Sizes by Week of Year") +
@@ -969,12 +998,43 @@ plot_tbl <- data_tbl %>%
 
 ggplot(plot_tbl) +
   geom_boxplot(aes(x = invoice_woy, y = invoice_amount, group = invoice_woy)) +
+  scale_y_log10(labels = label_comma()) +
   xlab("Week of Year") +
   ylab("Invoice Amount") +
   ggtitle("Boxplot of Invoice Amounts by Week of Year") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
+
+
+
+# Graph Analysis
+
+```{r construct_basket_graph, echo=TRUE}
+stock_nodes_tbl <- data_tbl %>%
+  select(stock_code) %>%
+  distinct() %>%
+  transmute(node_label = stock_code, node_type = "stock")
+
+invoice_nodes_tbl <- data_tbl %>%
+  select(invoice_id) %>%
+  distinct() %>%
+  transmute(node_label = invoice_id, node_type = "invoice")
+
+nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
+  bind_rows()
+
+edges_tbl <- data_tbl %>%
+  select(stock_code, invoice_id)
+
+
+basket_graph <- graph_from_data_frame(
+  d        = edges_tbl,
+  directed = FALSE,
+  vertices = nodes_tbl
+  )
+
+```
 
 
 
