@@ -6,6 +6,7 @@ PROJECT_TAG=latest
 IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}:${PROJECT_TAG}
 
 DOCKER_USER=rstudio
+DOCKER_PASS=CHANGEME
 DOCKER_UID=$(shell id -u)
 DOCKER_GID=$(shell id -g)
 
@@ -51,7 +52,7 @@ docker-run:
 	docker run --rm -d \
 	  -p ${RSTUDIO_PORT}:8787 \
 	  -e USER=${DOCKER_USER} \
-	  -e PASSWORD=quickpass \
+	  -e PASSWORD=${DOCKER_PASS} \
 	  -e USERID=${DOCKER_UID} \
 	  -e GROUPID=${DOCKER_GID} \
 	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_FOLDER}":rw \

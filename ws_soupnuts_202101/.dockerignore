@@ -1,8 +1,13 @@
-.Rproj.user
-
-*.Rmd
-*.html
+.Rproj.user/
+.git/
 
 data/*.xlsx
 data/*.rds
 data/*.sh
+
+*.R
+*.Rmd
+*.html
+*.Rproj
+
+
