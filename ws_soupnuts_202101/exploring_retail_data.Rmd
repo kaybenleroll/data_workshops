@@ -391,9 +391,9 @@ catvar_valuecount_tbl <- data_tbl %>%
 
 print(catvar_valuecount_tbl)
 
-row_count <- nrow(data_tbl)
+row_count <- data_tbl %>% nrow()
 
-cat(str_c("Dataset has ", row_count, " rows\n"))
+cat(glue("Dataset has {row_count} rows\n"))
 ```
 
 Now that we a table of the counts of all the categorical variables we can
@@ -476,7 +476,7 @@ logical_vars <- coltype_lst$split$logical %>% sort()
 
 for (plot_varname in logical_vars) {
   cat("--\n")
-  cat(str_c(plot_varname, "\n"))
+  cat(glue("{plot_varname}\n"))
 
   na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
 
@@ -504,12 +504,17 @@ numeric_vars <- coltype_lst$split$continuous %>% sort()
 
 for (plot_varname in numeric_vars) {
   cat("--\n")
-  cat(str_c(plot_varname, "\n"))
+  cat(glue("{plot_varname}\n"))
 
   plot_var <- explore_data_tbl %>% pull(!! plot_varname)
   na_count <- plot_var %>% are_na() %>% sum()
 
-  plot_var %>% summary %>% print
+  neg_data_tbl <- explore_data_tbl %>%
+    filter(!! sym(plot_varname) < 0) %>%
+    mutate(!! plot_varname := abs(!! sym(plot_varname)))
+  
+
+  plot_var %>% summary() %>% print()
 
   explore_plot <- ggplot(explore_data_tbl) +
     geom_histogram(aes(x = !! sym(plot_varname)),
@@ -520,16 +525,30 @@ for (plot_varname in numeric_vars) {
                colour = "green", size = 1.5) +
     xlab(plot_varname) +
     ylab("Count") +
-    scale_y_continuous(labels = label_comma()) +
-    ggtitle(str_c("Histogram Plot for Variable: ", plot_varname,
-                  " (", na_count, " missing values)"),
-            subtitle = "(red line is mean, green line is median)")
+    scale_y_continuous(labels = label_comma())
 
-  explore_std_plot <- explore_plot + scale_x_continuous(labels = label_comma())
-  explore_log_plot <- explore_plot + scale_x_log10     (labels = label_comma())
+  explore_std_plot     <- explore_plot +
+    scale_x_continuous(labels = label_comma()) +
+    ggtitle(glue("Histogram Plot for Variable: {plot_varname} ({na_count} missing values)"),
+            subtitle = "(red line is mean, green line is median)")  
+  
+  explore_pos_log_plot <- explore_plot +
+    scale_x_log10(labels = label_comma()) +
+    ggtitle("Positive Values")
+  
+  explore_neg_log_plot <- explore_pos_log_plot %+%
+    neg_data_tbl +
+    ggtitle("Negative Values")
 
-  plot_grid(explore_std_plot,
-            explore_log_plot, nrow = 2) %>% print()
+
+  plot_grid(
+      explore_std_plot,
+      NULL,
+      explore_pos_log_plot,
+      explore_neg_log_plot,
+      nrow = 2
+      ) %>%
+    print()
 }
 ```
 
@@ -1011,28 +1030,28 @@ ggplot(plot_tbl) +
 # Graph Analysis
 
 ```{r construct_basket_graph, echo=TRUE}
-stock_nodes_tbl <- data_tbl %>%
-  select(stock_code) %>%
-  distinct() %>%
-  transmute(node_label = stock_code, node_type = "stock")
-
-invoice_nodes_tbl <- data_tbl %>%
-  select(invoice_id) %>%
-  distinct() %>%
-  transmute(node_label = invoice_id, node_type = "invoice")
-
-nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
-  bind_rows()
-
-edges_tbl <- data_tbl %>%
-  select(stock_code, invoice_id)
-
-
-basket_graph <- graph_from_data_frame(
-  d        = edges_tbl,
-  directed = FALSE,
-  vertices = nodes_tbl
-  )
+# stock_nodes_tbl <- data_tbl %>%
+#   select(stock_code) %>%
+#   distinct() %>%
+#   transmute(node_label = stock_code, node_type = "stock")
+# 
+# invoice_nodes_tbl <- data_tbl %>%
+#   select(invoice_id) %>%
+#   distinct() %>%
+#   transmute(node_label = invoice_id, node_type = "invoice")
+# 
+# nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
+#   bind_rows()
+# 
+# edges_tbl <- data_tbl %>%
+#   select(stock_code, invoice_id, quantity, price)
+# 
+# 
+# basket_graph <- graph_from_data_frame(
+#   d        = edges_tbl,
+#   directed = FALSE,
+#   vertices = nodes_tbl
+#   )
 
 ```
 
