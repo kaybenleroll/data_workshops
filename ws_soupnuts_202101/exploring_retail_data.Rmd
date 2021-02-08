@@ -37,6 +37,8 @@ library(snakecase)
 library(lubridate)
 library(evir)
 library(DT)
+library(tidygraph)
+
 
 
 source("custom_functions.R")
@@ -442,7 +444,7 @@ if (length(drop_vars) > 0) {
 
 
 ```{r write_to_disk, echo=TRUE}
-data_tbl %>% write_rds("data/retail_data.rds")
+data_tbl %>% write_rds("data/retail_data_added_tbl.rds")
 ```
 
 ```{r, echo=FALSE}
@@ -509,43 +511,51 @@ for (plot_varname in numeric_vars) {
   plot_var <- explore_data_tbl %>% pull(!! plot_varname)
   na_count <- plot_var %>% are_na() %>% sum()
 
-  neg_data_tbl <- explore_data_tbl %>%
-    filter(!! sym(plot_varname) < 0) %>%
-    mutate(!! plot_varname := abs(!! sym(plot_varname)))
-  
-
   plot_var %>% summary() %>% print()
 
-  explore_plot <- ggplot(explore_data_tbl) +
-    geom_histogram(aes(x = !! sym(plot_varname)),
-                   bins = hist_bins_count) +
+  neg_data_tbl <- explore_data_tbl %>%
+    filter(!! sym(plot_varname) < 0) %>%
+    mutate(var_val = abs(!! sym(plot_varname)))
+  
+  pos_data_tbl <- explore_data_tbl %>%
+    filter(!! sym(plot_varname) >= 0) %>%
+    mutate(var_val = abs(!! sym(plot_varname)))
+
+  all_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)), bins = hist_bins_count) +
     geom_vline(xintercept = mean(plot_var, na.rm = TRUE),
                colour = "red",   size = 1.5) +
     geom_vline(xintercept = median(plot_var, na.rm = TRUE),
                colour = "green", size = 1.5) +
     xlab(plot_varname) +
     ylab("Count") +
-    scale_y_continuous(labels = label_comma())
-
-  explore_std_plot     <- explore_plot +
-    scale_x_continuous(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
     ggtitle(glue("Histogram Plot for Variable: {plot_varname} ({na_count} missing values)"),
-            subtitle = "(red line is mean, green line is median)")  
-  
-  explore_pos_log_plot <- explore_plot +
+            subtitle = "(red line is mean, green line is median)")
+
+
+  pos_log_plot <- ggplot(pos_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
     scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
     ggtitle("Positive Values")
-  
-  explore_neg_log_plot <- explore_pos_log_plot %+%
-    neg_data_tbl +
+
+  neg_log_plot <- ggplot(neg_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
     ggtitle("Negative Values")
 
 
   plot_grid(
-      explore_std_plot,
+      all_plot,
       NULL,
-      explore_pos_log_plot,
-      explore_neg_log_plot,
+      pos_log_plot,
+      neg_log_plot,
       nrow = 2
       ) %>%
     print()
@@ -910,6 +920,40 @@ stock_distinct_price_counts_tbl %>% datatable()
 Another way to look at this data is to combine all the invoice values by
 various time period such as daily, weekly and monthly to see how it looks.
 
+As we are going to do a number of aggregations based on various aspects of the
+date, we construct a function that takes a table of data and adds a number of
+derived columns based on that date: things like day of week, calendar month and
+so on.
+
+```{r append_calendar_columns, echo=TRUE}
+append_calendar_columns <- function(data_tbl, date_col) {
+  updated_data_tbl <- data_tbl %>%
+    mutate(
+      invoice_date   = {{date_col}} %>% as.Date(),
+      
+      invoice_month  = {{date_col}} %>% format("%B"),
+      invoice_dow    = {{date_col}} %>% format("%A"),
+      invoice_dom    = {{date_col}} %>% format("%d"),
+      invoice_hour   = {{date_col}} %>% format("%H"),
+      invoice_minute = {{date_col}} %>% format("%M"),
+      invoice_woy    = {{date_col}} %>% format("%V"),
+      invoice_ym     = {{date_col}} %>% format("%Y%m"),
+      
+      .after = {{date_col}}
+      )
+  
+  return(updated_data_tbl)
+}
+
+data_tbl %>%
+  select(excel_sheet, invoice_id, invoice_date, stock_amount) %>%
+  append_calendar_columns(invoice_date) %>%
+  glimpse()
+
+
+```
+
+
 ### Create Univariate Time-Series of Amounts
 
 ```{r construct_timeseries_data, echo=TRUE}
@@ -1025,33 +1069,67 @@ ggplot(plot_tbl) +
 ```
 
 
+## Check Distribution of Daily Purchases
+
+We now look at individual invoice amounts, and look at how they are distributed
+on a daily basis.
+
+```{r plot_daily_amount_distributions, echo=TRUE}
+daily_distribution_tbl <- data_tbl %>%
+  group_by(invoice_date, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(stock_amount)
+    )
+
+daily_distribution_tbl %>% glimpse()
+```
 
 
-# Graph Analysis
+
+
+
+
+
+
+
+# Miscellaneous Analyses
+
+In this section we try a few different types of analysis.
+
+## Graph Analysis
+
+We can treat this data as a graph, turning both invoices and stock items into
+nodes on the graph, and create a connection between stock and invoices when the
+item occurs on the invoice.
+
+This graph will get large, but it is a starting point.
+
 
 ```{r construct_basket_graph, echo=TRUE}
-# stock_nodes_tbl <- data_tbl %>%
-#   select(stock_code) %>%
-#   distinct() %>%
-#   transmute(node_label = stock_code, node_type = "stock")
-# 
-# invoice_nodes_tbl <- data_tbl %>%
-#   select(invoice_id) %>%
-#   distinct() %>%
-#   transmute(node_label = invoice_id, node_type = "invoice")
-# 
-# nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
-#   bind_rows()
-# 
-# edges_tbl <- data_tbl %>%
-#   select(stock_code, invoice_id, quantity, price)
-# 
-# 
-# basket_graph <- graph_from_data_frame(
-#   d        = edges_tbl,
-#   directed = FALSE,
-#   vertices = nodes_tbl
-#   )
+stock_nodes_tbl <- data_tbl %>%
+  select(stock_code) %>%
+  distinct() %>%
+  transmute(node_label = stock_code, node_type = "stock")
+
+invoice_nodes_tbl <- data_tbl %>%
+  select(invoice_id) %>%
+  distinct() %>%
+  transmute(node_label = invoice_id, node_type = "invoice")
+
+nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
+  bind_rows()
+
+edges_tbl <- data_tbl %>%
+  select(stock_code, invoice_id, quantity, price)
+
+
+basket_graph <- tbl_graph(
+  nodes    = nodes_tbl,
+  edges    = edges_tbl,
+  directed = FALSE
+  )
 
 ```
 
