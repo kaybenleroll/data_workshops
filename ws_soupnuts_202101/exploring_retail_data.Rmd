@@ -29,6 +29,7 @@ library(cowplot)
 library(magrittr)
 library(rlang)
 library(purrr)
+library(furrr)
 library(vctrs)
 library(fs)
 library(glue)
@@ -64,7 +65,10 @@ options(
 theme_set(theme_cowplot())
 
 set.seed(42)
+
+plan(multisession)
 ```
+
 
 ```{r custom_functions, echo=FALSE}
 ### Checks if variable is a date/time
@@ -182,6 +186,7 @@ data_tbl <- data_tbl %>%
 
 data_tbl %>% glimpse()
 ```
+
 
 
 # Perform Basic Checks on Data
@@ -1086,52 +1091,79 @@ daily_distribution_tbl <- data_tbl %>%
 daily_distribution_tbl %>% glimpse()
 ```
 
+We now produce a boxplot for each day so we have a sense of how the
+distribution of transaction amounts changes and evolves over time.
 
-
-
-
-
-
-
-
-# Miscellaneous Analyses
-
-In this section we try a few different types of analysis.
-
-## Graph Analysis
-
-We can treat this data as a graph, turning both invoices and stock items into
-nodes on the graph, and create a connection between stock and invoices when the
-item occurs on the invoice.
-
-This graph will get large, but it is a starting point.
-
-
-```{r construct_basket_graph, echo=TRUE}
-stock_nodes_tbl <- data_tbl %>%
-  select(stock_code) %>%
-  distinct() %>%
-  transmute(node_label = stock_code, node_type = "stock")
-
-invoice_nodes_tbl <- data_tbl %>%
-  select(invoice_id) %>%
-  distinct() %>%
-  transmute(node_label = invoice_id, node_type = "invoice")
-
-nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
-  bind_rows()
-
-edges_tbl <- data_tbl %>%
-  select(stock_code, invoice_id, quantity, price)
-
-
-basket_graph <- tbl_graph(
-  nodes    = nodes_tbl,
-  edges    = edges_tbl,
-  directed = FALSE
+```{r plot_daily_distribution_transactions, echo=TRUE}
+plot_tbl <- daily_distribution_tbl %>%
+  filter(total_spend > 0) %>%
+  group_by(invoice_date) %>%
+  summarise(
+    .groups = "drop",
+    
+    qn   = c("total_spend", "p10", "p25", "p50", "p75", "p90"),
+    vals = c(
+      sum(total_spend),
+      quantile(total_spend, probs = c(0.10, 0.25, 0.50, 0.75, 0.90))
+      )
+    ) %>%
+  pivot_wider(
+    names_from = qn,
+    values_from = vals
   )
 
+ggplot(plot_tbl) +
+  geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_spend),
+                width = 0) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Date") +
+  ylab("Transaction Amount") +
+  ggtitle("P25-P75 Quartile of Transaction Amounts by Date")
 ```
+
+It does not look there is much of a change over time or any particular patterns
+that stand out, so we also want to look at the refunds.
+
+```{r plot_daily_distribution_refunds, echo=TRUE}
+plot_tbl <- daily_distribution_tbl %>%
+  filter(total_spend < 0) %>%
+  mutate(total_refund = abs(total_spend)) %>%
+  group_by(invoice_date) %>%
+  summarise(
+    .groups = "drop",
+    
+    qn   = c("total_refund", "p10", "p25", "p50", "p75", "p90"),
+    vals = c(
+      sum(total_refund),
+      quantile(total_refund, probs = c(0.10, 0.25, 0.50, 0.75, 0.90))
+      )
+    ) %>%
+  pivot_wider(
+    names_from = qn,
+    values_from = vals
+  )
+
+ggplot(plot_tbl) +
+  geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_refund),
+                width = 0) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Date") +
+  ylab("Transaction Amount") +
+  ggtitle("P25-P75 Quartile of Refund Amounts by Date")
+```
+
+
+## Investigate Refunds
+
+This transactions data also includes returns and refunds - adding a level of
+complexity to this analysis as we need to account for this when assessing the
+data.
+
+One option is to ignore the refunds, at least initially, but this may add
+a large source of bias to our analysis and we need to get a feel for this.
+
+
+
 
 
 
