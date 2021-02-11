@@ -31,7 +31,7 @@ all-html: $(HTML_FILES)
 .Rmd.html:
 	Rscript -e 'rmarkdown::render("$<")'
 
-.dot.png: %.dot
+.dot.png:
 	dot -Tpng -o$*.png $<
 
 full_deps.dot:
