@@ -1162,9 +1162,38 @@ data.
 One option is to ignore the refunds, at least initially, but this may add
 a large source of bias to our analysis and we need to get a feel for this.
 
+We start by looking at all the transactions with a negative quantity and for 
+each item returned, we create a list of all previous purchases to match against
+it.
+
+```{r create_matching_returns_data, echo=TRUE}
+filter_returns_transactions <- function(use_stock, use_customer, use_quantity,
+                                use_dttm, data_tbl) {
+  matches_tbl <- data_tbl %>%
+    filter(stock_code   == use_stock,
+           customer_id  == use_customer,
+           invoice_dttm <= use_dttm,
+           quantity     >  0)
+  
+  return(matches_tbl)
+}
+
+returns_data_tbl <- data_tbl %>%
+  filter(quantity < 0) %>%
+  select(stock_code, customer_id, quantity, invoice_dttm) %>%
+  mutate(
+    returns = pmap(
+      list(use_stock    = stock_code,
+           use_customer = customer_id,
+           use_quantity = quantity,
+           use_dttm     = invoice_dttm),
+      filter_returns_transactions,
+      data_tbl = data_tbl
+      )
+    )
 
 
-
+```
 
 
 # R Environment
