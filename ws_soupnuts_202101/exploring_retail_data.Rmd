@@ -162,6 +162,11 @@ new variables calculated from existing variables in the data.
 data_tbl <- data_tbl %>%
   rename(invoice_id = invoice) %>%
   mutate(
+    row_id = sprintf("ROW%07d", 1:n()),
+    
+    .before = 1
+    ) %>%
+  mutate(
     stock_code_upr = stock_code %>% str_to_upper(),
     
     cancellation   = str_detect(invoice_id, "^C"),
@@ -228,10 +233,10 @@ can remove them.
 ```{r remove_duplicated_entries, echo=TRUE}
 data_tbl <- data_tbl %>%
   group_by(invoice_date, invoice_id, stock_code) %>%
-  mutate(row_id = 1:n()) %>%
+  mutate(dup_id = 1:n()) %>%
   ungroup() %>%
-  filter(row_id == 1) %>%
-  select(-row_id)
+  filter(dup_id == 1) %>%
+  select(-dup_id)
 
 data_tbl %>% glimpse()
 ```
@@ -1162,13 +1167,19 @@ data.
 One option is to ignore the refunds, at least initially, but this may add
 a large source of bias to our analysis and we need to get a feel for this.
 
-We start by looking at all the transactions with a negative quantity and for 
-each item returned, we create a list of all previous purchases to match against
-it.
+To do this, we will look at each line-item entry with a negative quantity and
+we will look back in time to the previous time such an time was sold, and we
+match on the `customer_id`, `stock_code` and `price`. This is strong evidence
+that the previous sale was then returned, and so we can label these entries.
+
+Due to the time snapshot nature of this data, this also means there are likely
+to be some returns in our data that do not have a corresponding sale, so we
+can also ignore those.
+
 
 ```{r create_matching_returns_data, echo=TRUE}
-filter_returns_transactions <- function(use_stock, use_customer, use_quantity,
-                                use_dttm, data_tbl) {
+filter_returns_transactions <- function(use_stock, use_customer,  use_dttm,
+                                        data_tbl) {
   matches_tbl <- data_tbl %>%
     filter(stock_code   == use_stock,
            customer_id  == use_customer,
@@ -1182,18 +1193,27 @@ returns_data_tbl <- data_tbl %>%
   filter(quantity < 0) %>%
   select(stock_code, customer_id, quantity, invoice_dttm) %>%
   mutate(
-    returns = pmap(
+    match_data = pmap(
       list(use_stock    = stock_code,
            use_customer = customer_id,
-           use_quantity = quantity,
            use_dttm     = invoice_dttm),
       filter_returns_transactions,
       data_tbl = data_tbl
       )
     )
 
-
+returns_data_tbl %>% glimpse()
 ```
+
+We can then use this data to get an idea of how often items are returned, and
+how much time tends to pass between the purchase and the return.
+
+
+
+
+
+
+
 
 
 # R Environment
