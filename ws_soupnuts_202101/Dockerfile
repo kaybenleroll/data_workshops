@@ -7,6 +7,8 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && install2.r --error \
     actuar \
+    arules \
+    arulesViz \
     BTYD \
     evir \
     fitdistrplus \

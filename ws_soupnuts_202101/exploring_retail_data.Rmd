@@ -29,6 +29,7 @@ library(cowplot)
 library(magrittr)
 library(rlang)
 library(purrr)
+library(furrr)
 library(vctrs)
 library(fs)
 library(glue)
@@ -37,6 +38,8 @@ library(snakecase)
 library(lubridate)
 library(evir)
 library(DT)
+library(tidygraph)
+
 
 
 source("custom_functions.R")
@@ -62,7 +65,10 @@ options(
 theme_set(theme_cowplot())
 
 set.seed(42)
+
+plan(multisession)
 ```
+
 
 ```{r custom_functions, echo=FALSE}
 ### Checks if variable is a date/time
@@ -156,6 +162,13 @@ new variables calculated from existing variables in the data.
 data_tbl <- data_tbl %>%
   rename(invoice_id = invoice) %>%
   mutate(
+    row_id = sprintf("ROW%07d", 1:n()),
+    
+    .before = 1
+    ) %>%
+  mutate(
+    stock_code_upr = stock_code %>% str_to_upper(),
+    
     cancellation   = str_detect(invoice_id, "^C"),
     invoice_dttm   = invoice_date,
     invoice_date   = invoice_date %>% as.Date(),
@@ -165,7 +178,9 @@ data_tbl <- data_tbl %>%
     invoice_hour   = format(invoice_dttm, "%H"),
     invoice_minute = format(invoice_dttm, "%M"),
     invoice_woy    = format(invoice_dttm, "%V"),
-    invoice_ym     = format(invoice_dttm, "%Y%m")
+    invoice_ym     = format(invoice_dttm, "%Y%m"),
+
+    stock_amount   = price * quantity
     ) %>%
   group_by(invoice_ym) %>%
   mutate(
@@ -176,6 +191,7 @@ data_tbl <- data_tbl %>%
 
 data_tbl %>% glimpse()
 ```
+
 
 
 # Perform Basic Checks on Data
@@ -216,11 +232,11 @@ can remove them.
 
 ```{r remove_duplicated_entries, echo=TRUE}
 data_tbl <- data_tbl %>%
-  group_by(excel_sheet, invoice_date, invoice_id, stock_code) %>%
-  mutate(row_id = 1:n()) %>%
+  group_by(invoice_date, invoice_id, stock_code) %>%
+  mutate(dup_id = 1:n()) %>%
   ungroup() %>%
-  filter(row_id == 1) %>%
-  select(-row_id)
+  filter(dup_id == 1) %>%
+  select(-dup_id)
 
 data_tbl %>% glimpse()
 ```
@@ -237,6 +253,15 @@ data_tbl %>%
   filter(date_diff > 1) %>%
   datatable()
 ```
+
+It appears that there are no missing dates in this dataset, though we may need
+to account for the fact that the business is not open all the time as there
+are gaps in dates for one day every weekend, as well as being closed over the
+Easter and Christmas holidays.
+
+For our time series analysis on a daily basis we may be able to ignore this
+wrinkle in our dataset.
+
 
 
 ## Check Missing Values
@@ -270,7 +295,7 @@ ggplot(missing_univariate_tbl) +
                weight = missing_prop)) +
   xlab("Variable") +
   ylab("Missing Value Proportion") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 We remove all variables where all of the entries are missing
@@ -297,7 +322,7 @@ ggplot(missing_univariate_tbl) +
                weight = missing_prop)) +
   xlab("Variable") +
   ylab("Missing Value Proportion") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 
@@ -314,7 +339,7 @@ ggplot(missing_univariate_top_tbl) +
                weight = missing_prop)) +
   xlab("Variable") +
   ylab("Missing Value Proportion") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 
@@ -350,7 +375,7 @@ ggplot(missing_plot_tbl) +
   scale_x_discrete(position = "top") +
   xlab("Variable") +
   ylab("Missing Value Proportion") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 This visualisation takes a little explaining.
@@ -378,9 +403,9 @@ catvar_valuecount_tbl <- data_tbl %>%
 
 print(catvar_valuecount_tbl)
 
-row_count <- nrow(data_tbl)
+row_count <- data_tbl %>% nrow()
 
-cat(str_c("Dataset has ", row_count, " rows\n"))
+cat(glue("Dataset has {row_count} rows\n"))
 ```
 
 Now that we a table of the counts of all the categorical variables we can
@@ -429,12 +454,13 @@ if (length(drop_vars) > 0) {
 
 
 ```{r write_to_disk, echo=TRUE}
-data_tbl %>% write_rds("data/retail_data.rds")
+data_tbl %>% write_rds("data/retail_data_added_tbl.rds")
 ```
 
 ```{r, echo=FALSE}
 #knitr::knit_exit()
 ```
+
 
 
 # Univariate Data Exploration
@@ -462,7 +488,7 @@ logical_vars <- coltype_lst$split$logical %>% sort()
 
 for (plot_varname in logical_vars) {
   cat("--\n")
-  cat(str_c(plot_varname, "\n"))
+  cat(glue("{plot_varname}\n"))
 
   na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
 
@@ -490,16 +516,23 @@ numeric_vars <- coltype_lst$split$continuous %>% sort()
 
 for (plot_varname in numeric_vars) {
   cat("--\n")
-  cat(str_c(plot_varname, "\n"))
+  cat(glue("{plot_varname}\n"))
 
   plot_var <- explore_data_tbl %>% pull(!! plot_varname)
   na_count <- plot_var %>% are_na() %>% sum()
 
-  plot_var %>% summary %>% print
+  plot_var %>% summary() %>% print()
 
-  explore_plot <- ggplot(explore_data_tbl) +
-    geom_histogram(aes(x = !! sym(plot_varname)),
-                   bins = hist_bins_count) +
+  neg_data_tbl <- explore_data_tbl %>%
+    filter(!! sym(plot_varname) < 0) %>%
+    mutate(var_val = abs(!! sym(plot_varname)))
+  
+  pos_data_tbl <- explore_data_tbl %>%
+    filter(!! sym(plot_varname) >= 0) %>%
+    mutate(var_val = abs(!! sym(plot_varname)))
+
+  all_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)), bins = hist_bins_count) +
     geom_vline(xintercept = mean(plot_var, na.rm = TRUE),
                colour = "red",   size = 1.5) +
     geom_vline(xintercept = median(plot_var, na.rm = TRUE),
@@ -507,15 +540,35 @@ for (plot_varname in numeric_vars) {
     xlab(plot_varname) +
     ylab("Count") +
     scale_y_continuous(labels = label_comma()) +
-    ggtitle(str_c("Histogram Plot for Variable: ", plot_varname,
-                  " (", na_count, " missing values)"),
+    ggtitle(glue("Histogram Plot for Variable: {plot_varname} ({na_count} missing values)"),
             subtitle = "(red line is mean, green line is median)")
 
-  explore_std_plot <- explore_plot + scale_x_continuous(labels = label_comma())
-  explore_log_plot <- explore_plot + scale_x_log10     (labels = label_comma())
 
-  plot_grid(explore_std_plot,
-            explore_log_plot, nrow = 2) %>% print()
+  pos_log_plot <- ggplot(pos_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle("Positive Values")
+
+  neg_log_plot <- ggplot(neg_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle("Negative Values")
+
+
+  plot_grid(
+      all_plot,
+      NULL,
+      pos_log_plot,
+      neg_log_plot,
+      nrow = 2
+      ) %>%
+    print()
 }
 ```
 
@@ -540,7 +593,7 @@ for (plot_varname in categorical_vars) {
     mutate(f = fct_relabel(f, str_trunc, width = 15))
 
   explore_plot <- ggplot(plot_tbl) +
-    geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
+    geom_bar(aes(x = f, weight = n)) +
     xlab(plot_varname) +
     ylab("Count") +
     scale_y_continuous(labels = label_comma()) +
@@ -732,7 +785,32 @@ rm(plot_var, plot_tbl)
 
 # Custom Explorations
 
-In this section we perform various 
+In this section we perform various data explorations.
+
+
+## Custom Checks for Data Integrity
+
+We want to check the transaction data for consistency, so we create a table
+of all distinct 
+
+```{r check_stock_codes, echo=TRUE}
+stock_codes_lookup_tbl <- data_tbl %>%
+  select(stock_code_upr, description) %>%
+  distinct() %>%
+  arrange(stock_code_upr, description) %>%
+  drop_na(description)
+
+stock_codes_lookup_tbl %>% glimpse()
+```
+
+We now take a look at the first 50 rows of this table to get a sense of any
+possible duplication of `stock_code`.
+
+```{r plot_stock_codes_distinct_50, echo=TRUE}
+stock_codes_lookup_tbl %>% datatable()
+```
+
+
 
 ## Explore Aggregate Amounts
 
@@ -751,7 +829,7 @@ invoice_data_tbl <- data_tbl %>%
   summarise(
     .groups = "drop",
     
-    invoice_amount = sum(price * quantity)
+    invoice_amount = sum(price * quantity) %>% round(2)
   )
 
 invoice_mean   <- invoice_data_tbl %>% pull(invoice_amount) %>% mean()   %>% round(2)
@@ -785,7 +863,7 @@ customer_data_tbl <- data_tbl %>%
   summarise(
     .groups = "drop",
     
-    customer_spend = sum(price * quantity)
+    customer_spend = sum(price * quantity) %>% round(2)
   )
   
 ggplot(customer_data_tbl) +
@@ -803,10 +881,90 @@ customer_data_tbl %>% pull(customer_spend) %>% hill()
 ```
 
 
-## Construct Time-Series Data
+### Stock Level Data
+
+```{r plot_stock_price_counts, echo=TRUE}
+stock_price_counts_tbl <- data_tbl %>%
+  group_by(stock_code) %>%
+  summarise(
+    .groups = "drop",
+    
+    n_prices    = n(),
+    min_price   = min(price),
+    p25_price   = quantile(price, 0.25),
+    mean_price  = mean(price) %>% round(2),
+    p50_price   = median(price),
+    p75_price   = quantile(price, 0.75),
+    max_price   = max(price),
+    range_price = ((max_price - min_price) / mean_price) %>% round(4)
+    )
+
+stock_price_counts_tbl %>% datatable()
+  
+stock_distinct_price_counts_tbl <- data_tbl %>%
+  select(stock_code, price) %>%
+  distinct() %>%
+  group_by(stock_code) %>%
+  summarise(
+    .groups = "drop",
+    
+    n_prices    = n(),
+    min_price   = min(price),
+    p25_price   = quantile(price, 0.25),
+    mean_price  = mean(price) %>% round(2),
+    p50_price   = median(price),
+    p75_price   = quantile(price, 0.75),
+    max_price   = max(price),
+    range_price = (max_price - min_price) / mean_price
+    )
+
+stock_distinct_price_counts_tbl %>% datatable()
+```
+
+
+
+
+
+## Construct Time-Series / Date-Based Data
 
 Another way to look at this data is to combine all the invoice values by
 various time period such as daily, weekly and monthly to see how it looks.
+
+As we are going to do a number of aggregations based on various aspects of the
+date, we construct a function that takes a table of data and adds a number of
+derived columns based on that date: things like day of week, calendar month and
+so on.
+
+```{r append_calendar_columns, echo=TRUE}
+append_calendar_columns <- function(data_tbl, date_col) {
+  updated_data_tbl <- data_tbl %>%
+    mutate(
+      invoice_date   = {{date_col}} %>% as.Date(),
+      
+      invoice_month  = {{date_col}} %>% format("%B"),
+      invoice_dow    = {{date_col}} %>% format("%A"),
+      invoice_dom    = {{date_col}} %>% format("%d"),
+      invoice_hour   = {{date_col}} %>% format("%H"),
+      invoice_minute = {{date_col}} %>% format("%M"),
+      invoice_woy    = {{date_col}} %>% format("%V"),
+      invoice_ym     = {{date_col}} %>% format("%Y%m"),
+      
+      .after = {{date_col}}
+      )
+  
+  return(updated_data_tbl)
+}
+
+data_tbl %>%
+  select(excel_sheet, invoice_id, invoice_date, stock_amount) %>%
+  append_calendar_columns(invoice_date) %>%
+  glimpse()
+
+
+```
+
+
+### Create Univariate Time-Series of Amounts
 
 ```{r construct_timeseries_data, echo=TRUE}
 ts_data_tbl <- data_tbl %>%
@@ -821,7 +979,7 @@ ts_daily_tbl <- ts_data_tbl %>%
     .groups = "drop",
 
     period_date = min(invoice_date),
-    total_spend = sum(price * quantity)
+    total_spend = sum(price * quantity) %>% round(2)
     )
 
 ggplot(ts_daily_tbl) +
@@ -857,7 +1015,7 @@ ts_monthly_tbl <- ts_data_tbl %>%
     .groups = "drop",
 
     period_date = min(invoice_date),
-    total_spend = sum(price * quantity)
+    total_spend = sum(price * quantity) %>% round(2)
     )
 
 ggplot(ts_monthly_tbl) +
@@ -882,6 +1040,217 @@ ts_data_tbl <- list(
   arrange(series, period_date)
 
 ts_data_tbl %>% write_rds("data/retail_timeseries_tbl.rds")
+```
+
+
+### Calendar-Based Boxplots
+
+We have aggregated our data across time periods, but it is also worth looking
+at both transaction-level and invoice-level amount over time.
+
+```{r lineitem_calendar_boxplot, echo=TRUE}
+ggplot(data_tbl) +
+  geom_boxplot(aes(x = invoice_woy, y = stock_amount, group = invoice_woy)) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Week of Year") +
+  ylab("Transaction Amount") +
+  ggtitle("Boxplot of Transaction Sizes by Week of Year") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+
+```{r invoice_calendar_boxplot, echo=TRUE}
+plot_tbl <- data_tbl %>%
+  group_by(invoice_woy, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    invoice_amount = sum(stock_amount) %>% round(2)
+  )
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = invoice_woy, y = invoice_amount, group = invoice_woy)) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Week of Year") +
+  ylab("Invoice Amount") +
+  ggtitle("Boxplot of Invoice Amounts by Week of Year") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+## Check Distribution of Daily Purchases
+
+We now look at individual invoice amounts, and look at how they are distributed
+on a daily basis.
+
+```{r plot_daily_amount_distributions, echo=TRUE}
+daily_distribution_tbl <- data_tbl %>%
+  group_by(invoice_date, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(stock_amount)
+    )
+
+daily_distribution_tbl %>% glimpse()
+```
+
+We now produce a boxplot for each day so we have a sense of how the
+distribution of transaction amounts changes and evolves over time.
+
+```{r plot_daily_distribution_transactions, echo=TRUE}
+plot_tbl <- daily_distribution_tbl %>%
+  filter(total_spend > 0) %>%
+  group_by(invoice_date) %>%
+  summarise(
+    .groups = "drop",
+    
+    qn   = c("total_spend", "p10", "p25", "p50", "p75", "p90"),
+    vals = c(
+      sum(total_spend),
+      quantile(total_spend, probs = c(0.10, 0.25, 0.50, 0.75, 0.90))
+      )
+    ) %>%
+  pivot_wider(
+    names_from = qn,
+    values_from = vals
+  )
+
+ggplot(plot_tbl) +
+  geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_spend),
+                width = 0) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Date") +
+  ylab("Transaction Amount") +
+  ggtitle("P25-P75 Quartile of Transaction Amounts by Date")
+```
+
+It does not look there is much of a change over time or any particular patterns
+that stand out, so we also want to look at the refunds.
+
+```{r plot_daily_distribution_refunds, echo=TRUE}
+plot_tbl <- daily_distribution_tbl %>%
+  filter(total_spend < 0) %>%
+  mutate(total_refund = abs(total_spend)) %>%
+  group_by(invoice_date) %>%
+  summarise(
+    .groups = "drop",
+    
+    qn   = c("total_refund", "p10", "p25", "p50", "p75", "p90"),
+    vals = c(
+      sum(total_refund),
+      quantile(total_refund, probs = c(0.10, 0.25, 0.50, 0.75, 0.90))
+      )
+    ) %>%
+  pivot_wider(
+    names_from = qn,
+    values_from = vals
+  )
+
+ggplot(plot_tbl) +
+  geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_refund),
+                width = 0) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Date") +
+  ylab("Transaction Amount") +
+  ggtitle("P25-P75 Quartile of Refund Amounts by Date")
+```
+
+
+## Investigate Refunds
+
+This transactions data also includes returns and refunds - adding a level of
+complexity to this analysis as we need to account for this when assessing the
+data.
+
+One option is to ignore the refunds, at least initially, but this may add
+a large source of bias to our analysis and we need to get a feel for this.
+
+To do this, we will look at each line-item entry with a negative quantity and
+we will look back in time to the previous time such an time was sold, and we
+match on the `customer_id`, `stock_code` and `price`. This is strong evidence
+that the previous sale was then returned, and so we can label these entries.
+
+Due to the time snapshot nature of this data, this also means there are likely
+to be some returns in our data that do not have a corresponding sale, so we
+can also ignore those.
+
+
+```{r create_matching_returns_data, echo=TRUE}
+filter_returns_transactions <- function(use_stock, use_customer,  use_dttm,
+                                        data_tbl) {
+  matches_tbl <- data_tbl %>%
+    filter(stock_code   == use_stock,
+           customer_id  == use_customer,
+           invoice_dttm <= use_dttm,
+           quantity     >  0)
+  
+  return(matches_tbl)
+}
+
+returns_data_tbl <- data_tbl %>%
+  filter(quantity < 0) %>%
+  select(row_id, stock_code, customer_id, quantity, invoice_dttm) %>%
+  mutate(
+    prev_tnx_data = pmap(
+      list(use_stock    = stock_code,
+           use_customer = customer_id,
+           use_dttm     = invoice_dttm),
+      filter_returns_transactions,
+      data_tbl = data_tbl
+      ),
+    match_data = map2(prev_tnx_data, quantity,
+                      ~ .x %>% filter(quantity == abs(.y))),
+    last_match = map(match_data,
+                     ~ .x %>% arrange(desc(invoice_dttm)) %>% head(1))
+    )
+
+returns_data_tbl %>% glimpse()
+```
+
+We can then use this data to get an idea of how often items are returned, and
+how much time tends to pass between the purchase and the return.
+
+```{r construct_returns_lookups, echo=TRUE}
+returns_lookup_tbl <- returns_data_tbl %>%
+  transmute(
+    return_id = row_id,
+    return_dttm = invoice_dttm,
+    data        = map(last_match, ~ .x %>% select(row_id, invoice_dttm))
+    ) %>%
+  unnest(data) %>%
+  select(row_id, return_id)
+
+returns_lookup_tbl %>% glimpse()
+```
+
+
+
+We now want to look at the distribution of times between the purchase and the
+item being returned.
+
+```{r plot_return_times_histogram, echo=TRUE}
+return_times_tbl <- returns_lookup_tbl %>%
+  left_join(data_tbl %>% select(row_id, invoice_dttm), by = "row_id") %>%
+  left_join(data_tbl %>% select(return_id = row_id, return_dttm = invoice_dttm), by = "return_id") %>%
+  mutate(
+    return_time = return_dttm - invoice_dttm,
+    return_days  = as.numeric(return_time) / (24 * 60 * 60)
+    )
+
+norm_plot <- ggplot(return_times_tbl) +
+  geom_histogram(aes(x = return_days), bins = 50) +
+  geom_vline(aes(xintercept = 90), colour = "red") +
+  scale_x_continuous(labels = label_comma()) +
+  xlab("Days") +
+  ylab("Count") +
+  ggtitle("Histogram of Days Between Purchase and Return per Item Transaction")
+
+log_plot <- norm_plot +
+  scale_x_log10(labels = label_comma())
+
+plot_grid(norm_plot, log_plot, nrow = 2)
 ```
 
 
