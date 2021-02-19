@@ -1191,15 +1191,19 @@ filter_returns_transactions <- function(use_stock, use_customer,  use_dttm,
 
 returns_data_tbl <- data_tbl %>%
   filter(quantity < 0) %>%
-  select(stock_code, customer_id, quantity, invoice_dttm) %>%
+  select(row_id, stock_code, customer_id, quantity, invoice_dttm) %>%
   mutate(
-    match_data = pmap(
+    prev_tnx_data = pmap(
       list(use_stock    = stock_code,
            use_customer = customer_id,
            use_dttm     = invoice_dttm),
       filter_returns_transactions,
       data_tbl = data_tbl
-      )
+      ),
+    match_data = map2(prev_tnx_data, quantity,
+                      ~ .x %>% filter(quantity == abs(.y))),
+    last_match = map(match_data,
+                     ~ .x %>% arrange(desc(invoice_dttm)) %>% head(1))
     )
 
 returns_data_tbl %>% glimpse()
@@ -1208,12 +1212,46 @@ returns_data_tbl %>% glimpse()
 We can then use this data to get an idea of how often items are returned, and
 how much time tends to pass between the purchase and the return.
 
+```{r construct_returns_lookups, echo=TRUE}
+returns_lookup_tbl <- returns_data_tbl %>%
+  transmute(
+    return_id = row_id,
+    return_dttm = invoice_dttm,
+    data        = map(last_match, ~ .x %>% select(row_id, invoice_dttm))
+    ) %>%
+  unnest(data) %>%
+  select(row_id, return_id)
+
+returns_lookup_tbl %>% glimpse()
+```
 
 
 
+We now want to look at the distribution of times between the purchase and the
+item being returned.
 
+```{r plot_return_times_histogram, echo=TRUE}
+return_times_tbl <- returns_lookup_tbl %>%
+  left_join(data_tbl %>% select(row_id, invoice_dttm), by = "row_id") %>%
+  left_join(data_tbl %>% select(return_id = row_id, return_dttm = invoice_dttm), by = "return_id") %>%
+  mutate(
+    return_time = return_dttm - invoice_dttm,
+    return_days  = as.numeric(return_time) / (24 * 60 * 60)
+    )
 
+norm_plot <- ggplot(return_times_tbl) +
+  geom_histogram(aes(x = return_days), bins = 50) +
+  geom_vline(aes(xintercept = 90), colour = "red") +
+  scale_x_continuous(labels = label_comma()) +
+  xlab("Days") +
+  ylab("Count") +
+  ggtitle("Histogram of Days Between Purchase and Return per Item Transaction")
 
+log_plot <- norm_plot +
+  scale_x_log10(labels = label_comma())
+
+plot_grid(norm_plot, log_plot, nrow = 2)
+```
 
 
 # R Environment
