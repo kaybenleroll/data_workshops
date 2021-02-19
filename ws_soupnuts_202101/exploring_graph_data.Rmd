@@ -1,0 +1,149 @@
+---
+title: "Alternative Explorations of the Online Retail Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(vctrs)
+library(fs)
+library(glue)
+library(forcats)
+library(snakecase)
+library(lubridate)
+library(evir)
+library(DT)
+library(tidygraph)
+
+
+
+source("custom_functions.R")
+
+resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+# Basket Analysis
+
+We want to do some basic basket analysis before we investigate using full
+'association rules' libraries for our modelling.
+
+Rather than repeating all the logic, it might be worth looking at building
+some basic code to construct all the item pairs in each basket.
+
+
+```{r construct_basket_pairs, echo=TRUE}
+construct_pairwise_items <- function(stock_codes) {
+  pairs_tbl <- expand_grid(
+      one = stock_codes,
+      two = stock_codes
+      ) %>%
+    filter(one < two)
+  
+  return(pairs_tbl)
+}
+
+basket_data_tbl <- data_tbl %>%
+  group_by(invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    stock_codes = list(stock_code)
+    ) %>%
+  mutate(
+    basket_data = future_map(stock_codes, construct_pairwise_items,
+                             .progress = TRUE
+                             )
+    )
+
+basket_data_tbl %>% glimpse()
+```
+
+
+# Graph Analysis
+
+We can treat this data as a graph, turning both invoices and stock items into
+nodes on the graph, and create a connection between stock and invoices when the
+item occurs on the invoice.
+
+This graph will get large, but it is a starting point.
+
+
+```{r construct_basket_graph, echo=TRUE}
+stock_nodes_tbl <- data_tbl %>%
+  select(stock_code) %>%
+  distinct() %>%
+  transmute(node_label = stock_code, node_type = "stock")
+
+invoice_nodes_tbl <- data_tbl %>%
+  select(invoice_id) %>%
+  distinct() %>%
+  transmute(node_label = invoice_id, node_type = "invoice")
+
+nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
+  bind_rows()
+
+edges_tbl <- data_tbl %>%
+  select(stock_code, invoice_id, quantity, price)
+
+
+basket_graph <- tbl_graph(
+  nodes    = nodes_tbl,
+  edges    = edges_tbl,
+  directed = FALSE
+)
+```
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
