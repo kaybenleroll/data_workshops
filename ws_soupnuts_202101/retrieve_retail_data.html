@@ -1678,7 +1678,7 @@ parse it.</p>
 ## $ `Customer ID` &lt;chr&gt; &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;…
 ## $ Country       &lt;chr&gt; &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;…</code></pre>
 <p>Finally, we output this data to the disk.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>retail_data_tbl <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">write_rds</span>(<span class="st">&quot;data/retail_data_tbl.rds&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a>retail_data_tbl <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">write_rds</span>(<span class="st">&quot;data/retail_data_raw_tbl.rds&quot;</span>)</span></code></pre></div>
 </div>
 </div>
 <div id="r-environment" class="section level1">
@@ -1687,14 +1687,14 @@ parse it.</p>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.0.2 (2020-06-22)
-##  os       Ubuntu 20.04.2 LTS          
+##  os       Ubuntu 20.04.1 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       RStudio                     
+##  ui       X11                         
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-02-13                  
+##  date     2021-02-20                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
@@ -1705,7 +1705,6 @@ parse it.</p>
 ##  broom         0.7.1   2020-10-02 [1] RSPM (R 4.0.2)
 ##  cellranger    1.1.0   2016-07-27 [1] RSPM (R 4.0.0)
 ##  cli           2.1.0   2020-10-12 [1] RSPM (R 4.0.2)
-##  codetools     0.2-16  2018-12-24 [2] CRAN (R 4.0.2)
 ##  colorspace    1.4-1   2019-03-18 [1] RSPM (R 4.0.0)
 ##  conflicted  * 1.0.4   2019-06-21 [1] RSPM (R 4.0.0)
 ##  cowplot     * 1.1.0   2020-09-08 [1] RSPM (R 4.0.2)
@@ -1715,31 +1714,23 @@ parse it.</p>
 ##  dbplyr        1.4.4   2020-05-27 [1] RSPM (R 4.0.0)
 ##  digest        0.6.25  2020-02-23 [1] RSPM (R 4.0.0)
 ##  dplyr       * 1.0.2   2020-08-18 [1] RSPM (R 4.0.2)
-##  DT          * 0.15    2020-08-05 [1] RSPM (R 4.0.2)
 ##  ellipsis      0.3.1   2020-05-15 [1] RSPM (R 4.0.0)
 ##  evaluate      0.14    2019-05-28 [1] RSPM (R 4.0.0)
-##  evir        * 1.7-4   2018-03-20 [1] RSPM (R 4.0.0)
 ##  fansi         0.4.1   2020-01-08 [1] RSPM (R 4.0.0)
 ##  forcats     * 0.5.0   2020-03-01 [1] RSPM (R 4.0.0)
 ##  fs          * 1.5.0   2020-07-31 [1] RSPM (R 4.0.2)
-##  furrr       * 0.2.0   2020-10-12 [1] RSPM (R 4.0.2)
-##  future      * 1.19.1  2020-09-22 [1] RSPM (R 4.0.2)
 ##  generics      0.0.2   2018-11-29 [1] RSPM (R 4.0.0)
 ##  ggplot2     * 3.3.2   2020-06-19 [1] RSPM (R 4.0.1)
-##  globals       0.13.1  2020-10-11 [1] RSPM (R 4.0.2)
 ##  glue        * 1.4.2   2020-08-27 [1] RSPM (R 4.0.2)
 ##  gtable        0.3.0   2019-03-25 [1] RSPM (R 4.0.0)
 ##  haven         2.3.1   2020-06-01 [1] RSPM (R 4.0.2)
 ##  hms           0.5.3   2020-01-08 [1] RSPM (R 4.0.0)
 ##  htmltools     0.5.0   2020-06-16 [1] RSPM (R 4.0.1)
-##  htmlwidgets   1.5.2   2020-10-03 [1] RSPM (R 4.0.2)
 ##  httr          1.4.2   2020-07-20 [1] RSPM (R 4.0.2)
-##  igraph        1.2.6   2020-10-06 [1] RSPM (R 4.0.2)
 ##  jsonlite      1.7.1   2020-09-07 [1] RSPM (R 4.0.2)
 ##  knitr         1.30    2020-09-22 [1] RSPM (R 4.0.2)
 ##  lifecycle     0.2.0   2020-03-06 [1] RSPM (R 4.0.0)
-##  listenv       0.8.0   2019-12-05 [1] RSPM (R 4.0.0)
-##  lubridate   * 1.7.9   2020-06-08 [1] RSPM (R 4.0.2)
+##  lubridate     1.7.9   2020-06-08 [1] RSPM (R 4.0.2)
 ##  magrittr    * 1.5     2014-11-22 [1] RSPM (R 4.0.0)
 ##  memoise       1.1.0   2017-04-21 [1] RSPM (R 4.0.0)
 ##  modelr        0.1.8   2020-05-19 [1] RSPM (R 4.0.0)
@@ -1752,23 +1743,21 @@ parse it.</p>
 ##  readr       * 1.4.0   2020-10-05 [1] RSPM (R 4.0.2)
 ##  readxl      * 1.3.1   2019-03-13 [1] RSPM (R 4.0.2)
 ##  reprex        0.3.0   2019-05-16 [1] RSPM (R 4.0.0)
-##  rlang       * 0.4.8   2020-10-08 [1] RSPM (R 4.0.2)
+##  rlang         0.4.8   2020-10-08 [1] RSPM (R 4.0.2)
 ##  rmarkdown     2.4     2020-09-30 [1] RSPM (R 4.0.2)
 ##  rmdformats    0.3.7   2020-03-11 [1] RSPM (R 4.0.0)
 ##  rstudioapi    0.11    2020-02-07 [1] RSPM (R 4.0.0)
 ##  rvest         0.3.6   2020-07-25 [1] RSPM (R 4.0.2)
 ##  scales      * 1.1.1   2020-05-11 [1] RSPM (R 4.0.0)
 ##  sessioninfo   1.1.1   2018-11-05 [1] RSPM (R 4.0.0)
-##  snakecase   * 0.11.0  2019-05-25 [1] RSPM (R 4.0.0)
 ##  stringi       1.5.3   2020-09-09 [1] RSPM (R 4.0.2)
 ##  stringr     * 1.4.0   2019-02-10 [1] RSPM (R 4.0.0)
 ##  tibble      * 3.0.4   2020-10-12 [1] RSPM (R 4.0.2)
-##  tidygraph   * 1.2.0   2020-05-12 [1] RSPM (R 4.0.2)
 ##  tidyr       * 1.1.2   2020-08-27 [1] RSPM (R 4.0.2)
 ##  tidyselect    1.1.0   2020-05-11 [1] RSPM (R 4.0.0)
 ##  tidyverse   * 1.3.0   2019-11-21 [1] RSPM (R 4.0.0)
 ##  utf8          1.1.4   2018-05-24 [1] RSPM (R 4.0.0)
-##  vctrs       * 0.3.4   2020-08-29 [1] RSPM (R 4.0.2)
+##  vctrs         0.3.4   2020-08-29 [1] RSPM (R 4.0.2)
 ##  withr         2.3.0   2020-09-22 [1] RSPM (R 4.0.2)
 ##  xfun          0.18    2020-09-29 [1] RSPM (R 4.0.2)
 ##  xml2          1.3.2   2020-04-23 [1] RSPM (R 4.0.0)
