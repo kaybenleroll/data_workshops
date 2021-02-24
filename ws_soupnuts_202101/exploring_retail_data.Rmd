@@ -131,7 +131,7 @@ hist_bins_count <- 50
 First we load the dataset as well as some support datasets.
 
 ```{r load_dataset, echo=TRUE}
-rawdata_tbl <- read_rds("data/retail_data_tbl.rds")
+rawdata_tbl <- read_rds("data/retail_data_raw_tbl.rds")
 
 rawdata_tbl %>% glimpse()
 ```
@@ -454,7 +454,7 @@ if (length(drop_vars) > 0) {
 
 
 ```{r write_to_disk, echo=TRUE}
-data_tbl %>% write_rds("data/retail_data_added_tbl.rds")
+data_tbl %>% write_rds("data/retail_data_tbl.rds")
 ```
 
 ```{r, echo=FALSE}
@@ -810,6 +810,25 @@ possible duplication of `stock_code`.
 stock_codes_lookup_tbl %>% datatable()
 ```
 
+
+### Items per Transactions
+
+As another check on the data, we want to look at how many different objects
+are included in 
+
+```{r plot_histogram_distinct_items, echo=TRUE}
+plot_tbl <- data_tbl %>%
+  filter(quantity > 0) %>%
+  count(invoice_id, name = "n_items")
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = n_items), bins = 40) +
+  scale_x_log10(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  xlab("Number of Items") +
+  ylab("Transaction Count") +
+  ggtitle("Histogram of Item Counts per Transactions")
+```
 
 
 ## Explore Aggregate Amounts
