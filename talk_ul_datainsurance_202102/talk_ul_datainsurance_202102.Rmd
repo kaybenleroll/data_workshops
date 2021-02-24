@@ -1,7 +1,7 @@
 ---
 title: "Data, Big or Otherwise, in the Insurance Industry"
-author: "Mick Cooney <mcooney@agrippadataconsulting.com>"
-date: "27 February 2018"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "25 February 2021"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -9,20 +9,24 @@ output:
     center: true
 ---
 
-```{r knit_opts, include=FALSE}
-rm(list = ls())
-
-knitr::opts_chunk$set(tidy  = FALSE
-                     ,cache = FALSE
-                     ,fig.width  = 11
-                     ,fig.height =  8)
-
+```{r knit_opts, include=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(scales)
 
-options(width = 80L
-       ,warn  = 1 
-        )
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  message    = FALSE,
+  warning    = FALSE,
+  fig.width  =    11,
+  fig.height =     8
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1 
+  )
 ```
 
 
@@ -47,26 +51,27 @@ Nerd
 
 
 
-## The Last Three Years...
+## The Last Five Years...
 
 \
 
 
 - Lapse Modelling -- Survival analysis
-- Geospatial Modelling -- PostgreSQL / PostGIS
-- Customer Segmentation -- Hierarchical clustering
+- Geospatial Modelling -- PostgreSQL / PostGIS / Clustering
 - Mortality Swaps -- MonteCarlo simulation
 - Underwriting Fraud -- Bayesian networks
 - Data Generation -- Life/Motor/Captive/Employer/Corporate
 - Car Insurance Pricing -- GLMs / MonteCarlo simulation
-- Reinsurance Loss Modelling -- Bayesian Hierarchical / Stan
 - Email Analysis -- NLP / LDA
 - Property Insurance Loss Costing -- Stan / Boosting / Dataviz
+- Business Planning -- Data engineering / MonteCarlo simulation
+- Portfolio Profitability Analysis -- Visualisation / MonteCarlo simulation
+- Risk Evaluation of a Fixed-Income Portfolio -- Data engineering
 
 
 
 
-# What is (Big) Data?
+# Big Data / Machine Learning / AI
 
 
 ## Dirty Little Secret
@@ -74,19 +79,18 @@ Nerd
 \
 
 
-You (Probably) Do Not Have a Big Data Problem
-
+You (Probably) Do Not Have a Big Data / AI Problem
 
 
 
 ## Sizes of Data
 
+\
+
+
 ![Hadley Image](img/hadley_wickham.png)
 
-
-Hadley Wickham's Interview with a Data Scientist
-
-Peadar Coyle
+Hadley Wickham -- Interview with a Data Scientist (Peadar Coyle)
 
 ---
 
@@ -94,13 +98,16 @@ Peadar Coyle
 
 \
 
+
 In-Memory
 
 \
 
+
 On-Disk
 
 \
+
 
 Multi-Disk
 
@@ -338,20 +345,21 @@ Improve customer turnaround
 
 
 
-## Some Predictions
+## One Big Prediction
+
+
+---
+
+Things will not stay the same...
+
+---
+
+... and the industry will fight this tooth and nail!
 
 \
 
 
-- Catastrophe Modelling
-- Uplift Modelling / Marketing Evaluation
-- Lapse Modelling (Churn)
-- Mortality Modelling
-- Risk Modelling and Reserving
-- Fraud Investigation
-- Internal Communications
-- Compliance
-
+(Two! Two big predictions)
 
 
 
@@ -407,7 +415,7 @@ Help everyone you can!
 \
 
 
-mcooney@agrippadataconsulting.com
+mcooney@describedata.com
 
 GitHub: <http://www.github.com/kaybenleroll>
 
