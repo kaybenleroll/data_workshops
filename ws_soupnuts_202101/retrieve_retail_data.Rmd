@@ -134,7 +134,7 @@ retail_data_tbl %>% glimpse()
 Finally, we output this data to the disk.
 
 ```{r write_data_to_disk, echo=TRUE}
-retail_data_tbl %>% write_rds("data/retail_data_tbl.rds")
+retail_data_tbl %>% write_rds("data/retail_data_raw_tbl.rds")
 ```
 
 
