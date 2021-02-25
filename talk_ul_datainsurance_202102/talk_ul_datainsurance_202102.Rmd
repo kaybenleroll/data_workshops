@@ -51,7 +51,7 @@ Nerd
 
 
 
-## The Last Five Years...
+## The Last Six Years...
 
 \
 
@@ -377,6 +377,22 @@ Things will not stay the same...
 - Source Control
 - Linear Models
 - Tree-based Models
+
+
+## Some Books
+
+\
+
+R for Data Science - Wickham & Grolemund
+
+https://r4ds.had.co.nz/
+
+\
+
+Introduction to Probability - Grinstead & Snell
+
+https://math.dartmouth.edu/~prob/prob/prob.pdf
+
 
 
 ## Suggested Activities
