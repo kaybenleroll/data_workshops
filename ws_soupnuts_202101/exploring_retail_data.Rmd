@@ -241,6 +241,7 @@ data_tbl <- data_tbl %>%
 data_tbl %>% glimpse()
 ```
 
+
 ## Check Dates
 
 We now want to check for missing dates in this dataset.
@@ -1212,17 +1213,24 @@ returns_data_tbl <- data_tbl %>%
   filter(quantity < 0) %>%
   select(row_id, stock_code, customer_id, quantity, invoice_dttm) %>%
   mutate(
-    prev_tnx_data = pmap(
+    prev_tnx_data = future_pmap(
       list(use_stock    = stock_code,
            use_customer = customer_id,
            use_dttm     = invoice_dttm),
       filter_returns_transactions,
-      data_tbl = data_tbl
+      data_tbl = data_tbl,
+      
+      .options  = furrr_options(seed = 421),
+      .progress = TRUE      
       ),
-    match_data = map2(prev_tnx_data, quantity,
-                      ~ .x %>% filter(quantity == abs(.y))),
-    last_match = map(match_data,
-                     ~ .x %>% arrange(desc(invoice_dttm)) %>% head(1))
+    match_data = map2(
+      prev_tnx_data, quantity,
+      ~ .x %>% filter(quantity == abs(.y))
+      ),
+    last_match = map(
+      match_data,
+      ~ .x %>% arrange(desc(invoice_dttm)) %>% head(1)
+      )
     )
 
 returns_data_tbl %>% glimpse()
@@ -1236,7 +1244,13 @@ returns_lookup_tbl <- returns_data_tbl %>%
   transmute(
     return_id = row_id,
     return_dttm = invoice_dttm,
-    data        = map(last_match, ~ .x %>% select(row_id, invoice_dttm))
+    data        = future_map(
+      last_match,
+      ~ .x %>% select(row_id, invoice_dttm),
+      
+      .options  = furrr_options(seed = 422),
+      .progress = TRUE      
+      )
     ) %>%
   unnest(data) %>%
   select(row_id, return_id)

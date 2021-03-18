@@ -1,4 +1,4 @@
-FROM kaybenleroll/r_baseimage:base202012
+FROM kaybenleroll/r_baseimage:base202102
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
