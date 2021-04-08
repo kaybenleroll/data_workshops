@@ -80,14 +80,20 @@ worth doing a quick repeat of this exercise, so we perform those now using the
 We load up the cleaned dataset.
 
 ```{r load_dataset, echo=TRUE}
-retail_data_tbl <- read_rds("data/retail_data_tbl.rds")
+loaded_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
 
-retail_data_tbl %>% glimpse()
+loaded_data_tbl %>% glimpse()
 ```
 
 We now remove all excluded rows and run the exploration on the data with the
 cleaned rows excluded.
 
+```{r remove_excluded_rows, echo=TRUE}
+retail_data_tbl <- loaded_data_tbl %>%
+  filter(exclude == FALSE)
+
+retail_data_tbl %>% glimpse()
+```
 
 # Use DataExplorer Routines
 
@@ -114,7 +120,7 @@ plot_bar(retail_data_tbl)
 
 
 ```{r plot_histogram, echo=TRUE}
-plot_histogram(retail_data_tbl, ncol = 3)
+plot_histogram(retail_data_tbl, ncol = 2)
 ```
 
 

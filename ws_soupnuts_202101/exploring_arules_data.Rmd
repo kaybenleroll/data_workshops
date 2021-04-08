@@ -29,18 +29,18 @@ library(cowplot)
 library(magrittr)
 library(rlang)
 library(purrr)
-library(vctrs)
-library(fs)
-library(glue)
-library(forcats)
 library(arules)
 library(arulesViz)
 library(DT)
+library(tidygraph)
+
 
 
 source("custom_functions.R")
 
-resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules")
+  )
 
 
 knitr::opts_chunk$set(
@@ -69,7 +69,7 @@ We first want to load our datasets and prepare them for some simple association
 rules mining.
 
 ```{r load_transaction_data, echo=TRUE}
-tnx_data_tbl <- read_rds("data/retail_data_tbl.rds")
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
 
 tnx_data_tbl %>% glimpse()
 ```
@@ -80,8 +80,11 @@ purchases.
 
 ```{r prepare_data_arules, echo=TRUE}
 tnx_purchase_tbl <- tnx_data_tbl %>%
-  filter(quantity > 0) %>%
-  select(invoice_id, stock_code, quantity, price, stock_amount, description)
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
 
 tnx_purchase_tbl %>% glimpse()
 ```
@@ -117,9 +120,9 @@ produced before. For example, we can look at the relative frequency of the
 different items.
 
 ```{r plot_arules_item_frequency, echo=TRUE}
-itemFrequencyPlot(basket_arules, topN = 15)
+itemFrequencyPlot(basket_arules, topN = 20)
 
-itemFrequencyPlot(basket_arules, topN = 15, type = "absolute")
+itemFrequencyPlot(basket_arules, topN = 20, type = "absolute")
 ```
 
 The stock codes do not mean a huge amount to us, so we also want to look at
@@ -128,24 +131,118 @@ the description field for these items.
 ```{r show_frequency_items, echo=TRUE}
 freq_codes <- itemFrequency(basket_arules) %>%
   sort(decreasing = TRUE) %>%
-  head(15) %>%
+  head(20) %>%
   names()
 
 tnx_purchase_tbl %>%
   select(stock_code, description) %>%
   filter(stock_code %in% freq_codes) %>%
   distinct() %>%
+  drop_na(description) %>%
+  group_by(stock_code) %>%
+  summarise(
+    .groups = "drop",
+    desc = str_c(description, collapse = " : ")
+    ) %>%
   arrange(stock_code) %>%
   datatable()
-
 ```
+
+
+## Basic Concepts
+
+The basic ideas of association rule mining and basket analysis draws on basic
+ideas from probability theory.
+
+We speak in terms of the *itemset*: that is, a collection of one or more items
+that co-occur in a transaction.
+
+For example, suppose we have a list of transactions as follows:
+
+
+| ID | Items               |
+|----|---------------------|
+| 1  | milk, bread         |
+| 2  | bread, butter       |
+| 3  | beer                |
+| 4  | milk, bread, butter |
+| 5  | bread, butter       |
+
+
+Using the above set of transactions, and itemset may be "milk" or
+"bread, butter".
+
+The support of an itemset $X$, $\text{Supp}(X)$, is defined as the proportion of
+transactions in the dataset which contain the itemset.
+
+In the above example:
+
+$$
+\text{Supp}(\text{\{milk, bread\}}) = \frac{2}{5} = 0.40.
+$$
+
+
+A *rule*, $X \Rightarrow Y$, between two itemsets $X$ and $Y$ is a directed
+relationship of the itemset $X$ showing the presence of $Y$. Not that the rule
+is not symmetric: $X \Rightarrow Y$ and $Y \Rightarrow X$ are not the same.
+
+The *confidence* for the rule $X \implies Y$, $\text{Conf}(X \Rightarrow Y)$ is
+defined by
+
+$$
+\text{Conf}(X \Rightarrow Y) = \frac{\text{Supp}(X \cup Y)}{\text{Supp}(X)}.
+$$
+
+So, to calculate the confidence for a rule:
+
+$$
+\text{Supp}(\text{\{milk, bread\}} \Rightarrow \text{\{butter\}}) = \frac{0.2}{0.4} = 0.5.
+$$
+
+To illustrate how rules are not symmetric:
+
+$$
+\text{Supp}(\text{\{butter\}} \Rightarrow \text{\{milk, bread\}}) = \frac{0.2}{0.6} = 0.33.
+$$
+
+
+Finally, we want a measure of the strength of the relationship between the 
+itemsets $X$ and $Y$. That is, measuring the effect of the presence of $X$ on
+the presence of $Y$. We measure this by defining the *lift* of a rule as
+
+$$
+\text{Lift}(X \Rightarrow Y) = \frac{\text{Supp}(X \cup Y)}{\text{Supp}(X) \text{Supp}(Y)}.
+$$
+
+Again, we repeat our calculations for our rule.
+
+$$
+\text{Lift}(\text{\{bread, milk\}} \Rightarrow \text{\{butter\}}) = \frac{0.2}{(0.4)(0.6)} = \frac{0.2}{0.24} = 0.8333
+$$
+
+Lift values greater than 1 implies the presence of $X$ increases the
+probability of $Y$ being present when compared to the unconditional
+probability.
+
+
+Now that we have these metrics and concepts, we can turn our attention to
+trying to find rules in a given dataset, using these metrics to rank them.
+
+Rather than using brute-force approaches to discovering these rules, we use a
+number of different algorithms to find associations within the dataset.
+
+The two main algorithms for discovering some rules are the `apriori` and the
+`eclat` algorithms.
+
 
 ## Construct apriori Rules
 
-We now want to construct the `apriori` rules for that. We need to set some
-parameters such as the minimum support (the proportion of total transactions
-in which those items appear), and the confidence level - the proportion of
-the transactions containing one item which also contains the others.
+We now want to construct the association rules using the `apriori` algorithm.
+To do this, we need to set parameters such as the minimum support and the
+minimum confidence level.
+
+This gives us a set of association rules, along with the support and lift.
+
 
 ```{r construct_apriori_rules, echo=TRUE}
 basket_apriori <- apriori(
@@ -153,11 +250,91 @@ basket_apriori <- apriori(
     parameter = list(supp = 0.005, conf = 0.8)
     )
 
+basket_apriori_tbl <- basket_apriori %>%
+  as("data.frame") %>%
+  as_tibble() %>%
+  arrange(desc(lift))
+
+basket_apriori_tbl %>% glimpse()
+```
+
+We now want to inspect this table using `datatable`
+
+```{r inspect_apriori_rules, echo=TRUE}
 basket_apriori %>% inspectDT()
 ```
 
 
+## Construct eclat Rules
 
+An alternative method of constructing association rules is to use the `eclat`
+algorithm. The code for doing this is slightly different, but gives us similar
+outputs.
+
+```{r construct_eclat_rules, echo=TRUE}
+basket_eclat <- eclat(
+    basket_arules,
+    parameter = list(support = 0.005)
+    ) %>%
+  ruleInduction(
+    basket_arules,
+    confidence = 0.8
+    )
+
+
+basket_eclat_tbl <- basket_eclat %>%
+  as("data.frame") %>%
+  as_tibble() %>%
+  arrange(desc(lift))
+
+basket_eclat_tbl %>% glimpse()
+```
+
+Once again, we inspect the data.
+
+```{r inspect_eclat_rules, echo=TRUE}
+basket_eclat %>% inspectDT()
+```
+
+
+## Compare Algorithms
+
+We now want to compare the outputs of both algorithms in terms of association
+rules and how they compare.
+
+```{r compare_arules_algorithms, echo=TRUE}
+basket_ap_tbl <- basket_apriori_tbl %>%
+  select(rules, support, confidence, lift)
+
+basket_ec_tbl <- basket_eclat_tbl %>%
+  select(rules, support, confidence, lift)
+
+rules_comparison_tbl <- basket_ap_tbl %>%
+  full_join(basket_ec_tbl, by = "rules", suffix = c("_a", "_e"))
+
+rules_comparison_tbl %>% glimpse()
+```
+
+
+
+# Converting Rules to Graphs
+
+We also have the ability to convert these rules to a graph representation,
+where each node is either a `stock_code` or a rule, with the edges of the
+graph representing that item being contained in the rule.
+
+
+```{r convert_rules_to_graph, echo=TRUE}
+apriori_rules_tg <- basket_apriori %>%
+  plot(
+    method  = "graph",
+    control = list(max = 1000)
+    ) %>%
+  as("igraph") %>%
+  as_tbl_graph()
+
+apriori_rules_tg %>% glimpse()
+```
 
 
 
