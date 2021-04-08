@@ -1245,24 +1245,38 @@ filter_returns_transactions <- function(use_stock, use_customer,  use_dttm,
   return(matches_tbl)
 }
 
-match_tnx_prices <- function(data_tbl, orig_price, orig_quantity) {
+match_tnx_prices <- function(data_tbl, return_price, return_quantity) {
   matched_tbl <- data_tbl %>%
-    filter(abs(price) == abs(orig_price)) %>%
+    filter(abs(price) == abs(return_price)) %>%
     select(row_id, invoice_id, stock_code, quantity, price, invoice_dttm) %>%
     arrange(desc(invoice_dttm)) %>%
     mutate(
-      cuml_quantity = cumsum(quantity),
-      remaining     = cuml_quantity + orig_quantity
+      cuml_quantity   = cumsum(quantity),
+      return_quantity = return_quantity,
+      remaining       = cuml_quantity + return_quantity
       )
 
   return(matched_tbl)
 }
 
 
-match_last_quantity <- ~ .x %>%
-  arrange(desc(invoice_dttm)) %>%
-  head(1) %>%
-  select(orig_row_id = row_id)
+detemine_return_records <- function(data_tbl) {
+  negative_tbl <- data_tbl %>%
+    filter(remaining <= 0)
+  
+  first_tbl <- data_tbl %>%
+    filter(remaining > 0) %>%
+    arrange(desc(invoice_dttm)) %>%
+    head(1)
+  
+  
+  matched_tbl <- list(negative_tbl, first_tbl) %>%
+    bind_rows() %>%
+    arrange(desc(invoice_dttm)) %>%
+    rename(orig_row_id = row_id)
+  
+  return(matched_tbl)
+}
 
 
 returns_data_tbl <- data_tbl %>%
@@ -1280,15 +1294,17 @@ returns_data_tbl <- data_tbl %>%
       .progress = TRUE      
       ),
     price_data = future_pmap(
-      list(data_tbl      = prev_tnx_data,
-           orig_price    = price,
-           orig_quantity = quantity),
+      list(data_tbl        = prev_tnx_data,
+           return_price    = price,
+           return_quantity = quantity),
       match_tnx_prices,
       
       .options  = furrr_options(seed = 422),
       .progress = TRUE
-      )
+      ),
+    match_data = map(price_data, detemine_return_records)
     )
+
 
 returns_data_tbl %>% glimpse()
 ```
@@ -1298,13 +1314,25 @@ how much time tends to pass between the purchase and the return.
 
 ```{r construct_returns_lookups, echo=TRUE}
 returns_lookup_tbl <- returns_data_tbl %>%
-  select(return_row_id = row_id, last_match) %>%
-  unnest(last_match)
+  select(return_row_id = row_id, return_dttm = invoice_dttm, match_data) %>%
+  unnest(match_data) %>%
+  select(
+    orig_row_id, return_row_id, return_dttm,
+    adjust_quantity = return_quantity
+    ) %>%
+  group_by(return_row_id) %>%
+  arrange(orig_row_id) %>%
+  slice_head(n = 1) %>%
+  ungroup()
 
 returns_lookup_tbl %>% glimpse()
 ```
 
+We probably need to do a better job of this, as this current method is
+inadequate to properly match this up.
 
+Stepping up this work to properly match up the transactions will be a topic
+we return to later.
 
 We now want to look at the distribution of times between the purchase and the
 item being returned.
@@ -1317,6 +1345,7 @@ ret_data_tbl <- data_tbl %>%
   select(return_row_id = row_id, return_dttm   = invoice_dttm)
 
 return_times_tbl <- returns_lookup_tbl %>%
+  select(orig_row_id, return_row_id) %>%
   left_join(orig_data_tbl, by = "orig_row_id") %>%
   left_join(ret_data_tbl,  by = "return_row_id") %>%
   mutate(
@@ -1398,7 +1427,9 @@ cleaned_data_tbl %>% glimpse()
 # Output Cleaned Data
 
 ```{r write_to_disk, echo=TRUE}
-cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
+returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
+
+cleaned_data_tbl   %>% write_rds("data/retail_data_cleaned_tbl.rds")
 ```
 
 
