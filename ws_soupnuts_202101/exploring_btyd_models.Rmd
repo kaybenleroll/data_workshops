@@ -1,0 +1,124 @@
+---
+title: "Using Buy-Till-You-Die (BTYD) Models the Online Retail Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+
+
+
+source("custom_functions.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+To use our rules mining we just need the invoice data and the stock code, so
+we can ignore the rest. Also, we ignore the issue of returns and just look at
+purchases.
+
+```{r prepare_data_arules, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(invoice_date, invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
+
+tnx_purchase_tbl %>% glimpse()
+```
+
+Use of BTYD models assumes a total spend over a period of day and those
+differences 
+
+```{r calculate_customer_daily_spend, echo=TRUE}
+daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
+  drop_na(customer_id) %>%
+  group_by(invoice_date, customer_id, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    invoice_spend = sum(stock_value)
+  )
+
+daily_spend_tbl <- daily_spend_invoice_tbl %>%
+  group_by(invoice_date, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(invoice_spend),
+    tnx_count   = n()
+  )
+
+
+
+```
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```

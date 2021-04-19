@@ -39,7 +39,7 @@ library(tidygraph)
 source("custom_functions.R")
 
 resolve_conflicts(
-  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules")
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules", "Matrix")
   )
 
 
@@ -264,6 +264,17 @@ We now want to inspect this table using `datatable`
 basket_apriori %>% inspectDT()
 ```
 
+To help visualise these rules, we can produce a basic scatterplot of the
+metrics.
+
+```{r plot_arules_metrics, echo=TRUE}
+ggplot(basket_apriori_tbl) +
+  geom_point(aes(x = confidence, y = lift), alpha = 0.2) +
+  xlab("Rule Confidence") +
+  ylab("Rule Lift") +
+  ggtitle("Scatterplot of Association Rule Metrics")
+```
+
 
 ## Construct eclat Rules
 
@@ -316,6 +327,46 @@ rules_comparison_tbl %>% glimpse()
 ```
 
 
+## Reducing Minimum Confidence
+
+While high confidence rules are useful, they are more likely to find rules that
+are "obvious" as the probabilities are such that co-occuring basket items will
+be noticed as being together - or possibly be natural complements: butter, milk
+and bread is a good example.
+
+Instead, we are also interested in less obvious rules, and so we reduce our
+confidence threshold and see how many additional rules are discovered.
+
+```{r determine_lower_confidence_rules, echo=TRUE}
+basket_lower_rules <- apriori(
+    basket_arules,
+    parameter = list(supp = 0.005, conf = 0.4)
+    )
+
+basket_lower_rules_tbl <- basket_lower_rules %>%
+  as("data.frame") %>%
+  as_tibble() %>%
+  arrange(desc(lift))
+
+
+```
+
+```{r plot_lower_arules_metrics, echo=TRUE}
+ggplot(basket_lower_rules_tbl) +
+  geom_point(aes(x = confidence, y = lift), alpha = 0.2) +
+  xlab("Rule Confidence") +
+  ylab("Rule Lift") +
+  ggtitle("Scatterplot of Association Rule Metrics")
+```
+
+
+
+
+
+
+
+
+
 
 # Converting Rules to Graphs
 
@@ -325,16 +376,31 @@ graph representing that item being contained in the rule.
 
 
 ```{r convert_rules_to_graph, echo=TRUE}
-apriori_rules_tg <- basket_apriori %>%
+apriori_rules_igraph <- basket_apriori %>%
   plot(
+    measure = "support",
     method  = "graph",
     control = list(max = 1000)
     ) %>%
-  as("igraph") %>%
-  as_tbl_graph()
+  as("igraph")
 
-apriori_rules_tg %>% glimpse()
+apriori_rules_igraph %>% glimpse()
 ```
+
+We should first visualise this graph, using the top 30 rules in the dataset,
+as measured by the support of the rule.
+
+```{r plot_interactive_rules_graph, echo=TRUE}
+basket_apriori %>%
+  head(n = 30, by = "support") %>%
+  plot(
+    measure  = "lift",
+    method   = "graph",
+    engine   = "htmlwidget"
+    )
+
+```
+
 
 
 

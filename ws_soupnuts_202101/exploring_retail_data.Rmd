@@ -1177,8 +1177,8 @@ ggplot(plot_tbl) +
   geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_spend),
                 width = 0) +
   scale_y_log10(labels = label_comma()) +
-  xlab("Date") +
-  ylab("Transaction Amount") +
+  scale_colour_continuous(labels = label_comma()) +
+  labs(x = "Date", y = "Transaction Amount", colour = "Spend") +
   ggtitle("P25-P75 Quartile of Transaction Amounts by Date")
 ```
 
@@ -1208,8 +1208,8 @@ ggplot(plot_tbl) +
   geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_refund),
                 width = 0) +
   scale_y_log10(labels = label_comma()) +
-  xlab("Date") +
-  ylab("Transaction Amount") +
+  scale_colour_continuous(labels = label_comma()) +
+  labs(x = "Date", y = "Transaction Amount", colour = "Spend") +
   ggtitle("P25-P75 Quartile of Refund Amounts by Date")
 ```
 
