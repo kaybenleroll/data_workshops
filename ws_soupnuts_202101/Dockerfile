@@ -1,4 +1,4 @@
-FROM kaybenleroll/r_baseimage:base202102
+FROM kaybenleroll/r_baseimage:base202104
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -19,9 +19,9 @@ RUN apt-get update \
     BTYDplus \
     evir \
     fitdistrplus \
+    ggraph \
     rfm \
     survival \
-    survminer \
-    tidygraph
+    survminer
 
 RUN Rscript -e 'BiocManager::install("Rgraphviz")'
