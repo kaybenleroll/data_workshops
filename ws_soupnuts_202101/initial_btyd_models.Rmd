@@ -29,7 +29,8 @@ library(cowplot)
 library(magrittr)
 library(rlang)
 library(purrr)
-
+library(BTYD)
+library(BTYDplus)
 
 
 source("lib_utils.R")
@@ -81,7 +82,10 @@ tnx_purchase_tbl <- tnx_data_tbl %>%
     quantity > 0,
     exclude == FALSE
     ) %>%
-  select(invoice_date, invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
+  select(
+    invoice_date, invoice_id, stock_code, customer_id, description,
+    quantity, price, stock_value
+    )
 
 tnx_purchase_tbl %>% glimpse()
 ```
@@ -99,6 +103,9 @@ daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
     invoice_spend = sum(stock_value)
   )
 
+daily_spend_invoice_tbl %>% glimpse()
+
+
 daily_spend_tbl <- daily_spend_invoice_tbl %>%
   group_by(invoice_date, customer_id) %>%
   summarise(
@@ -108,12 +115,42 @@ daily_spend_tbl <- daily_spend_invoice_tbl %>%
     tnx_count   = n()
   )
 
-
-
+daily_spend_tbl %>% glimpse()
 ```
 
 
 
+# Create Initial BTYD Model
+
+
+```{r create_initial_btyd_model, echo=TRUE}
+daily_cbscbt <- daily_spend_tbl %>%
+  select(cust = customer_id, date = invoice_date, sales = total_spend) %>%
+  dc.ElogToCbsCbt(
+    per             = "week",
+    T.cal           = as.Date("2010-06-30"),
+    merge.same.date = TRUE
+    )
+
+params_bgnbd <- daily_cbscbt$cal$cbs %>%
+  bgnbd.EstimateParameters()
+
+
+bgnbd.PlotFrequencyInCalibration(
+  params  = params_bgnbd,
+  cal.cbs = daily_cbscbt$cal$cbs,
+  censor  = 15
+  )
+
+bgnbd.PlotTransactionRateHeterogeneity(params = params_bgnbd)
+
+bgnbd.PlotDropoutRateHeterogeneity(params = params_bgnbd)
+
+
+bgnbd.Expectation(params = params_bgnbd, t = 52)
+
+bgnbd.PAlive(params = params_bgnbd, x = 5, t.x = 26, T.cal = 30)
+```
 
 
 
