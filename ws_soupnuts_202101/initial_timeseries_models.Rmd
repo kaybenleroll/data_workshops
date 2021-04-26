@@ -27,6 +27,8 @@ library(tidyverse)
 library(scales)
 library(cowplot)
 library(magrittr)
+library(glue)
+library(stringr)
 library(rlang)
 library(purrr)
 library(furrr)
@@ -86,10 +88,176 @@ tnx_purchase_tbl <- tnx_data_tbl %>%
     quantity > 0,
     exclude == FALSE
     ) %>%
-  select(invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
+  select(
+    invoice_date, invoice_id, stock_code, description, customer_id,
+    quantity, price, stock_value
+    )
 
 tnx_purchase_tbl %>% glimpse()
 ```
+
+
+# Construct Basic Time-Series
+
+There are a number of different perspective on this data - we can look at
+customer-based time-series or individual items or just total revenue.
+
+In all these cases we aggregate daily, weekly and monthly, so rather than
+repeating our code over and over, we construct a function to do this.
+
+```{r construct_aggregation_time_series, echo=TRUE}
+construct_time_series_data <- function(data_tbl) {
+  daily_tbl <- data_tbl %>%
+    tq_transmute(
+      mutate_fun = apply.daily,
+      FUN        = sum,
+      na.rm      = TRUE,
+      col_rename = "amount"
+      )
+  
+  weekly_tbl <- data_tbl %>%
+    tq_transmute(
+      mutate_fun = apply.weekly,
+      FUN        = sum,
+      na.rm      = TRUE,
+      col_rename = "amount"
+      )
+    
+  monthly_tbl <- data_tbl %>%
+    tq_transmute(
+      mutate_fun = apply.monthly,
+      FUN        = sum,
+      na.rm      = TRUE,
+      col_rename = "amount"
+      )
+
+  agg_tbl <- list(
+      daily   = daily_tbl,
+      weekly  = weekly_tbl,
+      monthly = monthly_tbl
+      ) %>%
+    bind_rows(.id = "period")
+  
+  return(agg_tbl)  
+}
+```
+
+
+
+
+## Total Revenue
+
+A revenue-based approach is the simplest, so we start there.
+
+```{r construct_revenue_time_series, echo=TRUE}
+use_data_tbl <- tnx_purchase_tbl %>%
+  select(date = invoice_date, stock_value)
+
+ts_revenue_data_tbl <- use_data_tbl %>%
+  construct_time_series_data() %>%
+  mutate(
+    label = "total_revenue",
+    
+    .after = "period"
+  )
+
+ts_revenue_data_tbl %>% glimpse()
+```
+
+Now that we have constructed this simple time-series, we now want to plot them.
+
+```{r plot_totalrevenue_time_series, echo=TRUE}
+ggplot(ts_revenue_data_tbl) +
+  geom_line(aes(x = date, y = amount)) +
+  scale_y_continuous(labels = label_comma()) +
+  facet_wrap(vars(period), scales = "free_y", ncol = 2) +
+  xlab("Date") +
+  ylab("Amount") +
+  ggtitle("Time Series Plots of Total Revenue")
+
+```
+
+
+## Frequent Purchases
+
+Time series plots of different item types may be useful, but only for items
+that have regular transactions, as otherwise the data will be mostly zero
+entries. Instead, we want to find items that are purchased on a regular basis
+and inspect those.
+
+```{r plot_histogram_day_count, echo=TRUE}
+stock_daycount_tbl <- tnx_purchase_tbl %>%
+  select(invoice_date, stock_code) %>%
+  distinct() %>%
+  count(stock_code, name = "day_count")
+
+ggplot(stock_daycount_tbl) +
+  geom_histogram(aes(x = day_count), bins = 50) +
+  xlab("Days in Transaction Log") +
+  ylab("Count of Items") +
+  ggtitle("Histogram of Date Appearances for Stock Items")
+```
+
+Rather than focus on all these items, we choose the arbitrary cut-off of the
+top 12 items, and construct time series of the daily sales of each of these
+items.
+
+
+```{r construct_item_sales_time_series, echo=TRUE}
+use_data_tbl <- tnx_purchase_tbl %>%
+  select(date = invoice_date, stock_code, stock_value)
+
+use_stock_tbl <- stock_daycount_tbl %>%
+  arrange(desc(day_count)) %>%
+  slice_head(n = 12)
+
+ts_itemsales_data_tbl <- use_data_tbl %>%
+  semi_join(use_stock_tbl, by = "stock_code") %>%
+  group_by(stock_code) %>%
+  construct_time_series_data() %>%
+  mutate(
+    label = "item_sales",
+    
+    .after = "period"
+  ) %>%
+  ungroup()
+
+ts_itemsales_data_tbl %>% glimpse()
+```
+
+
+```{r plot_itemsales_time_series, echo=TRUE}
+ggplot(ts_itemsales_data_tbl %>% filter(period == "daily")) +
+  geom_line(aes(x = date, y = amount)) +
+  scale_y_continuous(labels = label_comma()) +
+  facet_wrap(vars(stock_code), scales = "free_y") +
+  xlab("Date") +
+  ylab("Sales") +
+  ggtitle("Time Series Plots of Item Sales (daily)") +
+  theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+
+ggplot(ts_itemsales_data_tbl %>% filter(period == "weekly")) +
+  geom_line(aes(x = date, y = amount)) +
+  scale_y_continuous(labels = label_comma()) +
+  facet_wrap(vars(stock_code), scales = "free_y") +
+  xlab("Date") +
+  ylab("Sales") +
+  ggtitle("Time Series Plots of Item Sales (weekly)") +
+  theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+
+ggplot(ts_itemsales_data_tbl %>% filter(period == "monthly")) +
+  geom_line(aes(x = date, y = amount)) +
+  scale_y_continuous(labels = label_comma()) +
+  facet_wrap(vars(stock_code), scales = "free_y") +
+  xlab("Date") +
+  ylab("Sales") +
+  ggtitle("Time Series Plots of Item Sales (monthly)") +
+  theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+```
+
 
 
 
