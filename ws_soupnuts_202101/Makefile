@@ -37,6 +37,8 @@ all-html: $(HTML_FILES)
 full_deps.dot:
 	makefile2graph all-html > full_deps.dot
 
+depgraph: full_deps.png
+
 
 exploring_retail_data.html: retrieve_retail_data.html
 exploring_retail_dataexplorer.html: exploring_retail_data.html
