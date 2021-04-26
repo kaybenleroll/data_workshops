@@ -266,15 +266,15 @@ parse it.</p>
 <span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>retail_data_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 1,067,371
 ## Columns: 9
-## $ excel_sheet   &lt;chr&gt; &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;…
-## $ Invoice       &lt;chr&gt; &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;4894…
-## $ StockCode     &lt;chr&gt; &quot;85048&quot;, &quot;79323P&quot;, &quot;79323W&quot;, &quot;22041&quot;, &quot;21232&quot;, &quot;22064&quot;,…
-## $ Description   &lt;chr&gt; &quot;15CM CHRISTMAS GLASS BALL 20 LIGHTS&quot;, &quot;PINK CHERRY LIG…
-## $ Quantity      &lt;dbl&gt; 12, 12, 12, 48, 24, 24, 24, 10, 12, 12, 24, 12, 10, 18,…
-## $ InvoiceDate   &lt;dttm&gt; 2009-12-01 07:45:00, 2009-12-01 07:45:00, 2009-12-01 0…
-## $ Price         &lt;dbl&gt; 6.95, 6.75, 6.75, 2.10, 1.25, 1.65, 1.25, 5.95, 2.55, 3…
-## $ `Customer ID` &lt;chr&gt; &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;…
-## $ Country       &lt;chr&gt; &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;…</code></pre>
+## $ excel_sheet   &lt;chr&gt; &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;Y…
+## $ Invoice       &lt;chr&gt; &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;48943…
+## $ StockCode     &lt;chr&gt; &quot;85048&quot;, &quot;79323P&quot;, &quot;79323W&quot;, &quot;22041&quot;, &quot;21232&quot;, &quot;22064&quot;, …
+## $ Description   &lt;chr&gt; &quot;15CM CHRISTMAS GLASS BALL 20 LIGHTS&quot;, &quot;PINK CHERRY LIGH…
+## $ Quantity      &lt;dbl&gt; 12, 12, 12, 48, 24, 24, 24, 10, 12, 12, 24, 12, 10, 18, …
+## $ InvoiceDate   &lt;dttm&gt; 2009-12-01 07:45:00, 2009-12-01 07:45:00, 2009-12-01 07…
+## $ Price         &lt;dbl&gt; 6.95, 6.75, 6.75, 2.10, 1.25, 1.65, 1.25, 5.95, 2.55, 3.…
+## $ `Customer ID` &lt;chr&gt; &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;13085&quot;, &quot;1…
+## $ Country       &lt;chr&gt; &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;U…</code></pre>
 <p>Finally, we output this data to the disk.</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>retail_data_tbl <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/retail_data_raw_tbl.rds&quot;</span>)</span></code></pre></div>
 </div>
@@ -284,26 +284,26 @@ parse it.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
-##  version  R version 4.0.3 (2020-10-10)
+##  version  R version 4.0.4 (2021-02-15)
 ##  os       Ubuntu 20.04.2 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       RStudio                     
+##  ui       X11                         
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-03-08                  
+##  date     2021-04-26                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
 ##  assertthat    0.2.1   2019-03-21 [1] RSPM (R 4.0.3)
 ##  backports     1.2.1   2020-12-09 [1] RSPM (R 4.0.3)
 ##  bookdown      0.21    2020-10-13 [1] RSPM (R 4.0.2)
-##  broom         0.7.4   2021-01-29 [1] RSPM (R 4.0.3)
+##  broom         0.7.5   2021-02-19 [1] RSPM (R 4.0.3)
+##  bslib         0.2.4   2021-01-25 [1] RSPM (R 4.0.3)
 ##  cachem        1.0.4   2021-02-13 [1] RSPM (R 4.0.3)
 ##  cellranger    1.1.0   2016-07-27 [1] RSPM (R 4.0.3)
-##  cli           2.3.0   2021-01-31 [1] RSPM (R 4.0.3)
-##  codetools     0.2-16  2018-12-24 [2] CRAN (R 4.0.3)
+##  cli           2.3.1   2021-02-23 [1] RSPM (R 4.0.3)
 ##  colorspace    2.0-0   2020-11-11 [1] RSPM (R 4.0.3)
 ##  conflicted  * 1.0.4   2019-06-21 [1] RSPM (R 4.0.0)
 ##  cowplot     * 1.1.1   2020-12-30 [1] RSPM (R 4.0.3)
@@ -312,65 +312,57 @@ parse it.</p>
 ##  DBI           1.1.1   2021-01-15 [1] RSPM (R 4.0.3)
 ##  dbplyr        2.1.0   2021-02-03 [1] RSPM (R 4.0.3)
 ##  digest        0.6.27  2020-10-24 [1] RSPM (R 4.0.3)
-##  dplyr       * 1.0.4   2021-02-02 [1] RSPM (R 4.0.3)
-##  DT          * 0.17    2021-01-06 [1] RSPM (R 4.0.3)
+##  dplyr       * 1.0.5   2021-03-05 [1] RSPM (R 4.0.3)
 ##  ellipsis      0.3.1   2020-05-15 [1] RSPM (R 4.0.3)
 ##  evaluate      0.14    2019-05-28 [1] RSPM (R 4.0.3)
-##  evir        * 1.7-4   2018-03-20 [1] RSPM (R 4.0.0)
 ##  fansi         0.4.2   2021-01-15 [1] RSPM (R 4.0.3)
 ##  fastmap       1.1.0   2021-01-25 [1] RSPM (R 4.0.3)
 ##  forcats     * 0.5.1   2021-01-27 [1] RSPM (R 4.0.3)
 ##  fs          * 1.5.0   2020-07-31 [1] RSPM (R 4.0.3)
-##  furrr       * 0.2.2   2021-01-29 [1] RSPM (R 4.0.3)
-##  future      * 1.21.0  2020-12-10 [1] RSPM (R 4.0.3)
 ##  generics      0.1.0   2020-10-31 [1] RSPM (R 4.0.3)
 ##  ggplot2     * 3.3.3   2020-12-30 [1] RSPM (R 4.0.3)
-##  globals       0.14.0  2020-11-22 [1] RSPM (R 4.0.3)
 ##  glue        * 1.4.2   2020-08-27 [1] RSPM (R 4.0.3)
 ##  gtable        0.3.0   2019-03-25 [1] RSPM (R 4.0.3)
 ##  haven         2.3.1   2020-06-01 [1] RSPM (R 4.0.3)
 ##  hms           1.0.0   2021-01-13 [1] RSPM (R 4.0.3)
 ##  htmltools     0.5.1.1 2021-01-22 [1] RSPM (R 4.0.3)
-##  htmlwidgets   1.5.3   2020-12-10 [1] RSPM (R 4.0.3)
 ##  httr          1.4.2   2020-07-20 [1] RSPM (R 4.0.3)
-##  igraph        1.2.6   2020-10-06 [1] RSPM (R 4.0.3)
+##  jquerylib     0.1.3   2020-12-17 [1] RSPM (R 4.0.3)
 ##  jsonlite      1.7.2   2020-12-09 [1] RSPM (R 4.0.3)
 ##  knitr         1.31    2021-01-27 [1] RSPM (R 4.0.3)
 ##  lifecycle     1.0.0   2021-02-15 [1] RSPM (R 4.0.3)
-##  listenv       0.8.0   2019-12-05 [1] RSPM (R 4.0.3)
-##  lubridate   * 1.7.9.2 2020-11-13 [1] RSPM (R 4.0.3)
+##  lubridate     1.7.10  2021-02-26 [1] RSPM (R 4.0.3)
 ##  magrittr    * 2.0.1   2020-11-17 [1] RSPM (R 4.0.3)
 ##  memoise       2.0.0   2021-01-26 [1] RSPM (R 4.0.3)
 ##  modelr        0.1.8   2020-05-19 [1] RSPM (R 4.0.3)
 ##  munsell       0.5.0   2018-06-12 [1] RSPM (R 4.0.3)
-##  parallelly    1.23.0  2021-01-04 [1] RSPM (R 4.0.3)
-##  pillar        1.4.7   2020-11-20 [1] RSPM (R 4.0.3)
+##  pillar        1.5.1   2021-03-05 [1] RSPM (R 4.0.3)
 ##  pkgconfig     2.0.3   2019-09-22 [1] RSPM (R 4.0.3)
+##  ps            1.6.0   2021-02-28 [1] RSPM (R 4.0.3)
 ##  purrr       * 0.3.4   2020-04-17 [1] RSPM (R 4.0.3)
 ##  R6            2.5.0   2020-10-28 [1] RSPM (R 4.0.3)
 ##  Rcpp          1.0.6   2021-01-15 [1] RSPM (R 4.0.3)
-##  readr       * 1.4.0   2020-10-05 [1] RSPM (R 4.0.3)
+##  readr       * 1.4.0   2020-10-05 [1] RSPM (R 4.0.4)
 ##  readxl      * 1.3.1   2019-03-13 [1] RSPM (R 4.0.3)
 ##  reprex        1.0.0   2021-01-27 [1] RSPM (R 4.0.3)
-##  rlang       * 0.4.10  2020-12-30 [1] RSPM (R 4.0.3)
-##  rmarkdown     2.6     2020-12-14 [1] RSPM (R 4.0.3)
+##  rlang         0.4.10  2020-12-30 [1] RSPM (R 4.0.3)
+##  rmarkdown     2.7     2021-02-19 [1] RSPM (R 4.0.3)
 ##  rmdformats    1.0.1   2021-01-13 [1] RSPM (R 4.0.3)
 ##  rstudioapi    0.13    2020-11-12 [1] RSPM (R 4.0.3)
-##  rvest         0.3.6   2020-07-25 [1] RSPM (R 4.0.3)
+##  rvest         1.0.0   2021-03-09 [1] RSPM (R 4.0.3)
+##  sass          0.3.1   2021-01-24 [1] RSPM (R 4.0.3)
 ##  scales      * 1.1.1   2020-05-11 [1] RSPM (R 4.0.3)
 ##  sessioninfo   1.1.1   2018-11-05 [1] RSPM (R 4.0.3)
-##  snakecase   * 0.11.0  2019-05-25 [1] RSPM (R 4.0.3)
 ##  stringi       1.5.3   2020-09-09 [1] RSPM (R 4.0.3)
 ##  stringr     * 1.4.0   2019-02-10 [1] RSPM (R 4.0.3)
-##  tibble      * 3.0.6   2021-01-29 [1] RSPM (R 4.0.3)
-##  tidygraph   * 1.2.0   2020-05-12 [1] RSPM (R 4.0.3)
-##  tidyr       * 1.1.2   2020-08-27 [1] RSPM (R 4.0.3)
+##  tibble      * 3.1.0   2021-02-25 [1] RSPM (R 4.0.3)
+##  tidyr       * 1.1.3   2021-03-03 [1] RSPM (R 4.0.4)
 ##  tidyselect    1.1.0   2020-05-11 [1] RSPM (R 4.0.3)
 ##  tidyverse   * 1.3.0   2019-11-21 [1] RSPM (R 4.0.3)
-##  utf8          1.1.4   2018-05-24 [1] RSPM (R 4.0.3)
-##  vctrs       * 0.3.6   2020-12-17 [1] RSPM (R 4.0.3)
+##  utf8          1.2.1   2021-03-12 [1] RSPM (R 4.0.3)
+##  vctrs         0.3.7   2021-03-29 [1] RSPM (R 4.0.4)
 ##  withr         2.4.1   2021-01-26 [1] RSPM (R 4.0.3)
-##  xfun          0.21    2021-02-10 [1] RSPM (R 4.0.3)
+##  xfun          0.22    2021-03-11 [1] RSPM (R 4.0.3)
 ##  xml2          1.3.2   2020-04-23 [1] RSPM (R 4.0.3)
 ##  yaml          2.2.1   2020-02-01 [1] RSPM (R 4.0.3)
 ## 

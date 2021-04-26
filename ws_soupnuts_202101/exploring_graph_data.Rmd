@@ -29,19 +29,14 @@ library(cowplot)
 library(magrittr)
 library(rlang)
 library(purrr)
-library(vctrs)
-library(fs)
+library(furrr)
 library(glue)
-library(forcats)
-library(snakecase)
-library(lubridate)
-library(evir)
 library(DT)
 library(tidygraph)
 
 
 
-source("custom_functions.R")
+source("lib_utils.R")
 
 resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
 
@@ -64,6 +59,35 @@ options(
 theme_set(theme_cowplot())
 
 set.seed(42)
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+To use our rules mining we just need the invoice data and the stock code, so
+we can ignore the rest. Also, we ignore the issue of returns and just look at
+purchases.
+
+```{r prepare_data_arules, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
+
+tnx_purchase_tbl %>% glimpse()
 ```
 
 
@@ -87,7 +111,7 @@ construct_pairwise_items <- function(stock_codes) {
   return(pairs_tbl)
 }
 
-basket_data_tbl <- data_tbl %>%
+basket_data_tbl <- tnx_purchase_tbl %>%
   group_by(invoice_id) %>%
   summarise(
     .groups = "drop",
@@ -114,12 +138,12 @@ This graph will get large, but it is a starting point.
 
 
 ```{r construct_basket_graph, echo=TRUE}
-stock_nodes_tbl <- data_tbl %>%
+stock_nodes_tbl <- tnx_purchase_tbl %>%
   select(stock_code) %>%
   distinct() %>%
   transmute(node_label = stock_code, node_type = "stock")
 
-invoice_nodes_tbl <- data_tbl %>%
+invoice_nodes_tbl <- tnx_purchase_tbl %>%
   select(invoice_id) %>%
   distinct() %>%
   transmute(node_label = invoice_id, node_type = "invoice")
@@ -127,7 +151,7 @@ invoice_nodes_tbl <- data_tbl %>%
 nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
   bind_rows()
 
-edges_tbl <- data_tbl %>%
+edges_tbl <- tnx_purchase_tbl %>%
   select(stock_code, invoice_id, quantity, price)
 
 
