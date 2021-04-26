@@ -39,7 +39,11 @@ full_deps.dot:
 
 
 exploring_retail_data.html: retrieve_retail_data.html
-
+exploring_retail_dataexplorer.html: exploring_retail_data.html
+exploring_graph_data.html: exploring_retail_data.html
+initial_arules_models.html: exploring_retail_data.html
+initial_timeseries_models.html: exploring_retail_data.html
+initial_btyd_models.html: exploring_retail_data.html
 
 
 
