@@ -2,6 +2,7 @@ FROM kaybenleroll/r_baseimage:base202104
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
+    graphviz \
     liblapack-dev \
     libtk8.6 \
     tk8.6 \
