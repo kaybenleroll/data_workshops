@@ -6,6 +6,7 @@ output:
   rmdformats::readthedown:
     toc_depth: 3
     use_bookdown: yes
+    css: styles.css
 
   html_document:
     fig_caption: yes
@@ -1424,12 +1425,47 @@ cleaned_data_tbl %>% glimpse()
 ```
 
 
+# Construct Stock Code Lookups
+
+Finally, we want to construct a lookup table that provides some free-text
+fields for each `stock_code` value.
+
+```{r construct_stock_code_table, echo=TRUE}
+stock_code_lookup_tbl <- cleaned_data_tbl %>%
+  filter(exclude == FALSE, quantity > 0, !are_na(description)) %>%
+  mutate(
+    stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()
+    ) %>%
+  select(stock_code_upr, description) %>%
+  drop_na(description) %>%
+  distinct() %>%
+  group_by(stock_code_upr) %>%
+  summarise(
+    .groups = "drop",
+    
+    desc = description %>% sort() %>% str_c(collapse = " : ")
+    ) %>%
+  arrange(stock_code_upr)
+
+stock_code_lookup_tbl %>% glimpse()
+```
+
+We also look at this output using DT
+
+```{r view_stock_code_lookup, echo=TRUE}
+stock_code_lookup_tbl %>% datatable()
+```
+
+
+
 # Output Cleaned Data
 
 ```{r write_to_disk, echo=TRUE}
+stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
+
 returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
 
-cleaned_data_tbl   %>% write_rds("data/retail_data_cleaned_tbl.rds")
+cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
 ```
 
 

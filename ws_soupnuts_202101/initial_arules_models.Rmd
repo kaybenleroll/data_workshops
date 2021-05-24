@@ -6,6 +6,7 @@ output:
   rmdformats::readthedown:
     toc_depth: 3
     use_bookdown: yes
+    css: styles.css
 
   html_document:
     fig_caption: yes
@@ -99,6 +100,16 @@ We now write this data out as a CSV so `arules` can read it in and process it.
 ```{r read_transactions, echo=TRUE}
 tnx_purchase_tbl %>% write_csv("data/tnx_purchase_tbl.csv")
 ```
+
+We also want to load the free-text description of the various stock items as
+this will help will interpretation of the various rules we have found.
+
+```{r load_stock_code_descriptions, echo=TRUE}
+stock_code_lookups_tbl <- read_rds("data/stock_code_lookup_tbl.rds")
+
+stock_code_lookups_tbl %>% glimpse()
+```
+
 
 
 
@@ -202,13 +213,13 @@ $$
 So, to calculate the confidence for a rule:
 
 $$
-\text{Supp}(\text{\{milk, bread\}} \Rightarrow \text{\{butter\}}) = \frac{0.2}{0.4} = 0.5.
+\text{Conf}(\text{\{milk, bread\}} \Rightarrow \text{\{butter\}}) = \frac{0.2}{0.4} = 0.5.
 $$
 
 To illustrate how rules are not symmetric:
 
 $$
-\text{Supp}(\text{\{butter\}} \Rightarrow \text{\{milk, bread\}}) = \frac{0.2}{0.6} = 0.33.
+\text{Conf}(\text{\{butter\}} \Rightarrow \text{\{milk, bread\}}) = \frac{0.2}{0.6} = 0.33.
 $$
 
 
@@ -385,7 +396,7 @@ apriori_rules_igraph <- basket_apriori %>%
     ) %>%
   as("igraph")
 
-apriori_rules_igraph %>% glimpse()
+apriori_rules_igraph %>% print()
 ```
 
 We should first visualise this graph, using the top 30 rules in the dataset,
@@ -434,7 +445,7 @@ product_groups_all_tbl <- apriori_rules_tblgraph %>%
     product_count = n()
     ) %>%
   ungroup() %>%
-  select(product_group_id = component_id, stock_code = label) %>%
+  select(product_group_id = component_id, product_count, stock_code = label) %>%
   arrange(product_group_id, stock_code)
 
 product_groups_all_tbl %>% glimpse()
@@ -488,7 +499,7 @@ product_groups_largest_tbl <- apriori_rules_large_tblgraph %>%
     product_count = n()
     ) %>%
   ungroup() %>%
-  select(product_group_id = sub_id, stock_code = label) %>%
+  select(product_group_id = sub_id, product_count, stock_code = label) %>%
   arrange(product_group_id, stock_code)
 
 product_groups_largest_tbl %>% glimpse()
@@ -573,7 +584,7 @@ group_props_tbl <- arules_groups_tbl %>%
   filter(group_size > 1, group_size < 15) %>%
   expand_grid(tnx_groups_tbl) %>%
   mutate(
-    comb_data   = future_map2(
+    comb_data = future_map2(
       invoice_data, stock_data,
       inner_join,
       by = "stock_code",
@@ -606,6 +617,21 @@ ggplot(plot_tbl) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
+
+### Investigate Groups
+
+Now that we have our groups we add on the description fields so that
+interpretation of the different groupings is easier.
+
+```{r display_stock_groups, echo=TRUE}
+stock_groups_tbl %>%
+  filter(group_size > 1, group_size < 15) %>%
+  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  datatable()
+```
+
+
 ### Write Product Groups
 
 As this may be useful for later analysis and for later modelling, we output
@@ -613,6 +639,138 @@ these groupings for later use.
 
 ```{r output_stock_groups, echo=TRUE}
 stock_groups_tbl %>% write_rds("data/stock_groups_tbl.rds")
+```
+
+
+
+# Investigate Lower Support Rules
+
+Our previous analysis was all based on rules with a minimum confidence of 0.80
+so we now want to repeat our analysis but on this new set of rules.
+
+
+```{r construct_lower_rules_graph, echo=TRUE}
+apriori_lower_rules_igraph <- basket_lower_rules %>%
+  plot(
+    measure = "support",
+    method  = "graph",
+    control = list(max = 5000)
+    ) %>%
+  as("igraph")
+
+apriori_lower_rules_igraph %>% glimpse()
+```
+
+Once again we have a quick look at the top 50 rules.
+
+```{r visual_inspection_rules_igraph, echo=TRUE}
+basket_lower_rules %>%
+  head(n = 50, by = "support") %>%
+  plot(
+    measure  = "lift",
+    method   = "graph",
+    engine   = "htmlwidget"
+    )
+```
+
+
+
+## Determine Distinct Rules Subgraphs
+
+Having converted the association rules to the graph, we then look at the
+distinct components of this graph and use these as our first pass at these
+clusters.
+
+```{r create_lower_component_labels, echo=TRUE}
+apriori_lower_rules_tblgraph <- apriori_lower_rules_igraph %>%
+  as_tbl_graph() %>%
+  mutate(
+    component_id = group_components()
+    ) %>%
+  group_by(component_id) %>%
+  mutate(
+    component_size = n()
+    ) %>%
+  ungroup()
+
+apriori_lower_rules_tblgraph %>% print()
+```
+
+
+```{r construct_product_groups_all, echo=TRUE}
+product_groups_lower_all_tbl <- apriori_lower_rules_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(component_id) %>%
+  mutate(
+    product_count = n()
+    ) %>%
+  ungroup() %>%
+  select(product_group_id = component_id, product_count, stock_code = label) %>%
+  arrange(product_group_id, stock_code)
+
+product_groups_lower_all_tbl %>% glimpse()
+```
+
+```{r construct_largest_subgraph_groups, echo=TRUE, cache=TRUE}
+apriori_lower_rules_bigcomp_tblgraph <- apriori_lower_rules_tblgraph %>%
+  to_subgraph(component_size == max(component_size)) %>%
+  use_series(subgraph) %>%
+  morph(to_undirected) %>%
+  mutate(
+    sub_id = group_edge_betweenness()
+    ) %>%
+  unmorph()
+```
+
+
+```{r convert_subgraph_groups_tbl}
+product_groups_lower_bigcomp_tbl <- apriori_lower_rules_bigcomp_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(sub_id) %>%
+  mutate(
+    product_count = n()
+    ) %>%
+  ungroup() %>%
+  select(product_group_id = sub_id, product_count, stock_code = label) %>%
+  arrange(product_group_id, stock_code)
+
+product_groups_lower_bigcomp_tbl %>% glimpse()
+```
+
+
+```{r construct_combined_data_groups_lower, echo=TRUE}
+stock_groups_lower_tbl <- list(
+    ALL = product_groups_lower_all_tbl,
+    LRG = product_groups_lower_bigcomp_tbl
+    ) %>%
+  bind_rows(.id = "type") %>%
+  mutate(
+    group_label = sprintf("%s_%02d", type, product_group_id)
+    ) %>%
+  group_by(group_label) %>%
+  mutate(
+    group_size  = n()
+    ) %>%
+  ungroup() %>%
+  select(group_label, group_size, stock_code)
+
+stock_groups_lower_tbl %>% glimpse()
+```
+
+
+Now that we have our groups we add on the description fields so that
+interpretation of the different groupings is easier.
+
+```{r display_lower_stock_groups, echo=TRUE}
+stock_groups_lower_tbl %>%
+  filter(group_size > 1, group_size != max(group_size)) %>%
+  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  datatable()
 ```
 
 
