@@ -31,6 +31,7 @@ library(rlang)
 library(purrr)
 library(BTYD)
 library(BTYDplus)
+library(CLVTools)
 
 
 source("lib_utils.R")
@@ -117,6 +118,38 @@ daily_spend_tbl <- daily_spend_invoice_tbl %>%
 
 daily_spend_tbl %>% glimpse()
 ```
+
+
+# Background Theory
+
+Before we start working on fitting and using the various Buy-Till-You-Die
+models, we first need to discuss the basic underlying theory and model.
+
+In this model, we assume a customer becomes 'alive' to the business at the
+first purchase and then makes purchases stochastically but at a steady-rate
+for a period of time, and then 'dies' - i.e. becomes inactive to the business -
+hence the use of "Buy-Till-You-Die".
+
+Thus, at a high level these models decompose into modelling the transaction
+events using distributions such as the Poisson or Negative Binomial, and then
+modelling the 'dropout' process using some other method.
+
+A number of BTYD models exist and for this workshop we will focus on the
+BG/NBD model - the Beta-Geometric Negative Binomial Distribution model.
+
+This model relies on a number of base assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a gamma distribution
+  $\Gamma(\lambda | \alpha, r)$ with parameters shape $\alpha$ and rate $r$. 
+  1. After any transaction, a customer becomes inactive with probability $p$.
+  1. Heterogeneity in $p$ follows a Beta distribution $B(p | a, b)$ with shape
+  parameters $a$ and $b$.
+  1. The transaction rate $\lambda$ and the dropout probability $p$ vary
+  independently across customers.
+
+
 
 
 

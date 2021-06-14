@@ -194,13 +194,14 @@
     <div id="toc">
       <ul>
       <li><a href="#load-data"><span class="toc-section-number">1</span> Load Data</a></li>
-      <li><a href="#create-initial-btyd-model"><span class="toc-section-number">2</span> Create Initial BTYD Model</a></li>
-      <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
+      <li><a href="#background-theory"><span class="toc-section-number">2</span> Background Theory</a></li>
+      <li><a href="#create-initial-btyd-model"><span class="toc-section-number">3</span> Create Initial BTYD Model</a></li>
+      <li><a href="#r-environment"><span class="toc-section-number">4</span> R Environment</a></li>
       </ul>
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: May 22, 2021</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: June 14, 2021</p>
           </div>
    </div>
      
@@ -301,8 +302,34 @@ differences</p>
 ## $ total_spend  &lt;dbl&gt; 531.94, 821.92, 372.30, 2454.68, 407.97, 537.96, 261.00, …
 ## $ tnx_count    &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, …</code></pre>
 </div>
-<div id="create-initial-btyd-model" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> Create Initial BTYD Model</h1>
+<div id="background-theory" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Background Theory</h1>
+<p>Before we start working on fitting and using the various Buy-Till-You-Die
+models, we first need to discuss the basic underlying theory and model.</p>
+<p>In this model, we assume a customer becomes ‘alive’ to the business at the
+first purchase and then makes purchases stochastically but at a steady-rate
+for a period of time, and then ‘dies’ - i.e. becomes inactive to the business -
+hence the use of “Buy-Till-You-Die”.</p>
+<p>Thus, at a high level these models decompose into modelling the transaction
+events using distributions such as the Poisson or Negative Binomial, and then
+modelling the ‘dropout’ process using some other method.</p>
+<p>A number of BTYD models exist and for this workshop we will focus on the
+BG/NBD model - the Beta-Geometric Negative Binomial Distribution model.</p>
+<p>This model relies on a number of base assumptions:</p>
+<ol style="list-style-type: decimal">
+<li>While active, the number of transactions made by a customer follows a
+Poisson process with transaction rate <span class="math inline">\(\lambda\)</span>.</li>
+<li>Heterogeneity in <span class="math inline">\(\lambda\)</span> follows a gamma distribution
+<span class="math inline">\(\Gamma(\lambda | \alpha, r)\)</span> with parameters shape <span class="math inline">\(\alpha\)</span> and rate <span class="math inline">\(r\)</span>.</li>
+<li>After any transaction, a customer becomes inactive with probability <span class="math inline">\(p\)</span>.</li>
+<li>Heterogeneity in <span class="math inline">\(p\)</span> follows a Beta distribution <span class="math inline">\(B(p | a, b)\)</span> with shape
+parameters <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span>.</li>
+<li>The transaction rate <span class="math inline">\(\lambda\)</span> and the dropout probability <span class="math inline">\(p\)</span> vary
+independently across customers.</li>
+</ol>
+</div>
+<div id="create-initial-btyd-model" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Create Initial BTYD Model</h1>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>daily_cbscbt <span class="ot">&lt;-</span> daily_spend_tbl <span class="sc">%&gt;%</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="at">cust =</span> customer_id, <span class="at">date =</span> invoice_date, <span class="at">sales =</span> total_spend) <span class="sc">%&gt;%</span></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dc.ElogToCbsCbt</span>(</span>
@@ -452,20 +479,20 @@ differences</p>
 <pre><code>##        p3 
 ## 0.9999995</code></pre>
 </div>
-<div id="r-environment" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> R Environment</h1>
+<div id="r-environment" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> R Environment</h1>
 <div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.0.4 (2021-02-15)
 ##  os       Ubuntu 20.04.2 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       X11                         
+##  ui       RStudio                     
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-05-22                  
+##  date     2021-06-14                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version    date       lib source        
@@ -479,6 +506,7 @@ differences</p>
 ##  cachem        1.0.4      2021-02-13 [1] RSPM (R 4.0.3)
 ##  cellranger    1.1.0      2016-07-27 [1] RSPM (R 4.0.3)
 ##  cli           2.3.1      2021-02-23 [1] RSPM (R 4.0.3)
+##  CLVTools    * 0.8.0      2021-03-23 [1] RSPM (R 4.0.4)
 ##  coda          0.19-4     2020-09-30 [1] RSPM (R 4.0.3)
 ##  colorspace    2.0-0      2020-11-11 [1] RSPM (R 4.0.3)
 ##  conflicted  * 1.0.4      2019-06-21 [1] RSPM (R 4.0.0)
@@ -524,7 +552,6 @@ differences</p>
 ##  optimx      * 2020-4.2   2020-04-08 [1] RSPM (R 4.0.3)
 ##  pillar        1.5.1      2021-03-05 [1] RSPM (R 4.0.3)
 ##  pkgconfig     2.0.3      2019-09-22 [1] RSPM (R 4.0.3)
-##  ps            1.6.0      2021-02-28 [1] RSPM (R 4.0.3)
 ##  purrr       * 0.3.4      2020-04-17 [1] RSPM (R 4.0.3)
 ##  R6            2.5.0      2020-10-28 [1] RSPM (R 4.0.3)
 ##  Rcpp          1.0.6      2021-01-15 [1] RSPM (R 4.0.3)
