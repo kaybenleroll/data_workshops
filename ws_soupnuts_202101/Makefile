@@ -48,6 +48,9 @@ initial_timeseries_models.html: exploring_retail_data.html
 initial_btyd_models.html: exploring_retail_data.html
 
 
+clean-html:
+	rm -fv *.html
+
 
 
 ### Docker targets
