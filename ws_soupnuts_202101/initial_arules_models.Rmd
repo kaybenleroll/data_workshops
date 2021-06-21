@@ -1,0 +1,781 @@
+---
+title: "Using Association Rules of the Online Retail Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+    css: styles.css
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(stringr)
+library(glue)
+library(purrr)
+library(furrr)
+library(arules)
+library(arulesViz)
+library(DT)
+library(tidygraph)
+
+
+source("lib_utils.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules",
+    "Matrix", "DT")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+To use our rules mining we just need the invoice data and the stock code, so
+we can ignore the rest. Also, we ignore the issue of returns and just look at
+purchases.
+
+```{r prepare_data_arules, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
+
+tnx_purchase_tbl %>% glimpse()
+```
+
+We now write this data out as a CSV so `arules` can read it in and process it.
+
+```{r read_transactions, echo=TRUE}
+tnx_purchase_tbl %>% write_csv("data/tnx_purchase_tbl.csv")
+```
+
+We also want to load the free-text description of the various stock items as
+this will help will interpretation of the various rules we have found.
+
+```{r load_stock_code_descriptions, echo=TRUE}
+stock_code_lookups_tbl <- read_rds("data/stock_code_lookup_tbl.rds")
+
+stock_code_lookups_tbl %>% glimpse()
+```
+
+
+
+
+# Basket Analysis with Association Rules
+
+We now want to do some basic basket analysis using association rules, which
+tries to determine which items get bought together, similar to taking a graph
+approachin many ways.
+
+```{r setup_arules_structures, echo=TRUE}
+basket_arules <- read.transactions(
+    file   = "data/tnx_purchase_tbl.csv",
+    format = "single",
+    sep    = ",",
+    header = TRUE,
+    cols   = c("invoice_id", "stock_code")
+    )
+
+basket_arules %>% glimpse()
+```
+
+Now that we have this data we can look at some basic plots much like we
+produced before. For example, we can look at the relative frequency of the
+different items.
+
+```{r plot_arules_item_frequency, echo=TRUE}
+itemFrequencyPlot(basket_arules, topN = 20)
+
+itemFrequencyPlot(basket_arules, topN = 20, type = "absolute")
+```
+
+The stock codes do not mean a huge amount to us, so we also want to look at
+the description field for these items.
+
+```{r show_frequency_items, echo=TRUE}
+freq_codes <- itemFrequency(basket_arules) %>%
+  sort(decreasing = TRUE) %>%
+  head(20) %>%
+  names()
+
+tnx_purchase_tbl %>%
+  select(stock_code, description) %>%
+  filter(stock_code %in% freq_codes) %>%
+  distinct() %>%
+  drop_na(description) %>%
+  group_by(stock_code) %>%
+  summarise(
+    .groups = "drop",
+    desc = str_c(description, collapse = " : ")
+    ) %>%
+  arrange(stock_code) %>%
+  datatable()
+```
+
+
+
+## Basic Concepts
+
+The basic ideas of association rule mining and basket analysis draws on basic
+ideas from probability theory.
+
+We speak in terms of the *itemset*: that is, a collection of one or more items
+that co-occur in a transaction.
+
+For example, suppose we have a list of transactions as follows:
+
+
+| ID | Items               |
+|----|---------------------|
+| 1  | milk, bread         |
+| 2  | bread, butter       |
+| 3  | beer                |
+| 4  | milk, bread, butter |
+| 5  | bread, butter       |
+
+
+Using the above set of transactions, and itemset may be "milk" or
+"bread, butter".
+
+The support of an itemset $X$, $\text{Supp}(X)$, is defined as the proportion of
+transactions in the dataset which contain the itemset.
+
+In the above example:
+
+$$
+\text{Supp}(\text{\{milk, bread\}}) = \frac{2}{5} = 0.40.
+$$
+
+
+A *rule*, $X \Rightarrow Y$, between two itemsets $X$ and $Y$ is a directed
+relationship of the itemset $X$ showing the presence of $Y$. The rule is not
+symmetric: $X \Rightarrow Y$ and $Y \Rightarrow X$ are not the same.
+
+The *confidence* for the rule $X \implies Y$, $\text{Conf}(X \Rightarrow Y)$ is
+defined by
+
+$$
+\text{Conf}(X \Rightarrow Y) = \frac{\text{Supp}(X \cup Y)}{\text{Supp}(X)}.
+$$
+
+So, to calculate the confidence for a rule:
+
+$$
+\text{Conf}(\text{\{milk, bread\}} \Rightarrow \text{\{butter\}}) = \frac{0.2}{0.4} = 0.5.
+$$
+
+To illustrate how rules are not symmetric:
+
+$$
+\text{Conf}(\text{\{butter\}} \Rightarrow \text{\{milk, bread\}}) = \frac{0.2}{0.6} = 0.33.
+$$
+
+
+Finally, we want a measure of the strength of the relationship between the 
+itemsets $X$ and $Y$. That is, measuring the effect of the presence of $X$ on
+the presence of $Y$. We measure this by defining the *lift* of a rule as
+
+$$
+\text{Lift}(X \Rightarrow Y) = \frac{\text{Supp}(X \cup Y)}{\text{Supp}(X) \text{Supp}(Y)}.
+$$
+
+Again, we repeat our calculations for our rule.
+
+$$
+\text{Lift}(\text{\{bread, milk\}} \Rightarrow \text{\{butter\}}) = \frac{0.2}{(0.4)(0.6)} = \frac{0.2}{0.24} = 0.8333
+$$
+
+Lift values greater than 1 implies the presence of $X$ increases the
+probability of $Y$ being present when compared to the unconditional
+probability.
+
+
+Now that we have these metrics and concepts, we can turn our attention to
+trying to find rules in a given dataset, using these metrics to rank them.
+
+Rather than using brute-force approaches to discovering these rules, we use a
+number of different algorithms to find associations within the dataset.
+
+The two main algorithms for discovering some rules are the `apriori` and the
+`eclat` algorithms.
+
+
+## Construct apriori Rules
+
+We now want to construct the association rules using the `apriori` algorithm.
+To do this, we need to set parameters such as the minimum support and the
+minimum confidence level.
+
+This gives us a set of association rules, along with the support and lift.
+
+
+```{r construct_apriori_rules, echo=TRUE}
+basket_apriori <- apriori(
+    basket_arules,
+    parameter = list(supp = 0.005, conf = 0.8)
+    )
+
+basket_apriori_tbl <- basket_apriori %>%
+  as("data.frame") %>%
+  as_tibble() %>%
+  arrange(desc(lift))
+
+basket_apriori_tbl %>% glimpse()
+```
+
+We now want to inspect this table using the `ruleExplorer()` 
+
+```{r inspect_apriori_rules, echo=TRUE, eval=FALSE}
+basket_apriori %>% ruleExplorer()
+```
+
+To help visualise these rules, we can produce a basic scatterplot of the
+metrics.
+
+```{r plot_arules_metrics, echo=TRUE}
+ggplot(basket_apriori_tbl) +
+  geom_point(aes(x = confidence, y = lift), alpha = 0.2) +
+  xlab("Rule Confidence") +
+  ylab("Rule Lift") +
+  ggtitle("Scatterplot of Association Rule Metrics")
+```
+
+
+## Construct eclat Rules
+
+An alternative method of constructing association rules is to use the `eclat`
+algorithm. The code for doing this is slightly different, but gives us similar
+outputs.
+
+```{r construct_eclat_rules, echo=TRUE}
+basket_eclat <- eclat(
+    basket_arules,
+    parameter = list(support = 0.005)
+    ) %>%
+  ruleInduction(
+    basket_arules,
+    confidence = 0.8
+    )
+
+
+basket_eclat_tbl <- basket_eclat %>%
+  as("data.frame") %>%
+  as_tibble() %>%
+  arrange(desc(lift))
+
+basket_eclat_tbl %>% glimpse()
+```
+
+Once again, we inspect the data using `ruleExplorer()`
+
+```{r inspect_eclat_rules, echo=TRUE, eval=FALSE}
+basket_eclat %>% ruleExplorer()
+```
+
+
+## Compare Algorithms
+
+We now want to compare the outputs of both algorithms in terms of association
+rules and how they compare.
+
+```{r compare_arules_algorithms, echo=TRUE}
+basket_ap_tbl <- basket_apriori_tbl %>%
+  select(rules, support, confidence, lift)
+
+basket_ec_tbl <- basket_eclat_tbl %>%
+  select(rules, support, confidence, lift)
+
+rules_comparison_tbl <- basket_ap_tbl %>%
+  full_join(basket_ec_tbl, by = "rules", suffix = c("_a", "_e"))
+
+rules_comparison_tbl %>% glimpse()
+```
+
+
+## Reducing Minimum Confidence
+
+While high confidence rules are useful, they are more likely to find rules that
+are "obvious" as the probabilities are such that co-occuring basket items will
+be noticed as being together - or possibly be natural complements: butter, milk
+and bread is a good example.
+
+Instead, we are also interested in less obvious rules, and so we reduce our
+confidence threshold and see how many additional rules are discovered.
+
+```{r determine_lower_confidence_rules, echo=TRUE}
+basket_lower_rules <- apriori(
+    basket_arules,
+    parameter = list(supp = 0.005, conf = 0.4)
+  )
+
+basket_lower_rules_tbl <- basket_lower_rules %>%
+  as("data.frame") %>%
+  as_tibble() %>%
+  arrange(desc(lift))
+```
+
+
+
+```{r plot_lower_arules_metrics, echo=TRUE}
+ggplot(basket_lower_rules_tbl) +
+  geom_point(aes(x = confidence, y = lift), alpha = 0.2) +
+  xlab("Rule Confidence") +
+  ylab("Rule Lift") +
+  ggtitle("Scatterplot of Association Rule Metrics")
+```
+
+
+
+
+
+# Converting Rules to Graphs
+
+We also have the ability to convert these rules to a graph representation,
+where each node is either a `stock_code` or a rule, with the edges of the
+graph representing that item being contained in the rule.
+
+
+```{r convert_rules_to_graph, echo=TRUE}
+apriori_rules_igraph <- basket_apriori %>%
+  plot(
+    measure = "support",
+    method  = "graph",
+    control = list(max = 1000)
+    ) %>%
+  as("igraph")
+
+apriori_rules_igraph %>% print()
+```
+
+We should first visualise this graph, using the top 30 rules in the dataset,
+as measured by the support of the rule.
+
+```{r plot_interactive_rules_graph, echo=TRUE}
+basket_apriori %>%
+  head(n = 30, by = "support") %>%
+  plot(
+    measure  = "lift",
+    method   = "graph",
+    engine   = "htmlwidget"
+    )
+```
+
+
+## Extract Connected Product Labels
+
+First we want to look at the different disjoint components of the graph, and
+label them with an ID.
+
+```{r create_component_labels, echo=TRUE}
+apriori_rules_tblgraph <- apriori_rules_igraph %>%
+  as_tbl_graph() %>%
+  mutate(
+    component_id = group_components()
+    ) %>%
+  group_by(component_id) %>%
+  mutate(
+    component_size = n()
+    ) %>%
+  ungroup()
+```
+
+We then want to create groups of common products that form a disjoint cluster
+within this graph.
+
+
+```{r combine_connected_products, echo=TRUE}
+product_groups_all_tbl <- apriori_rules_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(component_id) %>%
+  mutate(
+    product_count = n()
+    ) %>%
+  ungroup() %>%
+  select(product_group_id = component_id, product_count, stock_code = label) %>%
+  arrange(product_group_id, stock_code)
+
+product_groups_all_tbl %>% glimpse()
+```
+
+For display purposes, we can show all the `stock_id` values in a list.
+
+```{r display_product_groups, echo=FALSE}
+product_groups_all_tbl %>%
+  group_by(product_group_id) %>%
+  summarise(
+    .groups = "drop",
+
+    product_count = n(),
+    product_str   = str_c(stock_code, collapse = ", ")
+    ) %>%
+  ungroup() %>%
+  select(-product_group_id) %>%
+  datatable()
+```
+
+
+### Cluster Larger Groups
+
+Within the large disjoint cluster there are a large number of products so
+rather than treating this as a single group we instead may investigate using
+further graph clustering algorithms to create further groupings.
+
+
+```{r create_large_component_clusters, echo=TRUE}
+apriori_rules_large_tblgraph <- apriori_rules_tblgraph %>%
+  to_subgraph(component_size == max(component_size)) %>%
+  use_series(subgraph) %>%
+  morph(to_undirected) %>%
+  mutate(
+    sub_id = group_edge_betweenness()
+    ) %>%
+  unmorph()
+```
+
+Now that we have sub-divided this large subgraph, we repeat the process.
+
+
+```{r create_reduced_product_list, echo=TRUE}
+product_groups_largest_tbl <- apriori_rules_large_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(sub_id) %>%
+  mutate(
+    product_count = n()
+    ) %>%
+  ungroup() %>%
+  select(product_group_id = sub_id, product_count, stock_code = label) %>%
+  arrange(product_group_id, stock_code)
+
+product_groups_largest_tbl %>% glimpse()
+```
+
+
+```{r display_largest_product_groups, echo=FALSE}
+product_groups_largest_tbl %>%
+  group_by(product_group_id) %>%
+  summarise(
+    .groups = "drop",
+
+    product_count = n(),
+    product_str   = str_c(stock_code, collapse = ", ")
+    ) %>%
+  ungroup() %>%
+  select(-product_group_id) %>%
+  datatable()
+```
+
+Finally, it is worth trying to use an interactive tool to investigate this
+subgraph, we we can use `visNetwork()` to produce an interactive JS tool
+
+```{r show_interactive_networks, echo=TRUE, eval=FALSE}
+apriori_rules_large_tblgraph %>%
+  toVisNetworkData(idToLabel = FALSE) %>%
+  visNetwork(
+    nodes = .$nodes %>% transmute(id, label, group = sub_id),
+    edges = .$edges
+    )
+```
+
+
+## Evaluating Product Groups
+
+How do we go about assessing the validity of these product groups?
+
+Note that this work is exploratory - in effect this is more sophisticated
+data exploration. Rather than use this model to make predictions - a job we
+will need to do at some point, we instead just want to assess how novel these
+grouping are.
+
+To that end, it may be useful to check the co-occurrence of these products as a
+group - for each purchase made by a customer, what proportion of the group was
+featured in this data?
+
+This question is worth exploring, so we should write some code to assess this.
+
+Before we do this, we combine our two lists of product groups into a single
+table.
+
+```{r construct_combined_data_groups, echo=TRUE}
+stock_groups_tbl <- list(
+    ALL = product_groups_all_tbl,
+    LRG = product_groups_largest_tbl
+    ) %>%
+  bind_rows(.id = "type") %>%
+  mutate(
+    group_label = sprintf("%s_%02d", type, product_group_id)
+    ) %>%
+  group_by(group_label) %>%
+  mutate(
+    group_size  = n()
+    ) %>%
+  ungroup() %>%
+  select(group_label, group_size, stock_code)
+
+stock_groups_tbl %>% glimpse()
+```
+
+
+```{r construct_data_groups, echo=TRUE, cache=TRUE}
+tnx_groups_tbl <- tnx_data_tbl %>%
+  select(invoice_id, invoice_date, stock_code) %>%
+  group_nest(invoice_id, .key = "invoice_data")
+
+arules_groups_tbl <- stock_groups_tbl %>%
+  group_nest(group_label, group_size, .key = "stock_data")
+
+
+group_props_tbl <- arules_groups_tbl %>%
+  filter(group_size > 1, group_size < 15) %>%
+  expand_grid(tnx_groups_tbl) %>%
+  mutate(
+    comb_data = future_map2(
+      invoice_data, stock_data,
+      inner_join,
+      by = "stock_code",
+    
+      .options = furrr_options(globals = FALSE)
+      ),
+    match_count = map_int(comb_data, nrow),
+    group_prop  = match_count / group_size
+    ) %>%
+  select(group_label, group_size, group_prop) %>%
+  filter(group_prop > 0)
+
+group_props_tbl %>% glimpse()
+```
+
+We now create a histogram of the proportions for each group, and this gives us
+a gauge of the 'novelty' of each of these groups.
+
+```{r plot_product_group_proportions, echo=TRUE}
+plot_tbl <- group_props_tbl %>%
+  mutate(label = glue("{group_label} ({group_size})"))
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = group_prop), binwidth = 0.1) +
+  facet_wrap(vars(label), scales = "free_y") +
+  scale_y_continuous(labels = label_comma()) +
+  xlab("Proportion") +
+  ylab("Purchase Count") +
+  ggtitle("Facetted Histograms of Group Coverages by Product Grouping") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+### Investigate Groups
+
+Now that we have our groups we add on the description fields so that
+interpretation of the different groupings is easier.
+
+```{r display_stock_groups, echo=TRUE}
+stock_groups_tbl %>%
+  filter(group_size > 1, group_size < 15) %>%
+  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  datatable()
+```
+
+
+### Write Product Groups
+
+As this may be useful for later analysis and for later modelling, we output
+these groupings for later use.
+
+```{r output_stock_groups, echo=TRUE}
+stock_groups_tbl %>% write_rds("data/stock_groups_tbl.rds")
+```
+
+
+
+# Investigate Lower Support Rules
+
+Our previous analysis was all based on rules with a minimum confidence of 0.80
+so we now want to repeat our analysis but on this new set of rules.
+
+
+```{r construct_lower_rules_graph, echo=TRUE}
+apriori_lower_rules_igraph <- basket_lower_rules %>%
+  plot(
+    measure = "support",
+    method  = "graph",
+    control = list(max = 5000)
+    ) %>%
+  as("igraph")
+
+apriori_lower_rules_igraph %>% glimpse()
+```
+
+Once again we have a quick look at the top 50 rules.
+
+```{r visual_inspection_rules_igraph, echo=TRUE}
+basket_lower_rules %>%
+  head(n = 50, by = "support") %>%
+  plot(
+    measure  = "lift",
+    method   = "graph",
+    engine   = "htmlwidget"
+    )
+```
+
+
+
+## Determine Distinct Rules Subgraphs
+
+Having converted the association rules to the graph, we then look at the
+distinct components of this graph and use these as our first pass at these
+clusters.
+
+```{r create_lower_component_labels, echo=TRUE}
+apriori_lower_rules_tblgraph <- apriori_lower_rules_igraph %>%
+  as_tbl_graph() %>%
+  mutate(
+    component_id = group_components()
+    ) %>%
+  group_by(component_id) %>%
+  mutate(
+    component_size = n()
+    ) %>%
+  ungroup()
+
+apriori_lower_rules_tblgraph %>% print()
+```
+
+
+```{r construct_product_groups_all, echo=TRUE}
+product_groups_lower_all_tbl <- apriori_lower_rules_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(component_id) %>%
+  mutate(
+    product_count = n()
+    ) %>%
+  ungroup() %>%
+  select(product_group_id = component_id, product_count, stock_code = label) %>%
+  arrange(product_group_id, stock_code)
+
+product_groups_lower_all_tbl %>% glimpse()
+```
+
+```{r construct_largest_subgraph_groups, echo=TRUE, cache=TRUE}
+apriori_lower_rules_bigcomp_tblgraph <- apriori_lower_rules_tblgraph %>%
+  to_subgraph(component_size == max(component_size)) %>%
+  use_series(subgraph) %>%
+  morph(to_undirected) %>%
+  mutate(
+    sub_id = group_edge_betweenness()
+    ) %>%
+  unmorph()
+```
+
+
+```{r convert_subgraph_groups_tbl}
+product_groups_lower_bigcomp_tbl <- apriori_lower_rules_bigcomp_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(sub_id) %>%
+  mutate(
+    product_count = n()
+    ) %>%
+  ungroup() %>%
+  select(product_group_id = sub_id, product_count, stock_code = label) %>%
+  arrange(product_group_id, stock_code)
+
+product_groups_lower_bigcomp_tbl %>% glimpse()
+```
+
+
+```{r construct_combined_data_groups_lower, echo=TRUE}
+stock_groups_lower_tbl <- list(
+    ALL = product_groups_lower_all_tbl,
+    LRG = product_groups_lower_bigcomp_tbl
+    ) %>%
+  bind_rows(.id = "type") %>%
+  mutate(
+    group_label = sprintf("%s_%02d", type, product_group_id)
+    ) %>%
+  group_by(group_label) %>%
+  mutate(
+    group_size  = n()
+    ) %>%
+  ungroup() %>%
+  select(group_label, group_size, stock_code)
+
+stock_groups_lower_tbl %>% glimpse()
+```
+
+
+Now that we have our groups we add on the description fields so that
+interpretation of the different groupings is easier.
+
+```{r display_lower_stock_groups, echo=TRUE}
+stock_groups_lower_tbl %>%
+  filter(group_size > 1, group_size != max(group_size)) %>%
+  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  datatable()
+```
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```

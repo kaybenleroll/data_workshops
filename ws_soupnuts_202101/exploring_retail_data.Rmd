@@ -6,6 +6,7 @@ output:
   rmdformats::readthedown:
     toc_depth: 3
     use_bookdown: yes
+    css: styles.css
 
   html_document:
     fig_caption: yes
@@ -42,7 +43,7 @@ library(tidygraph)
 
 
 
-source("custom_functions.R")
+source("lib_utils.R")
 
 resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
 
@@ -180,7 +181,7 @@ data_tbl <- data_tbl %>%
     invoice_woy    = format(invoice_dttm, "%V"),
     invoice_ym     = format(invoice_dttm, "%Y%m"),
 
-    stock_amount   = price * quantity
+    stock_value    = price * quantity
     ) %>%
   group_by(invoice_ym) %>%
   mutate(
@@ -191,7 +192,6 @@ data_tbl <- data_tbl %>%
 
 data_tbl %>% glimpse()
 ```
-
 
 
 # Perform Basic Checks on Data
@@ -240,6 +240,8 @@ data_tbl <- data_tbl %>%
 
 data_tbl %>% glimpse()
 ```
+
+
 
 ## Check Dates
 
@@ -452,10 +454,6 @@ if (length(drop_vars) > 0) {
 }
 ```
 
-
-```{r write_to_disk, echo=TRUE}
-data_tbl %>% write_rds("data/retail_data_tbl.rds")
-```
 
 ```{r, echo=FALSE}
 #knitr::knit_exit()
@@ -900,7 +898,47 @@ customer_data_tbl %>% pull(customer_spend) %>% hill()
 ```
 
 
-### Stock Level Data
+### Stock Code Investigation
+
+We now want to have a quick look at some high level summary statistics on the
+stock codes, so we look at quantities and total value.
+
+```{r stock_code_summary_data, echo=TRUE}
+stock_code_summary_tbl <- data_tbl %>%
+  group_by(stock_code_upr) %>%
+  summarise(
+    .groups = "drop",
+    
+    row_count = n(),
+
+    net_quantity = sum(quantity),
+    abs_quantity = abs(quantity) %>% sum(),
+    net_value    = sum(stock_value),
+    abs_value    = abs(quantity) %>% sum()
+    ) %>%
+  mutate(
+    sc_nchar = nchar(stock_code_upr), .before = "row_count"
+    )
+
+stock_code_summary_tbl %>% datatable()
+```
+
+It appears there are number of odd stock codes in the dataset, so we look at
+those codes that are 4 characters or less and inspect those.
+
+
+```{r check_short_stock_codes, echo=TRUE}
+short_stock_codes_tbl <- data_tbl %>%
+  semi_join(stock_code_summary_tbl %>% filter(sc_nchar < 5), by = "stock_code_upr")
+
+short_stock_codes_tbl %>% datatable()
+```
+
+
+### Stock Code Price Data
+
+We want to look at the range of different prices assigned to the same
+`stock_code` value.
 
 ```{r plot_stock_price_counts, echo=TRUE}
 stock_price_counts_tbl <- data_tbl %>%
@@ -975,7 +1013,7 @@ append_calendar_columns <- function(data_tbl, date_col) {
 }
 
 data_tbl %>%
-  select(excel_sheet, invoice_id, invoice_date, stock_amount) %>%
+  select(excel_sheet, invoice_id, invoice_date, stock_value) %>%
   append_calendar_columns(invoice_date) %>%
   glimpse()
 
@@ -1069,7 +1107,7 @@ at both transaction-level and invoice-level amount over time.
 
 ```{r lineitem_calendar_boxplot, echo=TRUE}
 ggplot(data_tbl) +
-  geom_boxplot(aes(x = invoice_woy, y = stock_amount, group = invoice_woy)) +
+  geom_boxplot(aes(x = invoice_woy, y = stock_value, group = invoice_woy)) +
   scale_y_log10(labels = label_comma()) +
   xlab("Week of Year") +
   ylab("Transaction Amount") +
@@ -1085,7 +1123,7 @@ plot_tbl <- data_tbl %>%
   summarise(
     .groups = "drop",
     
-    invoice_amount = sum(stock_amount) %>% round(2)
+    invoice_amount = sum(stock_value) %>% round(2)
   )
 
 ggplot(plot_tbl) +
@@ -1109,7 +1147,7 @@ daily_distribution_tbl <- data_tbl %>%
   summarise(
     .groups = "drop",
     
-    total_spend = sum(stock_amount)
+    total_spend = sum(stock_value)
     )
 
 daily_distribution_tbl %>% glimpse()
@@ -1140,8 +1178,8 @@ ggplot(plot_tbl) +
   geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_spend),
                 width = 0) +
   scale_y_log10(labels = label_comma()) +
-  xlab("Date") +
-  ylab("Transaction Amount") +
+  scale_colour_continuous(labels = label_comma()) +
+  labs(x = "Date", y = "Transaction Amount", colour = "Spend") +
   ggtitle("P25-P75 Quartile of Transaction Amounts by Date")
 ```
 
@@ -1171,8 +1209,8 @@ ggplot(plot_tbl) +
   geom_errorbar(aes(x = invoice_date, ymin = p25, ymax = p75, colour = total_refund),
                 width = 0) +
   scale_y_log10(labels = label_comma()) +
-  xlab("Date") +
-  ylab("Transaction Amount") +
+  scale_colour_continuous(labels = label_comma()) +
+  labs(x = "Date", y = "Transaction Amount", colour = "Spend") +
   ggtitle("P25-P75 Quartile of Refund Amounts by Date")
 ```
 
@@ -1204,26 +1242,70 @@ filter_returns_transactions <- function(use_stock, use_customer,  use_dttm,
            customer_id  == use_customer,
            invoice_dttm <= use_dttm,
            quantity     >  0)
-  
+
   return(matches_tbl)
 }
 
+match_tnx_prices <- function(data_tbl, return_price, return_quantity) {
+  matched_tbl <- data_tbl %>%
+    filter(abs(price) == abs(return_price)) %>%
+    select(row_id, invoice_id, stock_code, quantity, price, invoice_dttm) %>%
+    arrange(desc(invoice_dttm)) %>%
+    mutate(
+      cuml_quantity   = cumsum(quantity),
+      return_quantity = return_quantity,
+      remaining       = cuml_quantity + return_quantity
+      )
+
+  return(matched_tbl)
+}
+
+
+detemine_return_records <- function(data_tbl) {
+  negative_tbl <- data_tbl %>%
+    filter(remaining <= 0)
+  
+  first_tbl <- data_tbl %>%
+    filter(remaining > 0) %>%
+    arrange(desc(invoice_dttm)) %>%
+    head(1)
+  
+  
+  matched_tbl <- list(negative_tbl, first_tbl) %>%
+    bind_rows() %>%
+    arrange(desc(invoice_dttm)) %>%
+    rename(orig_row_id = row_id)
+  
+  return(matched_tbl)
+}
+
+
 returns_data_tbl <- data_tbl %>%
   filter(quantity < 0) %>%
-  select(row_id, stock_code, customer_id, quantity, invoice_dttm) %>%
+  select(row_id, stock_code, customer_id, quantity, price, invoice_dttm) %>%
   mutate(
-    prev_tnx_data = pmap(
+    prev_tnx_data = future_pmap(
       list(use_stock    = stock_code,
            use_customer = customer_id,
            use_dttm     = invoice_dttm),
       filter_returns_transactions,
-      data_tbl = data_tbl
+      data_tbl = data_tbl,
+      
+      .options  = furrr_options(seed = 421),
+      .progress = TRUE      
       ),
-    match_data = map2(prev_tnx_data, quantity,
-                      ~ .x %>% filter(quantity == abs(.y))),
-    last_match = map(match_data,
-                     ~ .x %>% arrange(desc(invoice_dttm)) %>% head(1))
+    price_data = future_pmap(
+      list(data_tbl        = prev_tnx_data,
+           return_price    = price,
+           return_quantity = quantity),
+      match_tnx_prices,
+      
+      .options  = furrr_options(seed = 422),
+      .progress = TRUE
+      ),
+    match_data = map(price_data, detemine_return_records)
     )
+
 
 returns_data_tbl %>% glimpse()
 ```
@@ -1233,43 +1315,157 @@ how much time tends to pass between the purchase and the return.
 
 ```{r construct_returns_lookups, echo=TRUE}
 returns_lookup_tbl <- returns_data_tbl %>%
-  transmute(
-    return_id = row_id,
-    return_dttm = invoice_dttm,
-    data        = map(last_match, ~ .x %>% select(row_id, invoice_dttm))
+  select(return_row_id = row_id, return_dttm = invoice_dttm, match_data) %>%
+  unnest(match_data) %>%
+  select(
+    orig_row_id, return_row_id, return_dttm,
+    adjust_quantity = return_quantity
     ) %>%
-  unnest(data) %>%
-  select(row_id, return_id)
+  group_by(return_row_id) %>%
+  arrange(orig_row_id) %>%
+  slice_head(n = 1) %>%
+  ungroup()
 
 returns_lookup_tbl %>% glimpse()
 ```
 
+We probably need to do a better job of this, as this current method is
+inadequate to properly match this up.
 
+Stepping up this work to properly match up the transactions will be a topic
+we return to later.
 
 We now want to look at the distribution of times between the purchase and the
 item being returned.
 
 ```{r plot_return_times_histogram, echo=TRUE}
+orig_data_tbl <- data_tbl %>%
+  select(orig_row_id   = row_id, purchase_dttm = invoice_dttm)
+
+ret_data_tbl <- data_tbl %>%
+  select(return_row_id = row_id, return_dttm   = invoice_dttm)
+
 return_times_tbl <- returns_lookup_tbl %>%
-  left_join(data_tbl %>% select(row_id, invoice_dttm), by = "row_id") %>%
-  left_join(data_tbl %>% select(return_id = row_id, return_dttm = invoice_dttm), by = "return_id") %>%
+  select(orig_row_id, return_row_id) %>%
+  left_join(orig_data_tbl, by = "orig_row_id") %>%
+  left_join(ret_data_tbl,  by = "return_row_id") %>%
   mutate(
-    return_time = return_dttm - invoice_dttm,
+    return_time = return_dttm - purchase_dttm,
     return_days  = as.numeric(return_time) / (24 * 60 * 60)
     )
 
-norm_plot <- ggplot(return_times_tbl) +
+base_plot <- ggplot(return_times_tbl) +
   geom_histogram(aes(x = return_days), bins = 50) +
   geom_vline(aes(xintercept = 90), colour = "red") +
-  scale_x_continuous(labels = label_comma()) +
   xlab("Days") +
   ylab("Count") +
   ggtitle("Histogram of Days Between Purchase and Return per Item Transaction")
 
-log_plot <- norm_plot +
+norm_plot <- base_plot +
+  scale_x_continuous(labels = label_comma())
+
+log_plot <- base_plot +
   scale_x_log10(labels = label_comma())
 
 plot_grid(norm_plot, log_plot, nrow = 2)
+```
+
+
+
+# Indicate Excluded Rows
+
+As we have found a number of issues with this data, we now will indicate
+which rows we wish to exclude from futher analysis. We will then exclude these
+rows at a later point of the analysis.
+
+
+## Filter Extra Stock Codes
+
+We discovered there are a number of extra data in this dataset for things like
+bad debt management, discounts, gift cards and so on, so we remove those from
+this.
+
+```{r remove_extraneous_stock_code_entries, echo=TRUE}
+screen_stock_code <- c(
+  "B", "C2", "C3", "D", "M", "S", "CRUK", "POST", "DOT", "BANK CHARGES",
+  "AMAZONFEE"
+  )
+
+clean_stock_code_tbl <- data_tbl %>%
+  filter(stock_code_upr %in% screen_stock_code) %>%
+  select(row_id)
+
+clean_stock_code_tbl %>% glimpse()
+
+
+clean_gift_tbl <- data_tbl %>%
+  filter(str_detect(stock_code_upr, "GIFT")) %>%
+  select(row_id)
+
+clean_gift_tbl %>% glimpse()
+```
+
+
+
+## Create Exclusion Indicator
+
+```{r combine_exclusions, echo=TRUE}
+exclusions_tbl <- list(
+    clean_stock_code_tbl,
+    clean_gift_tbl
+    ) %>%
+  bind_rows() %>%
+  mutate(exclude = TRUE)
+
+cleaned_data_tbl <- data_tbl %>%
+  left_join(exclusions_tbl, by = "row_id") %>%
+  replace_na(list(exclude = FALSE))
+
+cleaned_data_tbl %>% glimpse()
+```
+
+
+# Construct Stock Code Lookups
+
+Finally, we want to construct a lookup table that provides some free-text
+fields for each `stock_code` value.
+
+```{r construct_stock_code_table, echo=TRUE}
+stock_code_lookup_tbl <- cleaned_data_tbl %>%
+  filter(exclude == FALSE, quantity > 0, !are_na(description)) %>%
+  mutate(
+    stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()
+    ) %>%
+  select(stock_code_upr, description) %>%
+  drop_na(description) %>%
+  distinct() %>%
+  group_by(stock_code_upr) %>%
+  summarise(
+    .groups = "drop",
+    
+    desc = description %>% sort() %>% str_c(collapse = " : ")
+    ) %>%
+  arrange(stock_code_upr)
+
+stock_code_lookup_tbl %>% glimpse()
+```
+
+We also look at this output using DT
+
+```{r view_stock_code_lookup, echo=TRUE}
+stock_code_lookup_tbl %>% datatable()
+```
+
+
+
+# Output Cleaned Data
+
+```{r write_to_disk, echo=TRUE}
+stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
+
+returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
+
+cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
 ```
 
 

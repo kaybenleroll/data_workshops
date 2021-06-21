@@ -1,0 +1,289 @@
+---
+title: "Using Buy-Till-You-Die (BTYD) Models the Online Retail Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(glue)
+library(BTYD)
+library(BTYDplus)
+library(CLVTools)
+
+
+source("lib_utils.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+To use our rules mining we just need the invoice data and the stock code, so
+we can ignore the rest. Also, we ignore the issue of returns and just look at
+purchases.
+
+```{r prepare_data_arules, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(
+    invoice_date, invoice_id, stock_code, customer_id, description,
+    quantity, price, stock_value
+    )
+
+tnx_purchase_tbl %>% glimpse()
+```
+
+Use of BTYD models assumes a total spend over a period of day and those
+differences 
+
+```{r calculate_customer_daily_spend, echo=TRUE}
+daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
+  drop_na(customer_id) %>%
+  group_by(invoice_date, customer_id, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    invoice_spend = sum(stock_value)
+  )
+
+daily_spend_invoice_tbl %>% glimpse()
+
+
+daily_spend_tbl <- daily_spend_invoice_tbl %>%
+  group_by(invoice_date, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(invoice_spend),
+    tnx_count   = n()
+  )
+
+daily_spend_tbl %>% glimpse()
+```
+
+
+# Background Theory
+
+Before we start working on fitting and using the various Buy-Till-You-Die
+models, we first need to discuss the basic underlying theory and model.
+
+In this model, we assume a customer becomes 'alive' to the business at the
+first purchase and then makes purchases stochastically but at a steady-rate
+for a period of time, and then 'dies' - i.e. becomes inactive to the business -
+hence the use of "Buy-Till-You-Die".
+
+Thus, at a high level these models decompose into modelling the transaction
+events using distributions such as the Poisson or Negative Binomial, and then
+modelling the 'dropout' process using some other method.
+
+A number of BTYD models exist and for this workshop we will focus on the
+BG/NBD model - the Beta-Geometric Negative Binomial Distribution model.
+
+This model relies on a number of base assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a gamma distribution
+  $\Gamma(\lambda | \alpha, r)$ with parameters shape $\alpha$ and rate $r$. 
+  1. After any transaction, a customer becomes inactive with probability $p$.
+  1. Heterogeneity in $p$ follows a Beta distribution $B(p | a, b)$ with shape
+  parameters $a$ and $b$.
+  1. The transaction rate $\lambda$ and the dropout probability $p$ vary
+  independently across customers.
+
+
+Note that it follows from the above assumptions that the probability of a
+customer being 'alive' after any transaction is given by the Geometric
+distribution, and hence the Beta-Geometric in the name.
+
+
+## BTYD Visualisations
+
+Despite our extensive exploration of the data earlier, the concepts around 
+BTYD modelling suggest a few more than are worth exploring, so we will look at
+those now.
+
+To start with, it might be worth understanding a bit more about when customers
+are 'born' in the system - that is, the date on which they make their first
+purchase. Another important quantity is the time between transactions for a
+customer, we we will visualise these.
+
+```{r construct_customer_first_date, echo=TRUE}
+customer_firstdate_tbl <- daily_spend_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    first_tnx_date  = min(invoice_date),
+    total_tnx_count = n()
+    )
+
+customer_firstdate_tbl %>% glimpse()
+```
+
+Now that we have a first date for each customer, we look at the total number
+of customers joining at each date.
+
+```{r plot_customer_first_dates, echo=TRUE}
+plot_tbl <- customer_firstdate_tbl %>%
+  count(first_tnx_date, name = "n_customer")
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = first_tnx_date, y = n_customer)) +
+  labs(
+    x = "First Transaction Date",
+    y = "New Customers",
+    title = "Plot of Count of New Customer by Date"
+    )
+```
+
+We know look at how time differences between purchases are distributed.
+
+```{r plot_transaction_time_diffs, echo=TRUE}
+customer_tnx_diffs_tbl <- daily_spend_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    time_diff = diff(invoice_date) %>% as.numeric() %>% divide_by(7)
+  )
+
+mean_diff <- customer_tnx_diffs_tbl %>% pull(time_diff) %>% mean()
+
+ggplot(customer_tnx_diffs_tbl) +
+  geom_histogram(aes(x = time_diff), bins = 50) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Frequency",
+    title = "Histogram of Differences Between Transactions for Customers",
+    subtitle = glue("Mean Difference is {mean_diff} weeks", mean_diff = round(mean_diff, 2))
+    )
+```
+
+
+We also want to look at a number of customers and make some line plots of their
+transactions.
+
+```{r visualise_customer_transactions, echo=TRUE}
+keep_customers_tbl <- customer_firstdate_tbl %>%
+  filter(total_tnx_count > 2) %>%
+  slice_sample(n = 30)
+
+plot_tbl <- daily_spend_tbl %>%
+  semi_join(keep_customers_tbl, by = "customer_id")
+
+ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Date",
+    y = "Customer ID",
+    title = "Visualisation of Transaction Times for 30 Customers"
+    ) +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+
+
+
+
+
+# Create Initial BTYD Model
+
+
+```{r create_initial_btyd_model, echo=TRUE}
+daily_cbscbt <- daily_spend_tbl %>%
+  select(cust = customer_id, date = invoice_date, sales = total_spend) %>%
+  dc.ElogToCbsCbt(
+    per             = "week",
+    T.cal           = as.Date("2010-06-30"),
+    merge.same.date = TRUE
+    )
+
+params_bgnbd <- daily_cbscbt$cal$cbs %>%
+  bgnbd.EstimateParameters()
+
+
+bgnbd.PlotFrequencyInCalibration(
+  params  = params_bgnbd,
+  cal.cbs = daily_cbscbt$cal$cbs,
+  censor  = 15
+  )
+
+bgnbd.PlotTransactionRateHeterogeneity(params = params_bgnbd)
+
+bgnbd.PlotDropoutRateHeterogeneity(params = params_bgnbd)
+
+
+bgnbd.Expectation(params = params_bgnbd, t = 52)
+
+bgnbd.PAlive(params = params_bgnbd, x = 5, t.x = 26, T.cal = 30)
+```
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```

@@ -3,7 +3,8 @@
 
 data/*.xlsx
 data/*.rds
-data/*.sh
+data/*.csv
+
 
 *.R
 *.Rmd

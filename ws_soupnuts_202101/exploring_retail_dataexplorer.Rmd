@@ -1,5 +1,5 @@
 ---
-title: "Exploring the Online Retail Dataset with DataExplorer"
+title: "Exploring the Cleaned Online Retail Dataset with DataExplorer"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
@@ -38,7 +38,7 @@ library(lubridate)
 library(DataExplorer)
 
 
-source("custom_functions.R")
+source("lib_utils.R")
 
 resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
 
@@ -64,19 +64,36 @@ set.seed(42)
 ```
 
 
-
 # Introduction
 
+We previously performed a comprehensive data exploration of the retail dataset
+using the `dataexpks` template, but now that we have removed and otherwise
+filtered a number of other entries from the dataset.
 
-## Load Data
+As these removed rows may change the visualisation of the exploration, it is
+worth doing a quick repeat of this exercise, so we perform those now using the
+`DataExplorer` package.
 
+
+# Load Data
+
+We load up the cleaned dataset.
 
 ```{r load_dataset, echo=TRUE}
-retail_data_tbl <- read_rds("data/retail_data_added_tbl.rds")
+loaded_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+loaded_data_tbl %>% glimpse()
+```
+
+We now remove all excluded rows and run the exploration on the data with the
+cleaned rows excluded.
+
+```{r remove_excluded_rows, echo=TRUE}
+retail_data_tbl <- loaded_data_tbl %>%
+  filter(exclude == FALSE)
 
 retail_data_tbl %>% glimpse()
 ```
-
 
 # Use DataExplorer Routines
 
@@ -103,7 +120,7 @@ plot_bar(retail_data_tbl)
 
 
 ```{r plot_histogram, echo=TRUE}
-plot_histogram(retail_data_tbl, ncol = 3)
+plot_histogram(retail_data_tbl, ncol = 2)
 ```
 
 
