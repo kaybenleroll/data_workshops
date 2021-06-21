@@ -33,6 +33,7 @@ library(glue)
 library(BTYD)
 library(BTYDplus)
 library(CLVTools)
+library(tidyquant)
 
 
 source("lib_utils.R")
@@ -115,7 +116,7 @@ daily_spend_tbl <- daily_spend_invoice_tbl %>%
     
     total_spend = sum(invoice_spend),
     tnx_count   = n()
-  )
+    )
 
 daily_spend_tbl %>% glimpse()
 ```
@@ -175,7 +176,14 @@ customer_firstdate_tbl <- daily_spend_tbl %>%
     
     first_tnx_date  = min(invoice_date),
     total_tnx_count = n()
+    ) %>%
+  mutate(
+    cohort_qtr = first_tnx_date %>% as.yearqtr(),
+    cohort_ym  = first_tnx_date %>% format("%Y %m"),
+    
+    .after = "customer_id"
     )
+
 
 customer_firstdate_tbl %>% glimpse()
 ```
@@ -211,6 +219,7 @@ mean_diff <- customer_tnx_diffs_tbl %>% pull(time_diff) %>% mean()
 
 ggplot(customer_tnx_diffs_tbl) +
   geom_histogram(aes(x = time_diff), bins = 50) +
+  geom_vline(aes(xintercept = mean_diff), colour = "red") +
   scale_y_continuous(labels = label_comma()) +
   labs(
     x = "Time Difference (weeks)",
@@ -240,23 +249,61 @@ ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
     y = "Customer ID",
     title = "Visualisation of Transaction Times for 30 Customers"
     ) +
-  theme(axis.text.y = element_text(size = 8))
+  theme(axis.text.y = element_text(size = 12))
 ```
 
 
+## Investigate Cohorts
+
+Finally, we want to take a look at the distribution of transaction times based
+on various first-transaction cohorts in the data.
+
+We start with a simple boxplot based on each cohort.
+
+```{r plot_cohort_differences_boxplot}
+plot_tbl <- customer_firstdate_tbl %>%
+  filter(first_tnx_date <= as.Date("2010-06-30")) %>%
+  inner_join(customer_tnx_diffs_tbl, by = "customer_id") %>%
+  mutate(cohort_qtr = cohort_qtr %>% as.character())
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = cohort_qtr, y = time_diff)) +
+  scale_y_log10() +
+  labs(
+    x = "Cohort",
+    y = "Time Difference (weeks)",
+    title = "Boxplot of Time Differences by Starting Cohort"
+    )
+```
+
+We also construct a density plot of the time differences for these cohorts.
+
+```{r investigate_cohort_transaction_times, echo=TRUE}
+ggplot(plot_tbl) +
+  geom_line(aes(x = time_diff, colour = cohort_qtr), stat = "density") +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Density",
+    colour = "Cohort"
+    )
+```
 
 
 
 
 # Create Initial BTYD Model
 
+We want to start building and investigating our initial BTYD models and there
+are two main packages we will use for this process: `BTYD` and `CLVTools`.
+
+We start using the `BTYD` package, using the various functions provided.
 
 ```{r create_initial_btyd_model, echo=TRUE}
 daily_cbscbt <- daily_spend_tbl %>%
   select(cust = customer_id, date = invoice_date, sales = total_spend) %>%
   dc.ElogToCbsCbt(
     per             = "week",
-    T.cal           = as.Date("2010-06-30"),
+    T.cal           = as.Date("2010-12-31"),
     merge.same.date = TRUE
     )
 
@@ -279,6 +326,36 @@ bgnbd.Expectation(params = params_bgnbd, t = 52)
 
 bgnbd.PAlive(params = params_bgnbd, x = 5, t.x = 26, T.cal = 30)
 ```
+
+We also want to fit an equivalent model in `CLVTools` but this requires a bit
+more work upfront as it requires you to explicitly remove new customers in the
+data.
+
+For this we keep all customers with initial dates up to Q2 2010, and use that
+data to fit.
+
+```{r construct_btyd_fit_data, echo=TRUE}
+customer_fitdata_tbl <- customer_firstdate_tbl %>%
+  select(customer_id, first_tnx_date, cohort_qtr, cohort_ym) %>%
+  filter(first_tnx_date <= as.Date("2010-12-31")) %>%
+  inner_join(daily_spend_tbl, by = "customer_id")
+
+customer_fitdata_tbl %>% glimpse()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
