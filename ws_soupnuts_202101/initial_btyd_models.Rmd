@@ -26,6 +26,7 @@ library(conflicted)
 library(tidyverse)
 library(scales)
 library(cowplot)
+library(directlabels)
 library(magrittr)
 library(rlang)
 library(purrr)
@@ -53,7 +54,7 @@ knitr::opts_chunk$set(
   )
 
 options(
-  width = 80L,
+  width = 100L,
   warn  = 1,
   mc.cores = parallel::detectCores()
   )
@@ -122,6 +123,14 @@ daily_spend_tbl %>% glimpse()
 ```
 
 
+Finally, we want to set a date to make the end of the "fitting" data, which
+will be used in the various estimation routines to fit parameters of our models.
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
+```
+
+
 # Background Theory
 
 Before we start working on fitting and using the various Buy-Till-You-Die
@@ -137,7 +146,26 @@ events using distributions such as the Poisson or Negative Binomial, and then
 modelling the 'dropout' process using some other method.
 
 A number of BTYD models exist and for this workshop we will focus on the
-BG/NBD model - the Beta-Geometric Negative Binomial Distribution model.
+BG/NBD model - the Beta-Geometric Negative Binomial Distribution model (though
+we will discuss the P/NBD model also).
+
+These models require only two pieces of information about each customer's
+purchasing history: the "recency" (when the last transaction occurred) and
+"frequency" (the count of transactions made by that customer in a specified
+time period).
+
+The notation used to represent this information is
+
+$$
+X = (x, t_x, T),
+$$
+where $x$ is the number of transactions observed in the time period $T$ and
+$t_x$ was the time of the last transaction.
+
+From this summary data we can fit both P/NBD and BG/NBD models.
+
+
+## Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
 
 This model relies on a number of base assumptions:
 
@@ -155,6 +183,24 @@ This model relies on a number of base assumptions:
 Note that it follows from the above assumptions that the probability of a
 customer being 'alive' after any transaction is given by the Geometric
 distribution, and hence the Beta-Geometric in the name.
+
+
+## Pareto/Negative-Binomial Distribution (P/NBD) Model
+
+Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a gamma distribution
+  $\Gamma(\lambda | \alpha, r)$ with parameters shape $\alpha$ and rate $r$. 
+  1. Each customer has an unobserved 'lifetime' of length $\tau$. This point at
+  which the customer becomes inactive is distributed as an exponential with
+  dropout rate $\mu$.
+  1. Heterogeneity in dropout rates across customers follows a gamma
+  distribution with shape parameter $s$ and scale parameter $$.
+  1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
+  independently across customers.
+
 
 
 ## BTYD Visualisations
@@ -262,7 +308,7 @@ We start with a simple boxplot based on each cohort.
 
 ```{r plot_cohort_differences_boxplot}
 plot_tbl <- customer_firstdate_tbl %>%
-  filter(first_tnx_date <= as.Date("2010-06-30")) %>%
+  filter(first_tnx_date <= training_data_date) %>%
   inner_join(customer_tnx_diffs_tbl, by = "customer_id") %>%
   mutate(cohort_qtr = cohort_qtr %>% as.character())
 
@@ -279,22 +325,39 @@ ggplot(plot_tbl) +
 We also construct a density plot of the time differences for these cohorts.
 
 ```{r investigate_cohort_transaction_times, echo=TRUE}
-ggplot(plot_tbl) +
-  geom_line(aes(x = time_diff, colour = cohort_qtr), stat = "density") +
+ggplot(plot_tbl, aes(x = time_diff, colour = cohort_qtr)) +
+  geom_line(stat = "density") +
+  geom_dl(aes(label = cohort_qtr), method = "top.bumpup", stat = "density") +
   labs(
     x = "Time Difference (weeks)",
     y = "Density",
-    colour = "Cohort"
-    )
+    title = "Comparison Density Plot for Transaction Time Differences Between Cohorts"
+    ) +
+  theme(legend.position = "none")
 ```
 
+And we also look at a facetted-histogram
 
+```{r investigate_cohort_timediffs_facets, echo=TRUE}
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = time_diff), bins = 50) +
+  facet_wrap(vars(cohort_qtr), scales = "free_y") +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Count",
+    title = "Facetted Histograms of Time Between Transactions"
+    )
+
+```
 
 
 # Create Initial BTYD Model
 
 We want to start building and investigating our initial BTYD models and there
 are two main packages we will use for this process: `BTYD` and `CLVTools`.
+
+## First BTYD Model
 
 We start using the `BTYD` package, using the various functions provided.
 
@@ -303,52 +366,80 @@ daily_cbscbt <- daily_spend_tbl %>%
   select(cust = customer_id, date = invoice_date, sales = total_spend) %>%
   dc.ElogToCbsCbt(
     per             = "week",
-    T.cal           = as.Date("2010-12-31"),
+    T.cal           = training_data_date,
     merge.same.date = TRUE
     )
 
-params_bgnbd <- daily_cbscbt$cal$cbs %>%
+params_btyd_bgnbd <- daily_cbscbt$cal$cbs %>%
   bgnbd.EstimateParameters()
 
 
 bgnbd.PlotFrequencyInCalibration(
-  params  = params_bgnbd,
+  params  = params_btyd_bgnbd,
   cal.cbs = daily_cbscbt$cal$cbs,
   censor  = 15
   )
 
-bgnbd.PlotTransactionRateHeterogeneity(params = params_bgnbd)
+bgnbd.PlotTransactionRateHeterogeneity(params = params_btyd_bgnbd)
 
-bgnbd.PlotDropoutRateHeterogeneity(params = params_bgnbd)
+bgnbd.PlotDropoutRateHeterogeneity(params = params_btyd_bgnbd)
 
 
-bgnbd.Expectation(params = params_bgnbd, t = 52)
+bgnbd.Expectation(params = params_btyd_bgnbd, t = 52)
 
-bgnbd.PAlive(params = params_bgnbd, x = 5, t.x = 26, T.cal = 30)
+bgnbd.PAlive(params = params_btyd_bgnbd, x = 5, t.x = 26, T.cal = 30)
 ```
+
+
+## First CLVTools Model
 
 We also want to fit an equivalent model in `CLVTools` but this requires a bit
 more work upfront as it requires you to explicitly remove new customers in the
 data.
 
-For this we keep all customers with initial dates up to Q2 2010, and use that
-data to fit.
+For this we keep all customers in the cohorts up to Q4 2010, and use that
+data to fit our models.
 
 ```{r construct_btyd_fit_data, echo=TRUE}
 customer_fitdata_tbl <- customer_firstdate_tbl %>%
   select(customer_id, first_tnx_date, cohort_qtr, cohort_ym) %>%
-  filter(first_tnx_date <= as.Date("2010-12-31")) %>%
+  filter(first_tnx_date <= training_data_date) %>%
   inner_join(daily_spend_tbl, by = "customer_id")
 
 customer_fitdata_tbl %>% glimpse()
 ```
 
+We now use this data to construct the `clvdata` that will be used to fit our
+models.
 
+```{r construct_clvdata_structure, echo=TRUE}
+customer_clvdata <- customer_fitdata_tbl %>%
+  clvdata(
+    date.format      = "%Y-%m-%d",
+    time.unit        = "weeks",
+    estimation.split = training_data_date,
+    name.id          = "customer_id",
+    name.date        = "invoice_date",
+    name.price       = "total_spend"
+    )
 
+customer_clvdata %>% summary()
+```
 
+We now want to fit the BG/NBD model using this input data. Fitting these models
+can take a bit of trial-and-error, but we can use our knowledge of the Gamma
+and Beta distributions to give us starting points that seems reasonable and
+this should help with the fitting process.
 
+```{r fit_first_bgnbd_model, echo=TRUE}
+params_bgnbd_clvfit <- bgnbd(
+  clv.data = customer_clvdata,
+  start.params.model = c(r = 0.5, alpha = 10, a = 0.1, b = 9.9),
+  verbose  = TRUE
+  )
 
-
+params_bgnbd_clvfit %>% summary()
+```
 
 
 
