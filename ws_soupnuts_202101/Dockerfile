@@ -1,6 +1,7 @@
 FROM kaybenleroll/r_baseimage:base202104
 
 RUN apt-get update \
+  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends \
     graphviz \
     libgsl-dev \
