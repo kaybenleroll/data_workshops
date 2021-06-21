@@ -29,5 +29,4 @@ RUN apt-get update \
     survminer \
     visNetwork
 
-
 RUN Rscript -e 'BiocManager::install("Rgraphviz")'
