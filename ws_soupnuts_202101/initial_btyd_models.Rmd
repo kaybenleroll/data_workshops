@@ -176,11 +176,12 @@ This model relies on a number of base assumptions:
 
   1. While active, the number of transactions made by a customer follows a
   Poisson process with transaction rate $\lambda$.
-  1. Heterogeneity in $\lambda$ follows a gamma distribution
-  $\Gamma(\lambda | \alpha, r)$ with parameters shape $\alpha$ and rate $r$. 
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with parameters shape $r$ and rate
+  $\alpha$. 
   1. After any transaction, a customer becomes inactive with probability $p$.
-  1. Heterogeneity in $p$ follows a Beta distribution $B(p | a, b)$ with shape
-  parameters $a$ and $b$.
+  1. Heterogeneity in $p$ follows a Beta distribution $B(p \, | \, a, b)$ with
+  shape parameters $a$ and $b$.
   1. The transaction rate $\lambda$ and the dropout probability $p$ vary
   independently across customers.
 
@@ -196,13 +197,14 @@ Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
 
   1. While active, the number of transactions made by a customer follows a
   Poisson process with transaction rate $\lambda$.
-  1. Heterogeneity in $\lambda$ follows a gamma distribution
-  $\Gamma(\lambda | \alpha, r)$ with parameters shape $\alpha$ and rate $r$. 
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with shape $r$ and rate $\alpha$. 
   1. Each customer has an unobserved 'lifetime' of length $\tau$. This point at
   which the customer becomes inactive is distributed as an exponential with
   dropout rate $\mu$.
-  1. Heterogeneity in dropout rates across customers follows a gamma
-  distribution with shape parameter $s$ and scale parameter $\beta$.
+  1. Heterogeneity in dropout rates across customers follows a Gamma
+  distribution $\Gamma(\tau \, | \, s, \beta)$ with shape parameter $s$ and
+  rate parameter $\beta$.
   1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
   independently across customers.
 
@@ -444,6 +446,9 @@ bgnbd.PAlive(params = params_btyd_bgnbd, x = 5, t.x = 26, T.cal = 30)
 ```
 
 
+
+
+
 ## First CLVTools Model
 
 We also want to fit an equivalent model in `CLVTools` but this requires a bit
@@ -509,6 +514,61 @@ Before we look at predictions, we look for the output plots.
 ```{r produce_bgnbd_plots, echo=TRUE}
 params_bgnbd_clvfit %>% plot()
 ```
+
+### Check Model Fits
+
+We now want to check the validity of the fit by using these parameters to
+generate some data and compare the outputs of this process against the data.
+
+We first check the distribution of the transaction process. The model assumes
+that the transaction rates $\lambda$ are distribution according to a Gamma
+distribution with shape $r$ and rate $\alpha$. This suggests the average
+rate is $r / \alpha$.
+
+```{r check_transaction_rate_parameters, echo=TRUE}
+predict_rates_tbl <- predict_bgnbd_tbl %>%
+  mutate(
+    lambda = CET / period.length
+    )
+
+predict_rates <- predict_rates_tbl %>% pull(lambda)
+
+predict_r     <- params_bgnbd_tbl %>% filter(parameter == "r")     %>% pull(mean)
+predict_alpha <- params_bgnbd_tbl %>% filter(parameter == "alpha") %>% pull(mean)
+
+sim_rates <- predict_rates %>% length() %>% rgamma(shape = predict_r, rate = predict_alpha)
+
+create_summ_table <- function(x) {
+  x %>% summary() %>% enframe() %>% mutate(value = as.numeric(value))
+}
+
+compare_tbl <- list(
+    predict = predict_rates %>% create_summ_table(),
+    sim     = sim_rates     %>% create_summ_table()
+    ) %>%
+  bind_rows(.id = "source") %>%
+  pivot_wider(names_from = "name", values_from = "value")
+```
+
+We can also compare these two sets of data by plotting a histogram.
+
+```{r compare_rates_histogram, echo=TRUE}
+ggplot() +
+  geom_histogram(aes(x = predict_rates), bins = 50, alpha = 0.5) +
+  geom_histogram(aes(x = sim_rates), bins = 50, alpha = 0.5, fill = "red") +
+  scale_x_log10() +
+  labs(
+    x = "Transaction Rate (per week)",
+    y = "Count",
+    title = "Comparison Histograms of Transaction Rate for Predicted vs Simulated Data"
+    )
+
+```
+
+
+
+### Investigating Spending Models
+
 
 Now that we have plotted this data, we want to run our prediction routines on
 the fitted data and look at the output.
@@ -601,6 +661,26 @@ qtr_cohort_bgnbd_tbl <- customer_fitdata_tbl %>%
     )
 ```
 
+As a quick reminder of the parameters for the BG/NBD model, we have a counting
+process for each customer $i$, $\lambda_i$, and these parameters are
+distributed according to a Gamma distribution with shape parameter $\alpha$ and
+rate parameter $r$, i.e.
+
+$$
+\lambda_i \sim \Gamma(\alpha, r).
+$$
+The dropout process is a Geometric distribution with dropout probability $p$
+(i.e. after each transaction the customer 'dies' with probability $p$), and
+this probability is drawn from a Beta distribution with shape parameters $a$
+and $b$, i.e.
+
+$$
+p \sim B(a, b).
+$$
+
+
+
+
 ```{r create_secret_weapon_visualisation_plots, echo=TRUE}
 plot_tbl <- qtr_cohort_bgnbd_tbl %>%
   transmute(
@@ -656,7 +736,8 @@ The nature of the summary statistics used to fit the BG/NBD model means
 constructing bootstrap models is a little more involved than usual.
 
 ```{r construct_split_bgnbd_estimates, echo=TRUE}
-construct_split_bgnbd_estimates <- function(tnx_splits, cache_file, cutoff_date) {
+construct_split_bgnbd_estimates <- function(tnx_splits, cache_file,
+                                            cutoff_date) {
   
   calc_file <- !file_exists(cache_file)
   
