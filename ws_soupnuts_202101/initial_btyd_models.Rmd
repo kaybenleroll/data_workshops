@@ -6,6 +6,7 @@ output:
   rmdformats::readthedown:
     toc_depth: 3
     use_bookdown: yes
+    css: styles.css
 
   html_document:
     fig_caption: yes
@@ -72,8 +73,8 @@ plan(multisession)
 
 # Load Data
 
-We first want to load our datasets and prepare them for some simple association
-rules mining.
+We first want to load our datasets and perform some basic manipulation similar
+to those done for the association rules mining.
 
 ```{r load_transaction_data, echo=TRUE}
 tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
@@ -81,11 +82,11 @@ tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
 tnx_data_tbl %>% glimpse()
 ```
 
-To use our rules mining we just need the invoice data and the stock code, so
-we can ignore the rest. Also, we ignore the issue of returns and just look at
-purchases.
 
-```{r prepare_data_arules, echo=TRUE}
+We model the purchase data first, then combine this to create an individual
+customer/invoice pairing with the total amount spent as an additional column.
+
+```{r prepare_purchase_data, echo=TRUE}
 tnx_purchase_tbl <- tnx_data_tbl %>%
   filter(
     quantity > 0,
@@ -100,7 +101,8 @@ tnx_purchase_tbl %>% glimpse()
 ```
 
 Use of BTYD models assumes a total spend over a period of day and those
-differences 
+differences between the times. This is calculated internally by the various
+BTYD routines so we keep just the per-invoice spend.
 
 ```{r calculate_customer_daily_spend, echo=TRUE}
 daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
@@ -110,7 +112,7 @@ daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
     .groups = "drop",
     
     invoice_spend = sum(stock_value)
-  )
+    )
 
 daily_spend_invoice_tbl %>% glimpse()
 
@@ -207,6 +209,22 @@ Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
   rate parameter $\beta$.
   1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
   independently across customers.
+
+
+## Gamma/Gamma Spending Model
+
+The final piece of this approach is to construct a spending model for the
+transactions. Similar to transaction rates, spending patterns are often
+skewed, so a Gamma distribution is used.
+
+For the Gamma/Gamma model, we use the following assumptions:
+
+  1. Each transaction amount, $v_i$, is distributed according to a Gamma
+  distribution $\Gamma(v_i \, | \, p, \nu)$ with shape parameter $p$ and
+  rate parameter $\nu$.
+  2. Heterogeneity in $p$ follows a Gamma distribution
+  $\Gamma(p \, | \, q, \gamma)$
+
 
 
 
@@ -526,20 +544,26 @@ distribution with shape $r$ and rate $\alpha$. This suggests the average
 rate is $r / \alpha$.
 
 ```{r check_transaction_rate_parameters, echo=TRUE}
-predict_rates_tbl <- predict_bgnbd_tbl %>%
+predict_rates_tbl <- params_bgnbd_clvfit %>%
+  predict() %>%
   mutate(
     lambda = CET / period.length
     )
 
 predict_rates <- predict_rates_tbl %>% pull(lambda)
 
-predict_r     <- params_bgnbd_tbl %>% filter(parameter == "r")     %>% pull(mean)
-predict_alpha <- params_bgnbd_tbl %>% filter(parameter == "alpha") %>% pull(mean)
+predict_r     <- params_bgnbd_clvfit %>% coefficients() %>% extract("r")
+predict_alpha <- params_bgnbd_clvfit %>% coefficients() %>% extract("alpha")
 
-sim_rates <- predict_rates %>% length() %>% rgamma(shape = predict_r, rate = predict_alpha)
+sim_rates <- predict_rates %>%
+  length() %>%
+  rgamma(shape = predict_r, rate = predict_alpha)
 
 create_summ_table <- function(x) {
-  x %>% summary() %>% enframe() %>% mutate(value = as.numeric(value))
+  x %>%
+    summary() %>%
+    enframe() %>%
+    mutate(value = as.numeric(value))
 }
 
 compare_tbl <- list(
@@ -547,8 +571,18 @@ compare_tbl <- list(
     sim     = sim_rates     %>% create_summ_table()
     ) %>%
   bind_rows(.id = "source") %>%
-  pivot_wider(names_from = "name", values_from = "value")
+  pivot_wider(
+    names_from  = "name",
+    values_from = "value"
+    )
+
+compare_tbl %>% glimpse()
 ```
+
+```{r show_rate_comparison_summaries, echo=TRUE}
+compare_tbl %>% print()
+```
+
 
 We can also compare these two sets of data by plotting a histogram.
 
@@ -562,7 +596,6 @@ ggplot() +
     y = "Count",
     title = "Comparison Histograms of Transaction Rate for Predicted vs Simulated Data"
     )
-
 ```
 
 
@@ -584,8 +617,84 @@ fitted spending distribution against the actual spend to see how well we
 capture the data.
 
 ```{r construct_spending_model_plot, echo=TRUE}
-customer_clvdata %>% gg() %>% plot()
+customer_spending_gg <- customer_clvdata %>%
+  gg(verbose = TRUE)
+
+customer_spending_gg %>% plot()
 ```
+
+
+We also want to check the quality of the fit for the heterogeneity of the
+spending patterns.
+
+To do this, we note that it follows from above that the mean spending $\bar{x}$
+is calculated from the Gamma distribution
+
+$$
+\bar{x} = \frac{p}{\nu}.
+$$
+We thus recover each individual customer $\nu$ from the mean spend by
+
+$$
+\nu = \frac{p}{\bar{x}}.
+$$
+We thus have a $\nu$ value for each customer, and then compare this empirical
+distribution for $\nu$ against those drawn from a Gamma distribution with the
+other parameters from the fit.
+
+
+```{r check_spending_model_hetereogeneity, echo=TRUE}
+params_customer_spending <- customer_spending_gg %>%
+  coefficients()
+
+spend_predict_tbl <- customer_spending_gg %>%
+  predict() %>%
+  mutate(
+    nu = params_customer_spending['p'] / predicted.mean.spending
+    )
+
+predict_nu <- spend_predict_tbl %>%
+  pull(nu)
+
+sim_nu <- predict_nu %>%
+  length() %>%
+  rgamma(
+    shape = params_customer_spending['q'],
+    rate  = params_customer_spending['gamma']
+    )
+```
+
+```{r compare_spending_nu_summaries, echo=TRUE}
+nu_compare_tbl <- list(
+    predict = predict_nu %>% create_summ_table(),
+    sim     = sim_nu     %>% create_summ_table()
+    ) %>%
+  bind_rows(.id = "source") %>%
+  pivot_wider(
+    names_from  = "name",
+    values_from = "value"
+    )
+
+nu_compare_tbl %>% glimpse()
+```
+
+As before, we construct a histogram of the two sets of data.
+
+
+```{r comparison_histogram_spending_rate_parameter, echo=TRUE}
+ggplot() +
+  geom_histogram(aes(x = predict_nu), bins = 50, alpha = 0.5) +
+  geom_histogram(aes(x = sim_nu), bins = 50, alpha = 0.5, fill = "red") +
+  scale_x_log10() +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Customer Rate Parameter",
+    y = "Count",
+    title = "Comparison Histograms of Spending Model Rate Parameter for Predicted vs Simulated Data"
+    )
+```
+
+
 
 
 
