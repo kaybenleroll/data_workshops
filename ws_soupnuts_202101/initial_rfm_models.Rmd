@@ -1,0 +1,212 @@
+---
+title: "Using RFM Models the Online Retail Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+    css: styles.css
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(tidyquant)
+library(rsample)
+library(rfm)
+library(xplorerr)
+library(DT)
+
+
+source("lib_utils.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load our dataset and prepare them as before.
+
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+We filter out all returns data and various other transactions we excluded from
+our dataset.
+
+```{r prepare_data_arules, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(
+    invoice_date, invoice_id, stock_code, customer_id, description,
+    quantity, price, stock_value
+    )
+
+tnx_purchase_tbl %>% glimpse()
+```
+
+Much as we did for the BTYD models, we want to look at individual transactions
+so we aggregate across products and combine the data down to an individual
+invoice.
+
+```{r calculate_customer_daily_spend, echo=TRUE}
+daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
+  drop_na(customer_id) %>%
+  group_by(invoice_date, customer_id, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    invoice_spend = sum(stock_value)
+  )
+
+daily_spend_invoice_tbl %>% glimpse()
+
+
+daily_spend_tbl <- daily_spend_invoice_tbl %>%
+  group_by(invoice_date, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(invoice_spend),
+    tnx_count   = n()
+    )
+
+daily_spend_tbl %>% glimpse()
+```
+
+
+Finally, we want to set a date to make the end of the "fitting" data, which
+will be used in the various estimation routines to fit parameters of our models.
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
+```
+
+
+# Basic RFM Analysis
+
+We have some basic transaction data so we now add this to routines provided by
+the `rfm` package.
+
+
+```{r construct_basic_rfm_structures, echo=TRUE}
+customer_rfmdata <- daily_spend_invoice_tbl %>%
+  filter(invoice_date < training_data_date) %>%
+  rfm_table_order(
+    customer_id   = customer_id,
+    order_date    = invoice_date,
+    revenue       = invoice_spend,
+    analysis_date = training_data_date
+    )
+
+customer_rfmdata %>% print()
+```
+
+We now want to look at a few provided visualisations of this data.
+
+```{r plot_rfm_heatmap_data, echo=TRUE}
+customer_rfmdata %>% rfm_heatmap()
+
+customer_rfmdata %>% rfm_bar_chart()
+
+customer_rfmdata %>% rfm_histograms()
+
+customer_rfmdata %>% rfm_rm_plot() + scale_x_log10(labels = label_comma())
+
+customer_rfmdata %>% rfm_fm_plot() + scale_x_log10(labels = label_comma())
+```
+
+## Customer Segments
+
+
+```{r construct_customer_segments, echo=TRUE}
+segment_names <- c(
+  "Champions", "Loyal Customers", "Potential Loyalist", "New Customers",
+  "Promising", "Need Attention", "About To Sleep", "At Risk",
+  "Can't Lose Them", "Lost"
+  )
+
+recency_lower   <- c(4, 2, 3, 4, 3, 2, 2, 1, 1, 1)
+recency_upper   <- c(5, 5, 5, 5, 4, 3, 3, 2, 1, 2)
+frequency_lower <- c(4, 3, 1, 1, 1, 2, 1, 2, 4, 1)
+frequency_upper <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
+monetary_lower  <- c(4, 3, 1, 1, 1, 2, 1, 2, 4, 1)
+monetary_upper  <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
+
+customer_segment_tbl <- tibble(
+  segment_names,
+  recency_lower,
+  recency_upper,
+  frequency_lower,
+  frequency_upper,
+  monetary_lower,
+  monetary_upper
+  )
+
+customer_segment_tbl %>% glimpse()
+```
+
+
+```{r }
+customer_segment_tbl %>% datatable()
+```
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```

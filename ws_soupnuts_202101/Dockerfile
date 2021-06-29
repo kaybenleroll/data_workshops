@@ -21,13 +21,19 @@ RUN apt-get update \
     BTYD \
     BTYDplus \
     CLVTools \
+    descriptr \
     evir \
     fitdistrplus \
     ggraph \
+    kableExtra \
     rfm \
     shinythemes \
+    shinyBS \
+    shinycssloaders \
     survival \
     survminer \
-    visNetwork
+    visNetwork \
+    xplorerr
+
 
 RUN Rscript -e 'BiocManager::install("Rgraphviz")'
