@@ -845,8 +845,10 @@ The nature of the summary statistics used to fit the BG/NBD model means
 constructing bootstrap models is a little more involved than usual.
 
 ```{r construct_split_bgnbd_estimates, echo=TRUE}
-construct_split_bgnbd_estimates <- function(tnx_splits, cache_file,
+construct_split_bgnbd_estimates <- function(tnx_splits, label,
                                             cutoff_date) {
+
+  cache_file <- glue("precompute/{label}_cache.rds") %>% as.character()
   
   calc_file <- !file_exists(cache_file)
   
@@ -893,10 +895,8 @@ n_bootstrap <- 250
 bootstrap_clvdata_tbl <- daily_spend_invoice_tbl %>%
   bootstraps(times = n_bootstrap) %>%
   mutate(
-    cache_file = glue("precompute/{id}_cache.rds") %>% as.character(),
-    
     boot_clv = future_map2(
-      splits, cache_file,
+      splits, id,
       construct_split_bgnbd_estimates,
       cutoff_date = training_data_date,
 
@@ -912,12 +912,34 @@ bootstrap_clvdata_tbl %>% glimpse()
 From this set of bootstrapped CLV data we estimate parameters for each of the
 bootstrap sample.
 
-```{r calculate_bgnbd_parameters, echo=TRUE, cache=TRUE}
+```{r fit_bgnbd_parameters, echo=TRUE}
+fit_bgnbd_parameters <- function(clvdata, label) {
+  
+  cache_file <- glue("precompute/{label}_bgnbd_fit.rds") %>% as.character()
+  
+  calc_file <- !file_exists(cache_file)
+  
+  if(calc_file) {
+    fit_bgnbd <- bgnbd(
+      clvdata,
+      start.params.model = c(r = 0.5, alpha = 5, a = 0.1, b = 9.9)
+      )
+    
+    fit_bgnbd %>% write_rds(file = cache_file)
+  } else {
+    fit_bgnbd <- read_rds(file = cache_file)
+  }
+  
+  return(fit_bgnbd)
+}
+```
+
+```{r fit_bootstrap_bgnbd_parameters, echo=TRUE}
 bootstrap_bgnbd_tbl <- bootstrap_clvdata_tbl %>%
   mutate(
-    bgnbd_fit = future_map(
-      boot_clv, bgnbd,
-      start.params.model = c(r = 0.5, alpha = 5, a = 0.1, b = 9.9),
+    bgnbd_fit = future_map2(
+      boot_clv, id,
+      fit_bgnbd_parameters,
 
       .options  = furrr_options(globals = TRUE, seed = 422),
       .progress = TRUE
