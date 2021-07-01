@@ -156,6 +156,8 @@ customer_rfmdata <- daily_spend_invoice_tbl %>%
 customer_rfmdata %>% print()
 ```
 
+## RFM Visualisations
+
 We now want to look at a few provided visualisations of this data.
 
 ```{r plot_rfm_heatmap_data, echo=TRUE}
@@ -165,13 +167,18 @@ customer_rfmdata %>% rfm_bar_chart()
 
 customer_rfmdata %>% rfm_histograms()
 
-customer_rfmdata %>% rfm_rm_plot() + scale_x_log10(labels = label_comma())
+customer_rfmdata %>% rfm_rm_plot()
 
-customer_rfmdata %>% rfm_fm_plot() + scale_x_log10(labels = label_comma())
+customer_rfmdata %>% rfm_fm_plot()
+
+customer_rfmdata %>% rfm_rf_plot()
 ```
 
-## Customer Segments
 
+# Customer Segments
+
+We can use the RFM measures to segment our customer base, and to do so we need
+to first define each of the segments.
 
 ```{r construct_customer_segments, echo=TRUE}
 segment_names <- c(
@@ -187,7 +194,7 @@ frequency_upper <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
 monetary_lower  <- c(4, 3, 1, 1, 1, 2, 1, 2, 4, 1)
 monetary_upper  <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
 
-customer_segment_tbl <- tibble(
+segment_defs_tbl <- tibble(
   segment_names,
   recency_lower,
   recency_upper,
@@ -197,13 +204,161 @@ customer_segment_tbl <- tibble(
   monetary_upper
   )
 
-customer_segment_tbl %>% glimpse()
+segment_defs_tbl %>% glimpse()
+```
+
+We first visually inspect these segment definitions and the bands.
+
+```{r display_customer_segment_definitions, echo=TRUE}
+segments_show_tbl <- segment_defs_tbl %>%
+  mutate(
+    recency   = glue("{recency_lower}-{recency_upper}")     %>% as.character(),
+    frequency = glue("{frequency_lower}-{frequency_upper}") %>% as.character(),
+    monetary  = glue("{monetary_lower}-{monetary_upper}")   %>% as.character()
+    ) %>%
+  select(
+    segment_names, recency, frequency, monetary
+    )
+
+segments_show_tbl %>%
+  datatable(
+    colnames = c("Segment", "R", "F", "M"),
+    options = list(
+      columnDefs = list(list(className = 'dt-left', targets = 0:4))
+      )
+    )
 ```
 
 
-```{r }
-customer_segment_tbl %>% datatable()
+We now want to check all the different possibilities for customers to check if
+it is possible for some combinations to fit in multiple categories, as this
+can help with segment definition.
+
+
+```{r validate_segment_definitions, echo=TRUE}
+select_customer_segment <- function(rc, fr, mn, data_tbl) {
+  selection_tbl <- data_tbl %>%
+    filter(
+      recency_lower   <= rc, rc <= recency_upper,
+      frequency_lower <= fr, fr <= frequency_upper,
+      monetary_lower  <= mn, mn <= monetary_upper,
+      )
+  
+  return(selection_tbl)
+}
+
+test_customer_tbl <- expand_grid(
+    recency   = 1:5,
+    frequency = 1:5,
+    monetary  = 1:5
+    ) %>%
+  mutate(
+    segment_id = 1:n(),
+    
+    .before = 1
+    ) %>%
+  mutate(
+    select_data = pmap(
+      list(rc = recency, fr = frequency, mn = monetary),
+      select_customer_segment,
+      data_tbl = segment_defs_tbl
+      )
+    )
+  
+test_customer_tbl %>% glimpse()
 ```
+
+Now we check these definitions against our customers and in particular we 
+need to focus on customers assigned to none of the segments, and customers
+assigned to multiple segments.
+
+```{r find_missing_customer_segments, echo=TRUE}
+missing_customer_segments_tbl <- test_customer_tbl %>%
+  filter(map_int(select_data, nrow) == 0) %>%
+  select(-select_data)
+
+missing_customer_segments_tbl %>% datatable()
+```
+
+
+## Analysing the Customer Segments
+
+Now that we have checked our definitions, we categorise each of the customers
+into one of these segments.
+
+```{r segment_customer_base, echo=TRUE}
+customer_segments_tbl <- customer_rfmdata %>%
+  rfm_segment(
+    segment_names   = segment_names,
+    recency_lower   = recency_lower,
+    recency_upper   = recency_upper,
+    frequency_lower = frequency_lower,
+    frequency_upper = frequency_upper,
+    monetary_lower  = monetary_lower,
+    monetary_upper  = monetary_upper
+    )
+
+customer_segments_tbl %>% glimpse()
+```
+
+Having assigned the customers to each segment we now can now use this data to
+run some summary information.
+
+```{r plot_segment_counts, echo=TRUE}
+plot_tbl <- customer_segments_tbl %>% count(segment)
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = segment, y = n, fill = segment), alpha = 0.25) +
+  geom_text(aes(x = segment, y = n, label = n)) +
+  labs(
+    x = "Segment",
+    y = "Count",
+    title = "Plot of Size of Customer Segments"
+    ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 20, vjust = 0.5)
+    )
+```
+
+
+Finally, we produce boxplots of the customer segments by the various metrics
+we have calculated.
+
+```{r construct_segment_boxplots, echo=TRUE}
+ggplot(customer_segments_tbl) +
+  geom_boxplot(aes(x = segment, y = recency_days)) +
+  labs(
+    x = "Customer Segment",
+    y = "Days Since Last Transaction",
+    title = "Boxplot of Transaction Recency by Customer Segment"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+
+
+ggplot(customer_segments_tbl) +
+  geom_boxplot(aes(x = segment, y = transaction_count)) +
+  labs(
+    x = "Customer Segment",
+    y = "Count of Transactions",
+    title = "Boxplot of Transaction Count by Customer Segment"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+
+
+ggplot(customer_segments_tbl) +
+  geom_boxplot(aes(x = segment, y = amount)) +
+  labs(
+    x = "Customer Segment",
+    y = "Count of Transactions",
+    title = "Boxplot of Customer Total Revenue by Customer Segment"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+
+```
+
+
+
 
 # R Environment
 
