@@ -145,7 +145,7 @@ the `rfm` package.
 
 ```{r construct_basic_rfm_structures, echo=TRUE}
 customer_rfmdata <- daily_spend_invoice_tbl %>%
-  filter(invoice_date < training_data_date) %>%
+  filter(invoice_date <= training_data_date) %>%
   rfm_table_order(
     customer_id   = customer_id,
     order_date    = invoice_date,
@@ -308,7 +308,7 @@ run some summary information.
 plot_tbl <- customer_segments_tbl %>% count(segment)
 
 ggplot(plot_tbl) +
-  geom_col(aes(x = segment, y = n, fill = segment), alpha = 0.25) +
+  geom_col(aes(x = segment, y = n, fill = segment), alpha = 0.50) +
   geom_text(aes(x = segment, y = n, label = n)) +
   labs(
     x = "Segment",
@@ -317,7 +317,7 @@ ggplot(plot_tbl) +
     ) +
   theme(
     legend.position = "none",
-    axis.text.x = element_text(angle = 20, vjust = 0.5)
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
     )
 ```
 
@@ -333,29 +333,154 @@ ggplot(customer_segments_tbl) +
     y = "Days Since Last Transaction",
     title = "Boxplot of Transaction Recency by Customer Segment"
     ) +
-  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
 
 
 ggplot(customer_segments_tbl) +
   geom_boxplot(aes(x = segment, y = transaction_count)) +
+  scale_y_log10(labels = label_comma()) +
+  expand_limits(y = 0) +
   labs(
     x = "Customer Segment",
     y = "Count of Transactions",
     title = "Boxplot of Transaction Count by Customer Segment"
     ) +
-  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
 
 
 ggplot(customer_segments_tbl) +
   geom_boxplot(aes(x = segment, y = amount)) +
+  scale_y_log10(labels = label_comma()) +
+  expand_limits(y = 0) +
   labs(
     x = "Customer Segment",
-    y = "Count of Transactions",
+    y = "Total Revenue",
     title = "Boxplot of Customer Total Revenue by Customer Segment"
     ) +
-  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
 
 ```
+
+
+## Out-of-Sample Segment Validation
+
+We can check the validity or usefulness of these segments by using the segment
+classification on the data from after our cutoff date. If our segments are
+useful we should see some discrimination between them in the data.
+
+```{r check_post_cutoff_segments_data, echo=TRUE}
+customer_segment_classification_tbl <- customer_segments_tbl %>%
+  select(customer_id, segment)
+
+post_cutoff_data_tbl <- daily_spend_invoice_tbl %>%
+  filter(invoice_date > training_data_date)
+
+customer_summary_tbl <- post_cutoff_data_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    most_recent_purchase = max(invoice_date),
+    transaction_count    = n(),
+    total_purchase       = sum(invoice_spend)
+    )
+
+customer_summary_tbl %>% glimpse()
+```
+
+
+```{r create_segment_summaries, echo=TRUE}
+segment_check_tbl <- customer_segment_classification_tbl %>%
+  left_join(customer_summary_tbl, by = "customer_id") %>%
+  group_by(segment) %>%
+  mutate(
+    segment_count = n(),
+    
+    .after = "segment"
+    ) %>%
+  ungroup()
+
+plot_tbl <- segment_check_tbl %>%
+  group_by(segment) %>%
+  summarise(
+    count_total = n(),
+    count_dead  = sum(are_na(transaction_count))
+    ) %>%
+  mutate(
+    count_alive = count_total - count_dead,
+    
+    dropped_prop = count_dead / count_total,
+    dropped_p10  = qbeta(0.10, count_dead + 1, count_alive + 1),
+    dropped_p25  = qbeta(0.25, count_dead + 1, count_alive + 1),
+    dropped_p50  = qbeta(0.50, count_dead + 1, count_alive + 1),
+    dropped_p75  = qbeta(0.75, count_dead + 1, count_alive + 1),
+    dropped_p90  = qbeta(0.90, count_dead + 1, count_alive + 1)
+    )
+
+ggplot(plot_tbl) +
+  geom_errorbar(aes(x = segment, ymin = dropped_p10, ymax = dropped_p90),
+                width = 0, size = 1) +
+  geom_errorbar(aes(x = segment, ymin = dropped_p25, ymax = dropped_p75),
+                width = 0, size = 3) +
+  geom_point(aes(x = segment, y = dropped_prop),
+             size = 2, colour = "red") +
+  expand_limits(y = 0) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    x = "Customer Segment",
+    y = "Churn Percentage",
+    title = "Estimate of Customer Churn Percentage by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+```
+
+For the purposes of checking both the frequency and monetary values, we filter
+out those customers with no transactions after the cutoff date i.e. we only
+look at 'alive' customers.
+
+```{r plot_alive_customer_stats_boxplot, echo=TRUE}
+plot_tbl <- segment_check_tbl %>%
+  drop_na(most_recent_purchase)
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = segment, y = transaction_count, fill = segment_count)) +
+  scale_y_log10(labels = label_comma()) +
+  scale_fill_gradient(low = "blue", high = "red", labels = label_comma()) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Customer Segment",
+    y = "Transaction Count",
+    fill = "Segment Size",
+    title = "Boxplot of Customer Transaction Count by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = segment, y = total_purchase)) +
+  scale_y_log10(labels = label_comma()) +
+  scale_fill_gradient(low = "blue", high = "red", labels = label_comma()) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Customer Segment",
+    y = "Total Spend",
+    fill = "Segment Size",
+    title = "Boxplot of Customer Total Revenue by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+
+```
+
 
 
 

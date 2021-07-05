@@ -39,12 +39,15 @@ library(BTYDplus)
 library(CLVTools)
 library(tidyquant)
 library(rsample)
+library(MASS)
+library(fitdistrplus)
 
 
 source("lib_utils.R")
 
 resolve_conflicts(
-  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
   )
 
 
@@ -205,7 +208,7 @@ Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
   which the customer becomes inactive is distributed as an exponential with
   dropout rate $\mu$.
   1. Heterogeneity in dropout rates across customers follows a Gamma
-  distribution $\Gamma(\tau \, | \, s, \beta)$ with shape parameter $s$ and
+  distribution $\Gamma(\mu \, | \, s, \beta)$ with shape parameter $s$ and
   rate parameter $\beta$.
   1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
   independently across customers.
@@ -374,7 +377,9 @@ ggplot(plot_tbl) +
     y = "Customer Count",
     title = "Bar Plot of Customer Monthly Cohort Sizes"
     ) +
-  theme(axis.text.x = element_text(size = 10, vjust = 0.5, angle = 30))
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
 ```
 
 
@@ -425,6 +430,48 @@ ggplot(plot_tbl) +
     )
 
 ```
+
+
+### Investigate Dropout Rates
+
+We want to plot some visualisations of the lifetime and dropout rate of
+customers in each cohort.
+
+
+```{r estimate_cohort_dropout_rates, echo=TRUE}
+cohort_dropout_est_tbl <- customer_firstdate_tbl %>%
+  select(
+    customer_id, first_tnx_date, cohort_qtr, cohort_ym
+    ) %>%
+  filter(
+    first_tnx_date <= training_data_date
+    ) %>%
+  inner_join(daily_spend_tbl, by = "customer_id") %>%
+  group_by(cohort_qtr, customer_id) %>%
+  mutate(
+    final_tnx_date = max(invoice_date)
+    ) %>%
+  ungroup() %>%
+  select(
+    customer_id, cohort_qtr, first_tnx_date, final_tnx_date
+    ) %>%
+  distinct() %>%
+  mutate(
+    obs_lifetime = difftime(final_tnx_date, first_tnx_date, units = "week") %>%
+      as.numeric()
+    ) %>%
+  filter(obs_lifetime > 0) %>%
+  group_by(cohort_qtr) %>%
+  summarise(
+    .groups = "drop",
+    
+    lifetimes = list(obs_lifetime)
+    )
+
+cohort_dropout_est_tbl %>% glimpse()
+```
+
+
 
 
 # Create Initial BTYD Model
@@ -701,8 +748,10 @@ ggplot() +
 # Additional Model Explorations
 
 Another interesting way to think about the model fit is to break the data up
-into the different cohorts, and fit each subset of the data separately, then
-plot each of the parameters of the model by cohort.
+into the different cohorts, fit each subset of the data separately, then plot
+each of the parameters of the model by cohort.
+
+
 
 We also consider using a bootstrap approach to get an indication of the
 variance in the parameter estimates.
@@ -710,7 +759,6 @@ variance in the parameter estimates.
 Note that the two approaches have parallels - it is a simple idea from a
 conceptual and implementation point of view, with the cost of additional
 computation since we need to fit multiple models.
-
 
 
 ```{r convert_tnxdata_clvdata, echo=TRUE}
@@ -730,7 +778,7 @@ convert_tnxdata_clvdata <- function(tnx_data_tbl, end_date,
 }
 ```
 
-We now want to fit the parameters for BG/NBD model.
+We 
 
 
 ```{r extract_bgnbd_parameters, echo=TRUE}
@@ -749,6 +797,9 @@ extract_bgnbd_parameters <- function(fit_clvdata) {
     inner_join(sd_tbl, by = "parameter")
 }
 ```
+
+
+## Investigate Cohort-Specific Model Fits
 
 We now want to gather up the transaction data into the different cohorts and
 use that subset of the data to fit models. We then visualise the differences
@@ -834,8 +885,6 @@ into a table as they will be used later.
 params_bgnbd_tbl <- params_bgnbd_clvfit %>%
   extract_bgnbd_parameters()
 ```
-
-
 
 
 
