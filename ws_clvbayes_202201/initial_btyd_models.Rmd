@@ -1,0 +1,483 @@
+---
+title: "Using Buy-Till-You-Die (BTYD) Models the Online Retail Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+    css: styles.css
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(BTYD)
+library(BTYDplus)
+library(CLVTools)
+
+
+source("lib_utils.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load our datasets and perform some basic manipulation similar
+to those done for the association rules mining.
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+
+We model the purchase data first, then combine this to create an individual
+customer/invoice pairing with the total amount spent as an additional column.
+
+```{r prepare_purchase_data, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(
+    invoice_date, invoice_id, stock_code, customer_id, description,
+    quantity, price, stock_value
+    )
+
+tnx_purchase_tbl %>% glimpse()
+```
+
+Use of BTYD models assumes a total spend over a period of day and those
+differences between the times. This is calculated internally by the various
+BTYD routines so we keep just the per-invoice spend.
+
+```{r calculate_customer_daily_spend, echo=TRUE}
+daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
+  drop_na(customer_id) %>%
+  group_by(invoice_date, customer_id, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    invoice_spend = sum(stock_value)
+    )
+
+daily_spend_invoice_tbl %>% glimpse()
+
+
+daily_spend_tbl <- daily_spend_invoice_tbl %>%
+  group_by(invoice_date, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(invoice_spend),
+    tnx_count   = n()
+    )
+
+daily_spend_tbl %>% glimpse()
+```
+
+
+Finally, we want to set a date to make the end of the "fitting" data, which
+will be used in the various estimation routines to fit parameters of our models.
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
+```
+
+
+# Background Theory
+
+Before we start working on fitting and using the various Buy-Till-You-Die
+models, we first need to discuss the basic underlying theory and model.
+
+In this model, we assume a customer becomes 'alive' to the business at the
+first purchase and then makes purchases stochastically but at a steady-rate
+for a period of time, and then 'dies' - i.e. becomes inactive to the business -
+hence the use of "Buy-Till-You-Die".
+
+Thus, at a high level these models decompose into modelling the transaction
+events using distributions such as the Poisson or Negative Binomial, and then
+modelling the 'dropout' process using some other method.
+
+A number of BTYD models exist and for this workshop we will focus on the
+BG/NBD model - the Beta-Geometric Negative Binomial Distribution model (though
+we will discuss the P/NBD model also).
+
+These models require only two pieces of information about each customer's
+purchasing history: the "recency" (when the last transaction occurred) and
+"frequency" (the count of transactions made by that customer in a specified
+time period).
+
+The notation used to represent this information is
+
+$$
+X = (x, t_x, T),
+$$
+where $x$ is the number of transactions observed in the time period $T$ and
+$t_x$ was the time of the last transaction.
+
+From this summary data we can fit both P/NBD and BG/NBD models.
+
+
+## Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
+
+This model relies on a number of base assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with parameters shape $r$ and rate
+  $\alpha$. 
+  1. After any transaction, a customer becomes inactive with probability $p$.
+  1. Heterogeneity in $p$ follows a Beta distribution $B(p \, | \, a, b)$ with
+  shape parameters $a$ and $b$.
+  1. The transaction rate $\lambda$ and the dropout probability $p$ vary
+  independently across customers.
+
+
+Note that it follows from the above assumptions that the probability of a
+customer being 'alive' after any transaction is given by the Geometric
+distribution, and hence the Beta-Geometric in the name.
+
+
+## Pareto/Negative-Binomial Distribution (P/NBD) Model
+
+Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with shape $r$ and rate $\alpha$. 
+  1. Each customer has an unobserved 'lifetime' of length $\tau$. This point at
+  which the customer becomes inactive is distributed as an exponential with
+  dropout rate $\mu$.
+  1. Heterogeneity in dropout rates across customers follows a Gamma
+  distribution $\Gamma(\mu \, | \, s, \beta)$ with shape parameter $s$ and
+  rate parameter $\beta$.
+  1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
+  independently across customers.
+
+
+## Gamma/Gamma Spending Model
+
+The final piece of this approach is to construct a spending model for the
+transactions. Similar to transaction rates, spending patterns are often
+skewed, so a Gamma distribution is used.
+
+For the Gamma/Gamma model, we use the following assumptions:
+
+  1. Each transaction amount, $v_i$, is distributed according to a Gamma
+  distribution $\Gamma(v_i \, | \, p, \nu)$ with shape parameter $p$ and
+  rate parameter $\nu$.
+  2. Heterogeneity in $p$ follows a Gamma distribution
+  $\Gamma(p \, | \, q, \gamma)$
+
+
+
+
+## BTYD Visualisations
+
+Despite our extensive exploration of the data earlier, the concepts around 
+BTYD modelling suggest a few more than are worth exploring, so we will look at
+those now.
+
+To start with, it might be worth understanding a bit more about when customers
+are 'born' in the system - that is, the date on which they make their first
+purchase. Another important quantity is the time between transactions for a
+customer, we we will visualise these.
+
+```{r construct_customer_first_date, echo=TRUE}
+customer_firstdate_tbl <- daily_spend_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    first_tnx_date  = min(invoice_date),
+    total_tnx_count = n()
+    ) %>%
+  mutate(
+    cohort_qtr = first_tnx_date %>% as.yearqtr(),
+    cohort_ym  = first_tnx_date %>% format("%Y %m"),
+    
+    .after = "customer_id"
+    )
+
+
+customer_firstdate_tbl %>% glimpse()
+```
+
+Now that we have a first date for each customer, we look at the total number
+of customers joining at each date.
+
+```{r plot_customer_first_dates, echo=TRUE}
+plot_tbl <- customer_firstdate_tbl %>%
+  count(first_tnx_date, name = "n_customer")
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = first_tnx_date, y = n_customer)) +
+  labs(
+    x = "First Transaction Date",
+    y = "New Customers",
+    title = "Plot of Count of New Customer by Date"
+    )
+```
+
+We know look at how time differences between purchases are distributed.
+
+```{r plot_transaction_time_diffs, echo=TRUE}
+customer_tnx_diffs_tbl <- daily_spend_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    time_diff = diff(invoice_date) %>% as.numeric() %>% divide_by(7)
+  )
+
+mean_diff <- customer_tnx_diffs_tbl %>% pull(time_diff) %>% mean()
+
+ggplot(customer_tnx_diffs_tbl) +
+  geom_histogram(aes(x = time_diff), bins = 50) +
+  geom_vline(aes(xintercept = mean_diff), colour = "red") +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Frequency",
+    title = "Histogram of Differences Between Transactions for Customers",
+    subtitle = glue(
+      "Mean Difference is {mean_diff} weeks", mean_diff = mean_diff %>% round(2)
+      )
+    )
+```
+
+
+We also want to look at a number of customers and make some line plots of their
+transactions.
+
+```{r visualise_customer_transactions, echo=TRUE}
+keep_customers_tbl <- customer_firstdate_tbl %>%
+  filter(total_tnx_count > 2) %>%
+  slice_sample(n = 30)
+
+plot_tbl <- daily_spend_tbl %>%
+  semi_join(keep_customers_tbl, by = "customer_id")
+
+ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Date",
+    y = "Customer ID",
+    title = "Visualisation of Transaction Times for 30 Customers"
+    ) +
+  theme(axis.text.y = element_text(size = 12))
+```
+
+
+## Investigate Cohorts
+
+Finally, we want to take a look at the distribution of transaction times based
+on various first-transaction cohorts in the data.
+
+
+```{r plot_distribution_first_transaction, echo=TRUE}
+ggplot(customer_firstdate_tbl) +
+  geom_histogram(aes(x = first_tnx_date), bins = 50) +
+  labs(
+    x = "Date of First Transaction",
+    y = "Count",
+    title = "Histogram of New Customer Start Dates"
+    )
+```
+
+We also want to get a sense of the total count of customers in each cohort.
+
+```{r construct_qtr_cohort_column_plot, echo=TRUE}
+plot_tbl <- customer_firstdate_tbl %>%
+  filter(first_tnx_date <= training_data_date) %>%
+  count(cohort_qtr, name = "customer_count") %>%
+  mutate(cohort_qtr = cohort_qtr %>% as.character())
+  
+ggplot(plot_tbl) +
+  geom_col(aes(x = cohort_qtr, y = customer_count)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Customer Cohort",
+    y = "Customer Count",
+    title = "Bar Plot of Customer Quarterly Cohort Sizes"
+    )
+```
+
+We also want to see the monthly cohorts:
+
+```{r construct_ym_cohort_column_plot, echo=TRUE}
+plot_tbl <- customer_firstdate_tbl %>%
+  filter(first_tnx_date <= training_data_date) %>%
+  count(cohort_ym, name = "customer_count") %>%
+  mutate(cohort_ym = cohort_ym %>% as.character())
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = cohort_ym, y = customer_count)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Customer Cohort",
+    y = "Customer Count",
+    title = "Bar Plot of Customer Monthly Cohort Sizes"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+```
+
+
+For the cohort analysis, we start with a boxplot of the time difference between
+transactions by cohort.
+
+```{r plot_cohort_differences_boxplot}
+plot_tbl <- customer_firstdate_tbl %>%
+  filter(first_tnx_date <= training_data_date) %>%
+  inner_join(customer_tnx_diffs_tbl, by = "customer_id") %>%
+  mutate(cohort_qtr = cohort_qtr %>% as.character())
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = cohort_qtr, y = time_diff)) +
+  scale_y_log10() +
+  labs(
+    x = "Cohort",
+    y = "Time Difference (weeks)",
+    title = "Boxplot of Time Differences by Starting Cohort"
+    )
+```
+
+We also construct a density plot of the time differences for these cohorts.
+
+```{r investigate_cohort_transaction_times, echo=TRUE}
+ggplot(plot_tbl, aes(x = time_diff, colour = cohort_qtr)) +
+  geom_line(stat = "density") +
+  geom_dl(aes(label = cohort_qtr), method = "top.bumpup", stat = "density") +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Density",
+    title = "Comparison Density Plot for Transaction Time Differences Between Cohorts"
+    ) +
+  theme(legend.position = "none")
+```
+
+And we also look at a facetted-histogram
+
+```{r investigate_cohort_timediffs_facets, echo=TRUE}
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = time_diff), bins = 50) +
+  facet_wrap(vars(cohort_qtr), scales = "free_y") +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Count",
+    title = "Facetted Histograms of Time Between Transactions"
+    )
+
+```
+
+
+### Investigate Dropout Rates
+
+We want to plot some visualisations of the lifetime and dropout rate of
+customers in each cohort.
+
+
+```{r estimate_cohort_dropout_rates, echo=TRUE}
+cohort_dropout_est_tbl <- customer_firstdate_tbl %>%
+  select(
+    customer_id, first_tnx_date, cohort_qtr, cohort_ym
+    ) %>%
+  filter(
+    first_tnx_date <= training_data_date
+    ) %>%
+  inner_join(daily_spend_tbl, by = "customer_id") %>%
+  group_by(cohort_qtr, customer_id) %>%
+  mutate(
+    final_tnx_date = max(invoice_date)
+    ) %>%
+  ungroup() %>%
+  select(
+    customer_id, cohort_qtr, first_tnx_date, final_tnx_date
+    ) %>%
+  distinct() %>%
+  mutate(
+    obs_lifetime = difftime(final_tnx_date, first_tnx_date, units = "week") %>%
+      as.numeric()
+    ) %>%
+  filter(obs_lifetime > 0) %>%
+  group_by(cohort_qtr) %>%
+  summarise(
+    .groups = "drop",
+    
+    lifetimes = list(obs_lifetime)
+    )
+
+cohort_dropout_est_tbl %>% glimpse()
+```
+
+
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
