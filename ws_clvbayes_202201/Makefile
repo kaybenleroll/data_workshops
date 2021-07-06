@@ -1,6 +1,6 @@
 ### repo variables
 PROJECT_USER=kaybenleroll
-PROJECT_NAME=ws_soupnuts_202101
+PROJECT_NAME=ws_clvbayes_202201
 PROJECT_TAG=latest
 
 IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}:${PROJECT_TAG}
@@ -42,9 +42,6 @@ depgraph: full_deps.png
 
 exploring_retail_data.html: retrieve_retail_data.html
 exploring_retail_dataexplorer.html: exploring_retail_data.html
-exploring_graph_data.html: exploring_retail_data.html
-initial_arules_models.html: exploring_retail_data.html
-initial_timeseries_models.html: exploring_retail_data.html
 initial_btyd_models.html: exploring_retail_data.html
 
 
