@@ -299,7 +299,9 @@ ggplot(customer_tnx_diffs_tbl) +
     x = "Time Difference (weeks)",
     y = "Frequency",
     title = "Histogram of Differences Between Transactions for Customers",
-    subtitle = glue("Mean Difference is {mean_diff} weeks", mean_diff = round(mean_diff, 2))
+    subtitle = glue(
+      "Mean Difference is {mean_diff} weeks", mean_diff = mean_diff %>% round(2)
+      )
     )
 ```
 
@@ -855,6 +857,7 @@ ggplot(
     ) +
   geom_errorbar(width = 0) +
   geom_point() +
+  expand_limits(y = 0) +
   facet_wrap(vars(parameter), scales = "free_y") +
   labs(
     x = "Customer Cohort",
