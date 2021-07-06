@@ -1,6 +1,7 @@
 FROM kaybenleroll/r_baseimage:base202104
 
 RUN apt-get update \
+  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends \
     graphviz \
     libgsl-dev \
@@ -20,13 +21,19 @@ RUN apt-get update \
     BTYD \
     BTYDplus \
     CLVTools \
+    descriptr \
     evir \
     fitdistrplus \
     ggraph \
+    kableExtra \
     rfm \
     shinythemes \
+    shinyBS \
+    shinycssloaders \
     survival \
     survminer \
-    visNetwork
+    visNetwork \
+    xplorerr
+
 
 RUN Rscript -e 'BiocManager::install("Rgraphviz")'

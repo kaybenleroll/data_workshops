@@ -6,6 +6,7 @@ output:
   rmdformats::readthedown:
     toc_depth: 3
     use_bookdown: yes
+    css: styles.css
 
   html_document:
     fig_caption: yes
@@ -26,19 +27,27 @@ library(conflicted)
 library(tidyverse)
 library(scales)
 library(cowplot)
+library(directlabels)
 library(magrittr)
 library(rlang)
+library(fs)
 library(purrr)
+library(furrr)
 library(glue)
 library(BTYD)
 library(BTYDplus)
 library(CLVTools)
+library(tidyquant)
+library(rsample)
+library(MASS)
+library(fitdistrplus)
 
 
 source("lib_utils.R")
 
 resolve_conflicts(
-  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
   )
 
 
@@ -60,13 +69,15 @@ options(
 theme_set(theme_cowplot())
 
 set.seed(42)
+
+plan(multisession)
 ```
 
 
 # Load Data
 
-We first want to load our datasets and prepare them for some simple association
-rules mining.
+We first want to load our datasets and perform some basic manipulation similar
+to those done for the association rules mining.
 
 ```{r load_transaction_data, echo=TRUE}
 tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
@@ -74,11 +85,11 @@ tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
 tnx_data_tbl %>% glimpse()
 ```
 
-To use our rules mining we just need the invoice data and the stock code, so
-we can ignore the rest. Also, we ignore the issue of returns and just look at
-purchases.
 
-```{r prepare_data_arules, echo=TRUE}
+We model the purchase data first, then combine this to create an individual
+customer/invoice pairing with the total amount spent as an additional column.
+
+```{r prepare_purchase_data, echo=TRUE}
 tnx_purchase_tbl <- tnx_data_tbl %>%
   filter(
     quantity > 0,
@@ -93,7 +104,8 @@ tnx_purchase_tbl %>% glimpse()
 ```
 
 Use of BTYD models assumes a total spend over a period of day and those
-differences 
+differences between the times. This is calculated internally by the various
+BTYD routines so we keep just the per-invoice spend.
 
 ```{r calculate_customer_daily_spend, echo=TRUE}
 daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
@@ -103,7 +115,7 @@ daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
     .groups = "drop",
     
     invoice_spend = sum(stock_value)
-  )
+    )
 
 daily_spend_invoice_tbl %>% glimpse()
 
@@ -115,9 +127,17 @@ daily_spend_tbl <- daily_spend_invoice_tbl %>%
     
     total_spend = sum(invoice_spend),
     tnx_count   = n()
-  )
+    )
 
 daily_spend_tbl %>% glimpse()
+```
+
+
+Finally, we want to set a date to make the end of the "fitting" data, which
+will be used in the various estimation routines to fit parameters of our models.
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
 ```
 
 
@@ -136,17 +156,37 @@ events using distributions such as the Poisson or Negative Binomial, and then
 modelling the 'dropout' process using some other method.
 
 A number of BTYD models exist and for this workshop we will focus on the
-BG/NBD model - the Beta-Geometric Negative Binomial Distribution model.
+BG/NBD model - the Beta-Geometric Negative Binomial Distribution model (though
+we will discuss the P/NBD model also).
+
+These models require only two pieces of information about each customer's
+purchasing history: the "recency" (when the last transaction occurred) and
+"frequency" (the count of transactions made by that customer in a specified
+time period).
+
+The notation used to represent this information is
+
+$$
+X = (x, t_x, T),
+$$
+where $x$ is the number of transactions observed in the time period $T$ and
+$t_x$ was the time of the last transaction.
+
+From this summary data we can fit both P/NBD and BG/NBD models.
+
+
+## Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
 
 This model relies on a number of base assumptions:
 
   1. While active, the number of transactions made by a customer follows a
   Poisson process with transaction rate $\lambda$.
-  1. Heterogeneity in $\lambda$ follows a gamma distribution
-  $\Gamma(\lambda | \alpha, r)$ with parameters shape $\alpha$ and rate $r$. 
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with parameters shape $r$ and rate
+  $\alpha$. 
   1. After any transaction, a customer becomes inactive with probability $p$.
-  1. Heterogeneity in $p$ follows a Beta distribution $B(p | a, b)$ with shape
-  parameters $a$ and $b$.
+  1. Heterogeneity in $p$ follows a Beta distribution $B(p \, | \, a, b)$ with
+  shape parameters $a$ and $b$.
   1. The transaction rate $\lambda$ and the dropout probability $p$ vary
   independently across customers.
 
@@ -154,6 +194,41 @@ This model relies on a number of base assumptions:
 Note that it follows from the above assumptions that the probability of a
 customer being 'alive' after any transaction is given by the Geometric
 distribution, and hence the Beta-Geometric in the name.
+
+
+## Pareto/Negative-Binomial Distribution (P/NBD) Model
+
+Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with shape $r$ and rate $\alpha$. 
+  1. Each customer has an unobserved 'lifetime' of length $\tau$. This point at
+  which the customer becomes inactive is distributed as an exponential with
+  dropout rate $\mu$.
+  1. Heterogeneity in dropout rates across customers follows a Gamma
+  distribution $\Gamma(\mu \, | \, s, \beta)$ with shape parameter $s$ and
+  rate parameter $\beta$.
+  1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
+  independently across customers.
+
+
+## Gamma/Gamma Spending Model
+
+The final piece of this approach is to construct a spending model for the
+transactions. Similar to transaction rates, spending patterns are often
+skewed, so a Gamma distribution is used.
+
+For the Gamma/Gamma model, we use the following assumptions:
+
+  1. Each transaction amount, $v_i$, is distributed according to a Gamma
+  distribution $\Gamma(v_i \, | \, p, \nu)$ with shape parameter $p$ and
+  rate parameter $\nu$.
+  2. Heterogeneity in $p$ follows a Gamma distribution
+  $\Gamma(p \, | \, q, \gamma)$
+
+
 
 
 ## BTYD Visualisations
@@ -175,7 +250,14 @@ customer_firstdate_tbl <- daily_spend_tbl %>%
     
     first_tnx_date  = min(invoice_date),
     total_tnx_count = n()
+    ) %>%
+  mutate(
+    cohort_qtr = first_tnx_date %>% as.yearqtr(),
+    cohort_ym  = first_tnx_date %>% format("%Y %m"),
+    
+    .after = "customer_id"
     )
+
 
 customer_firstdate_tbl %>% glimpse()
 ```
@@ -211,12 +293,15 @@ mean_diff <- customer_tnx_diffs_tbl %>% pull(time_diff) %>% mean()
 
 ggplot(customer_tnx_diffs_tbl) +
   geom_histogram(aes(x = time_diff), bins = 50) +
+  geom_vline(aes(xintercept = mean_diff), colour = "red") +
   scale_y_continuous(labels = label_comma()) +
   labs(
     x = "Time Difference (weeks)",
     y = "Frequency",
     title = "Histogram of Differences Between Transactions for Customers",
-    subtitle = glue("Mean Difference is {mean_diff} weeks", mean_diff = round(mean_diff, 2))
+    subtitle = glue(
+      "Mean Difference is {mean_diff} weeks", mean_diff = mean_diff %>% round(2)
+      )
     )
 ```
 
@@ -240,45 +325,712 @@ ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
     y = "Customer ID",
     title = "Visualisation of Transaction Times for 30 Customers"
     ) +
-  theme(axis.text.y = element_text(size = 8))
+  theme(axis.text.y = element_text(size = 12))
 ```
 
 
+## Investigate Cohorts
+
+Finally, we want to take a look at the distribution of transaction times based
+on various first-transaction cohorts in the data.
+
+
+```{r plot_distribution_first_transaction, echo=TRUE}
+ggplot(customer_firstdate_tbl) +
+  geom_histogram(aes(x = first_tnx_date), bins = 50) +
+  labs(
+    x = "Date of First Transaction",
+    y = "Count",
+    title = "Histogram of New Customer Start Dates"
+    )
+```
+
+We also want to get a sense of the total count of customers in each cohort.
+
+```{r construct_qtr_cohort_column_plot, echo=TRUE}
+plot_tbl <- customer_firstdate_tbl %>%
+  filter(first_tnx_date <= training_data_date) %>%
+  count(cohort_qtr, name = "customer_count") %>%
+  mutate(cohort_qtr = cohort_qtr %>% as.character())
+  
+ggplot(plot_tbl) +
+  geom_col(aes(x = cohort_qtr, y = customer_count)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Customer Cohort",
+    y = "Customer Count",
+    title = "Bar Plot of Customer Quarterly Cohort Sizes"
+    )
+```
+
+We also want to see the monthly cohorts:
+
+```{r construct_ym_cohort_column_plot, echo=TRUE}
+plot_tbl <- customer_firstdate_tbl %>%
+  filter(first_tnx_date <= training_data_date) %>%
+  count(cohort_ym, name = "customer_count") %>%
+  mutate(cohort_ym = cohort_ym %>% as.character())
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = cohort_ym, y = customer_count)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Customer Cohort",
+    y = "Customer Count",
+    title = "Bar Plot of Customer Monthly Cohort Sizes"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+```
+
+
+For the cohort analysis, we start with a boxplot of the time difference between
+transactions by cohort.
+
+```{r plot_cohort_differences_boxplot}
+plot_tbl <- customer_firstdate_tbl %>%
+  filter(first_tnx_date <= training_data_date) %>%
+  inner_join(customer_tnx_diffs_tbl, by = "customer_id") %>%
+  mutate(cohort_qtr = cohort_qtr %>% as.character())
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = cohort_qtr, y = time_diff)) +
+  scale_y_log10() +
+  labs(
+    x = "Cohort",
+    y = "Time Difference (weeks)",
+    title = "Boxplot of Time Differences by Starting Cohort"
+    )
+```
+
+We also construct a density plot of the time differences for these cohorts.
+
+```{r investigate_cohort_transaction_times, echo=TRUE}
+ggplot(plot_tbl, aes(x = time_diff, colour = cohort_qtr)) +
+  geom_line(stat = "density") +
+  geom_dl(aes(label = cohort_qtr), method = "top.bumpup", stat = "density") +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Density",
+    title = "Comparison Density Plot for Transaction Time Differences Between Cohorts"
+    ) +
+  theme(legend.position = "none")
+```
+
+And we also look at a facetted-histogram
+
+```{r investigate_cohort_timediffs_facets, echo=TRUE}
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = time_diff), bins = 50) +
+  facet_wrap(vars(cohort_qtr), scales = "free_y") +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time Difference (weeks)",
+    y = "Count",
+    title = "Facetted Histograms of Time Between Transactions"
+    )
+
+```
+
+
+### Investigate Dropout Rates
+
+We want to plot some visualisations of the lifetime and dropout rate of
+customers in each cohort.
+
+
+```{r estimate_cohort_dropout_rates, echo=TRUE}
+cohort_dropout_est_tbl <- customer_firstdate_tbl %>%
+  select(
+    customer_id, first_tnx_date, cohort_qtr, cohort_ym
+    ) %>%
+  filter(
+    first_tnx_date <= training_data_date
+    ) %>%
+  inner_join(daily_spend_tbl, by = "customer_id") %>%
+  group_by(cohort_qtr, customer_id) %>%
+  mutate(
+    final_tnx_date = max(invoice_date)
+    ) %>%
+  ungroup() %>%
+  select(
+    customer_id, cohort_qtr, first_tnx_date, final_tnx_date
+    ) %>%
+  distinct() %>%
+  mutate(
+    obs_lifetime = difftime(final_tnx_date, first_tnx_date, units = "week") %>%
+      as.numeric()
+    ) %>%
+  filter(obs_lifetime > 0) %>%
+  group_by(cohort_qtr) %>%
+  summarise(
+    .groups = "drop",
+    
+    lifetimes = list(obs_lifetime)
+    )
+
+cohort_dropout_est_tbl %>% glimpse()
+```
 
 
 
 
 # Create Initial BTYD Model
 
+We want to start building and investigating our initial BTYD models and there
+are two main packages we will use for this process: `BTYD` and `CLVTools`.
+
+## First BTYD Model
+
+We start using the `BTYD` package, using the various functions provided.
 
 ```{r create_initial_btyd_model, echo=TRUE}
 daily_cbscbt <- daily_spend_tbl %>%
   select(cust = customer_id, date = invoice_date, sales = total_spend) %>%
   dc.ElogToCbsCbt(
     per             = "week",
-    T.cal           = as.Date("2010-06-30"),
+    T.cal           = training_data_date,
     merge.same.date = TRUE
     )
 
-params_bgnbd <- daily_cbscbt$cal$cbs %>%
+params_btyd_bgnbd <- daily_cbscbt$cal$cbs %>%
   bgnbd.EstimateParameters()
 
 
-bgnbd.PlotFrequencyInCalibration(
-  params  = params_bgnbd,
+bgnbd_tnxfreq <- bgnbd.PlotFrequencyInCalibration(
+  params  = params_btyd_bgnbd,
   cal.cbs = daily_cbscbt$cal$cbs,
   censor  = 15
   )
 
-bgnbd.PlotTransactionRateHeterogeneity(params = params_bgnbd)
+bgnbd_tnxrate  <- bgnbd.PlotTransactionRateHeterogeneity(params = params_btyd_bgnbd)
+bgnbd_droprate <- bgnbd.PlotDropoutRateHeterogeneity    (params = params_btyd_bgnbd)
 
-bgnbd.PlotDropoutRateHeterogeneity(params = params_bgnbd)
+bgnbd.Expectation(params = params_btyd_bgnbd, t = 52)
 
-
-bgnbd.Expectation(params = params_bgnbd, t = 52)
-
-bgnbd.PAlive(params = params_bgnbd, x = 5, t.x = 26, T.cal = 30)
+bgnbd.PAlive(params = params_btyd_bgnbd, x = 5, t.x = 26, T.cal = 30)
 ```
+
+
+
+
+
+## First CLVTools Model
+
+We also want to fit an equivalent model in `CLVTools` but this requires a bit
+more work upfront as it requires you to explicitly remove new customers in the
+data.
+
+For this we keep all customers in the cohorts up to Q4 2010, and use that
+data to fit our models.
+
+```{r construct_btyd_fit_data, echo=TRUE}
+customer_fitdata_tbl <- customer_firstdate_tbl %>%
+  select(customer_id, first_tnx_date, cohort_qtr, cohort_ym) %>%
+  filter(first_tnx_date <= training_data_date) %>%
+  inner_join(daily_spend_tbl, by = "customer_id")
+
+customer_fitdata_tbl %>% glimpse()
+```
+
+We now use this data to construct the `clvdata` that will be used to fit our
+models.
+
+```{r construct_clvdata_structure, echo=TRUE}
+customer_clvdata <- customer_fitdata_tbl %>%
+  clvdata(
+    date.format      = "%Y-%m-%d",
+    time.unit        = "weeks",
+    estimation.split = training_data_date,
+    name.id          = "customer_id",
+    name.date        = "invoice_date",
+    name.price       = "total_spend"
+    )
+```
+
+```{r show_clvdata_summary, echo=FALSE}
+orig_width <- getOption("width")
+options(width = 120L)
+customer_clvdata %>% summary()
+options(width = orig_width)
+```
+
+We now want to fit the BG/NBD model using this input data. Fitting these models
+can take a bit of trial-and-error, but we can use our knowledge of the Gamma
+and Beta distributions to give us starting points that seems reasonable and
+this should help with the fitting process.
+
+```{r fit_first_bgnbd_model, echo=TRUE}
+params_bgnbd_clvfit <- bgnbd(
+  clv.data = customer_clvdata,
+  start.params.model = c(r = 0.5, alpha = 10, a = 0.1, b = 9.9),
+  verbose  = TRUE
+  )
+
+params_bgnbd_clvfit %>% summary()
+```
+
+With our fitted model, we can now use these parameters to produce predictions
+for the holdout period and compare it to what happened during this time - this
+gives us a method of validating our model and discovering where we may have 
+issues with the model.
+
+Before we look at predictions, we look for the output plots.
+
+```{r produce_bgnbd_plots, echo=TRUE}
+params_bgnbd_clvfit %>% plot()
+```
+
+### Check Model Fits
+
+We now want to check the validity of the fit by using these parameters to
+generate some data and compare the outputs of this process against the data.
+
+We first check the distribution of the transaction process. The model assumes
+that the transaction rates $\lambda$ are distribution according to a Gamma
+distribution with shape $r$ and rate $\alpha$. This suggests the average
+rate is $r / \alpha$.
+
+```{r check_transaction_rate_parameters, echo=TRUE}
+predict_rates_tbl <- params_bgnbd_clvfit %>%
+  predict() %>%
+  mutate(
+    lambda = CET / period.length
+    )
+
+predict_rates <- predict_rates_tbl %>% pull(lambda)
+
+predict_r     <- params_bgnbd_clvfit %>% coefficients() %>% extract("r")
+predict_alpha <- params_bgnbd_clvfit %>% coefficients() %>% extract("alpha")
+
+sim_rates <- predict_rates %>%
+  length() %>%
+  rgamma(shape = predict_r, rate = predict_alpha)
+
+create_summ_table <- function(x) {
+  x %>%
+    summary() %>%
+    enframe() %>%
+    mutate(value = as.numeric(value))
+}
+
+compare_tbl <- list(
+    predict = predict_rates %>% create_summ_table(),
+    sim     = sim_rates     %>% create_summ_table()
+    ) %>%
+  bind_rows(.id = "source") %>%
+  pivot_wider(
+    names_from  = "name",
+    values_from = "value"
+    )
+
+compare_tbl %>% glimpse()
+```
+
+```{r show_rate_comparison_summaries, echo=TRUE}
+compare_tbl %>% print()
+```
+
+
+We can also compare these two sets of data by plotting a histogram.
+
+```{r compare_rates_histogram, echo=TRUE}
+ggplot() +
+  geom_histogram(aes(x = predict_rates), bins = 50, alpha = 0.5) +
+  geom_histogram(aes(x = sim_rates), bins = 50, alpha = 0.5, fill = "red") +
+  scale_x_log10() +
+  labs(
+    x = "Transaction Rate (per week)",
+    y = "Count",
+    title = "Comparison Histograms of Transaction Rate for Predicted vs Simulated Data"
+    )
+```
+
+
+
+### Investigating Spending Models
+
+
+Now that we have plotted this data, we want to run our prediction routines on
+the fitted data and look at the output.
+
+```{r construct_bgnbd_predictions, echo=TRUE}
+predict_bgnbd_tbl <- params_bgnbd_clvfit %>% predict()
+predict_bgnbd_tbl %>% glimpse()
+```
+
+The above prediction depends on constructing a Gamma-Gamma based spending
+model, which adds the monetary part of the model. To do this, we now plot the
+fitted spending distribution against the actual spend to see how well we
+capture the data.
+
+```{r construct_spending_model_plot, echo=TRUE}
+customer_spending_gg <- customer_clvdata %>%
+  gg(verbose = TRUE)
+
+customer_spending_gg %>% plot()
+```
+
+
+We also want to check the quality of the fit for the heterogeneity of the
+spending patterns.
+
+To do this, we note that it follows from above that the mean spending $\bar{x}$
+is calculated from the Gamma distribution
+
+$$
+\bar{x} = \frac{p}{\nu}.
+$$
+We thus recover each individual customer $\nu$ from the mean spend by
+
+$$
+\nu = \frac{p}{\bar{x}}.
+$$
+We thus have a $\nu$ value for each customer, and then compare this empirical
+distribution for $\nu$ against those drawn from a Gamma distribution with the
+other parameters from the fit.
+
+
+```{r check_spending_model_hetereogeneity, echo=TRUE}
+params_customer_spending <- customer_spending_gg %>%
+  coefficients()
+
+spend_predict_tbl <- customer_spending_gg %>%
+  predict() %>%
+  mutate(
+    nu = params_customer_spending['p'] / predicted.mean.spending
+    )
+
+predict_nu <- spend_predict_tbl %>%
+  pull(nu)
+
+sim_nu <- predict_nu %>%
+  length() %>%
+  rgamma(
+    shape = params_customer_spending['q'],
+    rate  = params_customer_spending['gamma']
+    )
+```
+
+```{r compare_spending_nu_summaries, echo=TRUE}
+nu_compare_tbl <- list(
+    predict = predict_nu %>% create_summ_table(),
+    sim     = sim_nu     %>% create_summ_table()
+    ) %>%
+  bind_rows(.id = "source") %>%
+  pivot_wider(
+    names_from  = "name",
+    values_from = "value"
+    )
+
+nu_compare_tbl %>% glimpse()
+```
+
+As before, we construct a histogram of the two sets of data.
+
+
+```{r comparison_histogram_spending_rate_parameter, echo=TRUE}
+ggplot() +
+  geom_histogram(aes(x = predict_nu), bins = 50, alpha = 0.5) +
+  geom_histogram(aes(x = sim_nu), bins = 50, alpha = 0.5, fill = "red") +
+  scale_x_log10() +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Customer Rate Parameter",
+    y = "Count",
+    title = "Comparison Histograms of Spending Model Rate Parameter for Predicted vs Simulated Data"
+    )
+```
+
+
+
+
+
+# Additional Model Explorations
+
+Another interesting way to think about the model fit is to break the data up
+into the different cohorts, fit each subset of the data separately, then plot
+each of the parameters of the model by cohort.
+
+
+
+We also consider using a bootstrap approach to get an indication of the
+variance in the parameter estimates.
+
+Note that the two approaches have parallels - it is a simple idea from a
+conceptual and implementation point of view, with the cost of additional
+computation since we need to fit multiple models.
+
+
+```{r convert_tnxdata_clvdata, echo=TRUE}
+convert_tnxdata_clvdata <- function(tnx_data_tbl, end_date,
+                                    spend_col = "total_spend") {
+  customer_clvdata <- tnx_data_tbl %>%
+    clvdata(
+      date.format      = "%Y-%m-%d",
+      time.unit        = "weeks",
+      estimation.split = end_date,
+      name.id          = "customer_id",
+      name.date        = "invoice_date",
+      name.price       = spend_col
+      )
+  
+  return(customer_clvdata)
+}
+```
+
+We 
+
+
+```{r extract_bgnbd_parameters, echo=TRUE}
+extract_bgnbd_parameters <- function(fit_clvdata) {
+  mean_tbl <- fit_clvdata %>%
+    coefficients() %>%
+    enframe(name = "parameter", value = "mean")
+  
+  sd_tbl   <- fit_clvdata %>%
+    vcov() %>%
+    diag() %>%
+    sqrt() %>%
+    enframe(name = "parameter", value = "sd")
+  
+  params_tbl <- mean_tbl %>%
+    inner_join(sd_tbl, by = "parameter")
+}
+```
+
+
+## Investigate Cohort-Specific Model Fits
+
+We now want to gather up the transaction data into the different cohorts and
+use that subset of the data to fit models. We then visualise the differences
+in the parameters using facet plots.
+
+```{r fit_models_qtr_cohort_data, echo=TRUE}
+qtr_cohort_bgnbd_tbl <- customer_fitdata_tbl %>%
+  group_nest(cohort_qtr, .key = "tnx_data", keep = TRUE) %>%
+  mutate(
+    clv_data = map(
+      tnx_data, convert_tnxdata_clvdata,
+      end_date = training_data_date
+      ),
+    bgnbd_fit = map(
+      clv_data, bgnbd,
+      start.params.model = c(r = 0.5, alpha = 5, a = 0.1, b = 9.9)
+      ),
+    param_data = map(bgnbd_fit, extract_bgnbd_parameters)
+    )
+```
+
+As a quick reminder of the parameters for the BG/NBD model, we have a counting
+process for each customer $i$, $\lambda_i$, and these parameters are
+distributed according to a Gamma distribution with shape parameter $\alpha$ and
+rate parameter $r$, i.e.
+
+$$
+\lambda_i \sim \Gamma(\alpha, r).
+$$
+The dropout process is a Geometric distribution with dropout probability $p$
+(i.e. after each transaction the customer 'dies' with probability $p$), and
+this probability is drawn from a Beta distribution with shape parameters $a$
+and $b$, i.e.
+
+$$
+p \sim B(a, b).
+$$
+
+
+
+
+```{r create_secret_weapon_visualisation_plots, echo=TRUE}
+plot_tbl <- qtr_cohort_bgnbd_tbl %>%
+  transmute(
+    cohort_qtr = cohort_qtr %>% as.character(),
+    param_data
+    ) %>%
+  unnest(param_data)
+
+ggplot(
+    plot_tbl,
+    aes(x = cohort_qtr, y = mean, ymin = mean - 2 * sd, ymax = mean + 2 * sd)
+    ) +
+  geom_errorbar(width = 0) +
+  geom_point() +
+  expand_limits(y = 0) +
+  facet_wrap(vars(parameter), scales = "free_y") +
+  labs(
+    x = "Customer Cohort",
+    y = "Parameter Value",
+    title = "Comparison Plot of Parameter Values (Parameter Facets"
+    )
+
+
+ggplot(
+    plot_tbl,
+    aes(x = parameter, y = mean, ymin = mean - 2 * sd, ymax = mean + 2 * sd)
+    ) +
+  geom_errorbar(width = 0) +
+  geom_point() +
+  facet_wrap(vars(cohort_qtr), scales = "free_y") +
+  labs(
+    x     = "Customer Cohort",
+    y     = "Parameter Value",
+    title = "Comparison Plot of Parameter Values (Cohort Facets)"
+    )
+```
+
+
+Before we move on to calculating the bootstrap estimates, we save these values
+into a table as they will be used later.
+
+```{r params_bgnbd_fit, echo=TRUE}
+params_bgnbd_tbl <- params_bgnbd_clvfit %>%
+  extract_bgnbd_parameters()
+```
+
+
+
+## Constructing Bootstrap Estimates
+
+The nature of the summary statistics used to fit the BG/NBD model means
+constructing bootstrap models is a little more involved than usual.
+
+```{r construct_split_bgnbd_estimates, echo=TRUE}
+construct_split_bgnbd_estimates <- function(tnx_splits, label,
+                                            cutoff_date) {
+
+  cache_file <- glue("precompute/{label}_cache.rds") %>% as.character()
+  
+  calc_file <- !file_exists(cache_file)
+  
+  if(calc_file) {
+    tnx_clvdata <- tnx_splits %>%
+      analysis() %>%
+      group_by(customer_id) %>%
+      mutate(
+        first_tnx_date = min(invoice_date)
+        ) %>%
+      mutate(
+        cohort_qtr = first_tnx_date %>% as.yearqtr(),
+        cohort_ym  = first_tnx_date %>% format("%Y %m"),
+  
+        .after = "customer_id"
+        ) %>%
+      ungroup() %>%
+      filter(first_tnx_date <= cutoff_date) %>%
+      clvdata(
+        date.format      = "%Y-%m-%d",
+        time.unit        = "weeks",
+        estimation.split = cutoff_date,
+        name.id          = "customer_id",
+        name.date        = "invoice_date",
+        name.price       = "invoice_spend"
+        )
+    
+    tnx_clvdata %>% write_rds(file = cache_file)
+  } else {
+    tnx_clvdata <- read_rds(file = cache_file)
+  }
+
+  return(tnx_clvdata)
+}
+```
+
+We now use this function to create a bootstrap distribution of the fitted
+model parameters. We start by taking bootstrap samples of the transaction
+data and then built the CLV data from that sample.
+
+```{r construct_bootstrap_clvdata, echo=TRUE}
+n_bootstrap <- 250
+
+bootstrap_clvdata_tbl <- daily_spend_invoice_tbl %>%
+  bootstraps(times = n_bootstrap) %>%
+  mutate(
+    boot_clv = future_map2(
+      splits, id,
+      construct_split_bgnbd_estimates,
+      cutoff_date = training_data_date,
+
+      .options  = furrr_options(globals = TRUE, seed = 421),
+      .progress = TRUE
+      )
+    )
+
+bootstrap_clvdata_tbl %>% glimpse()
+```
+
+
+From this set of bootstrapped CLV data we estimate parameters for each of the
+bootstrap sample.
+
+```{r fit_bgnbd_parameters, echo=TRUE}
+fit_bgnbd_parameters <- function(clvdata, label) {
+  
+  cache_file <- glue("precompute/{label}_bgnbd_fit.rds") %>% as.character()
+  
+  calc_file <- !file_exists(cache_file)
+  
+  if(calc_file) {
+    fit_bgnbd <- bgnbd(
+      clvdata,
+      start.params.model = c(r = 0.5, alpha = 5, a = 0.1, b = 9.9)
+      )
+    
+    fit_bgnbd %>% write_rds(file = cache_file)
+  } else {
+    fit_bgnbd <- read_rds(file = cache_file)
+  }
+  
+  return(fit_bgnbd)
+}
+```
+
+```{r fit_bootstrap_bgnbd_parameters, echo=TRUE}
+bootstrap_bgnbd_tbl <- bootstrap_clvdata_tbl %>%
+  mutate(
+    bgnbd_fit = future_map2(
+      boot_clv, id,
+      fit_bgnbd_parameters,
+
+      .options  = furrr_options(globals = TRUE, seed = 422),
+      .progress = TRUE
+      )
+    )
+
+bootstrap_bgnbd_tbl %>% glimpse()
+```
+
+
+
+
+```{r plot_bootstrap_parameters, echo=TRUE}
+get_coefs <- ~ .x %>%
+  coefficients() %>%
+  enframe(name = "parameter", value = "value")
+
+bootstrap_fit_params_tbl <- bootstrap_bgnbd_tbl %>%
+  mutate(
+    param_data = map(bgnbd_fit, get_coefs)
+    ) %>%
+  select(id, param_data) %>%
+  unnest(param_data) %>%
+  inner_join(params_bgnbd_tbl, by = "parameter")
+
+ggplot(bootstrap_fit_params_tbl) +
+  geom_histogram(aes(x = value), bins = 25) +
+  geom_vline(aes(xintercept = mean), colour = "red") +
+  facet_wrap(vars(parameter), scales = "free") +
+  labs(
+    x = "Value",
+    y = "Count",
+    title = "Facet Plot of Bootstrap Estimates of BG/NBD Parameters"
+    )
+```
+
+
+
+
 
 
 

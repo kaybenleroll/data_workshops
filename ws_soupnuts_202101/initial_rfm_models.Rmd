@@ -1,0 +1,492 @@
+---
+title: "Using RFM Models the Online Retail Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+    css: styles.css
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(tidyquant)
+library(rsample)
+library(rfm)
+library(xplorerr)
+library(DT)
+
+
+source("lib_utils.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load our dataset and prepare them as before.
+
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+We filter out all returns data and various other transactions we excluded from
+our dataset.
+
+```{r prepare_data_arules, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    exclude == FALSE
+    ) %>%
+  select(
+    invoice_date, invoice_id, stock_code, customer_id, description,
+    quantity, price, stock_value
+    )
+
+tnx_purchase_tbl %>% glimpse()
+```
+
+Much as we did for the BTYD models, we want to look at individual transactions
+so we aggregate across products and combine the data down to an individual
+invoice.
+
+```{r calculate_customer_daily_spend, echo=TRUE}
+daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
+  drop_na(customer_id) %>%
+  group_by(invoice_date, customer_id, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    invoice_spend = sum(stock_value)
+  )
+
+daily_spend_invoice_tbl %>% glimpse()
+
+
+daily_spend_tbl <- daily_spend_invoice_tbl %>%
+  group_by(invoice_date, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(invoice_spend),
+    tnx_count   = n()
+    )
+
+daily_spend_tbl %>% glimpse()
+```
+
+
+Finally, we want to set a date to make the end of the "fitting" data, which
+will be used in the various estimation routines to fit parameters of our models.
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
+```
+
+
+# Basic RFM Analysis
+
+We have some basic transaction data so we now add this to routines provided by
+the `rfm` package.
+
+
+```{r construct_basic_rfm_structures, echo=TRUE}
+customer_rfmdata <- daily_spend_invoice_tbl %>%
+  filter(invoice_date <= training_data_date) %>%
+  rfm_table_order(
+    customer_id   = customer_id,
+    order_date    = invoice_date,
+    revenue       = invoice_spend,
+    analysis_date = training_data_date
+    )
+
+customer_rfmdata %>% print()
+```
+
+## RFM Visualisations
+
+We now want to look at a few provided visualisations of this data.
+
+```{r plot_rfm_heatmap_data, echo=TRUE}
+customer_rfmdata %>% rfm_heatmap()
+
+customer_rfmdata %>% rfm_bar_chart()
+
+customer_rfmdata %>% rfm_histograms()
+
+customer_rfmdata %>% rfm_rm_plot()
+
+customer_rfmdata %>% rfm_fm_plot()
+
+customer_rfmdata %>% rfm_rf_plot()
+```
+
+
+# Customer Segments
+
+We can use the RFM measures to segment our customer base, and to do so we need
+to first define each of the segments.
+
+```{r construct_customer_segments, echo=TRUE}
+segment_names <- c(
+  "Champions", "Loyal Customers", "Potential Loyalist", "New Customers",
+  "Promising", "Need Attention", "About To Sleep", "At Risk",
+  "Can't Lose Them", "Lost"
+  )
+
+recency_lower   <- c(4, 2, 3, 4, 3, 2, 2, 1, 1, 1)
+recency_upper   <- c(5, 5, 5, 5, 4, 3, 3, 2, 1, 2)
+frequency_lower <- c(4, 3, 1, 1, 1, 2, 1, 2, 4, 1)
+frequency_upper <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
+monetary_lower  <- c(4, 3, 1, 1, 1, 2, 1, 2, 4, 1)
+monetary_upper  <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
+
+segment_defs_tbl <- tibble(
+  segment_names,
+  recency_lower,
+  recency_upper,
+  frequency_lower,
+  frequency_upper,
+  monetary_lower,
+  monetary_upper
+  )
+
+segment_defs_tbl %>% glimpse()
+```
+
+We first visually inspect these segment definitions and the bands.
+
+```{r display_customer_segment_definitions, echo=TRUE}
+segments_show_tbl <- segment_defs_tbl %>%
+  mutate(
+    recency   = glue("{recency_lower}-{recency_upper}")     %>% as.character(),
+    frequency = glue("{frequency_lower}-{frequency_upper}") %>% as.character(),
+    monetary  = glue("{monetary_lower}-{monetary_upper}")   %>% as.character()
+    ) %>%
+  select(
+    segment_names, recency, frequency, monetary
+    )
+
+segments_show_tbl %>%
+  datatable(
+    colnames = c("Segment", "R", "F", "M"),
+    options = list(
+      columnDefs = list(list(className = 'dt-left', targets = 0:4))
+      )
+    )
+```
+
+
+We now want to check all the different possibilities for customers to check if
+it is possible for some combinations to fit in multiple categories, as this
+can help with segment definition.
+
+
+```{r validate_segment_definitions, echo=TRUE}
+select_customer_segment <- function(rc, fr, mn, data_tbl) {
+  selection_tbl <- data_tbl %>%
+    filter(
+      recency_lower   <= rc, rc <= recency_upper,
+      frequency_lower <= fr, fr <= frequency_upper,
+      monetary_lower  <= mn, mn <= monetary_upper,
+      )
+  
+  return(selection_tbl)
+}
+
+test_customer_tbl <- expand_grid(
+    recency   = 1:5,
+    frequency = 1:5,
+    monetary  = 1:5
+    ) %>%
+  mutate(
+    segment_id = 1:n(),
+    
+    .before = 1
+    ) %>%
+  mutate(
+    select_data = pmap(
+      list(rc = recency, fr = frequency, mn = monetary),
+      select_customer_segment,
+      data_tbl = segment_defs_tbl
+      )
+    )
+  
+test_customer_tbl %>% glimpse()
+```
+
+Now we check these definitions against our customers and in particular we 
+need to focus on customers assigned to none of the segments, and customers
+assigned to multiple segments.
+
+```{r find_missing_customer_segments, echo=TRUE}
+missing_customer_segments_tbl <- test_customer_tbl %>%
+  filter(map_int(select_data, nrow) == 0) %>%
+  select(-select_data)
+
+missing_customer_segments_tbl %>% datatable()
+```
+
+
+## Analysing the Customer Segments
+
+Now that we have checked our definitions, we categorise each of the customers
+into one of these segments.
+
+```{r segment_customer_base, echo=TRUE}
+customer_segments_tbl <- customer_rfmdata %>%
+  rfm_segment(
+    segment_names   = segment_names,
+    recency_lower   = recency_lower,
+    recency_upper   = recency_upper,
+    frequency_lower = frequency_lower,
+    frequency_upper = frequency_upper,
+    monetary_lower  = monetary_lower,
+    monetary_upper  = monetary_upper
+    )
+
+customer_segments_tbl %>% glimpse()
+```
+
+Having assigned the customers to each segment we now can now use this data to
+run some summary information.
+
+```{r plot_segment_counts, echo=TRUE}
+plot_tbl <- customer_segments_tbl %>% count(segment)
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = segment, y = n, fill = segment), alpha = 0.50) +
+  geom_text(aes(x = segment, y = n, label = n)) +
+  labs(
+    x = "Segment",
+    y = "Count",
+    title = "Plot of Size of Customer Segments"
+    ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+```
+
+
+Finally, we produce boxplots of the customer segments by the various metrics
+we have calculated.
+
+```{r construct_segment_boxplots, echo=TRUE}
+ggplot(customer_segments_tbl) +
+  geom_boxplot(aes(x = segment, y = recency_days)) +
+  labs(
+    x = "Customer Segment",
+    y = "Days Since Last Transaction",
+    title = "Boxplot of Transaction Recency by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+
+
+ggplot(customer_segments_tbl) +
+  geom_boxplot(aes(x = segment, y = transaction_count)) +
+  scale_y_log10(labels = label_comma()) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Customer Segment",
+    y = "Count of Transactions",
+    title = "Boxplot of Transaction Count by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+
+
+ggplot(customer_segments_tbl) +
+  geom_boxplot(aes(x = segment, y = amount)) +
+  scale_y_log10(labels = label_comma()) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Customer Segment",
+    y = "Total Revenue",
+    title = "Boxplot of Customer Total Revenue by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+
+```
+
+
+## Out-of-Sample Segment Validation
+
+We can check the validity or usefulness of these segments by using the segment
+classification on the data from after our cutoff date. If our segments are
+useful we should see some discrimination between them in the data.
+
+```{r check_post_cutoff_segments_data, echo=TRUE}
+customer_segment_classification_tbl <- customer_segments_tbl %>%
+  select(customer_id, segment)
+
+post_cutoff_data_tbl <- daily_spend_invoice_tbl %>%
+  filter(invoice_date > training_data_date)
+
+customer_summary_tbl <- post_cutoff_data_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    most_recent_purchase = max(invoice_date),
+    transaction_count    = n(),
+    total_purchase       = sum(invoice_spend)
+    )
+
+customer_summary_tbl %>% glimpse()
+```
+
+
+```{r create_segment_summaries, echo=TRUE}
+segment_check_tbl <- customer_segment_classification_tbl %>%
+  left_join(customer_summary_tbl, by = "customer_id") %>%
+  group_by(segment) %>%
+  mutate(
+    segment_count = n(),
+    
+    .after = "segment"
+    ) %>%
+  ungroup()
+
+plot_tbl <- segment_check_tbl %>%
+  group_by(segment) %>%
+  summarise(
+    count_total = n(),
+    count_dead  = sum(are_na(transaction_count))
+    ) %>%
+  mutate(
+    count_alive = count_total - count_dead,
+    
+    dropped_prop = count_dead / count_total,
+    dropped_p10  = qbeta(0.10, count_dead + 1, count_alive + 1),
+    dropped_p25  = qbeta(0.25, count_dead + 1, count_alive + 1),
+    dropped_p50  = qbeta(0.50, count_dead + 1, count_alive + 1),
+    dropped_p75  = qbeta(0.75, count_dead + 1, count_alive + 1),
+    dropped_p90  = qbeta(0.90, count_dead + 1, count_alive + 1)
+    )
+
+ggplot(plot_tbl) +
+  geom_errorbar(aes(x = segment, ymin = dropped_p10, ymax = dropped_p90),
+                width = 0, size = 1) +
+  geom_errorbar(aes(x = segment, ymin = dropped_p25, ymax = dropped_p75),
+                width = 0, size = 3) +
+  geom_point(aes(x = segment, y = dropped_prop),
+             size = 2, colour = "red") +
+  expand_limits(y = 0) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    x = "Customer Segment",
+    y = "Churn Percentage",
+    title = "Estimate of Customer Churn Percentage by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+```
+
+For the purposes of checking both the frequency and monetary values, we filter
+out those customers with no transactions after the cutoff date i.e. we only
+look at 'alive' customers.
+
+```{r plot_alive_customer_stats_boxplot, echo=TRUE}
+plot_tbl <- segment_check_tbl %>%
+  drop_na(most_recent_purchase)
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = segment, y = transaction_count, fill = segment_count)) +
+  scale_y_log10(labels = label_comma()) +
+  scale_fill_gradient(low = "blue", high = "red", labels = label_comma()) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Customer Segment",
+    y = "Transaction Count",
+    fill = "Segment Size",
+    title = "Boxplot of Customer Transaction Count by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = segment, y = total_purchase)) +
+  scale_y_log10(labels = label_comma()) +
+  scale_fill_gradient(low = "blue", high = "red", labels = label_comma()) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Customer Segment",
+    y = "Total Spend",
+    fill = "Segment Size",
+    title = "Boxplot of Customer Total Revenue by Customer Segment"
+    ) +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
+    )
+
+```
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
