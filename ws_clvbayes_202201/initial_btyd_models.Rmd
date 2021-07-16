@@ -137,6 +137,7 @@ training_data_date <- as.Date("2011-03-31")
 ```
 
 
+
 # Background Theory
 
 Before we start working on fitting and using the various Buy-Till-You-Die
@@ -228,6 +229,19 @@ For the Gamma/Gamma model, we use the following assumptions:
 
 
 
+# Data Preparation
+
+```{r}
+daily_spend_tbl %>%
+  clvdata(
+    date.format = "%Y-%m-%d",
+    time.unit = "weeks",
+    estimation.split = training_data_date,
+    name.id          = "customer_id",
+    name.date        = "invoice_date",
+    name.price       = "total_spend"
+    )
+```
 
 
 # R Environment
