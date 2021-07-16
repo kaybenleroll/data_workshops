@@ -1216,7 +1216,7 @@ ggplot(plot_tbl) +
 ```
 
 
-## Investigate Refunds
+# Investigate Refunds
 
 This transactions data also includes returns and refunds - adding a level of
 complexity to this analysis as we need to account for this when assessing the
@@ -1235,7 +1235,7 @@ to be some returns in our data that do not have a corresponding sale, so we
 can also ignore those.
 
 
-```{r create_matching_returns_data, echo=TRUE}
+```{r create_matching_returns_data, echo=TRUE, cache=TRUE}
 filter_returns_transactions <- function(use_stock, use_customer,  use_dttm,
                                         data_tbl) {
   matches_tbl <- data_tbl %>%
@@ -1751,6 +1751,8 @@ stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
 returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
 
 cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
+
+customer_firstdate_tbl %>% write_rds("data/customer_cohort_data_tbl.rds")
 ```
 
 
