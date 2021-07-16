@@ -38,6 +38,9 @@ library(glue)
 library(BTYD)
 library(BTYDplus)
 library(CLVTools)
+library(rstan)
+library(brms)
+library(tidybayes)
 
 
 source("lib_utils.R")
@@ -127,6 +130,16 @@ daily_spend_tbl <- daily_spend_invoice_tbl %>%
 
 daily_spend_tbl %>% glimpse()
 ```
+
+We have created customer cohorts based on when the customer first appeared on
+the system. We now load this cohort data as it is 
+
+```{r load_customer_cohort_data, echo=TRUE}
+customer_cohort_data_tbl <- read_rds("data/customer_cohort_data_tbl.rds")
+
+customer_cohort_data_tbl %>% glimpse()
+```
+
 
 
 Finally, we want to set a date to make the end of the "fitting" data, which
@@ -231,8 +244,29 @@ For the Gamma/Gamma model, we use the following assumptions:
 
 # Data Preparation
 
-```{r}
-daily_spend_tbl %>%
+We now need to prepare the data in the formats required to fit these models.
+
+For the purposes of the P/NBD model, we only require three summary statistics
+for each customer. In each case, the units of time are calculated relative to
+when the customer appears on the system - this allows us to account for the
+fact that a customer *born* more recently has had less time to make purchases.
+
+Thus, each customers transaction data is summaries by a triplet of three values
+$(x, t_x, t_{\text{cal}})$
+
+
+$$
+\begin{eqnarray}
+x              &=& \text{ count of transactions in the data}, \\
+t_x            &=& \text{ time of the most recently made transaction}, \\
+t_{\text{cal}} &=& \text{ time since first transaction made by the customer}
+\end{eqnarray}
+$$
+
+```{r construct_clvdata, echo=TRUE}
+customer_clvdata_tbl <- daily_spend_tbl %>%
+  left_join(customer_cohort_data_tbl, by = "customer_id") %>%
+  filter(first_tnx_date <= training_data_date) %>%
   clvdata(
     date.format = "%Y-%m-%d",
     time.unit = "weeks",
@@ -241,6 +275,62 @@ daily_spend_tbl %>%
     name.date        = "invoice_date",
     name.price       = "total_spend"
     )
+
+customer_clvdata_tbl %>% glimpse()
+```
+
+Now that we have constructed the `clvdata` structure, we can use this input
+to construct the summary statistics required for our models. This data is
+performed by internal routines in `CLVTools`, so we use those directly.
+
+```{r construct_pnbd_input_data, echo=TRUE}
+customer_pnbd_cbs_tbl <- customer_clvdata_tbl %>%
+  (CLVTools:::pnbd_cbs)()
+
+pnbd_data_lst <- list(
+  N         = customer_pnbd_cbs_tbl %>% nrow(),
+  n         = customer_pnbd_cbs_tbl %>% nrow(),
+  
+  T         = customer_pnbd_cbs_tbl %>% pull(T.cal),
+  T         = customer_pnbd_cbs_tbl %>% pull(T.cal),
+
+  recency   = customer_pnbd_cbs_tbl %>% pull(t.x),
+  t         = customer_pnbd_cbs_tbl %>% pull(t.x),
+  
+  frequency = customer_pnbd_cbs_tbl %>% pull(x),
+  k         = customer_pnbd_cbs_tbl %>% pull(x)
+  )
+
+pnbd_data_lst %>% glimpse()
+```
+
+
+
+```{r construct_stan, echo=TRUE}
+pnbd_stanmodel <- stan_model(
+  "clv_pnbd_alt.stan",
+  model_name = "pnbd_model",
+  verbose    = FALSE
+  )
+
+
+stan_data_lst <- compose_data(
+  pnbd_data_lst,
+  
+  etau_shape   =  10,
+  etau_rate    = 100,
+  
+  lambda_shape =  10,
+  lambda_rate  = 100
+  )
+
+pnbd_stanfit <- sampling(
+  pnbd_stanmodel,
+  data = stan_data_lst,
+  chains = 4,
+  iter = 1000,
+  seed = 42
+  )
 ```
 
 
