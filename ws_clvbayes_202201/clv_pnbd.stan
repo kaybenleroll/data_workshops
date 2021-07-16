@@ -1,9 +1,9 @@
 data {
   int<lower=0> N;               // number of customers
 
-  vector<lower=1>[N] T;         // observation period
+  vector<lower=0>[N] T;         // observation period
   vector<lower=0>[N] recency;   // time between last transaction and observation period end
-  vector<lower=1>[N] frequency; // number of transactions
+  vector<lower=0>[N] frequency; // number of transactions
 }
 
 parameters {
