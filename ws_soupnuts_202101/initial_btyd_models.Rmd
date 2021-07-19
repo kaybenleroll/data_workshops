@@ -81,14 +81,28 @@ to those done for the association rules mining.
 
 ```{r load_transaction_data, echo=TRUE}
 tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
-
 tnx_data_tbl %>% glimpse()
+
+customer_firstdate_tbl <- read_rds("data/customer_firstdate_tbl.rds")
+customer_firstdate_tbl %>% glimpse()
 ```
 
 
-We want to set a date to make the end of the "fitting" data, which will be
-used in the various estimation routines to fit parameters of our models.
+Having loaded the transaction data we also want to load the daily summary
+datasets.
 
+```{r load_daily_spend_data, echo=TRUE}
+daily_spend_invoice_tbl <- read_rds("data/daily_spend_invoice_tbl.rds")
+daily_spend_invoice_tbl %>% glimpse()
+
+daily_spend_tbl <- read_rds("data/daily_spend_tbl.rds")
+daily_spend_tbl %>% glimpse()
+```
+
+
+
+Finally, we want to set a date to make the end of the "fitting" data, which
+will be used in the various estimation routines to fit parameters of our models.
 
 ```{r set_training_data_date, echo=TRUE}
 training_data_date <- as.Date("2011-03-31")
