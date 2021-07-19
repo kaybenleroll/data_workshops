@@ -1755,12 +1755,21 @@ cohort_dropout_est_tbl %>% datatable()
 
 # Output Cleaned Data
 
+Finally we output the various datasets we have constructed to disks.
+
+
 ```{r write_to_disk, echo=TRUE}
 stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
 
 returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
 
 cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
+
+customer_firstdate_tbl %>% write_rds("data/customer_firstdate_tbl.rds")
+
+daily_spend_invoice_tbl %>% write_rds("data/daily_spend_invoice_tbl.rds")
+
+daily_spend_tbl %>% write_rds("data/daily_spend_tbl.rds")
 ```
 
 
