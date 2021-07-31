@@ -5,8 +5,10 @@ date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   rmdformats::readthedown:
     toc_depth: 3
-    use_bookdown: yes
+    use_bookdown: TRUE
+    code_folding: hide
     css: styles.css
+    fig_caption: TRUE
 
   html_document:
     fig_caption: yes
