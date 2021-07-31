@@ -1,0 +1,584 @@
+---
+title: "Building the Customer and Product Modelling"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    css: styles.css
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(stringr)
+library(glue)
+library(purrr)
+library(furrr)
+library(arules)
+library(arulesViz)
+library(DT)
+library(tidygraph)
+library(rfm)
+
+
+source("lib_utils.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules",
+    "Matrix", "DT")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+```{r load_transaction_data, echo=TRUE}
+tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+
+tnx_data_tbl %>% glimpse()
+```
+
+To use our rules mining we just need the invoice data and the stock code, so
+we can ignore the rest. Also, we ignore the issue of returns and just look at
+purchases.
+
+```{r prepare_data_arules, echo=TRUE}
+tnx_purchase_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    price > 0,
+    exclude == FALSE
+    ) %>%
+  select(
+    invoice_id, invoice_date, stock_code, customer_id, quantity, price,
+    stock_value, description
+    )
+
+tnx_purchase_tbl %>% glimpse()
+```
+
+
+We also want to load the free-text description of the various stock items as
+this will help will interpretation of the various rules we have found.
+
+```{r load_product_data, echo=TRUE}
+product_data_tbl <- read_rds("data/stock_code_lookup_tbl.rds")
+
+product_data_tbl %>% glimpse()
+```
+
+Finally, we set a date for our dataset before which we wish to train our
+data and use the remainder as our model validation.
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
+```
+
+
+
+# Build Association Rules Model
+
+We now build our association rules based on the lower support data.
+
+
+The idea is to repeat some of the initial association rules analysis: we use
+the APRIORI algorithm to mine the rules, and then convert the discovered rules
+to produce a graph of the products and the rules.
+
+With this graph, we then use the disjoint components of this graph to cluster
+the products, and take the largest subgraph and cluster that one according
+to some standard clustering.
+
+
+
+## Load Transaction Data
+
+To build our rules, we first need to load the transactions in the format
+required for the `arules` package.
+
+```{r setup_arules_structure, echo=TRUE}
+tnx_purchase_tbl %>%
+  filter(invoice_date <= training_data_date) %>%
+  select(invoice_id, stock_code) %>%
+  write_csv("data/tnx_arules_input.csv")
+
+basket_tnxdata <- read.transactions(
+    file   = "data/tnx_arules_input.csv",
+    format = "single",
+    sep    = ",",
+    header = TRUE,
+    cols   = c("invoice_id", "stock_code")
+    )
+
+basket_tnxdata %>% glimpse()
+```
+
+
+## Construct Association Rules
+
+Having loaded the individual transaction data we now construct our basket data
+and use the APRIORI algorithm to discover our rules.
+
+
+```{r construct_association_rules, echo=TRUE}
+basket_arules <- apriori(
+    basket_tnxdata,
+    parameter = list(supp = 0.005, conf = 0.1)
+  )
+
+basket_arules_tbl <- basket_arules %>%
+  as("data.frame") %>%
+  as_tibble() %>%
+  arrange(desc(lift))
+
+basket_arules_tbl %>% glimpse()
+```
+
+
+Having constructed the main association rules, we then convert the discovered
+rules into a graph.
+
+
+```{r convert_rules_to_graph, echo=TRUE}
+apriori_rules_igraph <- basket_arules %>%
+  plot(
+    measure = "support",
+    method  = "graph",
+    control = list(max = 20000)
+    ) %>%
+  as("igraph")
+
+apriori_rules_igraph %>% summary()
+```
+
+Having constructed the graph, we now want to visualise it.
+
+```{r plot_interactive_rules_graph, echo=TRUE}
+basket_arules %>%
+  head(n = 500, by = "support") %>%
+  plot(
+    measure  = "lift",
+    method   = "graph",
+    engine   = "htmlwidget"
+    )
+```
+
+
+## Determine Graph Clusters
+
+With the constructed graph we now want to label the elements that are part
+of the disjoint components of the graph.
+
+
+```{r create_component_labels, echo=TRUE}
+apriori_rules_tblgraph <- apriori_rules_igraph %>%
+  as_tbl_graph() %>%
+  mutate(
+    component_id = group_components()
+    ) %>%
+  group_by(component_id) %>%
+  mutate(
+    component_size = n()
+    ) %>%
+  ungroup()
+
+apriori_rules_tblgraph %>% glimpse()
+```
+
+From the graph, we extract the nodes that correspond to the products (as
+opposed to the nodes corresponding to the mined association rules). These are
+identified as the various numeric values attached to the rules are blank.
+
+We also wish to add an additional column that is the size of the group, so
+it is easier to identify outsized subgraphs suitable for further partitioning.
+
+
+```{r combine_connected_products, echo=TRUE}
+product_cluster_disjoint_tbl <- apriori_rules_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(component_id) %>%
+  mutate(
+    cluster_size = n()
+    ) %>%
+  ungroup() %>%
+  arrange(desc(cluster_size), label) %>%
+  group_by(component_id) %>%
+  mutate(
+    product_group_id = sprintf("DISJOINT_%03d", cur_group_id()),
+    cluster_size,
+    stock_code       = label
+    ) %>%
+  ungroup() %>%
+  select(product_group_id, cluster_size, stock_code) %>%
+  arrange(product_group_id, stock_code)
+
+product_cluster_disjoint_tbl %>% glimpse()
+```
+
+We now segment up the largest disjoint subgraph using alternative clustering
+techniques.
+
+We try a few different types - inspecting the output of the various algorithms
+to see which clustering may be the 
+
+
+
+```{r create_largest_subgraph_clusters, echo=TRUE, cache=TRUE}
+run_subgraph_clusters <- function(graph_cluster_func, rules_tblgraph, ...) {
+  subgraph_clusters_tbl <- rules_tblgraph %>%
+    to_subgraph(component_size == max(component_size)) %>%
+    use_series(subgraph) %>%
+    morph(to_undirected) %>%
+    mutate(
+      sub_id = graph_cluster_func(...)
+      ) %>%
+    unmorph() %>%
+    activate(nodes) %>%
+    as_tibble() %>%
+    filter(are_na(support)) %>%
+    count(sub_id, name = "cluster_size", sort = TRUE) %>%
+    mutate(
+      sub_id = factor(1:n(), levels = 1:n())
+    )
+  
+  return(subgraph_clusters_tbl)
+}
+
+cluster_func <- c(
+    "group_fast_greedy",
+    "group_infomap",
+    "group_label_prop",
+    "group_spinglass"
+    )
+
+cluster_data_tbl <- tibble(cluster_func_name = cluster_func) %>%
+  mutate(
+    cluster_func = map(cluster_func_name, get),
+    clustered    = map(cluster_func, run_subgraph_clusters,
+                       rules_tblgraph = apriori_rules_tblgraph)
+    ) %>%
+  select(cluster_func_name, clustered) %>%
+  unnest(clustered)
+
+cluster_data_tbl %>% glimpse()
+```
+
+Having split this largest component into various splits, we now visualise the
+count and size of each cluster and use this to determine which clustering
+splits the data into a smaller number of larger clusters.
+
+```{r visualise_cluster_count, echo=TRUE}
+ggplot(cluster_data_tbl) +
+  geom_col(aes(x = sub_id, y = cluster_size)) +
+  geom_hline(aes(yintercept = 5), colour = "red") +
+  facet_wrap(vars(cluster_func_name), scales = "free") +
+  labs(
+    x = "ID",
+    y = "Cluster Size"
+    ) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8))
+```
+
+
+From this, it appears that `fast_greedy` is the method of choice.
+
+Thus, we re-run the clustering for this larger component 
+
+
+```{r construct_fast_greedy_clusters, echo=TRUE}
+subgraph_groups_tbl <- apriori_rules_tblgraph %>%
+  to_subgraph(component_size == max(component_size)) %>%
+  use_series(subgraph) %>%
+  morph(to_undirected) %>%
+  mutate(
+    sub_id = group_fast_greedy()
+    ) %>%
+  unmorph() %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(are_na(support)) %>%
+  group_by(sub_id) %>%
+  mutate(
+    cluster_size = n()
+    ) %>%
+  ungroup() %>%
+  arrange(desc(cluster_size), label) %>%
+  group_by(sub_id) %>%
+  mutate(
+    product_group_id = sprintf("LARGE_%03d", cur_group_id()),
+    cluster_size,
+    stock_code       = label
+    ) %>%
+  ungroup() %>%
+  select(product_group_id, cluster_size, stock_code) %>%
+  arrange(product_group_id, stock_code)
+  
+
+subgraph_groups_tbl %>% glimpse()
+```
+
+We now combine both these lists of groupings and combine them.
+
+```{r combine_product_cluster, echo=TRUE}
+product_cluster_tbl <- list(
+    product_cluster_disjoint_tbl,
+    subgraph_groups_tbl
+    ) %>%
+  bind_rows() %>%
+  filter(product_group_id != "DISJOINT_001")
+
+product_cluster_tbl %>% glimpse()
+```
+
+
+
+## Assign Products to Groups
+
+We now want to look at our complete list of products and then assign them to
+each of our product groups. In terms of coverage, we need to check to see if
+all the products appearing in the most invoices.
+
+
+We also want to look at the most commonly purchased items (in terms of
+appearance in baskets as opposed to quantity sold).
+
+```{r construct_popular_product_data, echo=TRUE}
+product_popular_tbl <- tnx_purchase_tbl %>%
+  mutate(
+    stock_code = str_to_upper(stock_code)
+    ) %>%
+  count(stock_code, name = "invoice_count", sort = TRUE)
+
+product_popular_tbl %>% glimpse()
+```
+
+
+We now combine this data to construct a product dataset containing the
+relevant summary data about each product.
+
+```{r construct_product_dataset, echo=TRUE}
+product_data_full_tbl <- product_data_tbl %>%
+  rename(stock_code = stock_code_upr) %>%
+  left_join(product_cluster_tbl, by = "stock_code") %>%
+  left_join(product_popular_tbl, by = "stock_code") %>%
+  replace_na(
+    list(product_group_id = "none", cluster_size = "0")
+    ) %>%
+  arrange(desc(invoice_count)) %>%
+  mutate(ranking = 1:n())
+
+product_data_full_tbl %>% glimpse()
+```
+
+First, let us export the table to help us inspect the data.
+
+```{r show_product_data_dt, echo=TRUE}
+product_data_full_tbl %>% datatable()
+```
+
+To make it more obvious, we look at the products unassigned to a group and
+see how they rank in terms of invoice count.
+
+```{r show_unassigned_products, echo=TRUE}
+product_data_full_tbl %>% filter(product_group_id == "none") %>% datatable()
+```
+
+
+# Construct RFM Customer Segments
+
+We now wish to repeat our RFM analysis, and then we reassign the customer base
+to each of these groupings.
+
+
+```{r construct_customer_segments, echo=TRUE}
+segment_names <- c(
+  "Champions", "Loyal Customers", "Potential Loyalist", "New Customers",
+  "Promising", "Need Attention", "About To Sleep", "At Risk",
+  "Can't Lose Them", "Lost"
+  )
+
+recency_lower   <- c(4, 2, 3, 4, 3, 2, 2, 1, 1, 1)
+recency_upper   <- c(5, 5, 5, 5, 4, 3, 3, 2, 1, 2)
+frequency_lower <- c(4, 3, 1, 1, 1, 2, 1, 2, 4, 1)
+frequency_upper <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
+monetary_lower  <- c(4, 3, 1, 1, 1, 2, 1, 2, 4, 1)
+monetary_upper  <- c(5, 5, 3, 1, 1, 3, 2, 5, 5, 2)
+
+segment_defs_tbl <- tibble(
+  segment_names,
+  recency_lower,
+  recency_upper,
+  frequency_lower,
+  frequency_upper,
+  monetary_lower,
+  monetary_upper
+  )
+
+segment_defs_tbl %>% glimpse()
+```
+
+We first visually inspect these segment definitions and the bands.
+
+```{r display_customer_segment_definitions, echo=TRUE}
+segments_show_tbl <- segment_defs_tbl %>%
+  mutate(
+    recency   = glue("{recency_lower}-{recency_upper}")     %>% as.character(),
+    frequency = glue("{frequency_lower}-{frequency_upper}") %>% as.character(),
+    monetary  = glue("{monetary_lower}-{monetary_upper}")   %>% as.character()
+    ) %>%
+  select(
+    segment_names, recency, frequency, monetary
+    )
+
+segments_show_tbl %>%
+  datatable(
+    colnames = c("Segment", "R", "F", "M"),
+    options = list(
+      columnDefs = list(list(className = 'dt-left', targets = 0:4))
+      )
+    )
+```
+
+We now construct the RFM data from the purchase data and assign each of the
+customers to a segment based on their RFM score.
+
+There is a reasonable number of transactions with a missing `customer_id`, so
+we exclude this from the analysis.
+
+```{r construct_basic_rfm_structures, echo=TRUE}
+customer_rfmdata <- tnx_purchase_tbl %>%
+  filter(
+    !are_na(customer_id),
+    invoice_date <= training_data_date
+    ) %>%
+  group_by(invoice_date, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(stock_value)
+    ) %>%
+  rfm_table_order(
+    customer_id   = customer_id,
+    order_date    = invoice_date,
+    revenue       = total_spend,
+    analysis_date = training_data_date
+    )
+
+customer_rfmdata %>% print()
+```
+
+## Visualise RFM Data
+
+As we explored earlier, the `rfm` package provides a number of inbuilt
+descriptive visualisations.
+
+First we look at the count of customers at each order count:
+
+```{r rfm_order_count_barplot, echo=TRUE}
+customer_rfmdata %>% rfm_order_dist()
+```
+
+
+We also have a few summary plots - showing the histograms of the recency,
+frequency and monetary measures.
+
+```{r rfm_histograms, echo=TRUE}
+rfm_plot <- customer_rfmdata %>% rfm_histograms(print_plot = FALSE)
+
+rfm_plot +
+  scale_x_continuous(labels = label_comma())
+```
+
+Finally, we look at each of the three bivariate plots to explore the
+relationship between the three quantities.
+
+```{r plot_bivariate_visualisation, echo=TRUE}
+customer_rfmdata %>%
+  rfm_rm_plot(print_plot = FALSE) +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_log10(labels = label_comma())
+
+customer_rfmdata %>%
+  rfm_rf_plot()
+
+customer_rfmdata %>%
+  rfm_fm_plot(print_plot = FALSE) +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_log10(labels = label_comma())
+```
+
+
+
+
+## Assign Customer Segments
+
+```{r segment_customer_base, echo=TRUE}
+customer_segments_tbl <- customer_rfmdata %>%
+  rfm_segment(
+    segment_names   = segment_names,
+    recency_lower   = recency_lower,
+    recency_upper   = recency_upper,
+    frequency_lower = frequency_lower,
+    frequency_upper = frequency_upper,
+    monetary_lower  = monetary_lower,
+    monetary_upper  = monetary_upper
+    )
+
+customer_segments_tbl %>% glimpse()
+```
+
+
+
+# R Environment
+ 
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
