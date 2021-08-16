@@ -95,6 +95,7 @@ tnx_purchase_tbl <- tnx_data_tbl %>%
     price > 0,
     exclude == FALSE
     ) %>%
+  drop_na(customer_id) %>%
   select(
     invoice_id, invoice_date, stock_code, customer_id, quantity, price,
     stock_value, description
@@ -169,7 +170,7 @@ and use the APRIORI algorithm to discover our rules.
 ```{r construct_association_rules, echo=TRUE}
 basket_arules <- apriori(
     basket_tnxdata,
-    parameter = list(supp = 0.005, conf = 0.1)
+    parameter = list(supp = 0.005, conf = 0.01)
   )
 
 basket_arules_tbl <- basket_arules %>%
@@ -218,6 +219,7 @@ of the disjoint components of the graph.
 
 ```{r create_component_labels, echo=TRUE}
 apriori_rules_tblgraph <- apriori_rules_igraph %>%
+  igraph::as.undirected(mode = "collapse") %>%
   as_tbl_graph() %>%
   mutate(
     component_id = group_components()
@@ -228,7 +230,7 @@ apriori_rules_tblgraph <- apriori_rules_igraph %>%
     ) %>%
   ungroup()
 
-apriori_rules_tblgraph %>% glimpse()
+apriori_rules_tblgraph %>% print()
 ```
 
 From the graph, we extract the nodes that correspond to the products (as
@@ -252,7 +254,7 @@ product_cluster_disjoint_tbl <- apriori_rules_tblgraph %>%
   arrange(desc(cluster_size), label) %>%
   group_by(component_id) %>%
   mutate(
-    product_group_id = sprintf("DISJOINT_%03d", cur_group_id()),
+    product_group_id = sprintf("AR_DISJOINT_%03d", cur_group_id()),
     cluster_size,
     stock_code       = label
     ) %>%
@@ -296,6 +298,7 @@ cluster_func <- c(
     "group_fast_greedy",
     "group_infomap",
     "group_label_prop",
+    "group_louvain",
     "group_spinglass"
     )
 
@@ -328,9 +331,31 @@ ggplot(cluster_data_tbl) +
 ```
 
 
-From this, it appears that `fast_greedy` is the method of choice.
 
-Thus, we re-run the clustering for this larger component 
+
+```{r plot_distribution_cluster_sizes, echo=TRUE}
+plot_tbl <- cluster_data_tbl %>%
+  group_by(cluster_func_name) %>%
+  count(cluster_size, name = "cluster_count", sort = TRUE) %>%
+  ungroup() %>%
+  mutate(cluster_size = as.factor(cluster_size))
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = cluster_size, y = cluster_count, group = cluster_size)) +
+  facet_wrap(vars(cluster_func_name), scales = "free") +
+  labs(
+    x = "Cluster Size",
+    y = "Community Count",
+    title = "Visualisation of Spread of Cluster Sizes"
+    ) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+
+From this, it appears that `louvain` is the method of choice.
+
+Thus, we re-run the clustering for this larger component using the chosen
+algorithm and use this to create our various product groups.
 
 
 ```{r construct_fast_greedy_clusters, echo=TRUE}
@@ -339,7 +364,7 @@ subgraph_groups_tbl <- apriori_rules_tblgraph %>%
   use_series(subgraph) %>%
   morph(to_undirected) %>%
   mutate(
-    sub_id = group_fast_greedy()
+    sub_id = group_louvain()
     ) %>%
   unmorph() %>%
   activate(nodes) %>%
@@ -353,7 +378,7 @@ subgraph_groups_tbl <- apriori_rules_tblgraph %>%
   arrange(desc(cluster_size), label) %>%
   group_by(sub_id) %>%
   mutate(
-    product_group_id = sprintf("LARGE_%03d", cur_group_id()),
+    product_group_id = sprintf("AR_LARGE_%03d", cur_group_id()),
     cluster_size,
     stock_code       = label
     ) %>%
@@ -373,7 +398,7 @@ product_cluster_tbl <- list(
     subgraph_groups_tbl
     ) %>%
   bind_rows() %>%
-  filter(product_group_id != "DISJOINT_001")
+  filter(product_group_id != "AR_DISJOINT_001")
 
 product_cluster_tbl %>% glimpse()
 ```
@@ -413,7 +438,9 @@ product_data_full_tbl <- product_data_tbl %>%
     list(product_group_id = "none", cluster_size = "0")
     ) %>%
   arrange(desc(invoice_count)) %>%
-  mutate(ranking = 1:n())
+  mutate(ranking = 1:n()) %>%
+  semi_join(tnx_purchase_tbl, by = "stock_code") %>%
+  arrange(stock_code)
 
 product_data_full_tbl %>% glimpse()
 ```
@@ -430,6 +457,206 @@ see how they rank in terms of invoice count.
 ```{r show_unassigned_products, echo=TRUE}
 product_data_full_tbl %>% filter(product_group_id == "none") %>% datatable()
 ```
+
+
+# Construct Transaction-Based Graph Clusters
+
+We can treat the transaction data as a graph, turning both invoices and stock
+items into nodes on the graph, and create an edge between stock and invoices
+when the item occurs on the invoice.
+
+We then cluster the graph to create groupings for the different stock codes.
+
+
+```{r construct_basket_graph, echo=TRUE}
+stock_nodes_tbl <- tnx_purchase_tbl %>%
+  select(stock_code) %>%
+  distinct() %>%
+  transmute(node_label = stock_code, node_type = "stock")
+
+invoice_nodes_tbl <- tnx_purchase_tbl %>%
+  select(invoice_id) %>%
+  distinct() %>%
+  transmute(node_label = invoice_id, node_type = "invoice")
+
+nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
+  bind_rows()
+
+edges_tbl <- tnx_purchase_tbl %>%
+  select(stock_code, invoice_id, quantity, price)
+
+
+basket_tblgraph <- tbl_graph(
+  nodes    = nodes_tbl,
+  edges    = edges_tbl,
+  directed = FALSE,
+  node_key = "node_label"
+)
+```
+
+
+
+## Check Graph Clustering Approaches
+
+First we perform our basic clustering by splitting off the different disjoint
+components of the graph.
+
+```{r create_disjoint_component_labels, echo=TRUE}
+basket_tblgraph <- basket_tblgraph %>%
+  mutate(
+    component_id = group_components()
+    ) %>%
+  group_by(component_id) %>%
+  mutate(
+    component_size = n()
+    ) %>%
+  ungroup()
+
+basket_tblgraph %>% print()
+```
+
+We now want to check the sizes of the disjoint components of this graph.
+
+```{r display_main_component_sizes, echo=TRUE}
+basket_tblgraph %>%
+  as_tibble() %>%
+  filter(node_type == "stock") %>%
+  count(component_id, name = "stock_count", sort = TRUE)
+```
+
+We see that almost all the stock codes are contained in that one large
+component and so confine the rest of this analysis to that one large component.
+
+```{r run_subgraph_clusters, echo=TRUE}
+run_subgraph_clusters <- function(graph_cluster_func, labelling, input_tblgraph, ...) {
+  message(glue("Clustering the graph using {labelling}..."))
+  
+  subgraph_clusters_tbl <- input_tblgraph %>%
+    mutate(
+      cluster_id = graph_cluster_func(...)
+      ) %>%
+    activate(nodes) %>%
+    as_tibble() %>%
+    filter(node_type == "stock") %>%
+    count(cluster_id, name = "cluster_size", sort = TRUE) %>%
+    mutate(
+      cluster_id = factor(1:n(), levels = 1:n())
+    )
+  
+  return(subgraph_clusters_tbl)
+}
+```
+
+
+```{r test_subgraph_cluster_sizes, echo=TRUE, cache=TRUE}
+cluster_func <- c(
+    "group_fast_greedy",
+    "group_infomap",
+    "group_leading_eigen",
+    "group_louvain"
+    )
+
+largecomp_tblgraph <- basket_tblgraph %>%
+  to_subgraph(component_size == max(component_size)) %>%
+  use_series(subgraph)
+
+cluster_data_tbl <- tibble(cluster_func_name = cluster_func) %>%
+  mutate(
+    cluster_func = map(cluster_func_name, get),
+    clustered    = map2(
+      cluster_func, cluster_func_name,
+      run_subgraph_clusters,
+      input_tblgraph = largecomp_tblgraph
+      )
+    ) %>%
+  select(cluster_func_name, clustered) %>%
+  unnest(clustered)
+
+cluster_data_tbl %>% glimpse()
+```
+
+Having created a summary of the data splits, we now want to construct a
+visualisation of how the various cluster routines split the data.
+
+To do this, we turn the size of each cluster into a 'label' and then count how
+many clusters of that size there are. We then use this summary data to
+construct barplots of the size.
+
+```{r visualise_community_splits, echo=TRUE}
+plot_tbl <- cluster_data_tbl %>%
+  group_by(cluster_func_name) %>%
+  count(cluster_size, name = "cluster_count", sort = TRUE) %>%
+  ungroup() %>%
+  mutate(cluster_size = as.factor(cluster_size))
+
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = cluster_size, y = cluster_count, group = cluster_size)) +
+  facet_wrap(vars(cluster_func_name), scales = "free") +
+  labs(
+    x = "Cluster Size",
+    y = "Community Count",
+    title = "Visualisation of Spread of Cluster Sizes"
+    ) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+From this graphic, we see that we want to use `group_louvain` gives us the
+most even split across the data - though the sizes are still hugely unequal.
+
+
+## Create Cluster-Based Allocation
+
+We now use this algorithm to cluster this large component in the graph, and
+this gives us an alternative allocation of the each `stock_code` to a product
+group.
+
+```{r cluster_largest_component_louvain, echo=TRUE}
+largecomp_clustered_tbl <- largecomp_tblgraph %>%
+  mutate(
+    cluster_id = group_louvain()
+    ) %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(node_type == "stock") %>%
+  mutate(
+    cluster_group = sprintf("TNX_%03d", cluster_id)
+    ) %>%
+  select(stock_code = node_label, cluster_group)
+
+largecomp_clustered_tbl %>% glimpse()
+```
+
+
+
+
+## Combine Clustering Data
+
+We now want to combine this data to construct our stock code allocations.
+
+```{r combine_clustering_data, echo=TRUE}
+other_tbl <- basket_tblgraph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(
+    node_type == "stock",
+    component_size != max(component_size)
+    ) %>%
+  transmute(
+    stock_code = node_label, cluster_group = "TNX_010"
+    )
+
+product_group_tnxgroups_tbl <- list(
+    largecomp_clustered_tbl,
+    other_tbl
+    ) %>%
+  bind_rows() %>%
+  arrange(stock_code) %>%
+  select(stock_code, product_group = cluster_group)
+
+product_group_tnxgroups_tbl %>% glimpse()
+```
+
 
 
 # Construct RFM Customer Segments
@@ -523,7 +750,8 @@ descriptive visualisations.
 First we look at the count of customers at each order count:
 
 ```{r rfm_order_count_barplot, echo=TRUE}
-customer_rfmdata %>% rfm_order_dist()
+customer_rfmdata %>%
+  rfm_order_dist(print_plot = FALSE)
 ```
 
 
@@ -531,10 +759,10 @@ We also have a few summary plots - showing the histograms of the recency,
 frequency and monetary measures.
 
 ```{r rfm_histograms, echo=TRUE}
-rfm_plot <- customer_rfmdata %>% rfm_histograms(print_plot = FALSE)
-
-rfm_plot +
-  scale_x_continuous(labels = label_comma())
+customer_rfmdata %>%
+  rfm_histograms(print_plot = FALSE) +
+    scale_x_continuous(labels = label_comma()) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ```
 
 Finally, we look at each of the three bivariate plots to explore the
@@ -547,7 +775,9 @@ customer_rfmdata %>%
     scale_y_log10(labels = label_comma())
 
 customer_rfmdata %>%
-  rfm_rf_plot()
+  rfm_rf_plot(print_plot = FALSE) +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_log10(labels = label_comma())
 
 customer_rfmdata %>%
   rfm_fm_plot(print_plot = FALSE) +
@@ -559,6 +789,9 @@ customer_rfmdata %>%
 
 
 ## Assign Customer Segments
+
+We now assign each customer to a segment and this allows us to analyse each
+of the segments.
 
 ```{r segment_customer_base, echo=TRUE}
 customer_segments_tbl <- customer_rfmdata %>%
@@ -573,6 +806,258 @@ customer_segments_tbl <- customer_rfmdata %>%
     )
 
 customer_segments_tbl %>% glimpse()
+```
+
+We want to plot the count of each of the customer segments, before we calculate
+the various summary statistics.
+
+```{r plot_segment_count, echo=TRUE}
+customer_segment_count_tbl <- customer_segments_tbl %>%
+  count(segment, name = "count", sort = TRUE)
+
+ggplot(customer_segment_count_tbl) +
+  geom_col(aes(x = segment, y = count, fill = segment)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  labs(
+    x = "Segment",
+    y = "Count"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5),
+    legend.position = "none"
+    )
+```
+
+Again, `rfm` provides a number of inbuilt plots of the segments, but as they
+create very simple summary plots we create these plots ourselves and this
+allows us to summarise the segments however we wish.
+
+
+```{r create_customer_segment_summary_plots, echo=TRUE}
+plot_tbl <- customer_segments_tbl %>%
+  select(
+    customer_id, segment,
+    Transactions  = transaction_count,
+    Recency       = recency_days,
+    `Total Spend` = amount
+    ) %>%
+  pivot_longer(
+    !c(customer_id, segment),
+    names_to = "quantity",
+    values_to = "value"
+    ) %>%
+  mutate(
+    value = pmax(0.1, value)
+    )
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = segment, y = value, fill = segment)) +
+  expand_limits(y = 0.1) +
+  facet_wrap(vars(quantity), ncol = 2, scales = "free_y") +
+  scale_y_log10(labels = label_comma()) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  labs(
+    x = "Customer Segment",
+    y = "Value"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8),
+    legend.position = "none"
+    )
+```
+
+
+## Inspect Segment Validation
+
+Now that we have assigned customers to segments, we use these segments to
+assess the transactions made after the cutoff date `training_data_date`.
+
+```{r construct_post_training_data, echo=TRUE}
+segments_alloc_tbl <- customer_segments_tbl %>%
+  select(customer_id, segment)
+
+daily_spend_tbl <- tnx_purchase_tbl %>%
+  filter(invoice_date > training_data_date) %>%
+  group_by(invoice_date, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    daily_spend = sum(stock_value)
+    ) %>%
+  left_join(segments_alloc_tbl, by = "customer_id") %>%
+  replace_na(list(segment = "New Customer"))
+
+daily_spend_tbl %>% glimpse()
+```
+
+Having constructed this data, we now calculate some per-customer summary
+statistics.
+
+```{r construct_post_date_stats, echo=TRUE}
+postdate_customer_stats_tbl <- daily_spend_tbl %>%
+  group_by(customer_id, segment) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_transactions = n(),
+    total_spend        = sum(daily_spend)
+    )
+
+postdate_customer_stats_tbl %>% glimpse()
+```
+
+
+First we compare the segment counts from both pre- and post- dates. The first
+metric to check is the proportion of the segment in the dataset, though we
+exclude newly arrived customers in the post-date dataset to enable a direct
+comparison.
+
+```{r compare_pre_post_segment_data, echo=TRUE}
+pre_data_tbl <- customer_segment_count_tbl %>%
+  mutate(prop = count / sum(count))
+
+post_data_tbl <- postdate_customer_stats_tbl %>%
+  filter(segment != "New Customer") %>%
+  count(segment, name = "count", sort = TRUE) %>%
+  mutate(prop = count / sum(count))
+
+comparison_tbl <- list(
+    Training   = pre_data_tbl,
+    Validation = post_data_tbl
+    ) %>%
+  bind_rows(.id = "data")
+
+ggplot(comparison_tbl) +
+  geom_col(aes(x = segment, y = prop, fill = data), position = "dodge") +
+  labs(
+    x = "Segment",
+    y = "Segment Proportion",
+    fill = "Dataset"
+    ) +
+  scale_fill_brewer(type = "qual", palette = "Dark2") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+
+Next, we check our RFM stats according the validation data as of the final
+date in the dataset.
+
+First we construct the data and then construct boxplots of each segment.
+
+```{r calculate_validation_rfm_metrics, echo=TRUE}
+validation_date <- daily_spend_tbl %>% pull(invoice_date) %>% max()
+
+validation_rfm_data_tbl <- daily_spend_tbl %>%
+  group_by(segment, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    transaction_count  = n(),
+    recency_days       = (validation_date - max(invoice_date)) %>% as.numeric(),
+    amount             = sum(daily_spend)
+    )
+
+validation_rfm_data_tbl %>% glimpse()
+```
+
+Having constructed the table - we view the data as a JS datatable.
+
+```{r show_validation_rfm_data_dt, echo=TRUE}
+validation_rfm_data_tbl %>% datatable()
+```
+
+We now produce boxplots of the three metrics using these segments, and also
+look at the new customers as a separate category.
+
+```{r create_validation_segment_boxplots, echo=TRUE}
+plot_tbl <- validation_rfm_data_tbl %>%
+  select(
+    customer_id, segment,
+    Transactions  = transaction_count,
+    Recency       = recency_days,
+    `Total Spend` = amount
+    ) %>%
+  pivot_longer(
+    !c(customer_id, segment),
+    names_to  = "quantity",
+    values_to = "value"
+    ) %>%
+  mutate(
+    value = pmax(0.1, value)
+    )
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = segment, y = value, fill = segment)) +
+  expand_limits(y = 0.1) +
+  facet_wrap(vars(quantity), ncol = 2, scales = "free_y") +
+  scale_y_log10(labels = label_comma()) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  labs(
+    x = "Customer Segment",
+    y = "Value"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8),
+    legend.position = "none"
+    )
+```
+
+As an alternative plot, we also look at the violin plots rather boxplots.
+
+```{r create_validation_segment_violin_plots, echo=TRUE}
+ggplot(plot_tbl) +
+  geom_violin(aes(x = segment, y = value, fill = segment)) +
+  expand_limits(y = 0.1) +
+  facet_wrap(vars(quantity), ncol = 2, scales = "free_y") +
+  scale_y_log10(labels = label_comma()) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  labs(
+    x = "Customer Segment",
+    y = "Value"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8),
+    legend.position = "none"
+    )
+```
+
+We certainly see that our "Champions" are the 'best' segment in terms of the
+three metrics we measure. That said, our new customers also appear to have
+desirable metrics on aggregate.
+
+
+
+# Investigate Co-occurrence of Customer Segments and Product Groups
+
+## Construct Customer and Product Allocations
+
+We need to construct a lookup table for all customers in our dataset. Those
+customers which first appeared in our 'validation' data are assigned the
+grouping "New Customer".
+
+
+```{r construct_comprehensive_segment_allocation, echo=TRUE}
+customer_segment_allocation_tbl <- tnx_purchase_tbl %>%
+  drop_na(customer_id) %>%
+  select(customer_id) %>%
+  distinct() %>%
+  left_join(segments_alloc_tbl, by = "customer_id") %>%
+  replace_na(list(segment = "New Customer")) %>%
+  arrange(customer_id)
+
+customer_segment_allocation_tbl %>% glimpse()
+```
+
+
+We also construct a lookup table allocating each `stock_code` to a
+`product_group_id`.
+
+```{r construct_product_group_allocation_table, echo=TRUE}
+product_group_allocation_tbl <- product_data_full_tbl %>%
+  select(stock_code, product_group_id) %>%
+  arrange(stock_code)
+
+product_group_allocation_tbl %>% glimpse()
 ```
 
 

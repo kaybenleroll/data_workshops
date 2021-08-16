@@ -86,9 +86,15 @@ purchases.
 tnx_purchase_tbl <- tnx_data_tbl %>%
   filter(
     quantity > 0,
+    price > 0,
     exclude == FALSE
     ) %>%
-  select(invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
+  drop_na(customer_id) %>%
+  mutate(stock_code = str_to_upper(stock_code)) %>%
+  select(
+    invoice_id, stock_code, customer_id, quantity, price, stock_value,
+    description
+    )
 
 tnx_purchase_tbl %>% glimpse()
 ```
@@ -122,9 +128,10 @@ basket_data_tbl <- tnx_purchase_tbl %>%
     stock_codes = list(stock_code)
     ) %>%
   mutate(
-    basket_data = future_map(stock_codes, construct_pairwise_items,
-                             .progress = TRUE
-                             )
+    basket_data = future_map(
+      stock_codes, construct_pairwise_items,
+      .progress = TRUE
+      )
     )
 
 basket_data_tbl %>% glimpse()
@@ -158,12 +165,250 @@ edges_tbl <- tnx_purchase_tbl %>%
   select(stock_code, invoice_id, quantity, price)
 
 
-basket_graph <- tbl_graph(
+basket_tblgraph <- tbl_graph(
   nodes    = nodes_tbl,
   edges    = edges_tbl,
-  directed = FALSE
+  directed = FALSE,
+  node_key = "node_label"
 )
 ```
+
+
+
+## Check Graph Clustering Approaches
+
+First we perform our basic clustering by splitting off the different disjoint
+components of the graph.
+
+```{r create_disjoint_component_labels, echo=TRUE}
+basket_tblgraph <- basket_tblgraph %>%
+  mutate(
+    component_id = group_components()
+    ) %>%
+  group_by(component_id) %>%
+  mutate(
+    component_size = n()
+    ) %>%
+  ungroup()
+
+basket_tblgraph %>% print()
+```
+
+We now want to check the sizes of the disjoint components of this graph.
+
+```{r display_main_component_sizes, echo=TRUE}
+basket_tblgraph %>%
+  as_tibble() %>%
+  filter(node_type == "stock") %>%
+  count(component_id, name = "stock_count", sort = TRUE)
+```
+
+We see that almost all the stock codes are contained in that one large
+component and so confine the rest of this analysis to that one large component.
+
+```{r run_subgraph_clusters, echo=TRUE}
+run_subgraph_clusters <- function(graph_cluster_func, labelling, input_tblgraph, ...) {
+  message(glue("Clustering the graph using {labelling}..."))
+  
+  subgraph_clusters_tbl <- input_tblgraph %>%
+    mutate(
+      cluster_id = graph_cluster_func(...)
+      ) %>%
+    activate(nodes) %>%
+    as_tibble() %>%
+    filter(node_type == "stock") %>%
+    count(cluster_id, name = "cluster_size", sort = TRUE) %>%
+    mutate(
+      cluster_id = factor(1:n(), levels = 1:n())
+    )
+  
+  return(subgraph_clusters_tbl)
+}
+```
+
+
+```{r test_subgraph_cluster_sizes, echo=TRUE, cache=TRUE}
+cluster_func <- c(
+    "group_fast_greedy",
+    "group_infomap",
+    "group_leading_eigen",
+    "group_louvain"
+    )
+
+largecomp_tblgraph <- basket_tblgraph %>%
+  to_subgraph(component_size == max(component_size)) %>%
+  use_series(subgraph)
+
+cluster_data_tbl <- tibble(cluster_func_name = cluster_func) %>%
+  mutate(
+    cluster_func = map(cluster_func_name, get),
+    clustered    = map2(
+      cluster_func, cluster_func_name,
+      run_subgraph_clusters,
+      input_tblgraph = largecomp_tblgraph
+      )
+    ) %>%
+  select(cluster_func_name, clustered) %>%
+  unnest(clustered)
+
+cluster_data_tbl %>% glimpse()
+```
+
+Having created a summary of the data splits, we now want to construct a
+visualisation of how the various cluster routines split the data.
+
+To do this, we turn the size of each cluster into a 'label' and then count how
+many clusters of that size there are. We then use this summary data to
+construct barplots of the size.
+
+```{r visualise_community_splits, echo=TRUE}
+plot_tbl <- cluster_data_tbl %>%
+  group_by(cluster_func_name) %>%
+  count(cluster_size, name = "cluster_count", sort = TRUE) %>%
+  ungroup() %>%
+  mutate(cluster_size = as.factor(cluster_size))
+
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = cluster_size, y = cluster_count, group = cluster_size)) +
+  facet_wrap(vars(cluster_func_name), scales = "free") +
+  labs(
+    x = "Cluster Size",
+    y = "Community Count",
+    title = "Visualisation of Spread of Cluster Sizes"
+    ) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
+From this graphic, we see that we want to use `group_louvain` gives us the
+most even split across the data - though the sizes are still hugely unequal.
+
+
+## Create Cluster-Based Allocation
+
+We now use this algorithm to cluster this large component in the graph, and
+this gives us an alternative allocation of the each `stock_code` to a product
+group.
+
+```{r cluster_largest_component_louvain, echo=TRUE}
+largecomp_clustered_tbl <- largecomp_tblgraph %>%
+  mutate(
+    cluster_id = group_louvain()
+    ) %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  filter(node_type == "stock") %>%
+  mutate(
+    cluster_group = sprintf("LOUVAIN_%03d", cluster_id)
+    )
+
+largecomp_clustered_tbl %>% glimpse()
+```
+
+
+
+# Construct Non-Transaction Graphs
+
+We now want to construct a graph where we create a link between all products
+that co-occur in a transaction, so that transactions are now represented by
+the weights on the edges of the graph, rather than being nodes.
+
+```{r construct_pairwise_graph, echo=TRUE}
+pairwise_nodes_tbl <- tnx_data_tbl %>%
+  filter(
+    quantity > 0,
+    price > 0,
+    exclude == FALSE
+    ) %>%
+  mutate(
+    stock_code = str_to_upper(stock_code)
+    ) %>%
+  group_by(stock_code) %>%
+  summarise(
+    .groups = "drop",
+    
+    stock_desc = description %>%
+      unique() %>%
+      sort() %>%
+      str_c(collapse = " : ")
+    ) %>%
+  arrange(stock_code)
+
+pairwise_edges_tbl <- basket_data_tbl %>%
+  select(basket_data) %>%
+  unnest(basket_data) %>%
+  count(from = one, to = two, name = "invoice_count")
+
+
+pairwise_tblgraph <- tbl_graph(
+  nodes    = pairwise_nodes_tbl,
+  edges    = pairwise_edges_tbl,
+  directed = FALSE,
+  node_key = "stock_code"
+)
+
+pairwise_tblgraph %>% print()
+```
+
+## Extract Largest Component
+
+We now run clustering on the largest component of this graph.
+
+```{r extract_pairwise_largest_component, echo=TRUE}
+pairwise_largecomp_tblgraph <- pairwise_tblgraph %>%
+  mutate(
+    component_id = group_components()
+    ) %>%
+  group_by(component_id) %>%
+  mutate(component_size = n()) %>%
+  ungroup() %>%
+  to_subgraph(component_size == max(component_size)) %>%
+  use_series(subgraph)
+
+pairwise_largecomp_tblgraph %>% print()
+```
+
+We now run some community detection on this largest component as a way to
+segment the product space.
+
+```{r cluster_pairwise_largecomp, echo=TRUE}
+pairwise_stockgroup_tbl <- pairwise_largecomp_tblgraph %>%
+  mutate(
+    cluster_id = group_louvain(weights = invoice_count)
+    ) %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  transmute(
+    stock_code,
+    cluster_label = sprintf("PAIRWISE_%03d", cluster_id)
+    )
+
+pairwise_additional_tbl <- pairwise_nodes_tbl %>%
+  anti_join(pairwise_stockgroup_tbl, by = "stock_code") %>%
+  transmute(
+    stock_code,
+    cluster_label = "PAIRWISE_OTHER"
+    )
+
+pairwise_groups_tbl <- list(
+    pairwise_stockgroup_tbl,
+    pairwise_additional_tbl
+    ) %>%
+  bind_rows() %>%
+  inner_join(pairwise_nodes_tbl, by = "stock_code") %>%
+  arrange(stock_code)
+
+pairwise_groups_tbl %>% glimpse()
+```
+
+
+
+
+
+
+
+
+
 
 
 
