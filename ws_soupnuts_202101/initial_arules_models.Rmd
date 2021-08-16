@@ -90,9 +90,13 @@ purchases.
 tnx_purchase_tbl <- tnx_data_tbl %>%
   filter(
     quantity > 0,
+    price > 0,
     exclude == FALSE
     ) %>%
-  select(invoice_id, stock_code, customer_id, quantity, price, stock_value, description)
+  select(
+    invoice_id, stock_code, customer_id, quantity, price, stock_value,
+    description
+    )
 
 tnx_purchase_tbl %>% glimpse()
 ```
@@ -160,7 +164,7 @@ tnx_purchase_tbl %>%
   group_by(stock_code) %>%
   summarise(
     .groups = "drop",
-    desc = str_c(description, collapse = " : ")
+    desc = description %>% sort() %>% unique() %>% str_c(collapse = " : ")
     ) %>%
   arrange(stock_code) %>%
   datatable()
@@ -422,6 +426,7 @@ label them with an ID.
 
 ```{r create_component_labels, echo=TRUE}
 apriori_rules_tblgraph <- apriori_rules_igraph %>%
+  igraph::as.undirected(mode = "collapse") %>%
   as_tbl_graph() %>%
   mutate(
     component_id = group_components()
@@ -447,7 +452,11 @@ product_groups_all_tbl <- apriori_rules_tblgraph %>%
     product_count = n()
     ) %>%
   ungroup() %>%
-  select(product_group_id = component_id, product_count, stock_code = label) %>%
+  select(
+    product_group_id = component_id,
+    product_count,
+    stock_code = label
+    ) %>%
   arrange(product_group_id, stock_code)
 
 product_groups_all_tbl %>% glimpse()
@@ -483,7 +492,7 @@ apriori_rules_large_tblgraph <- apriori_rules_tblgraph %>%
   use_series(subgraph) %>%
   morph(to_undirected) %>%
   mutate(
-    sub_id = group_edge_betweenness()
+    sub_id = group_louvain()
     ) %>%
   unmorph()
 ```
@@ -501,7 +510,9 @@ product_groups_largest_tbl <- apriori_rules_large_tblgraph %>%
     product_count = n()
     ) %>%
   ungroup() %>%
-  select(product_group_id = sub_id, product_count, stock_code = label) %>%
+  select(
+    product_group_id = sub_id, product_count, stock_code = label
+    ) %>%
   arrange(product_group_id, stock_code)
 
 product_groups_largest_tbl %>% glimpse()
@@ -673,6 +684,7 @@ clusters.
 
 ```{r create_lower_component_labels, echo=TRUE}
 apriori_lower_rules_tblgraph <- apriori_lower_rules_igraph %>%
+  igraph::as.undirected(mode = "collapse") %>%
   as_tbl_graph() %>%
   mutate(
     component_id = group_components()
@@ -703,16 +715,21 @@ product_groups_lower_all_tbl <- apriori_lower_rules_tblgraph %>%
 product_groups_lower_all_tbl %>% glimpse()
 ```
 
-```{r construct_largest_subgraph_groups, echo=TRUE, cache=TRUE}
+
+
+
+```{r construct_largest_subgraph_groups, echo=TRUE}
 apriori_lower_rules_bigcomp_tblgraph <- apriori_lower_rules_tblgraph %>%
   to_subgraph(component_size == max(component_size)) %>%
   use_series(subgraph) %>%
-  morph(to_undirected) %>%
   mutate(
-    sub_id = group_edge_betweenness()
-    ) %>%
-  unmorph()
+    sub_id = group_louvain()
+    )
+
+apriori_lower_rules_bigcomp_tblgraph %>% print()
 ```
+
+
 
 
 ```{r convert_subgraph_groups_tbl}

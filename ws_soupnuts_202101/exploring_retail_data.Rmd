@@ -1391,7 +1391,7 @@ this.
 ```{r remove_extraneous_stock_code_entries, echo=TRUE}
 screen_stock_code <- c(
   "B", "C2", "C3", "D", "M", "S", "CRUK", "POST", "DOT", "BANK CHARGES",
-  "AMAZONFEE"
+  "AMAZONFEE", "ADJUST", "ADJUST2", "TEST001", "TEST002"
   )
 
 clean_stock_code_tbl <- data_tbl %>%
@@ -1435,7 +1435,12 @@ fields for each `stock_code` value.
 
 ```{r construct_stock_code_table, echo=TRUE}
 stock_code_lookup_tbl <- cleaned_data_tbl %>%
-  filter(exclude == FALSE, quantity > 0, !are_na(description)) %>%
+  filter(
+    exclude == FALSE,
+    quantity > 0,
+    price > 0,
+    !are_na(description)
+    ) %>%
   mutate(
     stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()
     ) %>%
@@ -1446,7 +1451,7 @@ stock_code_lookup_tbl <- cleaned_data_tbl %>%
   summarise(
     .groups = "drop",
     
-    desc = description %>% sort() %>% str_c(collapse = " : ")
+    desc = description %>% sort() %>% unique() %>% str_c(collapse = " : ")
     ) %>%
   arrange(stock_code_upr)
 
@@ -1473,6 +1478,7 @@ customer/invoice pairing with the total amount spent as an additional column.
 tnx_purchase_tbl <- cleaned_data_tbl %>%
   filter(
     quantity > 0,
+    price > 0,
     exclude == FALSE
     ) %>%
   select(

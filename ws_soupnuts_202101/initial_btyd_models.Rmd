@@ -165,6 +165,15 @@ Note that it follows from the above assumptions that the probability of a
 customer being 'alive' after any transaction is given by the Geometric
 distribution, and hence the Beta-Geometric in the name.
 
+To put this into more formal mathematical notation, we have:
+
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r) \\
+P(\text{alive}, k) &\sim& \text{Geometric}(p, k) \\
+p &\sim& \text{Beta}(a, b)
+\end{eqnarray*}
+$$
 
 ## Pareto/Negative-Binomial Distribution (P/NBD) Model
 
@@ -184,6 +193,18 @@ Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
   independently across customers.
 
 
+As before, we express this in mathematical notation as:
+
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r) \\
+\mu &\sim& \Gamma(s, \beta) \\
+\tau &\sim& \text{Exponential}(\mu)
+\end{eqnarray*}
+$$
+
+
+
 ## Gamma/Gamma Spending Model
 
 The final piece of this approach is to construct a spending model for the
@@ -199,7 +220,14 @@ For the Gamma/Gamma model, we use the following assumptions:
   $\Gamma(p \, | \, q, \gamma)$
 
 
+In mathematical notation, we have:
 
+$$
+\begin{eqnarray*}
+p &\sim& \Gamma(q, \gamma) \\
+v &\sim& \Gamma(p, \nu)
+\end{eqnarray*}
+$$
 
 
 
@@ -507,8 +535,6 @@ convert_tnxdata_clvdata <- function(tnx_data_tbl, end_date,
 }
 ```
 
-We 
-
 
 ```{r extract_bgnbd_parameters, echo=TRUE}
 extract_bgnbd_parameters <- function(fit_clvdata) {
@@ -517,11 +543,13 @@ extract_bgnbd_parameters <- function(fit_clvdata) {
     enframe(name = "parameter", value = "mean")
   
   sd_tbl   <- fit_clvdata %>%
-    vcov() %>%
-    diag() %>%
-    sqrt() %>%
-    enframe(name = "parameter", value = "sd")
-  
+    confint(level = 0.5) %>%
+    as_tibble(rownames = "parameter") %>%
+    rename(
+      p025 = `25 %`,
+      p075 = `75 %`
+    )
+
   params_tbl <- mean_tbl %>%
     inner_join(sd_tbl, by = "parameter")
 }
@@ -580,7 +608,7 @@ plot_tbl <- qtr_cohort_bgnbd_tbl %>%
 
 ggplot(
     plot_tbl,
-    aes(x = cohort_qtr, y = mean, ymin = mean - 2 * sd, ymax = mean + 2 * sd)
+    aes(x = cohort_qtr, y = mean, ymin = p025, ymax = p075)
     ) +
   geom_errorbar(width = 0) +
   geom_point() +
@@ -589,21 +617,22 @@ ggplot(
   labs(
     x = "Customer Cohort",
     y = "Parameter Value",
-    title = "Comparison Plot of Parameter Values (Parameter Facets"
+    title = "Comparison Plot of 25%-50% Parameter Values (Parameter Facets)"
     )
 
 
 ggplot(
     plot_tbl,
-    aes(x = parameter, y = mean, ymin = mean - 2 * sd, ymax = mean + 2 * sd)
+    aes(x = parameter, y = mean, ymin = p025, ymax = p075)
     ) +
   geom_errorbar(width = 0) +
   geom_point() +
+  expand_limits(y = 0) +
   facet_wrap(vars(cohort_qtr), scales = "free_y") +
   labs(
     x     = "Customer Cohort",
     y     = "Parameter Value",
-    title = "Comparison Plot of Parameter Values (Cohort Facets)"
+    title = "Comparison Plot of 25%-50% Parameter Values (Cohort Facets)"
     )
 ```
 
@@ -747,6 +776,7 @@ bootstrap_fit_params_tbl <- bootstrap_bgnbd_tbl %>%
 ggplot(bootstrap_fit_params_tbl) +
   geom_histogram(aes(x = value), bins = 25) +
   geom_vline(aes(xintercept = mean), colour = "red") +
+  expand_limits(y = 0) +
   facet_wrap(vars(parameter), scales = "free") +
   labs(
     x = "Value",
