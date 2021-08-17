@@ -1029,6 +1029,13 @@ desirable metrics on aggregate.
 
 # Investigate Co-occurrence of Customer Segments and Product Groups
 
+We now need to perform a correspondence analysis (CA) for the co-occurence
+of customer grouping and product grouping to see what types of products
+are associated with the various groups.
+
+
+
+
 ## Construct Customer and Product Allocations
 
 We need to construct a lookup table for all customers in our dataset. Those
@@ -1058,6 +1065,23 @@ product_group_allocation_tbl <- product_data_full_tbl %>%
   arrange(stock_code)
 
 product_group_allocation_tbl %>% glimpse()
+```
+
+
+## Construct Correspondence Analysis Table
+
+We now wish to add the various product and customer groupings to our
+transaction data to 
+
+```{r construct_correspondence_data, echo=TRUE}
+tnx_correspondence_tbl <- tnx_purchase_tbl %>%
+  select(
+    invoice_id, invoice_date, stock_code, customer_id
+    ) %>%
+  inner_join(customer_segment_allocation_tbl, by = "customer_id") %>%
+  inner_join(product_group_tnxgroups_tbl, by = "stock_code")
+
+tnx_correspondence_tbl %>% glimpse()
 ```
 
 
