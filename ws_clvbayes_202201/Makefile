@@ -45,9 +45,18 @@ exploring_retail_dataexplorer.html: exploring_retail_data.html
 initial_btyd_models.html: exploring_retail_data.html
 
 
+
+mrproper: clean-html clean-cache
+	rm -fv data/*.rds
+	rm -fv data/*.xlsx
+	rm -fv data/*.csv
+
 clean-html:
 	rm -fv *.html
 
+clean-cache:
+	rm -rfv *_cache
+	rm -rfv *_files
 
 
 ### Docker targets
