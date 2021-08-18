@@ -1084,6 +1084,100 @@ tnx_correspondence_tbl <- tnx_purchase_tbl %>%
 tnx_correspondence_tbl %>% glimpse()
 ```
 
+We now want to do some basic analysis based on the relative frequencies of 
+the values of both the product groups and the customer segments.
+
+```{r calculate_segment_group_frequency, echo=TRUE}
+segment_group_contingency_tbl <- tnx_correspondence_tbl %>%
+  filter(
+    invoice_date <= training_data_date
+    ) %>%
+  count(segment, product_group, name = "group_count") %>%
+  mutate(
+    obs_prop = group_count / sum(group_count)
+    )
+
+segment_group_contingency_tbl %>% glimpse()
+```
+
+
+```{r calculate_independence_proportions, echo=TRUE}
+segment_props_tbl <- segment_group_contingency_tbl %>%
+  count(segment, wt = group_count, name = "segment_count") %>%
+  mutate(
+    segment_prop = segment_count / sum(segment_count)
+    )
+
+prodgroup_props_tbl <- segment_group_contingency_tbl %>%
+  count(product_group, wt = group_count, name = "prodgroup_count") %>%
+  mutate(
+    prodgroup_prop = prodgroup_count / sum(prodgroup_count)
+    )
+
+segment_group_independ_tbl <- expand_grid(
+    segment_props_tbl,
+    prodgroup_props_tbl
+    ) %>%
+  transmute(
+    segment, product_group, segment_count, prodgroup_count,
+    independ_prop = segment_prop * prodgroup_prop
+    )
+
+segment_group_independ_tbl %>% glimpse()
+```
+
+We now compare the observed proportions of these combinations against the
+"theoretical" proportions under the assumptions of independence.
+
+```{r construct_combined_proportion_data, echo=TRUE}
+segment_group_combined_tbl <- segment_group_independ_tbl %>%
+  left_join(segment_group_contingency_tbl, by = c("segment", "product_group")) %>%
+  replace_na(list(group_count = 0, obs_prop = 0)) %>%
+  mutate(
+    ignore = (group_count == 0) | (independ_prop <= 1e-4),
+    diff = (obs_prop - independ_prop),
+    perc = if_else(ignore == TRUE, 0, (obs_prop / independ_prop) - 1)
+    )
+
+segment_group_combined_tbl %>% glimpse()
+```
+
+Now that we have combined this data, we construct a heatmap of the proportions.
+
+```{r plot_proportion_differences_heatmap, echo=TRUE}
+ggplot(segment_group_combined_tbl) +
+  geom_tile(aes(x = segment, y = product_group, fill = diff)) +
+  geom_text(aes(x = segment, y = product_group,
+                label = label_comma(accuracy = 1)(group_count))) +
+  labs(
+    x = "Customer Segment",
+    y = "Product Group",
+    fill = "Diff"
+    ) +
+  scale_fill_gradient2(low = "blue", high = "red", midpoint = 0) +
+  ggtitle("Heatmap of Differences Between Observed and Theoretical Proportions") +
+  theme(axis.text.x = element_text(angle = 10, vjust = 0.5))
+```
+
+We now make a similar plot, but plotting the relative percentage difference
+between the theoretical proportion under assumptions and independence and what
+was observed.
+
+```{r plot_proportion_percentage_diffs_heatmap, echo=TRUE}
+ggplot(segment_group_combined_tbl) +
+  geom_tile(aes(x = segment, y = product_group, fill = perc)) +
+  geom_text(aes(x = segment, y = product_group,
+                label = label_comma(accuracy = 1)(group_count))) +
+  labs(
+    x = "Customer Segment",
+    y = "Product Group",
+    fill = "Perc"
+    ) +
+  scale_fill_gradient2(low = "blue", high = "red", midpoint = 0) +
+  ggtitle("Heatmap of Percentage Differences Between Observed and Theoretical Proportions") +
+  theme(axis.text.x = element_text(angle = 10, vjust = 0.5))
+```
+
 
 
 # R Environment

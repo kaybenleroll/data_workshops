@@ -90,8 +90,8 @@ customer_firstdate_tbl %>% glimpse()
 ```
 
 
-Having loaded the transaction data we also want to load the daily summary
-datasets.
+Having loaded the transaction data we also want to load the summary statistics
+for the spend, both by invoice and on a aggregated daily basis.
 
 ```{r load_daily_spend_data, echo=TRUE}
 daily_spend_invoice_tbl <- read_rds("data/daily_spend_invoice_tbl.rds")
