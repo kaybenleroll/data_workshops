@@ -7,6 +7,7 @@ RUN apt-get update \
     clang \
     clang-9 \
     ditaa \
+    graphviz \
     htop \
     less \
     libclang-dev \
@@ -46,6 +47,7 @@ RUN apt-get update \
     directlabels \
     drake \
     evir \
+    fitdistrplus \
     fs \
     furrr \
     ggrepel \

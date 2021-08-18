@@ -39,9 +39,8 @@ library(snakecase)
 library(lubridate)
 library(evir)
 library(DT)
-#library(tidygraph)
-library(directlabels)
-library(tidyquant)
+library(tidygraph)
+
 
 
 source("lib_utils.R")
@@ -1216,7 +1215,7 @@ ggplot(plot_tbl) +
 ```
 
 
-# Investigate Refunds
+## Investigate Refunds
 
 This transactions data also includes returns and refunds - adding a level of
 complexity to this analysis as we need to account for this when assessing the
@@ -1235,7 +1234,7 @@ to be some returns in our data that do not have a corresponding sale, so we
 can also ignore those.
 
 
-```{r create_matching_returns_data, echo=TRUE, cache=TRUE}
+```{r create_matching_returns_data, echo=TRUE}
 filter_returns_transactions <- function(use_stock, use_customer,  use_dttm,
                                         data_tbl) {
   matches_tbl <- data_tbl %>%
@@ -1458,290 +1457,6 @@ stock_code_lookup_tbl %>% datatable()
 ```
 
 
-# BTYD Customer Visualisations
-
-The concepts around BTYD modelling suggest a few other ways to look at the
-data, so we use these now.
-
-To do this, we need to aggregate our data down to both the invoice and the
-daily spend level - a fairly straightforward manipulation.
-
-
-```{r calculate_customer_daily_spend, echo=TRUE}
-daily_spend_invoice_tbl <- cleaned_data_tbl %>%
-  drop_na(customer_id) %>%
-  filter(
-    quantity > 0,
-    exclude == FALSE
-    ) %>%
-  select(
-    invoice_date, invoice_id, stock_code, customer_id, description,
-    quantity, price, stock_value
-    ) %>%
-  group_by(invoice_date, customer_id, invoice_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    invoice_spend = sum(stock_value)
-    )
-
-daily_spend_invoice_tbl %>% glimpse()
-
-
-daily_spend_tbl <- daily_spend_invoice_tbl %>%
-  group_by(invoice_date, customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    total_spend = sum(invoice_spend),
-    tnx_count   = n()
-    )
-
-daily_spend_tbl %>% glimpse()
-```
-
-
-To start with, it might be worth understanding a bit more about when customers
-are 'born' in the system - that is, the date on which they make their first
-purchase. Another important quantity is the time between transactions for a
-customer, we we will visualise these.
-
-
-
-
-```{r construct_customer_first_date, echo=TRUE}
-customer_firstdate_tbl <- daily_spend_tbl %>%
-  group_by(customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    first_tnx_date  = min(invoice_date),
-    total_tnx_count = n()
-    ) %>%
-  mutate(
-    cohort_qtr = first_tnx_date %>% as.yearqtr(),
-    cohort_ym  = first_tnx_date %>% format("%Y %m"),
-    
-    .after = "customer_id"
-    )
-
-
-customer_firstdate_tbl %>% glimpse()
-```
-
-Now that we have a first date for each customer, we look at the total number
-of customers joining at each date.
-
-```{r plot_customer_first_dates, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
-  count(first_tnx_date, name = "n_customer")
-
-ggplot(plot_tbl) +
-  geom_line(aes(x = first_tnx_date, y = n_customer)) +
-  labs(
-    x = "First Transaction Date",
-    y = "New Customers",
-    title = "Plot of Count of New Customer by Date"
-    )
-```
-
-We know look at how time differences between purchases are distributed.
-
-```{r plot_transaction_time_diffs, echo=TRUE}
-customer_tnx_diffs_tbl <- daily_spend_tbl %>%
-  group_by(customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    time_diff = diff(invoice_date) %>% as.numeric() %>% divide_by(7)
-  )
-
-mean_diff <- customer_tnx_diffs_tbl %>% pull(time_diff) %>% mean()
-
-ggplot(customer_tnx_diffs_tbl) +
-  geom_histogram(aes(x = time_diff), bins = 50) +
-  geom_vline(aes(xintercept = mean_diff), colour = "red") +
-  scale_y_continuous(labels = label_comma()) +
-  labs(
-    x = "Time Difference (weeks)",
-    y = "Frequency",
-    title = "Histogram of Differences Between Transactions for Customers",
-    subtitle = glue(
-      "Mean Difference is {mean_diff} weeks", mean_diff = mean_diff %>% round(2)
-      )
-    )
-```
-
-
-We also want to look at a number of customers and make some line plots of their
-transactions.
-
-```{r visualise_customer_transactions, echo=TRUE}
-keep_customers_tbl <- customer_firstdate_tbl %>%
-  filter(total_tnx_count > 2) %>%
-  slice_sample(n = 30)
-
-plot_tbl <- daily_spend_tbl %>%
-  semi_join(keep_customers_tbl, by = "customer_id")
-
-ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
-  geom_line() +
-  geom_point() +
-  labs(
-    x = "Transaction Date",
-    y = "Customer ID",
-    title = "Visualisation of Transaction Times for 30 Customers"
-    ) +
-  theme(axis.text.y = element_text(size = 12))
-```
-
-
-
-## Investigate Cohorts
-
-Finally, we want to take a look at the distribution of transaction times based
-on various first-transaction cohorts in the data.
-
-
-```{r plot_distribution_first_transaction, echo=TRUE}
-ggplot(customer_firstdate_tbl) +
-  geom_histogram(aes(x = first_tnx_date), bins = 50) +
-  labs(
-    x = "Date of First Transaction",
-    y = "Count",
-    title = "Histogram of New Customer Start Dates"
-    )
-```
-
-We also want to get a sense of the total count of customers in each cohort.
-
-```{r construct_qtr_cohort_column_plot, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
-  count(cohort_qtr, name = "customer_count") %>%
-  mutate(cohort_qtr = cohort_qtr %>% as.character())
-  
-ggplot(plot_tbl) +
-  geom_col(aes(x = cohort_qtr, y = customer_count)) +
-  scale_y_continuous(labels = label_comma()) +
-  labs(
-    x = "Customer Cohort",
-    y = "Customer Count",
-    title = "Bar Plot of Customer Quarterly Cohort Sizes"
-    )
-```
-
-We also want to see the monthly cohorts:
-
-```{r construct_ym_cohort_column_plot, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
-  count(cohort_ym, name = "customer_count") %>%
-  mutate(cohort_ym = cohort_ym %>% as.character())
-
-ggplot(plot_tbl) +
-  geom_col(aes(x = cohort_ym, y = customer_count)) +
-  scale_y_continuous(labels = label_comma()) +
-  labs(
-    x = "Customer Cohort",
-    y = "Customer Count",
-    title = "Bar Plot of Customer Monthly Cohort Sizes"
-    ) +
-  theme(
-    axis.text.x = element_text(size = 10, angle = 20, vjust = 0.5)
-    )
-```
-
-
-For the cohort analysis, we start with a boxplot of the time difference between
-transactions by cohort.
-
-```{r plot_cohort_differences_boxplot}
-plot_tbl <- customer_firstdate_tbl %>%
-  inner_join(customer_tnx_diffs_tbl, by = "customer_id") %>%
-  mutate(cohort_qtr = cohort_qtr %>% as.character())
-
-ggplot(plot_tbl) +
-  geom_boxplot(aes(x = cohort_qtr, y = time_diff)) +
-  scale_y_log10() +
-  labs(
-    x = "Cohort",
-    y = "Time Difference (weeks)",
-    title = "Boxplot of Time Differences by Starting Cohort"
-    )
-```
-
-We also construct a density plot of the time differences for these cohorts.
-
-```{r investigate_cohort_transaction_times, echo=TRUE}
-ggplot(plot_tbl, aes(x = time_diff, colour = cohort_qtr)) +
-  geom_line(stat = "density") +
-  geom_dl(aes(label = cohort_qtr), method = "top.bumpup", stat = "density") +
-  labs(
-    x = "Time Difference (weeks)",
-    y = "Density",
-    title = "Comparison Density Plot for Transaction Time Differences Between Cohorts"
-    ) +
-  theme(legend.position = "none")
-```
-
-And we also look at a facetted-histogram
-
-```{r investigate_cohort_timediffs_facets, echo=TRUE}
-ggplot(plot_tbl) +
-  geom_histogram(aes(x = time_diff), bins = 50) +
-  facet_wrap(vars(cohort_qtr), scales = "free_y") +
-  scale_y_continuous(labels = label_comma()) +
-  labs(
-    x = "Time Difference (weeks)",
-    y = "Count",
-    title = "Facetted Histograms of Time Between Transactions"
-    )
-
-```
-
-
-## Investigate Dropout Rates
-
-We want to plot some visualisations of the lifetime and dropout rate of
-customers in each cohort.
-
-
-```{r estimate_cohort_dropout_rates, echo=TRUE}
-cohort_dropout_est_tbl <- customer_firstdate_tbl %>%
-  select(
-    customer_id, first_tnx_date, cohort_qtr, cohort_ym
-    ) %>%
-  inner_join(daily_spend_tbl, by = "customer_id") %>%
-  group_by(cohort_qtr, customer_id) %>%
-  mutate(
-    final_tnx_date = max(invoice_date)
-    ) %>%
-  ungroup() %>%
-  select(
-    customer_id, cohort_qtr, first_tnx_date, final_tnx_date
-    ) %>%
-  distinct() %>%
-  mutate(
-    obs_lifetime = difftime(final_tnx_date, first_tnx_date, units = "week") %>%
-      as.numeric()
-    ) %>%
-  filter(obs_lifetime > 0) %>%
-  group_by(cohort_qtr) %>%
-  summarise(
-    .groups = "drop",
-    
-    lifetimes = list(obs_lifetime)
-    )
-
-cohort_dropout_est_tbl %>% glimpse()
-```
-
-
-
-
-
-
-
-
 
 # Output Cleaned Data
 
@@ -1751,8 +1466,6 @@ stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
 returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
 
 cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
-
-customer_firstdate_tbl %>% write_rds("data/customer_cohort_data_tbl.rds")
 ```
 
 
