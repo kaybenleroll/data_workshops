@@ -46,10 +46,17 @@ exploring_graph_data.html: exploring_retail_data.html
 initial_arules_models.html: exploring_retail_data.html
 initial_timeseries_models.html: exploring_retail_data.html
 initial_btyd_models.html: exploring_retail_data.html
+initial_rfm_models.html: exploring_retail_data.html
+build_models.html: initial_rfm_models.html initial_arules_models.html \
+  initial_timeseries_models.html initial_btyd_models.html
 
 
 clean-html:
 	rm -fv *.html
+
+clean-cache:
+	rm -rfv *_cache
+	rm -rfv *_files
 
 
 

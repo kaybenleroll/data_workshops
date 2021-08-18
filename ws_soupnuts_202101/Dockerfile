@@ -12,6 +12,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && install2.r --error \
     actuar \
+    anytime \
     arules \
     arulesCBA \
     arulesNBMiner \
@@ -23,7 +24,11 @@ RUN apt-get update \
     CLVTools \
     descriptr \
     evir \
+    factoextra \
     fitdistrplus \
+    FactoMineR \
+    FactoInvestigate \
+    Factoshiny \
     ggraph \
     kableExtra \
     rfm \
