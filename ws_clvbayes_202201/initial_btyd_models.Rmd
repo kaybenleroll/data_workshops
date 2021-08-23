@@ -96,8 +96,10 @@ customer/invoice pairing with the total amount spent as an additional column.
 tnx_purchase_tbl <- tnx_data_tbl %>%
   filter(
     quantity > 0,
+    price > 0,
     exclude == FALSE
     ) %>%
+  drop_na(customer_id) %>%
   select(
     invoice_date, invoice_id, stock_code, customer_id, description,
     quantity, price, stock_value
@@ -478,7 +480,9 @@ cohort_dropout_est_tbl %>% glimpse()
 
 
 
-# Data Preparation
+# Construct Stan Models
+
+## Data Preparation
 
 We now need to prepare the data in the formats required to fit these models.
 
@@ -542,32 +546,43 @@ pnbd_data_lst %>% glimpse()
 
 
 
-# Construct Stan Models
+## Construct Fixed Priors Model
 
-```{r construct_stan, echo=TRUE}
-pnbd_stanmodel <- stan_model(
-  "clv_pnbd_alt.stan",
-  model_name = "pnbd_model",
+```{r construct_fixed_stan_model, echo=TRUE}
+pnbd_fixed_stanmodel <- stan_model(
+  "stan_files/clv_pnbd_fixed.stan",
+  model_name = "pnbd_fixed_model",
   verbose    = TRUE
   )
-
-
-stan_data_lst <-  pnbd_data_lst
-
-pnbd_stanfit <- sampling(
-  pnbd_stanmodel,
-  data   = stan_data_lst,
-  chains = 4,
-  iter   = 1000,
-  seed   = 42
-  )
-
-pnbd_stanfit %>% summary()
 ```
 
 
-```{r}
-pnbd_postparams_tbl <- pnbd_stanfit %>%
+```{r fit_fixed_stan_model, echo=TRUE}
+stan_data_lst <- compose_data(
+  pnbd_data_lst,
+  
+  etau_shape   =  1,
+  etau_rate    = 10,
+  
+  lambda_shape =  1,
+  lambda_rate  = 10
+  )
+
+
+pnbd_fixed_stanfit <- sampling(
+  pnbd_fixed_stanmodel,
+  data   = stan_data_lst,
+  chains = 4,
+  iter   = 2000,
+  seed   = 42
+  )
+
+pnbd_fixed_stanfit %>% summary()
+```
+
+
+```{r extract_fixed_stanmodel_params, echo=TRUE}
+pnbd_fixed_postparams_tbl <- pnbd_fixed_stanfit %>%
   tidy_draws() %>%
   pivot_longer(
     !c(.chain, .iteration, .draw),
@@ -575,7 +590,56 @@ pnbd_postparams_tbl <- pnbd_stanfit %>%
     values_to = "value"
     )
 
+pnbd_fixed_postparams_tbl %>% glimpse()
 ```
+
+
+## Construct Basic Priors Model
+
+```{r construct_priors_stan_model, echo=TRUE}
+pnbd_priors_stanmodel <- stan_model(
+  "stan_files/clv_pnbd_priors.stan",
+  model_name = "pnbd_priors_model",
+  verbose    = TRUE
+  )
+```
+
+
+```{r fit_priors_stan_model, echo=TRUE}
+stan_data_lst <- compose_data(
+  pnbd_data_lst,
+  
+  etau_shape   = 1,
+  etau_rate    = 1
+  )
+
+
+# pnbd_priors_stanfit <- sampling(
+#   pnbd_priors_stanmodel,
+#   data   = stan_data_lst,
+#   chains = 4,
+#   iter   = 1000,
+#   seed   = 42
+#   )
+# 
+# pnbd_priors_stanfit %>% summary()
+```
+
+
+```{r plot_priors_stanmodel_params, echo=TRUE}
+# pnbd_priors_postparams_tbl <- pnbd_priors_stanfit %>%
+#   tidy_draws() %>%
+#   pivot_longer(
+#     !c(.chain, .iteration, .draw),
+#     names_to  = "parameter",
+#     values_to = "value"
+#     )
+# 
+# pnbd_priors_postparams_tbl %>% glimpse()
+```
+
+
+
 
 # R Environment
 

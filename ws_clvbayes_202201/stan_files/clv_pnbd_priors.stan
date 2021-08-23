@@ -8,33 +8,33 @@ data {
 
 
 parameters {
-  // user-specified parameters
-  real<lower=0> etau_mean;
-  real<lower=0> etau_rate;
+  vector<lower=0>[n] lambda; // purchase rate
+  vector<lower=0>[n] etau;   // expected mean lifetime
 
   real<lower=0> lambda_mean;
   real<lower=0> lambda_rate;
 
-  vector<lower=0>[n] lambda; // purchase rate
-  vector<lower=0>[n] etau;   // expected mean lifetime
+  real<lower=0> etau_mean;
+  real<lower=0> etau_rate;
 }
 
 
 transformed parameters {
   vector<lower=0>[n] mu = 1.0 ./ etau;
 
-  real<lower=0> etau_shape   = etau_mean   * etau_rate;
   real<lower=0> lambda_shape = lambda_mean * lambda_rate;
+  real<lower=0> etau_shape   = etau_mean   * etau_rate;
+
 }
 
 
 model {
-  // priors
-  etau_mean   ~ lognormal(-3.0, 1.0);
-  lambda_mean ~ lognormal(-3.0, 1.0);
+  // setting priors
+  lambda_mean ~ gamma(1, 10);
+  lambda_rate ~ gamma(1, 0.01);
 
-  etau_rate   ~ lognormal(2.7, 2.0);
-  lambda_rate ~ lognormal(2.7, 2.0);
+  etau_mean ~ gamma(5, 0.1);
+  etau_rate ~ gamma(1, 1);
 
   etau   ~ gamma(etau_shape,   etau_rate);
   lambda ~ gamma(lambda_shape, lambda_rate);
