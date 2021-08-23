@@ -1,4 +1,4 @@
-FROM kaybenleroll/r_baseimage:base202104
+FROM kaybenleroll/r_baseimage:base202108
 
 RUN apt-get update \
   && apt-get upgrade -y \
@@ -25,16 +25,16 @@ RUN apt-get update \
     descriptr \
     evir \
     factoextra \
-    fitdistrplus \
-    FactoMineR \
     FactoInvestigate \
+    FactoMineR \
     Factoshiny \
+    fitdistrplus \
     ggraph \
     kableExtra \
     rfm \
-    shinythemes \
     shinyBS \
     shinycssloaders \
+    shinythemes \
     survival \
     survminer \
     visNetwork \
