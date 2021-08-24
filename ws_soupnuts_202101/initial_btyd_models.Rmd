@@ -5,8 +5,10 @@ date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   rmdformats::readthedown:
     toc_depth: 3
-    use_bookdown: yes
+    use_bookdown: TRUE
+    code_folding: hide
     css: styles.css
+    fig_caption: TRUE
 
   html_document:
     fig_caption: yes
@@ -81,56 +83,24 @@ to those done for the association rules mining.
 
 ```{r load_transaction_data, echo=TRUE}
 tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
-
 tnx_data_tbl %>% glimpse()
+
+customer_firstdate_tbl <- read_rds("data/customer_firstdate_tbl.rds")
+customer_firstdate_tbl %>% glimpse()
 ```
 
 
-We model the purchase data first, then combine this to create an individual
-customer/invoice pairing with the total amount spent as an additional column.
+Having loaded the transaction data we also want to load the summary statistics
+for the spend, both by invoice and on a aggregated daily basis.
 
-```{r prepare_purchase_data, echo=TRUE}
-tnx_purchase_tbl <- tnx_data_tbl %>%
-  filter(
-    quantity > 0,
-    exclude == FALSE
-    ) %>%
-  select(
-    invoice_date, invoice_id, stock_code, customer_id, description,
-    quantity, price, stock_value
-    )
-
-tnx_purchase_tbl %>% glimpse()
-```
-
-Use of BTYD models assumes a total spend over a period of day and those
-differences between the times. This is calculated internally by the various
-BTYD routines so we keep just the per-invoice spend.
-
-```{r calculate_customer_daily_spend, echo=TRUE}
-daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
-  drop_na(customer_id) %>%
-  group_by(invoice_date, customer_id, invoice_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    invoice_spend = sum(stock_value)
-    )
-
+```{r load_daily_spend_data, echo=TRUE}
+daily_spend_invoice_tbl <- read_rds("data/daily_spend_invoice_tbl.rds")
 daily_spend_invoice_tbl %>% glimpse()
 
-
-daily_spend_tbl <- daily_spend_invoice_tbl %>%
-  group_by(invoice_date, customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    total_spend = sum(invoice_spend),
-    tnx_count   = n()
-    )
-
+daily_spend_tbl <- read_rds("data/daily_spend_tbl.rds")
 daily_spend_tbl %>% glimpse()
 ```
+
 
 
 Finally, we want to set a date to make the end of the "fitting" data, which
@@ -172,63 +142,7 @@ $$
 where $x$ is the number of transactions observed in the time period $T$ and
 $t_x$ was the time of the last transaction.
 
-From this summary data we can fit both P/NBD and BG/NBD models.
-
-
-## Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
-
-This model relies on a number of base assumptions:
-
-  1. While active, the number of transactions made by a customer follows a
-  Poisson process with transaction rate $\lambda$.
-  1. Heterogeneity in $\lambda$ follows a Gamma distribution
-  $\Gamma(\lambda \, | \, \alpha, r)$ with parameters shape $r$ and rate
-  $\alpha$. 
-  1. After any transaction, a customer becomes inactive with probability $p$.
-  1. Heterogeneity in $p$ follows a Beta distribution $B(p \, | \, a, b)$ with
-  shape parameters $a$ and $b$.
-  1. The transaction rate $\lambda$ and the dropout probability $p$ vary
-  independently across customers.
-
-
-Note that it follows from the above assumptions that the probability of a
-customer being 'alive' after any transaction is given by the Geometric
-distribution, and hence the Beta-Geometric in the name.
-
-
-## Pareto/Negative-Binomial Distribution (P/NBD) Model
-
-Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
-
-  1. While active, the number of transactions made by a customer follows a
-  Poisson process with transaction rate $\lambda$.
-  1. Heterogeneity in $\lambda$ follows a Gamma distribution
-  $\Gamma(\lambda \, | \, \alpha, r)$ with shape $r$ and rate $\alpha$. 
-  1. Each customer has an unobserved 'lifetime' of length $\tau$. This point at
-  which the customer becomes inactive is distributed as an exponential with
-  dropout rate $\mu$.
-  1. Heterogeneity in dropout rates across customers follows a Gamma
-  distribution $\Gamma(\mu \, | \, s, \beta)$ with shape parameter $s$ and
-  rate parameter $\beta$.
-  1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
-  independently across customers.
-
-
-## Gamma/Gamma Spending Model
-
-The final piece of this approach is to construct a spending model for the
-transactions. Similar to transaction rates, spending patterns are often
-skewed, so a Gamma distribution is used.
-
-For the Gamma/Gamma model, we use the following assumptions:
-
-  1. Each transaction amount, $v_i$, is distributed according to a Gamma
-  distribution $\Gamma(v_i \, | \, p, \nu)$ with shape parameter $p$ and
-  rate parameter $\nu$.
-  2. Heterogeneity in $p$ follows a Gamma distribution
-  $\Gamma(p \, | \, q, \gamma)$
-
-
+From this summary data we can fit most BTYD models.
 
 
 ## BTYD Visualisations
@@ -247,14 +161,14 @@ customer_firstdate_tbl <- daily_spend_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
-    
+
     first_tnx_date  = min(invoice_date),
     total_tnx_count = n()
     ) %>%
   mutate(
     cohort_qtr = first_tnx_date %>% as.yearqtr(),
     cohort_ym  = first_tnx_date %>% format("%Y %m"),
-    
+
     .after = "customer_id"
     )
 
@@ -285,7 +199,7 @@ customer_tnx_diffs_tbl <- daily_spend_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
-    
+
     time_diff = diff(invoice_date) %>% as.numeric() %>% divide_by(7)
   )
 
@@ -318,15 +232,116 @@ plot_tbl <- daily_spend_tbl %>%
   semi_join(keep_customers_tbl, by = "customer_id")
 
 ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
-  geom_line() +
-  geom_point() +
+  geom_line(alpha = 0.4) +
+  geom_point(aes(colour = total_spend)) +
+  scale_colour_gradient(low = "blue", high = "red", label = label_comma()) +
   labs(
     x = "Transaction Date",
     y = "Customer ID",
+    colour = "Amount",
     title = "Visualisation of Transaction Times for 30 Customers"
     ) +
   theme(axis.text.y = element_text(size = 12))
 ```
+
+
+
+## BTYD Models
+
+There are a number of different statistical approaches to building BTYD
+models - relying on a number of different assumptions about how the various
+recency, frequency and monetary values are modelled.
+
+We now discuss a number of different ways of modelling this.
+
+
+### Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
+
+This model relies on a number of base assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with parameters shape $r$ and rate
+  $\alpha$. 
+  1. After any transaction, a customer becomes inactive with probability $p$.
+  1. Heterogeneity in $p$ follows a Beta distribution $B(p \, | \, a, b)$ with
+  shape parameters $a$ and $b$.
+  1. The transaction rate $\lambda$ and the dropout probability $p$ vary
+  independently across customers.
+
+
+Note that it follows from the above assumptions that the probability of a
+customer being 'alive' after any transaction is given by the Geometric
+distribution, and hence the Beta-Geometric in the name.
+
+To put this into more formal mathematical notation, we have:
+ 
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r) \\
+P(\text{alive}, k) &\sim& \text{Geometric}(p, k) \\
+p &\sim& \text{Beta}(a, b)
+\end{eqnarray*}
+$$
+
+
+
+### Pareto/Negative-Binomial Distribution (P/NBD) Model
+
+Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with shape $r$ and rate $\alpha$. 
+  1. Each customer has an unobserved 'lifetime' of length $\tau$. This point at
+  which the customer becomes inactive is distributed as an exponential with
+  dropout rate $\mu$.
+  1. Heterogeneity in dropout rates across customers follows a Gamma
+  distribution $\Gamma(\mu \, | \, s, \beta)$ with shape parameter $s$ and
+  rate parameter $\beta$.
+  1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
+  independently across customers.
+
+
+As before, we express this in mathematical notation as:
+
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r)    \\
+\mu &\sim& \Gamma(s, \beta)         \\
+\tau &\sim& \text{Exponential}(\mu)
+\end{eqnarray*}
+$$
+
+
+
+### Gamma/Gamma Spending Model
+
+The final piece of this approach is to construct a spending model for the
+transactions. Similar to transaction rates, spending patterns are often
+skewed, so a Gamma distribution is used.
+
+For the Gamma/Gamma model, we use the following assumptions:
+
+  1. Each transaction amount, $v_i$, is distributed according to a Gamma
+  distribution $\Gamma(v_i \, | \, p, \nu)$ with shape parameter $p$ and
+  rate parameter $\nu$.
+  2. Heterogeneity in $p$ follows a Gamma distribution
+  $\Gamma(p \, | \, q, \gamma)$
+
+
+In mathematical notation, we have:
+ 
+$$
+\begin{eqnarray*}
+p &\sim& \Gamma(q, \gamma) \\
+v &\sim& \Gamma(p, \nu)
+\end{eqnarray*}
+$$
+
+
 
 
 ## Investigate Cohorts
@@ -352,7 +367,7 @@ plot_tbl <- customer_firstdate_tbl %>%
   filter(first_tnx_date <= training_data_date) %>%
   count(cohort_qtr, name = "customer_count") %>%
   mutate(cohort_qtr = cohort_qtr %>% as.character())
-  
+
 ggplot(plot_tbl) +
   geom_col(aes(x = cohort_qtr, y = customer_count)) +
   scale_y_continuous(labels = label_comma()) +
@@ -466,7 +481,7 @@ cohort_dropout_est_tbl <- customer_firstdate_tbl %>%
   group_by(cohort_qtr) %>%
   summarise(
     .groups = "drop",
-    
+
     lifetimes = list(obs_lifetime)
     )
 
@@ -775,12 +790,10 @@ convert_tnxdata_clvdata <- function(tnx_data_tbl, end_date,
       name.date        = "invoice_date",
       name.price       = spend_col
       )
-  
+
   return(customer_clvdata)
 }
 ```
-
-We 
 
 
 ```{r extract_bgnbd_parameters, echo=TRUE}
@@ -788,15 +801,19 @@ extract_bgnbd_parameters <- function(fit_clvdata) {
   mean_tbl <- fit_clvdata %>%
     coefficients() %>%
     enframe(name = "parameter", value = "mean")
-  
+
   sd_tbl   <- fit_clvdata %>%
-    vcov() %>%
-    diag() %>%
-    sqrt() %>%
-    enframe(name = "parameter", value = "sd")
-  
+    confint(level = 0.5) %>%
+    as_tibble(rownames = "parameter") %>%
+    rename(
+      p025 = `25 %`,
+      p075 = `75 %`
+    )
+
   params_tbl <- mean_tbl %>%
     inner_join(sd_tbl, by = "parameter")
+  
+  return(params_tbl)
 }
 ```
 
@@ -821,6 +838,8 @@ qtr_cohort_bgnbd_tbl <- customer_fitdata_tbl %>%
       ),
     param_data = map(bgnbd_fit, extract_bgnbd_parameters)
     )
+
+qtr_cohort_bgnbd_tbl %>% glimpse()
 ```
 
 As a quick reminder of the parameters for the BG/NBD model, we have a counting
@@ -853,7 +872,7 @@ plot_tbl <- qtr_cohort_bgnbd_tbl %>%
 
 ggplot(
     plot_tbl,
-    aes(x = cohort_qtr, y = mean, ymin = mean - 2 * sd, ymax = mean + 2 * sd)
+    aes(x = cohort_qtr, y = mean, ymin = p025, ymax = p075)
     ) +
   geom_errorbar(width = 0) +
   geom_point() +
@@ -862,21 +881,22 @@ ggplot(
   labs(
     x = "Customer Cohort",
     y = "Parameter Value",
-    title = "Comparison Plot of Parameter Values (Parameter Facets"
+    title = "Comparison Plot of 25%-50% Parameter Values (Parameter Facets)"
     )
 
 
 ggplot(
     plot_tbl,
-    aes(x = parameter, y = mean, ymin = mean - 2 * sd, ymax = mean + 2 * sd)
+    aes(x = parameter, y = mean, ymin = p025, ymax = p075)
     ) +
   geom_errorbar(width = 0) +
   geom_point() +
+  expand_limits(y = 0) +
   facet_wrap(vars(cohort_qtr), scales = "free_y") +
   labs(
     x     = "Customer Cohort",
     y     = "Parameter Value",
-    title = "Comparison Plot of Parameter Values (Cohort Facets)"
+    title = "Comparison Plot of 25%-50% Parameter Values (Cohort Facets)"
     )
 ```
 
@@ -887,6 +907,8 @@ into a table as they will be used later.
 ```{r params_bgnbd_fit, echo=TRUE}
 params_bgnbd_tbl <- params_bgnbd_clvfit %>%
   extract_bgnbd_parameters()
+
+params_bgnbd_tbl %>% glimpse()
 ```
 
 
@@ -901,9 +923,9 @@ construct_split_bgnbd_estimates <- function(tnx_splits, label,
                                             cutoff_date) {
 
   cache_file <- glue("precompute/{label}_cache.rds") %>% as.character()
-  
+
   calc_file <- !file_exists(cache_file)
-  
+
   if(calc_file) {
     tnx_clvdata <- tnx_splits %>%
       analysis() %>%
@@ -914,7 +936,7 @@ construct_split_bgnbd_estimates <- function(tnx_splits, label,
       mutate(
         cohort_qtr = first_tnx_date %>% as.yearqtr(),
         cohort_ym  = first_tnx_date %>% format("%Y %m"),
-  
+
         .after = "customer_id"
         ) %>%
       ungroup() %>%
@@ -927,7 +949,7 @@ construct_split_bgnbd_estimates <- function(tnx_splits, label,
         name.date        = "invoice_date",
         name.price       = "invoice_spend"
         )
-    
+
     tnx_clvdata %>% write_rds(file = cache_file)
   } else {
     tnx_clvdata <- read_rds(file = cache_file)
@@ -966,22 +988,22 @@ bootstrap sample.
 
 ```{r fit_bgnbd_parameters, echo=TRUE}
 fit_bgnbd_parameters <- function(clvdata, label) {
-  
+
   cache_file <- glue("precompute/{label}_bgnbd_fit.rds") %>% as.character()
-  
+
   calc_file <- !file_exists(cache_file)
-  
+
   if(calc_file) {
     fit_bgnbd <- bgnbd(
       clvdata,
       start.params.model = c(r = 0.5, alpha = 5, a = 0.1, b = 9.9)
       )
-    
+
     fit_bgnbd %>% write_rds(file = cache_file)
   } else {
     fit_bgnbd <- read_rds(file = cache_file)
   }
-  
+
   return(fit_bgnbd)
 }
 ```
@@ -1020,6 +1042,7 @@ bootstrap_fit_params_tbl <- bootstrap_bgnbd_tbl %>%
 ggplot(bootstrap_fit_params_tbl) +
   geom_histogram(aes(x = value), bins = 25) +
   geom_vline(aes(xintercept = mean), colour = "red") +
+  expand_limits(y = 0) +
   facet_wrap(vars(parameter), scales = "free") +
   labs(
     x = "Value",

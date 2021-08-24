@@ -4,10 +4,11 @@ author: "Mick Cooney <mickcooney@gmail.com>"
 date: ""
 output:
   rmdformats::readthedown:
-    fig_caption: yes
-    theme: cerulean
     toc_depth: 3
-    use_bookdown: yes
+    use_bookdown: TRUE
+    code_folding: hide
+    css: styles.css
+    fig_caption: TRUE
 
   html_document:
     fig_caption: yes

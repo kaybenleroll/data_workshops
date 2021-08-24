@@ -1,4 +1,4 @@
-FROM kaybenleroll/r_baseimage:base202104
+FROM kaybenleroll/r_baseimage:base202108
 
 RUN apt-get update \
   && apt-get upgrade -y \
@@ -12,6 +12,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && install2.r --error \
     actuar \
+    anytime \
     arules \
     arulesCBA \
     arulesNBMiner \
@@ -23,13 +24,17 @@ RUN apt-get update \
     CLVTools \
     descriptr \
     evir \
+    factoextra \
+    FactoInvestigate \
+    FactoMineR \
+    Factoshiny \
     fitdistrplus \
     ggraph \
     kableExtra \
     rfm \
-    shinythemes \
     shinyBS \
     shinycssloaders \
+    shinythemes \
     survival \
     survminer \
     visNetwork \
