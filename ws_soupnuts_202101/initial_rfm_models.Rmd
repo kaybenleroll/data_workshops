@@ -5,8 +5,10 @@ date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   rmdformats::readthedown:
     toc_depth: 3
-    use_bookdown: yes
+    use_bookdown: TRUE
+    code_folding: hide
     css: styles.css
+    fig_caption: TRUE
 
   html_document:
     fig_caption: yes
@@ -82,51 +84,17 @@ tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
 tnx_data_tbl %>% glimpse()
 ```
 
-We filter out all returns data and various other transactions we excluded from
-our dataset.
+Having loaded the transaction data we also want to load the daily summary
+datasets.
 
-```{r prepare_data_arules, echo=TRUE}
-tnx_purchase_tbl <- tnx_data_tbl %>%
-  filter(
-    quantity > 0,
-    exclude == FALSE
-    ) %>%
-  select(
-    invoice_date, invoice_id, stock_code, customer_id, description,
-    quantity, price, stock_value
-    )
-
-tnx_purchase_tbl %>% glimpse()
-```
-
-Much as we did for the BTYD models, we want to look at individual transactions
-so we aggregate across products and combine the data down to an individual
-invoice.
-
-```{r calculate_customer_daily_spend, echo=TRUE}
-daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
-  drop_na(customer_id) %>%
-  group_by(invoice_date, customer_id, invoice_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    invoice_spend = sum(stock_value)
-  )
-
+```{r load_daily_spend_data, echo=TRUE}
+daily_spend_invoice_tbl <- read_rds("data/daily_spend_invoice_tbl.rds")
 daily_spend_invoice_tbl %>% glimpse()
 
-
-daily_spend_tbl <- daily_spend_invoice_tbl %>%
-  group_by(invoice_date, customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    total_spend = sum(invoice_spend),
-    tnx_count   = n()
-    )
-
+daily_spend_tbl <- read_rds("data/daily_spend_tbl.rds")
 daily_spend_tbl %>% glimpse()
 ```
+
 
 
 Finally, we want to set a date to make the end of the "fitting" data, which
