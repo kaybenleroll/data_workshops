@@ -398,25 +398,26 @@ apriori_rules_igraph <- basket_apriori %>%
   plot(
     measure = "support",
     method  = "graph",
+    engine  = "igraph",
     control = list(max = 1000)
-    ) %>%
-  as("igraph")
+    )
 
 apriori_rules_igraph %>% print()
 ```
 
-We should first visualise this graph, using the top 30 rules in the dataset,
+We should first visualise this graph, using the top 100 rules in the dataset,
 as measured by the support of the rule.
 
 ```{r plot_interactive_rules_graph, echo=TRUE}
 basket_apriori %>%
-  head(n = 30, by = "support") %>%
+  head(n = 100, by = "support") %>%
   plot(
     measure  = "lift",
     method   = "graph",
     engine   = "htmlwidget"
     )
 ```
+
 
 
 ## Extract Connected Product Labels
@@ -655,11 +656,11 @@ apriori_lower_rules_igraph <- basket_lower_rules %>%
   plot(
     measure = "support",
     method  = "graph",
+    engine  = "igraph",
     control = list(max = 5000)
-    ) %>%
-  as("igraph")
+    )
 
-apriori_lower_rules_igraph %>% glimpse()
+apriori_lower_rules_igraph %>% print()
 ```
 
 Once again we have a quick look at the top 50 rules.
@@ -796,8 +797,10 @@ product_groups_lower_tbl %>% write_rds("data/product_groups_lower_tbl.rds")
 ```
 
 
+
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
 sessioninfo::session_info()
 ```
+
