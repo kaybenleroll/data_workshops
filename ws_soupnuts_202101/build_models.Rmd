@@ -191,9 +191,9 @@ apriori_rules_igraph <- basket_arules %>%
   plot(
     measure = "support",
     method  = "graph",
+    engine  = "igraph",
     control = list(max = 20000)
-    ) %>%
-  as("igraph")
+    )
 
 apriori_rules_igraph %>% summary()
 ```
