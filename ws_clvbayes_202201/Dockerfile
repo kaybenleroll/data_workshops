@@ -1,11 +1,10 @@
-FROM rocker/verse:4.0.5
+FROM rocker/verse:4.1.0
 
 RUN apt-get update \
   && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends \
     byobu \
     clang \
-    clang-9 \
     ditaa \
     graphviz \
     htop \
@@ -20,12 +19,12 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p $HOME/.R \
   && echo "" > $HOME/.R/Makevars \
-  && echo "CXX=clang++-9"                                          >> $HOME/.R/Makevars \
+  && echo "CXX=clang++"                                            >> $HOME/.R/Makevars \
   && echo "CXXFLAGS=-Os -mtune=native -march=native"               >> $HOME/.R/Makevars \
   && echo "CXXFLAGS+= -Wno-unused-variable -Wno-unused-function"   >> $HOME/.R/Makevars \
   && echo "CXXFLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined"   >> $HOME/.R/Makevars \
   && echo ""                                                       >> $HOME/.R/Makevars \
-  && echo "CXX14=clang++-9"                                        >> $HOME/.R/Makevars \
+  && echo "CXX14=clang++"                                          >> $HOME/.R/Makevars \
   && echo "CXX14FLAGS=-Os -mtune=native -march=native"             >> $HOME/.R/Makevars \
   && echo "CXX14FLAGS+= -Wno-unused-variable -Wno-unused-function" >> $HOME/.R/Makevars \
   && echo "CXX14FLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined" >> $HOME/.R/Makevars \
@@ -33,6 +32,7 @@ RUN apt-get update \
   && cp -r $HOME/.R /home/rstudio \
   && chown rstudio:rstudio /home/rstudio/.R \
   && install2.r --error \
+    anytime \
     bayesplot \
     brms \
     broom \
@@ -81,20 +81,22 @@ RUN git clone https://github.com/lindenb/makefile2graph.git \
 
 WORKDIR /home/rstudio
 
-
-COPY build/docker_install_rpkgs.R /tmp
-RUN Rscript /tmp/docker_install_rpkgs.R
-
-
 COPY build/conffiles.7z /tmp
 
-RUN 7z x /tmp/conffiles.7z \
-  && cp conffiles/.bash*     . \
-  && cp conffiles/.gitconfig . \
-  && cp conffiles/.Renviron  . \
-  && cp conffiles/.Rprofile  . \
-  && cp conffiles/user-settings .rstudio/monitored/user-settings/ \
-  && chown -R rstudio:rstudio /home/rstudio \
+RUN 7z x /tmp/conffiles.7z       \
+  && cp conffiles/.bash*     .   \
+  && cp conffiles/.gitconfig .   \
+  && cp conffiles/.Renviron  .   \
+  && cp conffiles/.Rprofile  .   \
+  && mkdir -p .config/rstudio    \
+  && cp conffiles/rstudio-prefs.json .config/rstudio/  \
+  && chown -R rstudio:rstudio /home/rstudio            \
   && rm -rfv conffiles/
+
+
+COPY build/docker_install_rpkgs.R /tmp
+
+RUN Rscript /tmp/docker_install_rpkgs.R
+
 
 
