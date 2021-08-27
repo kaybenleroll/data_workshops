@@ -35,18 +35,21 @@ library(stringr)
 library(glue)
 library(purrr)
 library(furrr)
+library(zoo)
 library(arules)
 library(arulesViz)
 library(DT)
 library(tidygraph)
 library(rfm)
+library(FactoMineR)
+library(factoextra)
 
 
 source("lib_utils.R")
 
 resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules",
-    "Matrix", "DT")
+    "Matrix", "DT", "zoo")
   )
 
 
@@ -78,6 +81,8 @@ plan(multisession)
 We first want to load our datasets and prepare them for some simple association
 rules mining.
 
+## Load Transaction Data
+
 ```{r load_transaction_data, echo=TRUE}
 tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
 
@@ -105,6 +110,51 @@ tnx_purchase_tbl %>% glimpse()
 ```
 
 
+To build the association rules, we need to load the transactions in the format
+required for the `arules` package. We set a date for our dataset before which
+we wish to train our data and use the remainder as our model validation.
+
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
+```
+
+
+We now combine all this data to construct our association rules.
+
+
+```{r setup_arules_structure, echo=TRUE}
+tnx_purchase_tbl %>%
+  filter(invoice_date <= training_data_date) %>%
+  select(invoice_id, stock_code) %>%
+  write_csv("data/tnx_arules_input.csv")
+
+basket_tnxdata <- read.transactions(
+    file   = "data/tnx_arules_input.csv",
+    format = "single",
+    sep    = ",",
+    header = TRUE,
+    cols   = c("invoice_id", "stock_code")
+    )
+
+basket_tnxdata %>% glimpse()
+```
+
+
+## Load Customer Data
+
+We also want to load the various data about the customers such as their cohort
+and so on.
+
+```{r load_customer_cohort_data, echo=TRUE}
+customer_cohort_tbl <- read_rds("data/customer_cohort_tbl.rds")
+
+customer_cohort_tbl %>% glimpse()
+```
+
+
+## Load Product Data
+
 We also want to load the free-text description of the various stock items as
 this will help will interpretation of the various rules we have found.
 
@@ -114,12 +164,7 @@ product_data_tbl <- read_rds("data/stock_code_lookup_tbl.rds")
 product_data_tbl %>% glimpse()
 ```
 
-Finally, we set a date for our dataset before which we wish to train our
-data and use the remainder as our model validation.
 
-```{r set_training_data_date, echo=TRUE}
-training_data_date <- as.Date("2011-03-31")
-```
 
 
 
@@ -138,27 +183,6 @@ to some standard clustering.
 
 
 
-## Load Transaction Data
-
-To build our rules, we first need to load the transactions in the format
-required for the `arules` package.
-
-```{r setup_arules_structure, echo=TRUE}
-tnx_purchase_tbl %>%
-  filter(invoice_date <= training_data_date) %>%
-  select(invoice_id, stock_code) %>%
-  write_csv("data/tnx_arules_input.csv")
-
-basket_tnxdata <- read.transactions(
-    file   = "data/tnx_arules_input.csv",
-    format = "single",
-    sep    = ",",
-    header = TRUE,
-    cols   = c("invoice_id", "stock_code")
-    )
-
-basket_tnxdata %>% glimpse()
-```
 
 
 ## Construct Association Rules
@@ -1027,13 +1051,11 @@ desirable metrics on aggregate.
 
 
 
-# Investigate Co-occurrence of Customer Segments and Product Groups
+# Analyse Categorical Co-occurrences
 
 We now need to perform a correspondence analysis (CA) for the co-occurence
 of customer grouping and product grouping to see what types of products
 are associated with the various groups.
-
-
 
 
 ## Construct Customer and Product Allocations
@@ -1068,16 +1090,26 @@ product_group_allocation_tbl %>% glimpse()
 ```
 
 
-## Construct Correspondence Analysis Table
+## Construct Co-occurence Analysis
 
 We now wish to add the various product and customer groupings to our
-transaction data to 
+transaction data to construct a table we can later us for some correspondence
+analysis. Prior to pursuing library routines to perform this analysis, we first
+look at some of the co-occurence frequencies.
+
 
 ```{r construct_correspondence_data, echo=TRUE}
 tnx_correspondence_tbl <- tnx_purchase_tbl %>%
   select(
     invoice_id, invoice_date, stock_code, customer_id
     ) %>%
+  mutate(
+    tnx_ym    = invoice_date %>% format("%Y%m"),
+    tnx_dow   = invoice_date %>% format("%A"),
+    tnx_month = invoice_date %>% format("%B"),
+    tnx_qtr   = invoice_date %>% as.yearqtr() %>% as.character()
+    ) %>%
+  inner_join(customer_cohort_tbl, by = "customer_id") %>%
   inner_join(customer_segment_allocation_tbl, by = "customer_id") %>%
   inner_join(product_group_tnxgroups_tbl, by = "stock_code")
 
@@ -1177,6 +1209,49 @@ ggplot(segment_group_combined_tbl) +
   ggtitle("Heatmap of Percentage Differences Between Observed and Theoretical Proportions") +
   theme(axis.text.x = element_text(angle = 10, vjust = 0.5))
 ```
+
+
+## Perform Basic Correspondence Analysis
+
+To run the various routines to calculate the correspondence analysis we need
+to convert our data into a matrix format required by the libraries.
+
+To do this efficiently, we construct a quick function to convert these data
+tables into a matrix with the first column becoming the row name for the
+matrix.
+
+
+```{r make_df_matrix, echo=TRUE}
+make_df_matrix <- function(data_tbl) {
+  seg_names <- data_tbl %>% pull(1)
+  
+  data_mat <- data_tbl %>%
+    select(-1) %>%
+    as.matrix() %>%
+    set_rownames(seg_names)
+  
+  return(data_mat)
+}
+```
+
+
+```{r create_segment_group_frequency_data, echo=TRUE}
+segment_group_freq_tbl <- tnx_correspondence_tbl %>%
+  count(segment, product_group, name = "freq_count") %>%
+  pivot_wider(
+    id_cols     = segment,
+    names_from  = product_group,
+    values_from = freq_count,
+    values_fill = 0
+    )
+
+segment_group_mat <- segment_group_freq_tbl %>%
+  make_df_matrix()
+
+segment_group_mat %>% glimpse()
+```
+
+
 
 
 
