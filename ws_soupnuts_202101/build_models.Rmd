@@ -455,7 +455,6 @@ relevant summary data about each product.
 
 ```{r construct_product_dataset, echo=TRUE}
 product_data_full_tbl <- product_data_tbl %>%
-  rename(stock_code = stock_code_upr) %>%
   left_join(product_cluster_tbl, by = "stock_code") %>%
   left_join(product_popular_tbl, by = "stock_code") %>%
   replace_na(
@@ -1251,6 +1250,34 @@ segment_group_mat <- segment_group_freq_tbl %>%
 segment_group_mat %>% glimpse()
 ```
 
+Now that we have the frequency matrix we can run the `CA` routine and visualise
+the outputs.
+
+```{r calculate_segment_group_ca, echo=TRUE}
+segment_group_ca <- segment_group_mat %>% CA(graph = FALSE)
+```
+
+First we visualise the variance determined from the eigenvalues of the matrix.
+This gives us an indication of the 'true' underlying dimensionality of the
+data.
+
+```{r visualise_ca_eigenvalues_variance, echo=TRUE}
+segment_group_ca %>% fviz_eig()
+```
+
+From this plot, we see that we can capture almost 94% of the variance with
+just two dimensions.
+
+We then construct the biplot - which is a way of visualising the co-occurrences
+of each of the categorical values.
+
+```{r visualise_ca_biplots, echo=TRUE}
+segment_group_ca %>%
+  fviz_ca_biplot(
+    repel = TRUE,
+    title = "CA Biplot of Customer Segment Against Product Group"
+    )
+```
 
 
 
