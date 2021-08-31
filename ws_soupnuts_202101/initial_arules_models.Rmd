@@ -111,9 +111,9 @@ We also want to load the free-text description of the various stock items as
 this will help will interpretation of the various rules we have found.
 
 ```{r load_stock_code_descriptions, echo=TRUE}
-stock_code_lookups_tbl <- read_rds("data/stock_code_lookup_tbl.rds")
+stock_description_tbl <- read_rds("data/stock_description_tbl.rds")
 
-stock_code_lookups_tbl %>% glimpse()
+stock_description_tbl %>% glimpse()
 ```
 
 
@@ -156,16 +156,8 @@ freq_codes <- itemFrequency(basket_arules) %>%
   head(20) %>%
   names()
 
-tnx_purchase_tbl %>%
-  select(stock_code, description) %>%
+stock_description_tbl %>%
   filter(stock_code %in% freq_codes) %>%
-  distinct() %>%
-  drop_na(description) %>%
-  group_by(stock_code) %>%
-  summarise(
-    .groups = "drop",
-    desc = description %>% sort() %>% unique() %>% str_c(collapse = " : ")
-    ) %>%
   arrange(stock_code) %>%
   datatable()
 ```
@@ -472,7 +464,7 @@ product_groups_all_tbl %>%
     .groups = "drop",
 
     product_count = n(),
-    product_str   = str_c(stock_code, collapse = ", ")
+    product_str   = str_c(stock_code, collapse = ":")
     ) %>%
   ungroup() %>%
   select(-product_group_id) %>%
@@ -527,7 +519,7 @@ product_groups_largest_tbl %>%
     .groups = "drop",
 
     product_count = n(),
-    product_str   = str_c(stock_code, collapse = ", ")
+    product_str   = str_c(stock_code, collapse = ":")
     ) %>%
   ungroup() %>%
   select(-product_group_id) %>%
@@ -637,8 +629,8 @@ interpretation of the different groupings is easier.
 ```{r display_stock_groups, echo=TRUE}
 product_groups_tbl %>%
   filter(group_size > 1, group_size < 15) %>%
-  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
-  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  mutate(stock_code = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_description_tbl, by = "stock_code") %>%
   datatable()
 ```
 
@@ -776,8 +768,8 @@ interpretation of the different groupings is easier.
 ```{r display_lower_stock_groups, echo=TRUE}
 product_groups_lower_tbl %>%
   filter(group_size > 1, group_size != max(group_size)) %>%
-  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
-  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  mutate(stock_code = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_description_tbl, by = "stock_code") %>%
   datatable()
 ```
 

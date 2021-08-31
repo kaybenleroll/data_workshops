@@ -99,6 +99,16 @@ tnx_purchase_tbl <- tnx_data_tbl %>%
 tnx_purchase_tbl %>% glimpse()
 ```
 
+We also load the stock description data, as this will be useful as part of the
+graph analysis.
+
+```{r load_stock_description, echo=TRUE}
+stock_description_tbl <- read_rds("data/stock_description_tbl.rds")
+
+stock_description_tbl %>% glimpse()
+```
+
+
 
 # Basket Analysis
 
@@ -322,15 +332,6 @@ pairwise_nodes_tbl <- tnx_data_tbl %>%
     ) %>%
   mutate(
     stock_code = str_to_upper(stock_code)
-    ) %>%
-  group_by(stock_code) %>%
-  summarise(
-    .groups = "drop",
-    
-    stock_desc = description %>%
-      unique() %>%
-      sort() %>%
-      str_c(collapse = " : ")
     ) %>%
   arrange(stock_code)
 

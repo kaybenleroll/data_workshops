@@ -1433,8 +1433,30 @@ cleaned_data_tbl %>% glimpse()
 Finally, we want to construct a lookup table that provides some free-text
 fields for each `stock_code` value.
 
+```{r dedupe_stock_descs}
+dedupe_stock_descs <- function(stock_desc) {
+  dedupe_descs <- stock_desc %>%
+    enframe(name = NULL, value = "stock_desc") %>%
+    mutate(
+      desc_len    = stock_desc %>% nchar(),
+      desc_dedupe = stock_desc %>% str_trim() %>% str_replace_all("[^\\w]| ", ""),
+      desc_output = stock_desc %>% str_trim() %>% str_squish()
+      ) %>%
+    group_by(desc_dedupe) %>%
+    slice_max(order_by = desc_len, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    pull(desc_output)
+
+  return(dedupe_descs)
+}
+```
+
+We use some simple logic to attempt to de-dupe the descriptions as much as
+possible.
+
+
 ```{r construct_stock_code_table, echo=TRUE}
-stock_code_lookup_tbl <- cleaned_data_tbl %>%
+stock_description_tbl <- cleaned_data_tbl %>%
   filter(
     exclude == FALSE,
     quantity > 0,
@@ -1442,26 +1464,26 @@ stock_code_lookup_tbl <- cleaned_data_tbl %>%
     !are_na(description)
     ) %>%
   mutate(
-    stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()
+    stock_code = stock_code %>% str_trim() %>% str_to_upper()
     ) %>%
-  select(stock_code_upr, description) %>%
+  select(stock_code, description) %>%
   drop_na(description) %>%
   distinct() %>%
-  group_by(stock_code_upr) %>%
+  group_by(stock_code) %>%
   summarise(
     .groups = "drop",
     
-    desc = description %>% sort() %>% unique() %>% str_c(collapse = " : ")
+    desc = description %>% sort() %>% dedupe_stock_descs() %>% str_c(collapse = " : ")
     ) %>%
-  arrange(stock_code_upr)
+  arrange(stock_code)
 
-stock_code_lookup_tbl %>% glimpse()
+stock_description_tbl %>% glimpse()
 ```
 
 We also look at this output using DT
 
-```{r view_stock_code_lookup, echo=TRUE}
-stock_code_lookup_tbl %>% datatable()
+```{r view_stock_description, echo=TRUE}
+stock_description_tbl %>% datatable()
 ```
 
 
@@ -1767,7 +1789,7 @@ Finally we output the various datasets we have constructed to disks.
 
 
 ```{r write_to_disk, echo=TRUE}
-stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
+stock_description_tbl %>% write_rds("data/stock_description_tbl.rds")
 
 returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
 
