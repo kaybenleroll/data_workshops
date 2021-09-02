@@ -7,12 +7,8 @@ RUN apt-get update \
     ditaa \
     graphviz \
     htop \
+    libgsl-dev \
     less \
-#    libglpk-dev \
-#    libgsl-dev \
-#    liblapack-dev \
-#    libnlopt-dev \
-#    libtk8.6 \
     p7zip-full \
     pbzip2 \
     tk8.6 \
@@ -43,6 +39,7 @@ RUN apt-get update \
     fs \
     furrr \
     ggraph \
+    ggwordcloud \
     kableExtra \
     pryr \
     rfm \
@@ -57,6 +54,7 @@ RUN apt-get update \
     tictoc \
     tidygraph \
     tidyquant \
+    tidytext \
     visNetwork \
     xplorerr
 
