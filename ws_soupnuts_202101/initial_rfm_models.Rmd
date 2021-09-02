@@ -45,7 +45,7 @@ library(DT)
 
 source("lib_utils.R")
 
-resolve_conflicts(
+conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
   )
 

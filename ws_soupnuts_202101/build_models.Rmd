@@ -43,11 +43,14 @@ library(tidygraph)
 library(rfm)
 library(FactoMineR)
 library(factoextra)
+library(ggpubr)
+library(tidytext)
+library(ggwordcloud)
 
 
 source("lib_utils.R")
 
-resolve_conflicts(
+conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules",
     "Matrix", "DT", "zoo")
   )
@@ -675,7 +678,8 @@ product_group_tnxgroups_tbl <- list(
     ) %>%
   bind_rows() %>%
   arrange(stock_code) %>%
-  select(stock_code, product_group = cluster_group)
+  inner_join(product_data_tbl, by = "stock_code") %>%
+  select(stock_code, product_group = cluster_group, desc)
 
 product_group_tnxgroups_tbl %>% glimpse()
 ```
@@ -1050,6 +1054,70 @@ desirable metrics on aggregate.
 
 
 
+
+## Simple Product Description Analysis
+
+With each of the products classified into different groups we now inspect the
+product descriptions of those products.
+
+We split the product descriptions by `product_group` and construct a word cloud
+for each one. Word clouds are a simple starting point to help visualise common
+words in a group.
+
+```{r construct_description_word_cloud, echo=TRUE}
+create_wordcloud <- function(tokens_tbl, seed = 42) {
+  cloud_plot <- tokens_tbl %>%
+    count(word, name = "freq", sort = TRUE) %>%
+    slice_max(order_by = freq, n = 100) %>%
+    ggwordcloud2(seed = seed)
+  
+  return(cloud_plot)
+}
+
+product_group_tokens_tbl <- product_group_tnxgroups_tbl %>%
+  group_by(product_group) %>%
+  mutate(product_count = n()) %>%
+  mutate(label = glue("{product_group} ({product_count})")) %>%
+  ungroup() %>%
+  unnest_tokens(word, desc)
+
+w_tbl <- product_group_tokens_tbl %>%
+  filter(product_group != "TNX_010") %>%
+  group_nest(label, product_count, .key = "token_data") %>%
+  mutate(
+    cloud = map2(token_data, product_count, create_wordcloud)
+    )
+
+plot_grid(
+    plotlist = w_tbl$cloud,
+    labels   = w_tbl$label,
+    ncol     = 3
+    )
+```
+
+We now repeat this exercise but using a slightly lower-level use of the
+word cloud data.
+
+```{r create_custom_facetted_word_cloud, echo=TRUE}
+wc_input_tbl <- product_group_tokens_tbl %>%
+  count(label, word, name = "freq", sort = TRUE) %>%
+  group_by(label) %>%
+  slice_max(order_by = freq, n = 50) %>%
+  ungroup()
+
+
+ggplot(wc_input_tbl %>% filter(label != "TNX_010 (6)")) +
+  geom_text_wordcloud_area(
+    aes(label = word, size = freq),
+    shape = "square", seed = 42, rm_outside = TRUE) +
+  facet_wrap(vars(label), scales = "free", ncol = 3) +
+  scale_size_area(max_size = 15) +
+  theme_minimal()
+
+```
+
+
+
 # Analyse Categorical Co-occurrences
 
 We now need to perform a correspondence analysis (CA) for the co-occurence
@@ -1209,6 +1277,33 @@ ggplot(segment_group_combined_tbl) +
   theme(axis.text.x = element_text(angle = 10, vjust = 0.5))
 ```
 
+## Construct Balloon Plot
+
+Another way to visualise this co-occurence of values is to construct a balloon
+plot, which shows the counts of each combination of the categorical values
+within our dataset.
+
+
+```{r construct_segment_product_balloonplot, echo=TRUE}
+plot_tbl <- tnx_correspondence_tbl %>%
+  count(segment, product_group, name = "freq_count")
+
+ggballoonplot(
+    plot_tbl,
+    show.label = TRUE,
+    ggtheme = theme_cowplot()
+    ) +
+  labs(
+    x = "Customer Segment",
+    y = "Product Group",
+    size = "Count"
+    ) +
+  theme(axis.text.x = element_text(angle = 20))
+
+
+```
+
+
 
 ## Perform Basic Correspondence Analysis
 
@@ -1278,6 +1373,10 @@ segment_group_ca %>%
     title = "CA Biplot of Customer Segment Against Product Group"
     )
 ```
+
+
+
+
 
 
 
