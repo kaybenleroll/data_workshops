@@ -56,6 +56,7 @@ RUN apt-get update \
     tidyquant \
     tidytext \
     visNetwork \
+    wordcloud2 \
     xplorerr
 
 RUN Rscript -e 'BiocManager::install("Rgraphviz")'
