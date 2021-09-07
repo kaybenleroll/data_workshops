@@ -46,6 +46,7 @@ library(factoextra)
 library(ggpubr)
 library(tidytext)
 library(ggwordcloud)
+library(wordcloud2)
 
 
 source("lib_utils.R")
@@ -162,7 +163,7 @@ We also want to load the free-text description of the various stock items as
 this will help will interpretation of the various rules we have found.
 
 ```{r load_product_data, echo=TRUE}
-product_data_tbl <- read_rds("data/stock_code_lookup_tbl.rds")
+product_data_tbl <- read_rds("data/stock_description_tbl.rds")
 
 product_data_tbl %>% glimpse()
 ```
@@ -1113,7 +1114,6 @@ ggplot(wc_input_tbl %>% filter(label != "TNX_010 (6)")) +
   facet_wrap(vars(label), scales = "free", ncol = 3) +
   scale_size_area(max_size = 15) +
   theme_minimal()
-
 ```
 
 
@@ -1299,8 +1299,6 @@ ggballoonplot(
     size = "Count"
     ) +
   theme(axis.text.x = element_text(angle = 20))
-
-
 ```
 
 
@@ -1375,10 +1373,32 @@ segment_group_ca %>%
 ```
 
 
+According to the biplots, there is a suggested relationship between customers
+in the "Champions" category and those products in grouping "TNX_009" - we
+ignore "TNX_010" as it is very small.
 
+As before, let us look at a wordcloud on the types of items in that.
 
+```{r plot_tnx_009_word_cloud, echo=TRUE}
+wc_009_tbl <- product_group_tokens_tbl %>%
+  filter(product_group == "TNX_009") %>%
+  count(word, name = "freq") %>%
+  slice_max(order_by = freq, n = 100)
 
+wordcloud2(data = wc_009_tbl)
+```
 
+We also see that customers designated "Potential Loyalist" are connected to
+"TNX_005". So, we show a word cloud for this group also.
+
+```{r plot_tnx_005_word_cloud, echo=TRUE}
+wc_005_tbl <- product_group_tokens_tbl %>%
+  filter(product_group == "TNX_005") %>%
+  count(word, name = "freq") %>%
+  slice_max(order_by = freq, n = 100)
+
+wordcloud2(data = wc_005_tbl)
+```
 
 
 # R Environment
