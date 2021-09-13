@@ -6,3 +6,5 @@
 
 temp.R
 *.rds
+
+orig/*

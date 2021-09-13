@@ -18,7 +18,7 @@ PROJECT_FOLDER=workshop
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
 GITHUB_USER=$(shell gh config get gh_user)
 
-CONTAINER_NAME=workshop
+CONTAINER_NAME=clv-workshop
 
 ### Project build targets
 .SUFFIXES: .Rmd .html .dot .png
@@ -46,9 +46,11 @@ initial_btyd_models.html: exploring_retail_data.html
 
 
 
-mrproper: clean-html clean-cache
-	rm -fv data/*.rds
+mrproper: clean-cache clean-data clean-html
 	rm -fv data/*.xlsx
+
+clean-data:
+	rm -fv data/*.rds
 	rm -fv data/*.csv
 
 clean-html:

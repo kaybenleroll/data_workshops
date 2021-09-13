@@ -40,14 +40,14 @@ library(snakecase)
 library(lubridate)
 library(evir)
 library(DT)
-library(tidygraph)
 library(tidyquant)
-
 
 
 source("lib_utils.R")
 
-resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
 
 
 knitr::opts_chunk$set(
@@ -1489,8 +1489,8 @@ are 'born' in the system - that is, the date on which they make their first
 purchase. Another important quantity is the time between transactions for a
 customer, we we will visualise these.
 
-```{r construct_customer_first_date, echo=TRUE}
-customer_firstdate_tbl <- tnx_purchase_tbl %>%
+```{r construct_customer_cohort, echo=TRUE}
+customer_cohort_tbl <- tnx_purchase_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
@@ -1506,14 +1506,14 @@ customer_firstdate_tbl <- tnx_purchase_tbl %>%
     )
 
 
-customer_firstdate_tbl %>% glimpse()
+customer_cohort_tbl %>% glimpse()
 ```
 
 Now that we have a first date for each customer, we look at the total number
 of customers joining at each date.
 
 ```{r plot_customer_first_dates, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   count(first_tnx_date, name = "n_customer")
 
 ggplot(plot_tbl) +
@@ -1557,7 +1557,7 @@ We also want to look at a number of customers and make some line plots of their
 transactions.
 
 ```{r visualise_customer_transactions, echo=TRUE}
-keep_customers_tbl <- customer_firstdate_tbl %>%
+keep_customers_tbl <- customer_cohort_tbl %>%
   filter(total_tnx_count > 2) %>%
   slice_sample(n = 30)
 
@@ -1583,7 +1583,7 @@ on various first-transaction cohorts in the data.
 
 
 ```{r plot_distribution_first_transaction, echo=TRUE}
-ggplot(customer_firstdate_tbl) +
+ggplot(customer_cohort_tbl) +
   geom_histogram(aes(x = first_tnx_date), bins = 50) +
   labs(
     x = "Date of First Transaction",
@@ -1595,7 +1595,7 @@ ggplot(customer_firstdate_tbl) +
 We also want to get a sense of the total count of customers in each cohort.
 
 ```{r construct_qtr_cohort_column_plot, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   count(cohort_qtr, name = "customer_count") %>%
   mutate(cohort_qtr = cohort_qtr %>% as.character())
   
@@ -1612,7 +1612,7 @@ ggplot(plot_tbl) +
 We also want to see the monthly cohorts:
 
 ```{r construct_ym_cohort_column_plot, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   count(cohort_ym, name = "customer_count") %>%
   mutate(cohort_ym = cohort_ym %>% as.character())
 
@@ -1634,7 +1634,7 @@ For the cohort analysis, we start with a boxplot of the time difference between
 transactions by cohort.
 
 ```{r plot_cohort_differences_boxplot}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   inner_join(customer_tnx_diffs_tbl, by = "customer_id") %>%
   mutate(cohort_qtr = cohort_qtr %>% as.character())
 
@@ -1684,7 +1684,7 @@ customers in each cohort.
 
 
 ```{r estimate_cohort_dropout_rates, echo=TRUE}
-cohort_dropout_est_tbl <- customer_firstdate_tbl %>%
+cohort_dropout_est_tbl <- customer_cohort_tbl %>%
   select(
     customer_id, first_tnx_date, cohort_qtr, cohort_ym
     ) %>%
@@ -1797,7 +1797,7 @@ cleaned_data_tbl         %>% write_rds("data/retail_data_cleaned_tbl.rds")
 
 tnx_purchase_tbl         %>% write_rds("data/tnx_purchase_tbl.rds")
 
-customer_firstdate_tbl   %>% write_rds("data/customer_firstdate_tbl.rds")
+customer_cohort_tbl      %>% write_rds("data/customer_cohort_tbl.rds")
 
 daily_spend_invoice_tbl  %>% write_rds("data/daily_spend_invoice_tbl.rds")
 

@@ -35,9 +35,6 @@ RUN apt-get update \
     anytime \
     bayesplot \
     brms \
-    broom \
-    broom.mixed \
-    broomExtra \
     BTYD \
     BTYDplus \
     conflicted \
@@ -45,14 +42,13 @@ RUN apt-get update \
     CLVTools \
     DataExplorer \
     directlabels \
-    drake \
     evir \
     fitdistrplus \
     fs \
     furrr \
-    ggrepel \
     loo \
     modeltime \
+    posterior \
     projpred \
     prophet \
     pryr \
@@ -65,10 +61,7 @@ RUN apt-get update \
     snakecase \
     tictoc \
     tidybayes \
-    tidygraph \
-    tidymodels \
     tidyquant \
-    tidytext \
     timetk
 
 
