@@ -48,7 +48,7 @@ library(tidybayes)
 
 source("lib_utils.R")
 
-resolve_conflicts(
+conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
     "fitdistrplus")
   )
@@ -136,6 +136,14 @@ daily_spend_tbl <- daily_spend_invoice_tbl %>%
 
 daily_spend_tbl %>% glimpse()
 ```
+
+Much of this analysis will require the cohort data for each of the customers
+so we need to load them now.
+
+```{r load_customer_cohort_data, echo=TRUE}
+customer_cohort_tbl <- read_rds("data/customer_cohort_tbl.rds")
+```
+
 
 
 Finally, we want to set a date to make the end of the "fitting" data, which
@@ -236,6 +244,18 @@ For the Gamma/Gamma model, we use the following assumptions:
 
 
 
+# Initial Models
+
+Before we fit a full P/NBD Model we first wish to focus on more simple models:
+we fit the counting process and the lifetime process separately - making sure
+both of these fit appropriately and then focus on constructing the combined
+model.
+
+While this approach may seem pedantic and tedious, in practice we often
+experience issues fitting the data and so it is better to build simpler models
+
+
+
 
 
 # Construct Stan Models
@@ -263,8 +283,8 @@ $$
 
 ```{r construct_clvdata, echo=TRUE}
 customer_clvdata_tbl <- daily_spend_tbl %>%
-  left_join(customer_firstdate_tbl, by = "customer_id") %>%
-  filter(first_tnx_date <= training_data_date) %>%
+  left_join(customer_cohort_tbl, by = "customer_id") %>%
+  filter(cohort_qtr == "2009 Q4") %>%
   clvdata(
     date.format = "%Y-%m-%d",
     time.unit = "weeks",
@@ -307,7 +327,7 @@ pnbd_data_lst %>% glimpse()
 
 ```{r construct_fixed_stan_model, echo=TRUE}
 pnbd_fixed_stanmodel <- stan_model(
-  "stan_files/clv_pnbd_fixed.stan",
+  "stan_code/clv_pnbd_fixed.stan",
   model_name = "pnbd_fixed_model",
   verbose    = TRUE
   )
@@ -355,7 +375,7 @@ pnbd_fixed_postparams_tbl %>% glimpse()
 
 ```{r construct_priors_stan_model, echo=TRUE}
 pnbd_priors_stanmodel <- stan_model(
-  "stan_files/clv_pnbd_priormean.stan",
+  "stan_code/clv_pnbd_priors.stan",
   model_name = "pnbd_priors_model",
   verbose    = TRUE
   )
@@ -366,20 +386,20 @@ pnbd_priors_stanmodel <- stan_model(
 stan_data_lst <- compose_data(
   pnbd_data_lst,
   
-  etau_shape   = 1,
-  etau_rate    = 1
+  lambda_rate = 1,
+  etau_rate   = 1
   )
 
 
-# pnbd_priors_stanfit <- sampling(
-#   pnbd_priors_stanmodel,
-#   data   = stan_data_lst,
-#   chains = 4,
-#   iter   = 1000,
-#   seed   = 42
-#   )
-# 
-# pnbd_priors_stanfit %>% summary()
+pnbd_priors_stanfit <- sampling(
+  pnbd_priors_stanmodel,
+  data   = stan_data_lst,
+  chains = 4,
+  iter   = 1000,
+  seed   = 42
+  )
+
+pnbd_priors_stanfit %>% summary()
 ```
 
 
