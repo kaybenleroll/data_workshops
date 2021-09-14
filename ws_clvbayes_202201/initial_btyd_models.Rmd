@@ -1,5 +1,5 @@
 ---
-title: "Using Buy-Till-You-Die (BTYD) Models the Online Retail Dataset"
+title: "Initial Exploration of the P/NBD Model"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
@@ -185,10 +185,18 @@ $$
 where $x$ is the number of transactions observed in the time period $T$ and
 $t_x$ was the time of the last transaction.
 
-From this summary data we can fit both P/NBD and BG/NBD models.
+From this summary data we can fit most BTYD models.
+
+## BTYD Models
+
+There are a number of different statistical approaches to building BTYD
+models - relying on a number of different assumptions about how the various
+recency, frequency and monetary values are modelled.
+
+We now discuss a number of different ways of modelling this.
 
 
-## Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
+### Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
 
 This model relies on a number of base assumptions:
 
@@ -208,8 +216,19 @@ Note that it follows from the above assumptions that the probability of a
 customer being 'alive' after any transaction is given by the Geometric
 distribution, and hence the Beta-Geometric in the name.
 
+To put this into more formal mathematical notation, we have:
+ 
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r) \\
+P(\text{alive}, k) &\sim& \text{Geometric}(p, k) \\
+p &\sim& \text{Beta}(a, b)
+\end{eqnarray*}
+$$
 
-## Pareto/Negative-Binomial Distribution (P/NBD) Model
+
+
+### Pareto/Negative-Binomial Distribution (P/NBD) Model
 
 Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
 
@@ -227,7 +246,19 @@ Similar to the BG/NBD model, the P/NBD model relies on five assumptions:
   independently across customers.
 
 
-## Gamma/Gamma Spending Model
+As before, we express this in mathematical notation as:
+
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r)    \\
+\mu &\sim& \Gamma(s, \beta)         \\
+\tau &\sim& \text{Exponential}(\mu)
+\end{eqnarray*}
+$$
+
+
+
+### Gamma/Gamma Spending Model
 
 The final piece of this approach is to construct a spending model for the
 transactions. Similar to transaction rates, spending patterns are often
@@ -242,25 +273,20 @@ For the Gamma/Gamma model, we use the following assumptions:
   $\Gamma(p \, | \, q, \gamma)$
 
 
-
-
-# Initial Models
-
-Before we fit a full P/NBD Model we first wish to focus on more simple models:
-we fit the counting process and the lifetime process separately - making sure
-both of these fit appropriately and then focus on constructing the combined
-model.
-
-While this approach may seem pedantic and tedious, in practice we often
-experience issues fitting the data and so it is better to build simpler models
+In mathematical notation, we have:
+ 
+$$
+\begin{eqnarray*}
+p &\sim& \Gamma(q, \gamma) \\
+v &\sim& \Gamma(p, \nu)
+\end{eqnarray*}
+$$
 
 
 
 
 
-# Construct Stan Models
-
-## Data Preparation
+# Data Preparation
 
 We now need to prepare the data in the formats required to fit these models.
 
@@ -280,6 +306,9 @@ t_x            &=& \text{ time of the most recently made transaction}, \\
 t_{\text{cal}} &=& \text{ time since first transaction made by the customer}
 \end{eqnarray}
 $$
+
+We use the provided tools from the `CLVTools` package to convert our
+transaction data into the required formats.
 
 ```{r construct_clvdata, echo=TRUE}
 customer_clvdata_tbl <- daily_spend_tbl %>%
@@ -322,6 +351,59 @@ pnbd_data_lst %>% glimpse()
 ```
 
 
+
+
+# Initial Models
+
+Before we fit a full P/NBD Model we first wish to focus on more simple models:
+we fit the counting process and the lifetime process separately - making sure
+both of these fit appropriately and then focus on constructing the combined
+model.
+
+While this approach may seem pedantic and tedious, in practice we often
+experience issues fitting the data and so it is better to build simpler models
+
+
+## Exponentially-Distributed Lifetime 
+
+We start by just fitting the lifetime model, working on the basis that we 
+cannot observe lifetimes directly so instead we work on the censored
+observations indicated by the times of transactions.
+
+```{r construct_exponential_lifetime_model, echo=TRUE}
+pnbd_lifetime_fixed_stanmodel <- stan_model(
+  "stan_code/clv_pnbd_intro_lifetime_fixed.stan",
+  model_name = "pnbd_lifetime_model",
+  verbose    = TRUE
+  )
+```
+
+
+```{r fit_lifetime_fixed_stan_model, echo=TRUE, cache=TRUE}
+stan_data_lst <- compose_data(
+  pnbd_data_lst,
+
+  etau_shape   =  1,
+  etau_rate    = 10
+)
+
+pnbd_lifetime_fixed_stanfit <- sampling(
+  pnbd_lifetime_fixed_stanmodel,
+  data   = stan_data_lst,
+  chains = 4,
+  iter   = 1000,
+  seed   = 42
+)
+
+pnbd_lifetime_fixed_stanfit %>% summary()
+```
+
+```{r}
+knitr::knit_exit()
+```
+
+
+# Build P/NBD Models
 
 ## Construct Fixed Priors Model
 
