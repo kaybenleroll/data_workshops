@@ -7,7 +7,6 @@ output:
     toc_depth: 3
     use_bookdown: TRUE
     code_folding: hide
-    css: styles.css
     fig_caption: TRUE
 
   html_document:
@@ -48,7 +47,10 @@ library(directlabels)
 
 source("lib_utils.R")
 
-resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
 
 
 knitr::opts_chunk$set(
@@ -1433,8 +1435,30 @@ cleaned_data_tbl %>% glimpse()
 Finally, we want to construct a lookup table that provides some free-text
 fields for each `stock_code` value.
 
+```{r dedupe_stock_descs}
+dedupe_stock_descs <- function(stock_desc) {
+  dedupe_descs <- stock_desc %>%
+    enframe(name = NULL, value = "stock_desc") %>%
+    mutate(
+      desc_len    = stock_desc %>% nchar(),
+      desc_dedupe = stock_desc %>% str_trim() %>% str_replace_all("[^\\w]| ", ""),
+      desc_output = stock_desc %>% str_trim() %>% str_squish()
+      ) %>%
+    group_by(desc_dedupe) %>%
+    slice_max(order_by = desc_len, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    pull(desc_output)
+
+  return(dedupe_descs)
+}
+```
+
+We use some simple logic to attempt to de-dupe the descriptions as much as
+possible.
+
+
 ```{r construct_stock_code_table, echo=TRUE}
-stock_code_lookup_tbl <- cleaned_data_tbl %>%
+stock_description_tbl <- cleaned_data_tbl %>%
   filter(
     exclude == FALSE,
     quantity > 0,
@@ -1442,26 +1466,26 @@ stock_code_lookup_tbl <- cleaned_data_tbl %>%
     !are_na(description)
     ) %>%
   mutate(
-    stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()
+    stock_code = stock_code %>% str_trim() %>% str_to_upper()
     ) %>%
-  select(stock_code_upr, description) %>%
+  select(stock_code, description) %>%
   drop_na(description) %>%
   distinct() %>%
-  group_by(stock_code_upr) %>%
+  group_by(stock_code) %>%
   summarise(
     .groups = "drop",
     
-    desc = description %>% sort() %>% unique() %>% str_c(collapse = " : ")
+    desc = description %>% sort() %>% dedupe_stock_descs() %>% str_c(collapse = " : ")
     ) %>%
-  arrange(stock_code_upr)
+  arrange(stock_code)
 
-stock_code_lookup_tbl %>% glimpse()
+stock_description_tbl %>% glimpse()
 ```
 
 We also look at this output using DT
 
-```{r view_stock_code_lookup, echo=TRUE}
-stock_code_lookup_tbl %>% datatable()
+```{r view_stock_description, echo=TRUE}
+stock_description_tbl %>% datatable()
 ```
 
 
@@ -1524,8 +1548,8 @@ are 'born' in the system - that is, the date on which they make their first
 purchase. Another important quantity is the time between transactions for a
 customer, we we will visualise these.
 
-```{r construct_customer_first_date, echo=TRUE}
-customer_firstdate_tbl <- daily_spend_tbl %>%
+```{r construct_customer_cohort_data, echo=TRUE}
+customer_cohort_tbl <- daily_spend_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
@@ -1534,21 +1558,21 @@ customer_firstdate_tbl <- daily_spend_tbl %>%
     total_tnx_count = n()
     ) %>%
   mutate(
-    cohort_qtr = first_tnx_date %>% as.yearqtr(),
+    cohort_qtr = first_tnx_date %>% as.yearqtr() %>% as.character(),
     cohort_ym  = first_tnx_date %>% format("%Y %m"),
     
     .after = "customer_id"
     )
 
 
-customer_firstdate_tbl %>% glimpse()
+customer_cohort_tbl %>% glimpse()
 ```
 
 Now that we have a first date for each customer, we look at the total number
 of customers joining at each date.
 
 ```{r plot_customer_first_dates, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   count(first_tnx_date, name = "n_customer")
 
 ggplot(plot_tbl) +
@@ -1592,7 +1616,7 @@ We also want to look at a number of customers and make some line plots of their
 transactions.
 
 ```{r visualise_customer_transactions, echo=TRUE}
-keep_customers_tbl <- customer_firstdate_tbl %>%
+keep_customers_tbl <- customer_cohort_tbl %>%
   filter(total_tnx_count > 2) %>%
   slice_sample(n = 30)
 
@@ -1618,7 +1642,7 @@ on various first-transaction cohorts in the data.
 
 
 ```{r plot_distribution_first_transaction, echo=TRUE}
-ggplot(customer_firstdate_tbl) +
+ggplot(customer_cohort_tbl) +
   geom_histogram(aes(x = first_tnx_date), bins = 50) +
   labs(
     x = "Date of First Transaction",
@@ -1630,7 +1654,7 @@ ggplot(customer_firstdate_tbl) +
 We also want to get a sense of the total count of customers in each cohort.
 
 ```{r construct_qtr_cohort_column_plot, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   count(cohort_qtr, name = "customer_count") %>%
   mutate(cohort_qtr = cohort_qtr %>% as.character())
   
@@ -1647,7 +1671,7 @@ ggplot(plot_tbl) +
 We also want to see the monthly cohorts:
 
 ```{r construct_ym_cohort_column_plot, echo=TRUE}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   count(cohort_ym, name = "customer_count") %>%
   mutate(cohort_ym = cohort_ym %>% as.character())
 
@@ -1669,7 +1693,7 @@ For the cohort analysis, we start with a boxplot of the time difference between
 transactions by cohort.
 
 ```{r plot_cohort_differences_boxplot}
-plot_tbl <- customer_firstdate_tbl %>%
+plot_tbl <- customer_cohort_tbl %>%
   inner_join(customer_tnx_diffs_tbl, by = "customer_id") %>%
   mutate(cohort_qtr = cohort_qtr %>% as.character())
 
@@ -1720,7 +1744,7 @@ customers in each cohort.
 
 
 ```{r estimate_cohort_dropout_rates, echo=TRUE}
-cohort_dropout_est_tbl <- customer_firstdate_tbl %>%
+cohort_dropout_est_tbl <- customer_cohort_tbl %>%
   select(
     customer_id, first_tnx_date, cohort_qtr, cohort_ym
     ) %>%
@@ -1767,13 +1791,13 @@ Finally we output the various datasets we have constructed to disks.
 
 
 ```{r write_to_disk, echo=TRUE}
-stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
+stock_description_tbl %>% write_rds("data/stock_description_tbl.rds")
 
 returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
 
 cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
 
-customer_firstdate_tbl %>% write_rds("data/customer_firstdate_tbl.rds")
+customer_cohort_tbl %>% write_rds("data/customer_cohort_tbl.rds")
 
 daily_spend_invoice_tbl %>% write_rds("data/daily_spend_invoice_tbl.rds")
 

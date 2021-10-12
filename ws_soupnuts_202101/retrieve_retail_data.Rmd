@@ -7,7 +7,6 @@ output:
     toc_depth: 3
     use_bookdown: TRUE
     code_folding: hide
-    css: styles.css
     fig_caption: TRUE
 
   html_document:
@@ -37,7 +36,9 @@ library(fs)
 
 source("lib_utils.R")
 
-resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
 
 
 knitr::opts_chunk$set(
