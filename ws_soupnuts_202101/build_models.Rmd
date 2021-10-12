@@ -7,7 +7,6 @@ output:
     toc_depth: 3
     use_bookdown: TRUE
     code_folding: hide
-    css: styles.css
     fig_caption: TRUE
 
   html_document:
@@ -16,7 +15,7 @@ output:
     highlight: pygments
     number_sections: TRUE
     toc: TRUE
-    toc_depth: 2
+    toc_depth: 3
     toc_float:
       smooth_scroll: FALSE
 
@@ -1385,7 +1384,14 @@ wc_009_tbl <- product_group_tokens_tbl %>%
   count(word, name = "freq") %>%
   slice_max(order_by = freq, n = 100)
 
-wordcloud2(data = wc_009_tbl)
+wc_plot <- ggwordcloud2(
+    data    = wc_009_tbl,
+    shuffle = FALSE,
+    size    = 4,
+    seed    = 42421
+    )
+
+wc_plot %>% plot()
 ```
 
 We also see that customers designated "Potential Loyalist" are connected to
@@ -1397,7 +1403,14 @@ wc_005_tbl <- product_group_tokens_tbl %>%
   count(word, name = "freq") %>%
   slice_max(order_by = freq, n = 100)
 
-wordcloud2(data = wc_005_tbl)
+wc_plot <- ggwordcloud2(
+    data    = wc_005_tbl,
+    shuffle = FALSE,
+    size    = 4,
+    seed    = 42422
+    )
+
+wc_plot %>% plot()
 ```
 
 
