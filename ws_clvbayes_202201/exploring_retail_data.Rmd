@@ -5,8 +5,10 @@ date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   rmdformats::readthedown:
     toc_depth: 3
-    use_bookdown: yes
+    use_bookdown: TRUE
+    code_folding: hide
     css: styles.css
+    fig_caption: TRUE
 
   html_document:
     fig_caption: yes
@@ -27,7 +29,6 @@ library(conflicted)
 library(tidyverse)
 library(scales)
 library(cowplot)
-library(directlabels)
 library(magrittr)
 library(rlang)
 library(purrr)
@@ -41,13 +42,13 @@ library(lubridate)
 library(evir)
 library(DT)
 library(tidyquant)
+library(directlabels)
+
 
 
 source("lib_utils.R")
 
-conflict_lst <- resolve_conflicts(
-  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
-  )
+resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
 
 
 knitr::opts_chunk$set(
@@ -1374,8 +1375,6 @@ plot_grid(norm_plot, log_plot, nrow = 2)
 
 
 
-
-
 # Indicate Excluded Rows
 
 As we have found a number of issues with this data, we now will indicate
@@ -1392,7 +1391,7 @@ this.
 ```{r remove_extraneous_stock_code_entries, echo=TRUE}
 screen_stock_code <- c(
   "B", "C2", "C3", "D", "M", "S", "CRUK", "POST", "DOT", "BANK CHARGES",
-  "AMAZONFEE", "ADJUST", "TEST001", "TEST002", "ADJUST2"
+  "AMAZONFEE", "ADJUST", "ADJUST2", "TEST001", "TEST002"
   )
 
 clean_stock_code_tbl <- data_tbl %>%
@@ -1429,15 +1428,51 @@ cleaned_data_tbl %>% glimpse()
 ```
 
 
+# Construct Stock Code Lookups
+
+Finally, we want to construct a lookup table that provides some free-text
+fields for each `stock_code` value.
+
+```{r construct_stock_code_table, echo=TRUE}
+stock_code_lookup_tbl <- cleaned_data_tbl %>%
+  filter(
+    exclude == FALSE,
+    quantity > 0,
+    price > 0,
+    !are_na(description)
+    ) %>%
+  mutate(
+    stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()
+    ) %>%
+  select(stock_code_upr, description) %>%
+  drop_na(description) %>%
+  distinct() %>%
+  group_by(stock_code_upr) %>%
+  summarise(
+    .groups = "drop",
+    
+    desc = description %>% sort() %>% unique() %>% str_c(collapse = " : ")
+    ) %>%
+  arrange(stock_code_upr)
+
+stock_code_lookup_tbl %>% glimpse()
+```
+
+We also look at this output using DT
+
+```{r view_stock_code_lookup, echo=TRUE}
+stock_code_lookup_tbl %>% datatable()
+```
+
+
 # BTYD Visualisations
 
 Despite our extensive exploration of the data earlier, the concepts around 
 BTYD modelling suggest a few more than are worth exploring, so we will look at
 those now.
 
-This data requires us to exclude a number of rows from the dataset including
-all the data with no `customer_id`.
-
+We model the purchase data first, then combine this to create an individual
+customer/invoice pairing with the total amount spent as an additional column.
 
 ```{r prepare_purchase_data, echo=TRUE}
 tnx_purchase_tbl <- cleaned_data_tbl %>%
@@ -1446,7 +1481,6 @@ tnx_purchase_tbl <- cleaned_data_tbl %>%
     price > 0,
     exclude == FALSE
     ) %>%
-  drop_na(customer_id) %>%
   select(
     invoice_date, invoice_id, stock_code, customer_id, description,
     quantity, price, stock_value
@@ -1455,9 +1489,11 @@ tnx_purchase_tbl <- cleaned_data_tbl %>%
 tnx_purchase_tbl %>% glimpse()
 ```
 
-We now construct the by-customer daily spend summary tables.
+Use of BTYD models assumes a total spend over a period of day and those
+differences between the times. This is calculated internally by the various
+BTYD routines so we keep just the per-invoice spend.
 
-```{r construct_customer_summary_tables, echo=TRUE}
+```{r calculate_customer_daily_spend, echo=TRUE}
 daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
   drop_na(customer_id) %>%
   group_by(invoice_date, customer_id, invoice_id) %>%
@@ -1470,7 +1506,7 @@ daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
 daily_spend_invoice_tbl %>% glimpse()
 
 
-daily_spend_customer_tbl <- daily_spend_invoice_tbl %>%
+daily_spend_tbl <- daily_spend_invoice_tbl %>%
   group_by(invoice_date, customer_id) %>%
   summarise(
     .groups = "drop",
@@ -1479,9 +1515,8 @@ daily_spend_customer_tbl <- daily_spend_invoice_tbl %>%
     tnx_count   = n()
     )
 
-daily_spend_customer_tbl %>% glimpse()
+daily_spend_tbl %>% glimpse()
 ```
-
 
 
 To start with, it might be worth understanding a bit more about when customers
@@ -1489,8 +1524,8 @@ are 'born' in the system - that is, the date on which they make their first
 purchase. Another important quantity is the time between transactions for a
 customer, we we will visualise these.
 
-```{r construct_customer_cohort, echo=TRUE}
-customer_cohort_tbl <- tnx_purchase_tbl %>%
+```{r construct_customer_first_date, echo=TRUE}
+customer_cohort_tbl <- daily_spend_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
@@ -1528,7 +1563,7 @@ ggplot(plot_tbl) +
 We know look at how time differences between purchases are distributed.
 
 ```{r plot_transaction_time_diffs, echo=TRUE}
-customer_tnx_diffs_tbl <- daily_spend_customer_tbl %>%
+customer_tnx_diffs_tbl <- daily_spend_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
@@ -1561,7 +1596,7 @@ keep_customers_tbl <- customer_cohort_tbl %>%
   filter(total_tnx_count > 2) %>%
   slice_sample(n = 30)
 
-plot_tbl <- daily_spend_customer_tbl %>%
+plot_tbl <- daily_spend_tbl %>%
   semi_join(keep_customers_tbl, by = "customer_id")
 
 ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
@@ -1674,6 +1709,7 @@ ggplot(plot_tbl) +
     y = "Count",
     title = "Facetted Histograms of Time Between Transactions"
     )
+
 ```
 
 
@@ -1688,7 +1724,7 @@ cohort_dropout_est_tbl <- customer_cohort_tbl %>%
   select(
     customer_id, first_tnx_date, cohort_qtr, cohort_ym
     ) %>%
-  inner_join(daily_spend_customer_tbl, by = "customer_id") %>%
+  inner_join(daily_spend_tbl, by = "customer_id") %>%
   group_by(cohort_qtr, customer_id) %>%
   mutate(
     final_tnx_date = max(invoice_date)
@@ -1708,100 +1744,40 @@ cohort_dropout_est_tbl <- customer_cohort_tbl %>%
     .groups = "drop",
     
     lifetimes = list(obs_lifetime)
-    )
+    ) %>%
+  mutate(
+    exp_fit    = map(lifetimes, MASS::fitdistr, densfun = "exponential"),
+    param_data = map(exp_fit, broom::tidy)
+    ) %>%
+  select(cohort_qtr, lifetimes, param_data) %>%
+  unnest(param_data)
 
 cohort_dropout_est_tbl %>% glimpse()
 ```
 
-
-
-
-
-
-# Construct Lookup Dataset and Export
-
-In this final section we construct a number of different datasets for use in
-the project and then write the data to disk so they can be used in subsequent
-workbooks.
-
-
-
-## Construct Stock Code Lookups
-
-Finally, we want to construct a lookup table that provides some free-text
-fields for each `stock_code` value.
-
-```{r dedupe_stock_code_descriptions, echo=TRUE}
-dedupe_stock_code_descriptions <- function(stock_desc) {
-  dedupe_descs <- stock_desc %>%
-    enframe(name = NULL, value = "stock_desc") %>%
-    mutate(
-      stock_desc   = stock_desc %>% str_trim() %>% str_squish(),
-      desc_length  = stock_desc %>% nchar(),
-      trimmed_desc = stock_desc %>% str_replace_all(" ", "")
-      ) %>%
-    group_by(trimmed_desc) %>%
-    slice_max(order_by = desc_length, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
-    pull(stock_desc)
-  
-  return(dedupe_descs)
-}
-```
-
-
-```{r construct_stock_code_table, echo=TRUE}
-stock_code_lookup_tbl <- cleaned_data_tbl %>%
-  filter(
-    exclude == FALSE,
-    quantity > 0,
-    price > 0,
-    !are_na(description)
-    ) %>%
-  mutate(
-    stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()
-    ) %>%
-  select(stock_code_upr, description) %>%
-  drop_na(description) %>%
-  distinct() %>%
-  group_by(stock_code_upr) %>%
-  summarise(
-    .groups = "drop",
-    
-    desc = description %>%
-      dedupe_stock_code_descriptions() %>%
-      sort() %>%
-      str_c(collapse = " : ")
-    ) %>%
-  arrange(stock_code_upr)
-
-stock_code_lookup_tbl %>% glimpse()
-```
-
-We also look at this output using DT
-
-```{r view_stock_code_lookup, echo=TRUE}
-stock_code_lookup_tbl %>% datatable()
+```{r cohort_dropout_params_dt, echo=TRUE}
+cohort_dropout_est_tbl %>% datatable()
 ```
 
 
 
 # Output Cleaned Data
 
+Finally we output the various datasets we have constructed to disks.
+
+
 ```{r write_to_disk, echo=TRUE}
-stock_code_lookup_tbl    %>% write_rds("data/stock_code_lookup_tbl.rds")
+stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
 
-returns_lookup_tbl       %>% write_rds("data/returns_lookup_tbl.rds")
+returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
 
-cleaned_data_tbl         %>% write_rds("data/retail_data_cleaned_tbl.rds")
+cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
 
-tnx_purchase_tbl         %>% write_rds("data/tnx_purchase_tbl.rds")
+customer_cohort_tbl %>% write_rds("data/customer_cohort_tbl.rds")
 
-customer_cohort_tbl      %>% write_rds("data/customer_cohort_tbl.rds")
+daily_spend_invoice_tbl %>% write_rds("data/daily_spend_invoice_tbl.rds")
 
-daily_spend_invoice_tbl  %>% write_rds("data/daily_spend_invoice_tbl.rds")
-
-daily_spend_customer_tbl %>% write_rds("data/daily_spend_customer_tbl.rds")
+daily_spend_tbl %>% write_rds("data/daily_spend_tbl.rds")
 ```
 
 
