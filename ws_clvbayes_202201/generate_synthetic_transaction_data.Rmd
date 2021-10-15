@@ -1,0 +1,186 @@
+---
+title: "Generate Synthetic Customer Transaction Data"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: yes
+    css: styles.css
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(CLVTools)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+In this workbook, we generate a bunch of synthetic customer data as a means of
+validating our BTYD models.
+
+
+# Load Data
+
+As a means of simplifying the process of generating synthetic data, and 
+because we are not attempting to model the arrival of new customers, we will
+use some summary data on the first transaction data of each customer as an
+input to this process.
+
+```{r load_customer_input_data, echo=TRUE}
+customer_cohort_data_tbl <- read_rds("data/customer_cohort_tbl.rds")
+
+customer_cohort_data_tbl %>% glimpse()
+```
+
+
+# Generate Simple Transaction Data
+
+We now want to set up the various parameters required for the data generation.
+
+```{r setup_synthesis_parameters, echo=TRUE}
+mu_shape <-  1
+mu_rate  <- 10
+
+lambda_shape <-  1
+lambda_rate  <- 10
+
+mx_p <- 100
+mx_q <-   1
+mx_g <-   1
+
+final_date_observed <- customer_cohort_data_tbl %>%
+  pull(first_tnx_date) %>%
+  max()
+```
+
+
+Now that we have set our 'hyper-parameters' set for the data generation we
+produce individual parameters for each of the customers.
+
+```{r generate_individual_customer_parameters, echo=TRUE}
+customer_parameters_tbl <- customer_cohort_data_tbl %>%
+  select(customer_id, cohort_qtr, cohort_ym, first_tnx_date) %>%
+  arrange(first_tnx_date, customer_id) %>%
+  mutate(
+    customer_mu     = rgamma(n(), shape = mu_shape,     rate = mu_rate),
+    customer_tau    = rexp(n(), rate = customer_mu),
+    customer_lambda = rgamma(n(), shape = lambda_shape, rate = lambda_rate),
+    customer_nu     = rgamma(n(), shape = mx_q,         rate = mx_g)
+    )
+```
+
+
+```{r generate_customer_transactions, echo=TRUE}
+generate_customer_transactions <- function(lifetime, tnx_rate, mx_nu, mx_g,
+                                           first_date, final_date = final_date) {
+  
+  obs_weeks <- difftime(final_date, first_date, units = "weeks") %>% as.numeric()
+  
+  tnx_window <- min(obs_weeks, lifetime)
+  
+  sim_count <- round(10 * (tnx_window * tnx_rate), 0) %>% max(10)
+  
+  event_times <- rexp(sim_count, rate = tnx_rate)
+
+  use_event_weeks <- cumsum(event_times)
+  use_event_weeks <- use_event_weeks[use_event_weeks < tnx_window]
+  
+  event_dates <- first_date + (use_event_weeks * 7)
+  
+  tnx_amounts <- rgamma(1 + length(event_dates), shape = mx_p, rate = mx_nu)
+  
+  sim_tnx_tbl <- tibble(
+    tnx_date   = c(first_date, event_dates),
+    tnx_amount = tnx_amounts %>% round(2)
+    )
+  
+  return(sim_tnx_tbl)
+}
+```
+
+We now run these data routines to generate the transaction data.
+
+```{r generate_basic_dataset, echo=TRUE}
+customer_sims_tbl <- customer_parameters_tbl %>%
+  mutate(
+    sim_data = pmap(
+      list(
+        lifetime   = customer_tau,
+        tnx_rate   = customer_lambda,
+        mx_nu      = customer_nu,
+        mx_g       = mx_g,
+        first_date = first_tnx_date
+        ),
+      generate_customer_transactions,
+      final_date = final_date_observed
+      )
+    ) %>%
+  select(
+    customer_id, cohort_qtr, cohort_ym, sim_data
+    ) %>%
+  unnest(sim_data)
+```
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```

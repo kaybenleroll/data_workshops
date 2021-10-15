@@ -269,8 +269,8 @@ For the Gamma/Gamma model, we use the following assumptions:
   1. Each transaction amount, $v_i$, is distributed according to a Gamma
   distribution $\Gamma(v_i \, | \, p, \nu)$ with shape parameter $p$ and
   rate parameter $\nu$.
-  2. Heterogeneity in $p$ follows a Gamma distribution
-  $\Gamma(p \, | \, q, \gamma)$
+  2. Heterogeneity in $nu$ follows a Gamma distribution
+  $\Gamma(\nu \, | \, q, \gamma)$
 
 
 In mathematical notation, we have:
