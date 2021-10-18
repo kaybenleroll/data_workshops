@@ -1,12 +1,12 @@
 data {
   int<lower=1> n;       // number of customers
 
-  vector<lower=0>[n] t; // time to most recent purchase
-  vector<lower=0>[n] T; // total observation time
-  vector<lower=0>[n] k; // number of purchases observed
+  vector<lower=0>[n] t.x;   // time to most recent purchase
+  vector<lower=0>[n] T.cal; // total observation time
+  vector<lower=0>[n] x;     // number of purchases observed
 
-  real<lower=0> etau_shape;
-  real<lower=0> etau_rate;
+  real<lower=0> mu_shape;
+  real<lower=0> mu_rate;
 
   real<lower=0> lambda_shape;
   real<lower=0> lambda_rate;
@@ -15,27 +15,22 @@ data {
 
 parameters {
   vector<lower=0>[n] lambda; // purchase rate
-  vector<lower=0>[n] etau;   // expected mean lifetime
-}
-
-
-transformed parameters {
-  vector<lower=0>[n] mu = 1.0 ./ etau;
+  vector<lower=0>[n] mu;     // lifetime dropout rate
 }
 
 
 model {
   // setting priors
-  etau   ~ gamma(etau_shape,   etau_rate);
+  mu     ~ gamma(mu_shape,     mu_rate);
   lambda ~ gamma(lambda_shape, lambda_rate);
 
   // likelihood
-  target += k .* log(lambda) - log(lambda + mu);
+  target += x .* log(lambda) - log(lambda + mu);
 
   for (i in 1:n) {
     target += log_sum_exp(
-      log(lambda[i]) - (lambda[i] + mu[i]) .* T[i],
-      log(mu[i]) - (lambda[i] + mu[i]) .* t[i]
+      log(lambda[i]) - (lambda[i] + mu[i]) .* T.cal[i],
+      log(mu[i]) - (lambda[i] + mu[i]) .* t.x[i]
       );
   }
 }

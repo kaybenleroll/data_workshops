@@ -29,8 +29,6 @@ RUN apt-get update \
   && echo "CXX14FLAGS+= -Wno-unused-variable -Wno-unused-function" >> $HOME/.R/Makevars \
   && echo "CXX14FLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined" >> $HOME/.R/Makevars \
   && echo ""                                                       >> $HOME/.R/Makevars \
-  && cp -r $HOME/.R /home/rstudio \
-  && chown rstudio:rstudio /home/rstudio/.R \
   && install2.r --error \
     anytime \
     bayesplot \
@@ -70,10 +68,12 @@ WORKDIR /tmp
 RUN git clone https://github.com/lindenb/makefile2graph.git \
   && cd makefile2graph \
   && make \
-  && make install
+  && make install \
+  && cp -r $HOME/.R /home/rstudio \
+  && chown -R rstudio:rstudio /home/rstudio/.R
 
-USER rstudio
 WORKDIR /home/rstudio
+USER rstudio
 
 COPY build/docker_install_rpkgs.R /tmp
 RUN Rscript /tmp/docker_install_rpkgs.R
@@ -86,7 +86,10 @@ RUN 7z x /tmp/conffiles.7z       \
   && cp conffiles/.Rprofile  .   \
   && mkdir -p .config/rstudio    \
   && cp conffiles/rstudio-prefs.json .config/rstudio/  \
-  && rm -rfv conffiles/
-
+  && rm -rfv conffiles/ \
+  && touch /home/rstudio/.bash_eternal_history
 
 USER root
+
+RUN chown -R rstudio:rstudio /home/rstudio
+
