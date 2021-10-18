@@ -648,9 +648,6 @@ A natural way to explore relationships in data is to create univariate
 visualisations facetted by a categorical value.
 
 ```{r bivariate_facet_data, echo=TRUE}
-### _TEMPLATE_
-### facet_varname <- ''
-facet_varname <- coltype_lst$split$discrete[1]
 facet_varname <- "invoice_month"
 
 dataexp_facet_count_max <- 3
@@ -761,7 +758,8 @@ for (plot_varname in datetime_vars) {
     xlab(plot_varname) +
     ylab("Count") +
     scale_y_continuous(labels = label_comma()) +
-    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}"))
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
 
   plot(explore_plot)
 }
