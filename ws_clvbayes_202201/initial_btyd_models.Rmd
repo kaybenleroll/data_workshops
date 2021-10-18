@@ -5,8 +5,9 @@ date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   rmdformats::readthedown:
     toc_depth: 3
-    use_bookdown: yes
-    css: styles.css
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
 
   html_document:
     fig_caption: yes
@@ -76,82 +77,8 @@ set.seed(42)
 plan(multisession)
 ```
 
-
-# Load Data
-
-We first want to load our datasets and perform some basic manipulation similar
-to those done for the association rules mining.
-
-```{r load_transaction_data, echo=TRUE}
-tnx_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
-
-tnx_data_tbl %>% glimpse()
-```
-
-
-We model the purchase data first, then combine this to create an individual
-customer/invoice pairing with the total amount spent as an additional column.
-
-```{r prepare_purchase_data, echo=TRUE}
-tnx_purchase_tbl <- tnx_data_tbl %>%
-  filter(
-    quantity > 0,
-    price > 0,
-    exclude == FALSE
-    ) %>%
-  drop_na(customer_id) %>%
-  select(
-    invoice_date, invoice_id, stock_code, customer_id, description,
-    quantity, price, stock_value
-    )
-
-tnx_purchase_tbl %>% glimpse()
-```
-
-Use of BTYD models assumes a total spend over a period of day and those
-differences between the times. This is calculated internally by the various
-BTYD routines so we keep just the per-invoice spend.
-
-```{r calculate_customer_daily_spend, echo=TRUE}
-daily_spend_invoice_tbl <- tnx_purchase_tbl %>%
-  drop_na(customer_id) %>%
-  group_by(invoice_date, customer_id, invoice_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    invoice_spend = sum(stock_value)
-    )
-
-daily_spend_invoice_tbl %>% glimpse()
-
-
-daily_spend_tbl <- daily_spend_invoice_tbl %>%
-  group_by(invoice_date, customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    total_spend = sum(invoice_spend),
-    tnx_count   = n()
-    )
-
-daily_spend_tbl %>% glimpse()
-```
-
-Much of this analysis will require the cohort data for each of the customers
-so we need to load them now.
-
-```{r load_customer_cohort_data, echo=TRUE}
-customer_cohort_tbl <- read_rds("data/customer_cohort_tbl.rds")
-```
-
-
-
-Finally, we want to set a date to make the end of the "fitting" data, which
-will be used in the various estimation routines to fit parameters of our models.
-
-```{r set_training_data_date, echo=TRUE}
-training_data_date <- as.Date("2011-03-31")
-```
+In this workbook we introduce the various different BTYD models, starting with
+a discussion of the underlying theory.
 
 
 # Background Theory
@@ -180,10 +107,16 @@ time period).
 The notation used to represent this information is
 
 $$
-X = (x, t_x, T),
+X = (x, \, t_x, \, T),
 $$
-where $x$ is the number of transactions observed in the time period $T$ and
-$t_x$ was the time of the last transaction.
+where
+
+\begin{eqnarray*}
+x &=& \text{the number of transactions}, \\
+T &=& \text{the observed time period},   \\
+t_x &=& \text{the time since the last transaction.
+\end{eqnarray*}
+
 
 From this summary data we can fit most BTYD models.
 
@@ -283,218 +216,285 @@ v &\sim& \Gamma(p, \nu)
 $$
 
 
+# Generate Basic Synthetic Data
+
+The above model contains a number of subtle statistical complexities, so we
+do not dive straight into fitting real-world data. Instead, we use the model
+to generate synthetic data and then fit this data back to the model, and
+ensure we can recover our original parameters.
 
 
+## Load Input Data
 
-# Data Preparation
+As a means of simplifying the process of generating synthetic data, and 
+because we are not attempting to model the arrival of new customers, we will
+use some summary data on the first transaction data of each customer as an
+input to this process.
 
-We now need to prepare the data in the formats required to fit these models.
+```{r load_customer_input_data, echo=TRUE}
+customer_cohort_data_tbl <- read_rds("data/customer_cohort_tbl.rds")
 
-For the purposes of the P/NBD model, we only require three summary statistics
-for each customer. In each case, the units of time are calculated relative to
-when the customer appears on the system - this allows us to account for the
-fact that a customer *born* more recently has had less time to make purchases.
+customer_cohort_data_tbl %>% glimpse()
+```
 
-Thus, each customers transaction data is summaries by a triplet of three values
-$(x, t_x, t_{\text{cal}})$
+For the purposes of this work, we can treat the quarterly times as categorical
+and so we convert these values to character strings.
+
+```{r convert_cohort_qtr_values, echo=TRUE}
+customer_cohort_data_tbl <- customer_cohort_data_tbl %>%
+  transmute(
+    customer_id,
+    cohort_qtr = cohort_qtr %>% as.character(),
+    cohort_ym,
+    first_tnx_date
+    )
+
+customer_cohort_data_tbl %>% glimpse()
+```
 
 
-$$
-\begin{eqnarray}
-x              &=& \text{ count of transactions in the data}, \\
-t_x            &=& \text{ time of the most recently made transaction}, \\
-t_{\text{cal}} &=& \text{ time since first transaction made by the customer}
-\end{eqnarray}
-$$
+## Run Data Generation for Basic Model
 
-We use the provided tools from the `CLVTools` package to convert our
-transaction data into the required formats.
+We now want to set up the various parameters required for the data generation.
 
-```{r construct_clvdata, echo=TRUE}
-customer_clvdata_tbl <- daily_spend_tbl %>%
-  left_join(customer_cohort_tbl, by = "customer_id") %>%
-  filter(cohort_qtr == "2009 Q4") %>%
+```{r setup_synthesis_parameters, echo=TRUE}
+mu_shape <-  1
+mu_rate  <- 10
+
+lambda_shape <-  1
+lambda_rate  <- 10
+
+mx_p <- 100
+mx_q <-   1
+mx_g <-   1
+
+final_date_observed <- customer_cohort_data_tbl %>%
+  pull(first_tnx_date) %>%
+  max()
+```
+
+
+Now that we have set our 'hyper-parameters' set for the data generation we
+produce individual parameters for each of the customers.
+
+```{r generate_individual_customer_basic_parameters, echo=TRUE}
+customer_basic_parameters_tbl <- customer_cohort_data_tbl %>%
+  select(customer_id, cohort_qtr, cohort_ym, first_tnx_date) %>%
+  arrange(first_tnx_date, customer_id) %>%
+  mutate(
+    customer_mu     = rgamma(n(), shape = mu_shape,     rate = mu_rate),
+    customer_tau    = rexp(n(), rate = customer_mu),
+    customer_lambda = rgamma(n(), shape = lambda_shape, rate = lambda_rate),
+    customer_nu     = rgamma(n(), shape = mx_q,         rate = mx_g)
+    )
+
+customer_basic_parameters_tbl %>% glimpse()
+```
+
+We now have set up the customer parameters for each customer and can use these
+to simulate the various transactions on the website.
+
+```{r generate_customer_transactions, echo=TRUE}
+generate_customer_transactions <- function(lifetime, tnx_rate, mx_nu, mx_g,
+                                           first_date, final_date = final_date) {
+  
+  obs_weeks <- difftime(final_date, first_date, units = "weeks") %>% as.numeric()
+  
+  tnx_window <- min(obs_weeks, lifetime)
+  
+  sim_count <- round(10 * (tnx_window * tnx_rate), 0) %>% max(10)
+  
+  event_times <- rexp(sim_count, rate = tnx_rate)
+
+  use_event_weeks <- cumsum(event_times)
+  use_event_weeks <- use_event_weeks[use_event_weeks < tnx_window]
+  
+  event_dates <- first_date + (use_event_weeks * 7)
+  
+  tnx_amounts <- rgamma(1 + length(event_dates), shape = mx_p, rate = mx_nu)
+  
+  sim_tnx_tbl <- tibble(
+    tnx_date   = c(first_date, event_dates),
+    tnx_amount = tnx_amounts %>% round(2)
+    )
+  
+  return(sim_tnx_tbl)
+}
+```
+
+We now run these data routines to generate the transaction data.
+
+```{r generate_basic_dataset, echo=TRUE}
+customer_basic_sims_tbl <- customer_basic_parameters_tbl %>%
+  mutate(
+    sim_data = pmap(
+      list(
+        lifetime   = customer_tau,
+        tnx_rate   = customer_lambda,
+        mx_nu      = customer_nu,
+        mx_g       = mx_g,
+        first_date = first_tnx_date
+        ),
+      generate_customer_transactions,
+      final_date = final_date_observed
+      )
+    ) %>%
+  select(
+    customer_id, cohort_qtr, cohort_ym, sim_data
+    ) %>%
+  unnest(sim_data) %>%
+  arrange(customer_id, tnx_date)
+
+customer_basic_sims_tbl %>% glimpse()
+```
+
+## Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_basic_data_disk, echo=TRUE}
+customer_basic_parameters_tbl %>% write_rds("data/customer_basic_parameters_tbl.rds")
+
+customer_basic_sims_tbl       %>% write_rds("data/customer_basic_sims_tbl.rds")
+```
+
+
+# Fit Synthetic Data Model
+
+We take our transaction data and transform the data into a format amenable for
+the BTYD models.
+
+We first ensure that all transactions on the same day or combined into a single
+transaction, and then convert this data into the $(x, t_x, T)$ triplet-format.
+
+To mimic the training / test split to help validate real-world models, we do
+the same thing here.
+
+```{r set_training_data_date, echo=TRUE}
+training_data_date <- as.Date("2011-03-31")
+```
+
+We now combine all this data to construct our CLV input data.
+
+
+```{r construct_clvinput_data, echo=TRUE}
+customer_basic_input_clvdata <- customer_basic_sims_tbl %>%
+  count(customer_id, tnx_date, wt = tnx_amount, name = "total_spend") %>%
+  arrange(customer_id, tnx_date) %>%
+  left_join(customer_cohort_data_tbl, by = "customer_id") %>%
+  filter(first_tnx_date <= training_data_date) %>%
   clvdata(
-    date.format = "%Y-%m-%d",
-    time.unit = "weeks",
+    date.format      = "%Y-%m-%d",
+    time.unit        = "weeks",
     estimation.split = training_data_date,
     name.id          = "customer_id",
-    name.date        = "invoice_date",
+    name.date        = "tnx_date",
     name.price       = "total_spend"
     )
 
-customer_clvdata_tbl %>% glimpse()
+customer_basic_input_clvdata %>% glimpse()
 ```
+
 
 Now that we have constructed the `clvdata` structure, we can use this input
 to construct the summary statistics required for our models. This data is
 performed by internal routines in `CLVTools`, so we use those directly.
 
 ```{r construct_pnbd_input_data, echo=TRUE}
-customer_pnbd_cbs_tbl <- customer_clvdata_tbl %>%
-  (CLVTools:::pnbd_cbs)()
-
-pnbd_data_lst <- list(
-  N         = customer_pnbd_cbs_tbl %>% nrow(),
-  n         = customer_pnbd_cbs_tbl %>% nrow(),
-  
-  T         = customer_pnbd_cbs_tbl %>% pull(T.cal),
-
-  recency   = customer_pnbd_cbs_tbl %>% pull(t.x),
-  t         = customer_pnbd_cbs_tbl %>% pull(t.x),
-  
-  frequency = customer_pnbd_cbs_tbl %>% pull(x),
-  k         = customer_pnbd_cbs_tbl %>% pull(x)
-  )
-
-pnbd_data_lst %>% glimpse()
-```
-
-
-
-
-# Initial Models
-
-Before we fit a full P/NBD Model we first wish to focus on more simple models:
-we fit the counting process and the lifetime process separately - making sure
-both of these fit appropriately and then focus on constructing the combined
-model.
-
-While this approach may seem pedantic and tedious, in practice we often
-experience issues fitting the data and so it is better to build simpler models
-
-
-## Exponentially-Distributed Lifetime 
-
-We start by just fitting the lifetime model, working on the basis that we 
-cannot observe lifetimes directly so instead we work on the censored
-observations indicated by the times of transactions.
-
-```{r construct_exponential_lifetime_model, echo=TRUE}
-pnbd_lifetime_fixed_stanmodel <- stan_model(
-  "stan_code/clv_pnbd_intro_lifetime_fixed.stan",
-  model_name = "pnbd_lifetime_model",
-  verbose    = TRUE
-  )
-```
-
-
-```{r fit_lifetime_fixed_stan_model, echo=TRUE, cache=TRUE}
-stan_data_lst <- compose_data(
-  pnbd_data_lst,
-
-  etau_shape   =  1,
-  etau_rate    = 10
-)
-
-pnbd_lifetime_fixed_stanfit <- sampling(
-  pnbd_lifetime_fixed_stanmodel,
-  data   = stan_data_lst,
-  chains = 4,
-  iter   = 1000,
-  seed   = 42
-)
-
-pnbd_lifetime_fixed_stanfit %>% summary()
-```
-
-```{r}
-knitr::knit_exit()
-```
-
-
-# Build P/NBD Models
-
-## Construct Fixed Priors Model
-
-```{r construct_fixed_stan_model, echo=TRUE}
-pnbd_fixed_stanmodel <- stan_model(
-  "stan_code/clv_pnbd_fixed.stan",
-  model_name = "pnbd_fixed_model",
-  verbose    = TRUE
-  )
-```
-
-
-```{r fit_fixed_stan_model, echo=TRUE, cache=TRUE}
-stan_data_lst <- compose_data(
-  pnbd_data_lst,
-  
-  etau_shape   =  1,
-  etau_rate    = 10,
-  
-  lambda_shape =  1,
-  lambda_rate  = 10
-  )
-
-
-pnbd_fixed_stanfit <- sampling(
-  pnbd_fixed_stanmodel,
-  data   = stan_data_lst,
-  chains = 4,
-  iter   = 1000,
-  seed   = 42
-  )
-
-pnbd_fixed_stanfit %>% summary()
-```
-
-
-```{r extract_fixed_stanmodel_params, echo=TRUE}
-pnbd_fixed_postparams_tbl <- pnbd_fixed_stanfit %>%
-  tidy_draws() %>%
-  pivot_longer(
-    !c(.chain, .iteration, .draw),
-    names_to  = "parameter",
-    values_to = "value"
+customer_basic_pnbd_cbs_tbl <- customer_basic_input_clvdata %>%
+  (CLVTools:::pnbd_cbs)() %>%
+  mutate(
+    customer_id = Id,
     )
 
-pnbd_fixed_postparams_tbl %>% glimpse()
+customer_basic_pnbd_cbs_lst <- customer_basic_pnbd_cbs_tbl %>%
+  select(-date.first.actual.trans) %>%
+  compose_data(
+    mu_shape     =  1,
+    mu_rate      = 10,
+  
+    lambda_shape =  1,
+    lambda_rate  = 10
+    )
+
+customer_basic_pnbd_cbs_lst %>% glimpse()
 ```
 
 
-## Construct Basic Priors Model
+## Construct Stan Model
 
-```{r construct_priors_stan_model, echo=TRUE}
-pnbd_priors_stanmodel <- stan_model(
-  "stan_code/clv_pnbd_priors.stan",
-  model_name = "pnbd_priors_model",
+```{r compile_basic_fixed_model, echo=TRUE}
+pnbd_basic_fixed_stanmodel <- stan_model(
+  "stan_code/clv_pnbd_fixed.stan",
+  model_name = "pnbd_basic_fixed_model",
   verbose    = TRUE
   )
 ```
 
 
-```{r fit_priors_stan_model, echo=TRUE}
+```{r fit_lifetime_fixed_stan_model, echo=TRUE}
 stan_data_lst <- compose_data(
-  pnbd_data_lst,
-  
-  lambda_rate = 1,
-  etau_rate   = 1
+  customer_basic_pnbd_cbs_lst,
+
+  mu_shape       =  1,
+  mu_rate        = 10,
+
+  lambda_shape   =  1,
+  lambda_rate    = 10
   )
 
-
-pnbd_priors_stanfit <- sampling(
-  pnbd_priors_stanmodel,
+pnbd_basic_fixed_stanfit <- sampling(
+  pnbd_basic_fixed_stanmodel,
   data   = stan_data_lst,
   chains = 4,
   iter   = 1000,
   seed   = 42
   )
 
-pnbd_priors_stanfit %>% summary()
+pnbd_basic_fixed_stanfit %>% summary()
+```
+
+We use the functionality given by `tidybayes` to extract the posterior
+distribution of the parameters.
+
+```{r}
+customer_basic_pnbd_posterior_tbl <- pnbd_basic_fixed_stanfit %>%
+  recover_types(customer_basic_pnbd_cbs_tbl) %>%
+  spread_draws(mu[customer_id], lambda[customer_id]) %>%
+  ungroup()
 ```
 
 
-```{r plot_priors_stanmodel_params, echo=TRUE}
-# pnbd_priors_postparams_tbl <- pnbd_priors_stanfit %>%
-#   tidy_draws() %>%
-#   pivot_longer(
-#     !c(.chain, .iteration, .draw),
-#     names_to  = "parameter",
-#     values_to = "value"
-#     )
-# 
-# pnbd_priors_postparams_tbl %>% glimpse()
+```{r}
+customer_posterior_tbl <- customer_basic_pnbd_posterior_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    posterior_mu     = list(mu),
+    posterior_lambda = list(lambda)
+    )
+
+customer_postcheck_tbl <- customer_basic_parameters_tbl %>%
+  select(customer_id, customer_mu, customer_lambda, customer_tau) %>%
+  inner_join(customer_posterior_tbl, by = "customer_id") %>%
+  mutate(
+    post_mu_qval     = map2_dbl(customer_mu,     posterior_mu,     ~ ecdf(.y)(.x)),
+    post_lambda_qval = map2_dbl(customer_lambda, posterior_lambda, ~ ecdf(.y)(.x))
+    )
+```
+
+
+```{r}
+postcheck_facet_plotdata_tbl <- customer_basic_pnbd_posterior_tbl %>%
+  ungroup() %>%
+  group_nest(customer_id) %>%
+  slice_sample(n = 20) %>%
+  unnest(data) %>%
+  inner_join(customer_basic_parameters_tbl, by = "customer_id")
+
+ggplot(postcheck_facet_plotdata_tbl) +
+  geom_histogram(aes(x = mu), bins = 50) +
+  geom_vline(aes(xintercept = customer_mu), colour = "red") +
+  facet_wrap(facets = "customer_id", scales = "free")
 ```
 
 
