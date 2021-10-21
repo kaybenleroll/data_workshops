@@ -72,11 +72,12 @@ RUN git clone https://github.com/lindenb/makefile2graph.git \
   && cp -r $HOME/.R /home/rstudio \
   && chown -R rstudio:rstudio /home/rstudio/.R
 
+COPY build/docker_install_sys_rpkgs.R /tmp
+RUN Rscript /tmp/docker_install_sys_rpkgs.R
+
+
 WORKDIR /home/rstudio
 USER rstudio
-
-COPY build/docker_install_rpkgs.R /tmp
-RUN Rscript /tmp/docker_install_rpkgs.R
 
 COPY build/conffiles.7z /tmp
 RUN 7z x /tmp/conffiles.7z       \
@@ -88,6 +89,10 @@ RUN 7z x /tmp/conffiles.7z       \
   && cp conffiles/rstudio-prefs.json .config/rstudio/  \
   && rm -rfv conffiles/ \
   && touch /home/rstudio/.bash_eternal_history
+
+COPY build/docker_install_user_rpkgs.R /tmp
+RUN Rscript /tmp/docker_install_user_rpkgs.R
+
 
 USER root
 

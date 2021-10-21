@@ -26,11 +26,11 @@ transformed parameters {
 
 
 model {
-  mu_mean     ~ lognormal(-2.5, 1);
-  lambda_mean ~ lognormal(-2.5, 1);
+  mu_mean     ~ lognormal(-2.5, 0.5);
+  lambda_mean ~ lognormal(-2.5, 0.5);
 
-  mu_rate     ~ gamma(10,  1);
-  lambda_rate ~ gamma(10,  1);
+  mu_rate     ~ lognormal( 2.5, 0.5);
+  lambda_rate ~ lognormal( 2.5, 0.5);
 
   mu     ~ gamma(mu_shape,     mu_rate);
   lambda ~ gamma(lambda_shape, lambda_rate);
