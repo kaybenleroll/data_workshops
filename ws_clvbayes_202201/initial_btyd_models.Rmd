@@ -70,6 +70,8 @@ options(
   mc.cores = parallel::detectCores()
   )
 
+rstan_options(auto_write = TRUE)
+
 theme_set(theme_cowplot())
 
 set.seed(42)
@@ -111,12 +113,13 @@ X = (x, \, t_x, \, T),
 $$
 where
 
+$$
 \begin{eqnarray*}
-x &=& \text{the number of transactions}, \\
-T &=& \text{the observed time period},   \\
-t_x &=& \text{the time since the last transaction.
+x   &=& \text{the number of transactions},           \\
+T   &=& \text{the observed time period},             \\
+t_x &=& \text{the time since the last transaction}.
 \end{eqnarray*}
-
+$$
 
 From this summary data we can fit most BTYD models.
 
@@ -153,8 +156,8 @@ To put this into more formal mathematical notation, we have:
  
 $$
 \begin{eqnarray*}
-\lambda &\sim& \Gamma(\alpha, r) \\
-P(\text{alive}, k) &\sim& \text{Geometric}(p, k) \\
+\lambda &\sim& \Gamma(\alpha, r),                 \\
+P(\text{alive}, k) &\sim& \text{Geometric}(p, k), \\
 p &\sim& \text{Beta}(a, b)
 \end{eqnarray*}
 $$
@@ -183,8 +186,8 @@ As before, we express this in mathematical notation as:
 
 $$
 \begin{eqnarray*}
-\lambda &\sim& \Gamma(\alpha, r)    \\
-\mu &\sim& \Gamma(s, \beta)         \\
+\lambda &\sim& \Gamma(\alpha, r),    \\
+\mu &\sim& \Gamma(s, \beta),         \\
 \tau &\sim& \text{Exponential}(\mu)
 \end{eqnarray*}
 $$
@@ -210,7 +213,7 @@ In mathematical notation, we have:
  
 $$
 \begin{eqnarray*}
-p &\sim& \Gamma(q, \gamma) \\
+p &\sim& \Gamma(q, \gamma), \\
 v &\sim& \Gamma(p, \nu)
 \end{eqnarray*}
 $$
@@ -403,8 +406,10 @@ performed by internal routines in `CLVTools`, so we use those directly.
 ```{r construct_pnbd_input_data, echo=TRUE}
 customer_basic_pnbd_cbs_tbl <- customer_basic_input_clvdata %>%
   (CLVTools:::pnbd_cbs)() %>%
-  mutate(
+  rename(
     customer_id = Id,
+    t_x         = t.x,
+    T_cal       = T.cal
     )
 
 customer_basic_pnbd_cbs_lst <- customer_basic_pnbd_cbs_tbl %>%
@@ -421,18 +426,18 @@ customer_basic_pnbd_cbs_lst %>% glimpse()
 ```
 
 
-## Construct Stan Model
+## Construct First Stan Model
 
 ```{r compile_basic_fixed_model, echo=TRUE}
 pnbd_basic_fixed_stanmodel <- stan_model(
   "stan_code/clv_pnbd_fixed.stan",
   model_name = "pnbd_basic_fixed_model",
-  verbose    = TRUE
+  verbose    = FALSE
   )
 ```
 
 
-```{r fit_lifetime_fixed_stan_model, echo=TRUE}
+```{r fit_basic_fixed_stan_model, echo=TRUE, warning=TRUE}
 stan_data_lst <- compose_data(
   customer_basic_pnbd_cbs_lst,
 
@@ -447,17 +452,26 @@ pnbd_basic_fixed_stanfit <- sampling(
   pnbd_basic_fixed_stanmodel,
   data   = stan_data_lst,
   chains = 4,
-  iter   = 1000,
+  iter   = 2000,
   seed   = 42
   )
 
-pnbd_basic_fixed_stanfit %>% summary()
+pnbd_basic_fixed_stanfit %>% print()
 ```
+
+We first want to check the HMC diagnostics.
+
+```{r calculate_basic_fixed_hmc_diagnostics, echo=TRUE}
+pnbd_basic_fixed_stanfit %>% check_hmc_diagnostics()
+
+pnbd_basic_fixed_stanfit %>% get_bfmi() %>% round(4)
+```
+
 
 We use the functionality given by `tidybayes` to extract the posterior
 distribution of the parameters.
 
-```{r}
+```{r extract_basic_pnbd_posterior_params, echo=TRUE}
 customer_basic_pnbd_posterior_tbl <- pnbd_basic_fixed_stanfit %>%
   recover_types(customer_basic_pnbd_cbs_tbl) %>%
   spread_draws(mu[customer_id], lambda[customer_id]) %>%
@@ -465,7 +479,7 @@ customer_basic_pnbd_posterior_tbl <- pnbd_basic_fixed_stanfit %>%
 ```
 
 
-```{r}
+```{r construct_basic_pnbd_posterior_validation, echo=TRUE}
 customer_posterior_tbl <- customer_basic_pnbd_posterior_tbl %>%
   group_by(customer_id) %>%
   summarise(
@@ -480,10 +494,12 @@ customer_postcheck_tbl <- customer_basic_parameters_tbl %>%
     post_mu_qval     = map2_dbl(customer_mu,     posterior_mu,     ~ ecdf(.y)(.x)),
     post_lambda_qval = map2_dbl(customer_lambda, posterior_lambda, ~ ecdf(.y)(.x))
     )
+
+customer_postcheck_tbl %>% glimpse()
 ```
 
 
-```{r}
+```{r plot_posterior_params_facets, echo=TRUE}
 postcheck_facet_plotdata_tbl <- customer_basic_pnbd_posterior_tbl %>%
   ungroup() %>%
   group_nest(customer_id) %>%
@@ -496,6 +512,46 @@ ggplot(postcheck_facet_plotdata_tbl) +
   geom_vline(aes(xintercept = customer_mu), colour = "red") +
   facet_wrap(facets = "customer_id", scales = "free")
 ```
+
+
+## Construct Second Stan Model
+
+We now want to improve the model by adding priors around the hyper-parameters
+for how the $\mu$ and $\lambda$ parameters are distributed. To do this, we
+try using Gamma distributed hyper-priors.
+
+```{r compile_basic_prior_model, echo=TRUE}
+pnbd_basic_prior_stanmodel <- stan_model(
+  "stan_code/clv_pnbd_prior.stan",
+  model_name = "pnbd_basic_prior_model",
+  verbose    = FALSE
+  )
+```
+
+
+```{r fit_basic_prior_stan_model, echo=TRUE, warning=TRUE}
+stan_data_lst <- customer_basic_pnbd_cbs_lst
+
+pnbd_basic_prior_stanfit <- sampling(
+  pnbd_basic_prior_stanmodel,
+  data   = stan_data_lst,
+  chains = 4,
+  iter   = 2000,
+  seed   = 42
+  )
+
+pnbd_basic_prior_stanfit %>% summary()
+```
+
+
+We first want to check the HMC diagnostics.
+
+```{r calculate_basic_prior_hmc_diagnostics, echo=TRUE}
+pnbd_basic_prior_stanfit %>% check_hmc_diagnostics()
+
+pnbd_basic_prior_stanfit %>% get_bfmi() %>% round(4)
+```
+
 
 
 
