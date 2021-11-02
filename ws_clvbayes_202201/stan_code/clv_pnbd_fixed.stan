@@ -5,11 +5,11 @@ data {
   vector<lower=0>[n] T_cal; // total observation time
   vector<lower=0>[n] x;     // number of purchases observed
 
-  real<lower=0> mu_shape;
-  real<lower=0> mu_rate;
+  real<lower=0> r;          // hyperprior scale parameter for lambda
+  real<lower=0> alpha;      // hyperprior rate parameter for lambda
 
-  real<lower=0> lambda_shape;
-  real<lower=0> lambda_rate;
+  real<lower=0> s;          // hyperprior scale parameter for mu
+  real<lower=0> beta;       // hyperprior rate parameter for mu
 }
 
 
@@ -21,8 +21,8 @@ parameters {
 
 model {
   // setting priors
-  mu     ~ gamma(mu_shape,     mu_rate);
-  lambda ~ gamma(lambda_shape, lambda_rate);
+  lambda ~ gamma(r, alpha);
+  mu     ~ gamma(s,  beta);
 
   // likelihood
   target += x .* log(lambda) - log(lambda + mu);
