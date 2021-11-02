@@ -1,0 +1,7 @@
+*.dot
+*.png
+
+*_cache
+*_files
+
+temp.R
