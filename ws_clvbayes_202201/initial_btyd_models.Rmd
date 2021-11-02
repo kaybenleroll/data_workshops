@@ -70,7 +70,7 @@ options(
   mc.cores = parallel::detectCores()
   )
 
-rstan_options(auto_write = TRUE)
+rstan_options(auto_write = FALSE)
 
 theme_set(theme_cowplot())
 
@@ -428,24 +428,25 @@ customer_basic_pnbd_cbs_lst %>% glimpse()
 
 ## Construct First Stan Model
 
-```{r compile_basic_fixed_model, echo=TRUE}
+```{r compile_basic_fixed_model, echo=TRUE, cache=TRUE}
 pnbd_basic_fixed_stanmodel <- stan_model(
   "stan_code/clv_pnbd_fixed.stan",
-  model_name = "pnbd_basic_fixed_model",
-  verbose    = FALSE
+  model_name    = "pnbd_basic_fixed_model",
+  warn_pedantic =  TRUE,
+  verbose       = FALSE
   )
 ```
 
 
-```{r fit_basic_fixed_stan_model, echo=TRUE, warning=TRUE}
+```{r fit_basic_fixed_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
 stan_data_lst <- compose_data(
   customer_basic_pnbd_cbs_lst,
 
-  mu_shape       =  1,
-  mu_rate        = 10,
-
-  lambda_shape   =  1,
-  lambda_rate    = 10
+  r     =  1,
+  alpha = 10,
+  
+  s     =  1,
+  beta  = 10,
   )
 
 pnbd_basic_fixed_stanfit <- sampling(
@@ -523,8 +524,9 @@ try using Gamma distributed hyper-priors.
 ```{r compile_basic_prior_model, echo=TRUE}
 pnbd_basic_prior_stanmodel <- stan_model(
   "stan_code/clv_pnbd_prior.stan",
-  model_name = "pnbd_basic_prior_model",
-  verbose    = FALSE
+  model_name    = "pnbd_basic_prior_model",
+  warn_pedantic =  TRUE,
+  verbose       = FALSE
   )
 ```
 
@@ -534,10 +536,14 @@ stan_data_lst <- customer_basic_pnbd_cbs_lst
 
 pnbd_basic_prior_stanfit <- sampling(
   pnbd_basic_prior_stanmodel,
-  data   = stan_data_lst,
-  chains = 4,
-  iter   = 2000,
-  seed   = 42
+  data    = stan_data_lst,
+  chains  =    4,
+  iter    = 2000,
+  # control = list(
+  #   adapt_delta   = 0.995,
+  #   max_treedepth = 15
+  #   ),
+  seed    = 4242
   )
 
 pnbd_basic_prior_stanfit %>% summary()
@@ -559,5 +565,7 @@ pnbd_basic_prior_stanfit %>% get_bfmi() %>% round(4)
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
 sessioninfo::session_info()
+options(width = 80L)
 ```
