@@ -32,6 +32,7 @@ library(jsonlite)
 library(curl)
 library(glue)
 library(fs)
+library(DT)
 
 
 resolve_conflicts <- function(pkg_priority) {
@@ -196,6 +197,10 @@ matchdata_wide_tbl <- matchdata_tbl %>%
 matchdata_wide_tbl %>% glimpse()
 ```
 
+```{r show_matchdata_wide_datatable}
+matchdata_wide_tbl %>% head(100) %>% datatable()
+```
+
 
 ## Parse JSON Data
 
@@ -215,6 +220,9 @@ hero_data_tbl <- read_json("data/heroes.json") %>%
 hero_data_tbl %>% glimpse()
 ```
 
+```{r show_hero_datatable}
+hero_data_tbl %>% datatable()
+```
 
 
 # Convert Match Data
@@ -233,15 +241,19 @@ match_teamdata_tbl <- matchdata_wide_tbl %>%
 match_teamdata_tbl %>% glimpse()
 ```
 
+```{r show_match_teamdata_datatable}
+match_teamdata_tbl %>% head(100) %>% datatable()
+```
+
 
 # Write to Disk
 
 ```{r write_data_to_disk, echo=TRUE}
-matchdata_tbl %>% write_rds("data/matchdata_wide_tbl.rds")
+matchdata_tbl      %>% write_rds("data/matchdata_wide_tbl.rds")
 
 match_teamdata_tbl %>% write_rds("data/match_teamdata_tbl.rds")
 
-hero_data_tbl %>% write_rds("data/hero_data_tbl.rds")
+hero_data_tbl      %>% write_rds("data/hero_data_tbl.rds")
 ```
 
 
