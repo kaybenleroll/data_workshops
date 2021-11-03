@@ -1,0 +1,264 @@
+---
+title: "UCC Data & Analytics Society: Retrieving Data"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Wednesday, November 3 2021"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(cowplot)
+library(readxl)
+library(jsonlite)
+library(curl)
+library(glue)
+library(fs)
+library(DT)
+
+
+resolve_conflicts <- function(pkg_priority) {
+  get_index <- function(pkg_name) {
+    idx <- str_which(pkg_priority, pkg_name)
+
+    if(length(idx) == 0) {
+      idx <- 0L
+    }
+
+    return(idx)
+  }
+
+  conflict_lst <- conflict_scout()
+
+  for(func_name in names(conflict_lst)) {
+    pkg_index <- map_int(conflict_lst[[func_name]], get_index)
+
+    pkg_index <- pkg_index[pkg_index > 0]
+
+    if(length(pkg_index) == 0) {
+      pkg_use <- conflict_lst[[func_name]][1]
+    } else {
+      pkg_use <- pkg_index %>%
+        min() %>%
+        pkg_priority[.]
+
+    }
+
+    conflict_prefer(func_name, pkg_use)
+  }
+
+  return(conflict_lst)
+}
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+
+---
+
+
+All code and data for this workshop is available at the following URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+Code is available in the `ws_ucc_intro_202111/` directory.
+
+
+# Download Data
+
+We now want to retrieve the dataset used for this project, which is available
+at the UCI Machine Learning Repository.
+
+This dataset contains data on individual games played on a single day.
+
+```{r retrieve_dota2_data, echo=TRUE}
+data_url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/00367/dota2Dataset.zip"
+
+dota2_datafile <- glue("data/{filename}", filename = data_url %>% basename())
+
+if(!file_exists(dota2_datafile)) {
+  curl_download(
+    data_url,
+    destfile = dota2_datafile,
+    quiet    = FALSE,
+    mode     = "wb"
+    )
+} else {
+  message(glue("Datafile {dota2_datafile} found. Skipping download."))
+}
+
+unzip(dota2_datafile, exdir = "data/")
+```
+
+
+We also wish to retrieve data on heroes contained in JSON file on GitHub - this
+file is linked from the website.
+
+
+```{r retrieve_hero_json, echo=TRUE}
+json_url <- "https://raw.githubusercontent.com/kronusme/dota2-api/master/data/heroes.json"
+
+json_datafile <- glue("data/{filename}", filename = json_url %>% basename())
+
+if(!file_exists(json_datafile)) {
+  curl_download(
+    json_url,
+    destfile = json_datafile,
+    quiet    = FALSE,
+    mode     = "wb"
+    )
+} else {
+  message(glue("Datafile {json_datafile} found. Skipping download."))
+}
+```
+
+
+
+# Parse the Data
+
+Now that we have downloaded the data files we want to parse them into a usable
+format.
+
+## Parse Match Data
+
+We now want to load up the match data in a CSV file.
+
+```{r load_parse_data, echo=TRUE}
+matchdata_cols <- cols(
+  .default = col_integer(),
+  
+  result    = col_integer(),
+  cluster   = col_character(),
+  game_mode = col_character(),
+  game_type = col_character()
+  )
+
+matchdata_tbl <- read_csv(
+  file      = "data/dota2Train.csv",
+  col_names = c("result", "cluster", "game_mode", "game_type", 1:113),
+  col_types = matchdata_cols
+  )
+
+matchdata_tbl %>% glimpse()
+```
+
+This data does not contain a unique identifier for each match, so we will add
+a field `match_id` that serves this purpose:
+
+```{r matchdata_add_match_id, echo=TRUE}
+matchdata_wide_tbl <- matchdata_tbl %>%
+  mutate(
+    match_id = sprintf("MATCH%06d", 1:n()),
+    
+    .before = 1
+    )
+
+matchdata_wide_tbl %>% glimpse()
+```
+
+```{r show_matchdata_wide_datatable}
+matchdata_wide_tbl %>% head(100) %>% datatable()
+```
+
+
+## Parse JSON Data
+
+The JSON data provides some basic information on the heroes involved in the
+match data, so we parse that also.
+
+```{r parse_json_data, echo=TRUE}
+hero_data_tbl <- read_json("data/heroes.json") %>%
+  use_series(heroes) %>%
+  bind_rows() %>%
+  transmute(
+    hero_id = id,
+    name,
+    localized_name
+    )
+
+hero_data_tbl %>% glimpse()
+```
+
+```{r show_hero_datatable}
+hero_data_tbl %>% datatable()
+```
+
+
+# Convert Match Data
+
+```{r match_team_composition, echo=TRUE}
+match_teamdata_tbl <- matchdata_wide_tbl %>%
+  pivot_longer(
+    !c(match_id, result, cluster, game_mode, game_type),
+    names_to  = "hero_id",
+    values_to = "team_comp"
+    ) %>%
+  filter(
+    team_comp != 0
+    )
+
+match_teamdata_tbl %>% glimpse()
+```
+
+```{r show_match_teamdata_datatable}
+match_teamdata_tbl %>% head(100) %>% datatable()
+```
+
+
+# Write to Disk
+
+```{r write_data_to_disk, echo=TRUE}
+matchdata_tbl      %>% write_rds("data/matchdata_wide_tbl.rds")
+
+match_teamdata_tbl %>% write_rds("data/match_teamdata_tbl.rds")
+
+hero_data_tbl      %>% write_rds("data/hero_data_tbl.rds")
+```
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
