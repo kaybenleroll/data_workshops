@@ -186,14 +186,14 @@ This data does not contain a unique identifier for each match, so we will add
 a field `match_id` that serves this purpose:
 
 ```{r matchdata_add_match_id, echo=TRUE}
-matchdata_tbl <- matchdata_tbl %>%
+matchdata_wide_tbl <- matchdata_tbl %>%
   mutate(
     match_id = sprintf("MATCH%06d", 1:n()),
     
     .before = 1
     )
 
-matchdata_tbl %>% glimpse()
+matchdata_wide_tbl %>% glimpse()
 ```
 
 
@@ -203,7 +203,7 @@ The JSON data provides some basic information on the heroes involved in the
 match data, so we parse that also.
 
 ```{r parse_json_data, echo=TRUE}
-heroes_tbl <- read_json("data/heroes.json") %>%
+hero_data_tbl <- read_json("data/heroes.json") %>%
   use_series(heroes) %>%
   bind_rows() %>%
   transmute(
@@ -212,7 +212,7 @@ heroes_tbl <- read_json("data/heroes.json") %>%
     localized_name
     )
 
-heroes_tbl %>% glimpse()
+hero_data_tbl %>% glimpse()
 ```
 
 
@@ -220,7 +220,7 @@ heroes_tbl %>% glimpse()
 # Convert Match Data
 
 ```{r match_team_composition, echo=TRUE}
-match_teamdata_tbl <- matchdata_tbl %>%
+match_teamdata_tbl <- matchdata_wide_tbl %>%
   pivot_longer(
     !c(match_id, result, cluster, game_mode, game_type),
     names_to  = "hero_id",
@@ -231,6 +231,17 @@ match_teamdata_tbl <- matchdata_tbl %>%
     )
 
 match_teamdata_tbl %>% glimpse()
+```
+
+
+# Write to Disk
+
+```{r write_data_to_disk, echo=TRUE}
+matchdata_tbl %>% write_rds("data/matchdata_wide_tbl.rds")
+
+match_teamdata_tbl %>% write_rds("data/match_teamdata_tbl.rds")
+
+hero_data_tbl %>% write_rds("data/hero_data_tbl.rds")
 ```
 
 
