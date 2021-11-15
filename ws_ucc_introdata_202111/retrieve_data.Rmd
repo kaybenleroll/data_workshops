@@ -212,7 +212,7 @@ hero_data_tbl <- read_json("data/heroes.json") %>%
   use_series(heroes) %>%
   bind_rows() %>%
   transmute(
-    hero_id = id,
+    hero_id = id %>% as.character(),
     name,
     localized_name
     )
@@ -223,6 +223,28 @@ hero_data_tbl %>% glimpse()
 ```{r show_hero_datatable}
 hero_data_tbl %>% datatable()
 ```
+
+
+## Parse Cluster Region Data
+
+We need to load and parse some data on the cluster regions.
+
+```{r parse_cluster_region_data, echo=TRUE}
+cluster_region_cols <- cols(
+  cluster = col_character(),
+  region  = col_character()
+  )
+
+cluster_region_tbl <- read_csv(
+  file      = "data/cluster_regions.csv",
+  col_types = cluster_region_cols
+  )
+
+cluster_region_tbl %>% glimpse()
+```
+
+
+
 
 
 # Convert Match Data
@@ -254,6 +276,8 @@ matchdata_tbl      %>% write_rds("data/matchdata_wide_tbl.rds")
 match_teamdata_tbl %>% write_rds("data/match_teamdata_tbl.rds")
 
 hero_data_tbl      %>% write_rds("data/hero_data_tbl.rds")
+
+cluster_region_tbl %>% write_rds("data/cluster_region_tbl.rds")
 ```
 
 
