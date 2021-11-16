@@ -222,7 +222,7 @@
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: October 12, 2021</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: October 14, 2021</p>
           </div>
    </div>
      
@@ -239,7 +239,7 @@ rules mining.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>tnx_data_tbl <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">&quot;data/retail_data_cleaned_tbl.rds&quot;</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>tnx_data_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 1,021,424
+<pre><code>## Rows: 1,067,371
 ## Columns: 23
 ## $ row_id            &lt;chr&gt; &quot;ROW0000001&quot;, &quot;ROW0000002&quot;, &quot;ROW0000003&quot;, &quot;ROW000000…
 ## $ excel_sheet       &lt;chr&gt; &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;…
@@ -254,8 +254,8 @@ rules mining.</p>
 ## $ stock_code_upr    &lt;chr&gt; &quot;85048&quot;, &quot;79323P&quot;, &quot;79323W&quot;, &quot;22041&quot;, &quot;21232&quot;, &quot;2206…
 ## $ cancellation      &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FAL…
 ## $ invoice_dttm      &lt;dttm&gt; 2009-12-01 07:45:00, 2009-12-01 07:45:00, 2009-12-0…
-## $ invoice_month     &lt;chr&gt; &quot;December&quot;, &quot;December&quot;, &quot;December&quot;, &quot;December&quot;, &quot;Dec…
-## $ invoice_dow       &lt;chr&gt; &quot;Tuesday&quot;, &quot;Tuesday&quot;, &quot;Tuesday&quot;, &quot;Tuesday&quot;, &quot;Tuesday…
+## $ invoice_month     &lt;fct&gt; December, December, December, December, December, De…
+## $ invoice_dow       &lt;fct&gt; Tuesday, Tuesday, Tuesday, Tuesday, Tuesday, Tuesday…
 ## $ invoice_dom       &lt;chr&gt; &quot;01&quot;, &quot;01&quot;, &quot;01&quot;, &quot;01&quot;, &quot;01&quot;, &quot;01&quot;, &quot;01&quot;, &quot;01&quot;, &quot;01&quot;…
 ## $ invoice_hour      &lt;chr&gt; &quot;07&quot;, &quot;07&quot;, &quot;07&quot;, &quot;07&quot;, &quot;07&quot;, &quot;07&quot;, &quot;07&quot;, &quot;07&quot;, &quot;07&quot;…
 ## $ invoice_minute    &lt;chr&gt; &quot;45&quot;, &quot;45&quot;, &quot;45&quot;, &quot;45&quot;, &quot;45&quot;, &quot;45&quot;, &quot;45&quot;, &quot;45&quot;, &quot;45&quot;…
@@ -281,7 +281,7 @@ purchases.</p>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>tnx_purchase_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 766,096
+<pre><code>## Rows: 802,651
 ## Columns: 7
 ## $ invoice_id  &lt;chr&gt; &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;, &quot;489434&quot;…
 ## $ stock_code  &lt;chr&gt; &quot;85048&quot;, &quot;79323P&quot;, &quot;79323W&quot;, &quot;22041&quot;, &quot;21232&quot;, &quot;22064&quot;, &quot;2…
@@ -331,7 +331,7 @@ some basic code to construct all the item pairs in each basket.</p>
 <span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>basket_data_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 36,593
+<pre><code>## Rows: 36,594
 ## Columns: 3
 ## $ invoice_id  &lt;chr&gt; &quot;489434&quot;, &quot;489435&quot;, &quot;489436&quot;, &quot;489437&quot;, &quot;489438&quot;, &quot;489439&quot;…
 ## $ stock_codes &lt;list&gt; &lt;&quot;85048&quot;, &quot;79323P&quot;, &quot;79323W&quot;, &quot;22041&quot;, &quot;21232&quot;, &quot;22064&quot;, …
@@ -381,28 +381,28 @@ components of the graph.</p>
 <span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
 <span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>basket_tblgraph <span class="sc">%&gt;%</span> <span class="fu">print</span>()</span></code></pre></div>
-<pre><code>## # A tbl_graph: 41214 nodes and 766096 edges
+<pre><code>## # A tbl_graph: 41215 nodes and 802651 edges
 ## #
-## # An undirected simple graph with 6 components
+## # An undirected multigraph with 6 components
 ## #
-## # Node Data: 41,214 × 4 (active)
+## # Node Data: 41,215 × 4 (active)
 ##   node_label node_type component_id component_size
 ##   &lt;chr&gt;      &lt;chr&gt;            &lt;int&gt;          &lt;int&gt;
-## 1 85048      stock                1          41201
-## 2 79323P     stock                1          41201
-## 3 79323W     stock                1          41201
-## 4 22041      stock                1          41201
-## 5 21232      stock                1          41201
-## 6 22064      stock                1          41201
-## # … with 41,208 more rows
+## 1 85048      stock                1          41202
+## 2 79323P     stock                1          41202
+## 3 79323W     stock                1          41202
+## 4 22041      stock                1          41202
+## 5 21232      stock                1          41202
+## 6 22064      stock                1          41202
+## # … with 41,209 more rows
 ## #
-## # Edge Data: 766,096 × 4
+## # Edge Data: 802,651 × 4
 ##    from    to quantity price
 ##   &lt;int&gt; &lt;int&gt;    &lt;dbl&gt; &lt;dbl&gt;
 ## 1     1  4622       12  6.95
 ## 2     2  4622       12  6.75
 ## 3     3  4622       12  6.75
-## # … with 766,093 more rows</code></pre>
+## # … with 802,648 more rows</code></pre>
 <p>We now want to check the sizes of the disjoint components of this graph.</p>
 <div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>basket_tblgraph <span class="sc">%&gt;%</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
@@ -547,22 +547,22 @@ the weights on the edges of the graph, rather than being nodes.</p>
 <span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>pairwise_tblgraph <span class="sc">%&gt;%</span> <span class="fu">print</span>()</span></code></pre></div>
-<pre><code>## # A tbl_graph: 992023 nodes and 3424974 edges
+<pre><code>## # A tbl_graph: 1037021 nodes and 3424974 edges
 ## #
-## # An undirected simple graph with 987408 components
+## # An undirected simple graph with 1032406 components
 ## #
-## # Node Data: 992,023 × 23 (active)
+## # Node Data: 1,037,021 × 23 (active)
 ##   row_id excel_sheet invoice_id stock_code description quantity invoice_date
 ##   &lt;chr&gt;  &lt;chr&gt;       &lt;chr&gt;      &lt;chr&gt;      &lt;chr&gt;          &lt;dbl&gt; &lt;date&gt;      
 ## 1 ROW00… Year 2009-… 489437     10002      INFLATABLE…       12 2009-12-01  
 ## 2 ROW00… Year 2009-… 490063     10002      INFLATABLE…        1 2009-12-03  
-## 3 ROW00… Year 2009-… 490136     10002      INFLATABLE…        1 2009-12-03  
-## 4 ROW00… Year 2009-… 490140     10002      INFLATABLE…        4 2009-12-03  
-## 5 ROW00… Year 2009-… 490144     10002      INFLATABLE…       12 2009-12-04  
-## 6 ROW00… Year 2009-… 490229     10002      INFLATABLE…       12 2009-12-04  
-## # … with 992,017 more rows, and 16 more variables: price &lt;dbl&gt;,
+## 3 ROW00… Year 2009-… 490063     10002      INFLATABLE…        1 2009-12-03  
+## 4 ROW00… Year 2009-… 490136     10002      INFLATABLE…        1 2009-12-03  
+## 5 ROW00… Year 2009-… 490140     10002      INFLATABLE…        4 2009-12-03  
+## 6 ROW00… Year 2009-… 490144     10002      INFLATABLE…       12 2009-12-04  
+## # … with 1,037,015 more rows, and 16 more variables: price &lt;dbl&gt;,
 ## #   customer_id &lt;chr&gt;, country &lt;chr&gt;, stock_code_upr &lt;chr&gt;, cancellation &lt;lgl&gt;,
-## #   invoice_dttm &lt;dttm&gt;, invoice_month &lt;chr&gt;, invoice_dow &lt;chr&gt;,
+## #   invoice_dttm &lt;dttm&gt;, invoice_month &lt;fct&gt;, invoice_dow &lt;fct&gt;,
 ## #   invoice_dom &lt;chr&gt;, invoice_hour &lt;chr&gt;, invoice_minute &lt;chr&gt;,
 ## #   invoice_woy &lt;chr&gt;, invoice_ym &lt;chr&gt;, stock_value &lt;dbl&gt;,
 ## #   invoice_monthprop &lt;dbl&gt;, exclude &lt;lgl&gt;
@@ -570,9 +570,9 @@ the weights on the edges of the graph, rather than being nodes.</p>
 ## # Edge Data: 3,424,974 × 3
 ##    from    to invoice_count
 ##   &lt;int&gt; &lt;int&gt;         &lt;int&gt;
-## 1     1   394             3
-## 2     1   467             2
-## 3     1   546             2
+## 1     1   424             7
+## 2     1   501             5
+## 3     1   585             2
 ## # … with 3,424,971 more rows</code></pre>
 <div id="extract-largest-component" class="section level2" number="4.1">
 <h2><span class="header-section-number">4.1</span> Extract Largest Component</h2>
@@ -603,7 +603,7 @@ the weights on the edges of the graph, rather than being nodes.</p>
 ## 6 ROW00… Year 2009-… 489597     10123G     ARMY CAMO …        2 2009-12-01  
 ## # … with 4,610 more rows, and 18 more variables: price &lt;dbl&gt;,
 ## #   customer_id &lt;chr&gt;, country &lt;chr&gt;, stock_code_upr &lt;chr&gt;, cancellation &lt;lgl&gt;,
-## #   invoice_dttm &lt;dttm&gt;, invoice_month &lt;chr&gt;, invoice_dow &lt;chr&gt;,
+## #   invoice_dttm &lt;dttm&gt;, invoice_month &lt;fct&gt;, invoice_dow &lt;fct&gt;,
 ## #   invoice_dom &lt;chr&gt;, invoice_hour &lt;chr&gt;, invoice_minute &lt;chr&gt;,
 ## #   invoice_woy &lt;chr&gt;, invoice_ym &lt;chr&gt;, stock_value &lt;dbl&gt;,
 ## #   invoice_monthprop &lt;dbl&gt;, exclude &lt;lgl&gt;, component_id &lt;int&gt;,
@@ -612,8 +612,8 @@ the weights on the edges of the graph, rather than being nodes.</p>
 ## # Edge Data: 3,424,974 × 3
 ##    from    to invoice_count
 ##   &lt;int&gt; &lt;int&gt;         &lt;int&gt;
-## 1     1     4             3
-## 2     1     5             2
+## 1     1     4             7
+## 2     1     5             5
 ## 3     2     5             1
 ## # … with 3,424,971 more rows</code></pre>
 <p>We now run some community detection on this largest component as a way to
@@ -645,31 +645,31 @@ segment the product space.</p>
 <span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(stock_code)</span>
 <span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>pairwise_groups_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 997,507
+<pre><code>## Rows: 1,042,763
 ## Columns: 24
 ## $ stock_code        &lt;chr&gt; &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;…
 ## $ cluster_label     &lt;chr&gt; &quot;PAIRWISE_003&quot;, &quot;PAIRWISE_003&quot;, &quot;PAIRWISE_003&quot;, &quot;PAI…
-## $ row_id            &lt;chr&gt; &quot;ROW0000042&quot;, &quot;ROW0007654&quot;, &quot;ROW0009383&quot;, &quot;ROW000949…
+## $ row_id            &lt;chr&gt; &quot;ROW0000042&quot;, &quot;ROW0007654&quot;, &quot;ROW0007669&quot;, &quot;ROW000938…
 ## $ excel_sheet       &lt;chr&gt; &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;, &quot;Year 2009-2010&quot;…
-## $ invoice_id        &lt;chr&gt; &quot;489437&quot;, &quot;490063&quot;, &quot;490136&quot;, &quot;490140&quot;, &quot;490144&quot;, &quot;4…
+## $ invoice_id        &lt;chr&gt; &quot;489437&quot;, &quot;490063&quot;, &quot;490063&quot;, &quot;490136&quot;, &quot;490140&quot;, &quot;4…
 ## $ description       &lt;chr&gt; &quot;INFLATABLE POLITICAL GLOBE&quot;, &quot;INFLATABLE POLITICAL …
-## $ quantity          &lt;dbl&gt; 12, 1, 1, 4, 12, 12, 48, 1, 48, 1, 2, 12, 1, 9, 12, …
+## $ quantity          &lt;dbl&gt; 12, 1, 1, 1, 4, 12, 12, 48, 1, 48, 1, 2, 12, 1, 9, 1…
 ## $ invoice_date      &lt;date&gt; 2009-12-01, 2009-12-03, 2009-12-03, 2009-12-03, 200…
 ## $ price             &lt;dbl&gt; 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85…
-## $ customer_id       &lt;chr&gt; &quot;15362&quot;, &quot;17271&quot;, &quot;17432&quot;, &quot;12872&quot;, &quot;13154&quot;, &quot;18223&quot;…
+## $ customer_id       &lt;chr&gt; &quot;15362&quot;, &quot;17271&quot;, &quot;17271&quot;, &quot;17432&quot;, &quot;12872&quot;, &quot;13154&quot;…
 ## $ country           &lt;chr&gt; &quot;United Kingdom&quot;, &quot;United Kingdom&quot;, &quot;United Kingdom&quot;…
 ## $ stock_code_upr    &lt;chr&gt; &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;, &quot;10002&quot;…
 ## $ cancellation      &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FAL…
 ## $ invoice_dttm      &lt;dttm&gt; 2009-12-01 09:08:00, 2009-12-03 13:49:00, 2009-12-0…
-## $ invoice_month     &lt;chr&gt; &quot;December&quot;, &quot;December&quot;, &quot;December&quot;, &quot;December&quot;, &quot;Dec…
-## $ invoice_dow       &lt;chr&gt; &quot;Tuesday&quot;, &quot;Thursday&quot;, &quot;Thursday&quot;, &quot;Thursday&quot;, &quot;Frid…
-## $ invoice_dom       &lt;chr&gt; &quot;01&quot;, &quot;03&quot;, &quot;03&quot;, &quot;03&quot;, &quot;04&quot;, &quot;04&quot;, &quot;04&quot;, &quot;04&quot;, &quot;06&quot;…
-## $ invoice_hour      &lt;chr&gt; &quot;09&quot;, &quot;13&quot;, &quot;19&quot;, &quot;20&quot;, &quot;08&quot;, &quot;12&quot;, &quot;13&quot;, &quot;17&quot;, &quot;11&quot;…
-## $ invoice_minute    &lt;chr&gt; &quot;08&quot;, &quot;49&quot;, &quot;13&quot;, &quot;02&quot;, &quot;46&quot;, &quot;20&quot;, &quot;47&quot;, &quot;30&quot;, &quot;56&quot;…
+## $ invoice_month     &lt;fct&gt; December, December, December, December, December, De…
+## $ invoice_dow       &lt;fct&gt; Tuesday, Thursday, Thursday, Thursday, Thursday, Fri…
+## $ invoice_dom       &lt;chr&gt; &quot;01&quot;, &quot;03&quot;, &quot;03&quot;, &quot;03&quot;, &quot;03&quot;, &quot;04&quot;, &quot;04&quot;, &quot;04&quot;, &quot;04&quot;…
+## $ invoice_hour      &lt;chr&gt; &quot;09&quot;, &quot;13&quot;, &quot;13&quot;, &quot;19&quot;, &quot;20&quot;, &quot;08&quot;, &quot;12&quot;, &quot;13&quot;, &quot;17&quot;…
+## $ invoice_minute    &lt;chr&gt; &quot;08&quot;, &quot;49&quot;, &quot;49&quot;, &quot;13&quot;, &quot;02&quot;, &quot;46&quot;, &quot;20&quot;, &quot;47&quot;, &quot;30&quot;…
 ## $ invoice_woy       &lt;chr&gt; &quot;49&quot;, &quot;49&quot;, &quot;49&quot;, &quot;49&quot;, &quot;49&quot;, &quot;49&quot;, &quot;49&quot;, &quot;49&quot;, &quot;49&quot;…
 ## $ invoice_ym        &lt;chr&gt; &quot;200912&quot;, &quot;200912&quot;, &quot;200912&quot;, &quot;200912&quot;, &quot;200912&quot;, &quot;2…
-## $ stock_value       &lt;dbl&gt; 10.20, 0.85, 0.85, 3.40, 10.20, 10.20, 40.80, 0.85, …
-## $ invoice_monthprop &lt;dbl&gt; 0.04347826, 0.13043478, 0.13043478, 0.13043478, 0.17…
+## $ stock_value       &lt;dbl&gt; 10.20, 0.85, 0.85, 0.85, 3.40, 10.20, 10.20, 40.80, …
+## $ invoice_monthprop &lt;dbl&gt; 0.04347826, 0.13043478, 0.13043478, 0.13043478, 0.13…
 ## $ exclude           &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FAL…</code></pre>
 </div>
 </div>
@@ -686,7 +686,7 @@ segment the product space.</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-10-12                  
+##  date     2021-10-14                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
