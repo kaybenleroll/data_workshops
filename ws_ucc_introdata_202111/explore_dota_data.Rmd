@@ -130,11 +130,6 @@ cluster_region_tbl %>% glimpse()
 We want to construct additional fields.
 
 ```{r construct_additional_fields, echo=TRUE}
-hero_data_tbl <- hero_data_tbl %>%
-  mutate(
-    hero_id = fct_reorder(hero_id, as.numeric(hero_id))
-    )
-
 matchdata_tbl <- matchdata_tbl %>%
   left_join(cluster_region_tbl, by = "cluster")
 
@@ -274,19 +269,19 @@ nodes_hero_tbl <- match_teamdata_tbl %>%
   transmute(node_id = hero_id, node_type = "Hero", name, localized_name) %>%
   distinct()
 
-nodes_tbl <- list(
+mixed_nodes_tbl <- list(
     nodes_match_tbl,
     nodes_hero_tbl
     ) %>%
   bind_rows()
 
-edges_tbl <- match_teamdata_tbl %>%
+mixed_edges_tbl <- match_teamdata_tbl %>%
   select(match_id, hero_id, team_status)
 
 
-match_heroes_tblgraph <- tbl_graph(
-  nodes    = nodes_tbl,
-  edges    = edges_tbl,
+mixednode_tblgraph <- tbl_graph(
+  nodes    = mixed_nodes_tbl,
+  edges    = mixed_edges_tbl,
   directed = FALSE,
   node_key = "node_id"
   )
@@ -296,7 +291,7 @@ match_heroes_tblgraph <- tbl_graph(
 
 # Construct Undirected Hero-Node Graph
 
-```{r construct_heronode_data, echo=TRUE}
+```{r construct_heronode_data, echo=TRUE, cache=TRUE}
 calculate_pairwise_weights <- function(matchdata_tbl) {
   pairs_tbl <- expand_grid(
       one = matchdata_tbl %>% select(h1 = hero_id, st1 = team_status),
@@ -304,12 +299,11 @@ calculate_pairwise_weights <- function(matchdata_tbl) {
       ) %>%
     unnest(c(one, two)) %>%
     mutate(
-      weight = case_when(
-        (st1 == "WINNING TEAM" & st2 == "WINNING TEAM") ~  1,
-        (st1 == "LOSING TEAM"  & st2 == "LOSING TEAM")  ~ -1,
-        TRUE ~ 0
+      team_win  = if_else(st1 == "WINNING TEAM" & st2 == "WINNING TEAM", 1, 0),
+      winner    = if_else(st1 == "WINNING TEAM" & st2 == "LOSING TEAM",  1, 0),
+      loser     = if_else(st1 == "LOSING TEAM"  & st2 == "WINNING TEAM", 1, 0),
+      team_loss = if_else(st1 == "LOSING TEAM"  & st2 == "LOSING TEAM",  1, 0)
       )
-    )
 
   return(pairs_tbl)
 }
@@ -325,24 +319,51 @@ hero_pairs_tbl <- match_teamdata_tbl %>%
       )
     )
 
-edges_tbl <- hero_pairs_tbl %>%
-  select(pairs_data) %>% 
+hero_edges_tbl <- hero_pairs_tbl %>%
+  select(pairs_data) %>%
   unnest(pairs_data) %>%
   group_by(h1, h2) %>%
   summarise(
     .groups = "drop",
-    
+
     n_appear    = n(),
-    team_weight = sum(weight)
+    across(
+      c(team_win, team_loss, winner, loser),
+      sum
+      )
     ) %>%
   mutate(
-    h1 = h1 %>% fct_reorder(h1 %>% as.numeric()),
-    h2 = h2 %>% fct_reorder(h2 %>% as.numeric())
+    team_win_prop   = team_win  / n_appear,
+    team_loss_prop  = team_loss / n_appear,
+    winner_prop     = winner / n_appear,
+    loser_prop      = loser  / n_appear,
+    total_win_prop  = (team_win  + winner) / n_appear,
+    total_loss_prop = (team_loss + loser) / n_appear,
     ) %>%
   arrange(h1, h2)
 
-edges_tbl %>% glimpse()
+hero_edges_tbl %>% glimpse()
 ```
+
+
+```{r construct_undirected_hero_graph}
+hero_undirected_tblgraph <- tbl_graph(
+    nodes    = hero_data_tbl,
+    edges    = hero_edges_tbl %>% filter(as.numeric(h1) < as.numeric(h2)),
+    directed = FALSE,
+    node_key = "hero_id"
+    ) %>%
+  mutate(
+    cntr_eigen_teamwin  = centrality_eigen(weights = team_win_prop),
+    cntr_eigen_teamloss = centrality_eigen(weights = team_loss_prop),
+    cntr_eigen_winner   = centrality_eigen(weights = winner_prop),
+    cntr_eigen_loser    = centrality_eigen(weights = loser_prop)
+    )
+
+hero_undirected_tblgraph %>% print()
+```
+
+
 
 
 # R Environment
@@ -350,3 +371,4 @@ edges_tbl %>% glimpse()
 ```{r show_session_info, echo=TRUE, message=TRUE}
 sessioninfo::session_info()
 ```
+

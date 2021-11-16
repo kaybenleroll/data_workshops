@@ -385,15 +385,10 @@
 <div id="construct-fields" class="section level2" number="1.1">
 <h2><span class="header-section-number">1.1</span> Construct Fields</h2>
 <p>We want to construct additional fields.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>hero_data_tbl <span class="ot">&lt;-</span> hero_data_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">hero_id =</span> <span class="fu">fct_reorder</span>(hero_id, <span class="fu">as.numeric</span>(hero_id))</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>matchdata_tbl <span class="ot">&lt;-</span> matchdata_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(cluster_region_tbl, <span class="at">by =</span> <span class="st">&quot;cluster&quot;</span>)</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>matchdata_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>matchdata_tbl <span class="ot">&lt;-</span> matchdata_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(cluster_region_tbl, <span class="at">by =</span> <span class="st">&quot;cluster&quot;</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>matchdata_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 92,650
 ## Columns: 118
 ## $ result    [3m[38;5;246m&lt;int&gt;[39m[23m -1, 1, 1, 1, -1, 1, 1, -1, -1, -1, 1, -1, -1, -1, -1, -1, 1,…
@@ -773,19 +768,19 @@ individual matches and the heroes as nodes on the graph.</p>
 <span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(<span class="at">node_id =</span> hero_id, <span class="at">node_type =</span> <span class="st">&quot;Hero&quot;</span>, name, localized_name) <span class="sc">%&gt;%</span></span>
 <span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>()</span>
 <span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>nodes_tbl <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>mixed_nodes_tbl <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>    nodes_match_tbl,</span>
 <span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    nodes_hero_tbl</span>
 <span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
 <span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>()</span>
 <span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>edges_tbl <span class="ot">&lt;-</span> match_teamdata_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>mixed_edges_tbl <span class="ot">&lt;-</span> match_teamdata_tbl <span class="sc">%&gt;%</span></span>
 <span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(match_id, hero_id, team_status)</span>
 <span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>match_heroes_tblgraph <span class="ot">&lt;-</span> <span class="fu">tbl_graph</span>(</span>
-<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">nodes    =</span> nodes_tbl,</span>
-<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">edges    =</span> edges_tbl,</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>mixednode_tblgraph <span class="ot">&lt;-</span> <span class="fu">tbl_graph</span>(</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">nodes    =</span> mixed_nodes_tbl,</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">edges    =</span> mixed_edges_tbl,</span>
 <span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">directed =</span> <span class="cn">FALSE</span>,</span>
 <span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">node_key =</span> <span class="st">&quot;node_id&quot;</span></span>
 <span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
@@ -798,51 +793,109 @@ individual matches and the heroes as nodes on the graph.</p>
 <span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">two =</span> matchdata_tbl <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="at">h2 =</span> hero_id, <span class="at">st2 =</span> team_status)</span>
 <span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span></span>
 <span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">unnest</span>(<span class="fu">c</span>(one, two)) <span class="sc">%&gt;%</span></span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(h1 <span class="sc">&lt;</span> h2) <span class="sc">%&gt;%</span></span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">weight =</span> <span class="fu">case_when</span>(</span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>        (st1 <span class="sc">==</span> <span class="st">&quot;WINNING TEAM&quot;</span> <span class="sc">&amp;</span> st2 <span class="sc">==</span> <span class="st">&quot;WINNING TEAM&quot;</span>) <span class="sc">~</span>  <span class="dv">1</span>,</span>
-<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>        (st1 <span class="sc">==</span> <span class="st">&quot;LOSING TEAM&quot;</span>  <span class="sc">&amp;</span> st2 <span class="sc">==</span> <span class="st">&quot;LOSING TEAM&quot;</span>)  <span class="sc">~</span> <span class="sc">-</span><span class="dv">1</span>,</span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span></span>
-<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(pairs_tbl)</span>
-<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>hero_pairs_tbl <span class="ot">&lt;-</span> match_teamdata_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_nest</span>(match_id, <span class="at">.key =</span> <span class="st">&quot;match_data&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">pairs_data =</span> <span class="fu">future_map</span>(</span>
-<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>      match_data, calculate_pairwise_weights,</span>
-<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>      <span class="at">.progress =</span> <span class="cn">TRUE</span></span>
-<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>edges_tbl <span class="ot">&lt;-</span> hero_pairs_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pairs_data) <span class="sc">%&gt;%</span> </span>
-<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(pairs_data) <span class="sc">%&gt;%</span></span>
-<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(h1, h2) <span class="sc">%&gt;%</span></span>
-<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>,</span>
-<span id="cb24-36"><a href="#cb24-36" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb24-37"><a href="#cb24-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_appear    =</span> <span class="fu">n</span>(),</span>
-<span id="cb24-38"><a href="#cb24-38" aria-hidden="true" tabindex="-1"></a>    <span class="at">team_weight =</span> <span class="fu">sum</span>(weight)</span>
-<span id="cb24-39"><a href="#cb24-39" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a>edges_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 6,105
-## Columns: 4
-## $ h1          [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;…
-## $ h2          [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;10&quot;, &quot;100&quot;, &quot;101&quot;, &quot;102&quot;, &quot;103&quot;, &quot;104&quot;, &quot;105&quot;, &quot;106&quot;, &quot;10…
-## $ n_appear    [3m[38;5;246m&lt;int&gt;[39m[23m 1321, 515, 725, 609, 806, 4142, 600, 1028, 351, 594, 1688,…
-## $ team_weight [3m[38;5;246m&lt;dbl&gt;[39m[23m -22, -38, -8, -3, 26, -152, -20, -100, -33, -49, -132, -20…</code></pre>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">team_win  =</span> <span class="fu">if_else</span>(st1 <span class="sc">==</span> <span class="st">&quot;WINNING TEAM&quot;</span> <span class="sc">&amp;</span> st2 <span class="sc">==</span> <span class="st">&quot;WINNING TEAM&quot;</span>, <span class="dv">1</span>, <span class="dv">0</span>),</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">winner    =</span> <span class="fu">if_else</span>(st1 <span class="sc">==</span> <span class="st">&quot;WINNING TEAM&quot;</span> <span class="sc">&amp;</span> st2 <span class="sc">==</span> <span class="st">&quot;LOSING TEAM&quot;</span>,  <span class="dv">1</span>, <span class="dv">0</span>),</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>      <span class="at">loser     =</span> <span class="fu">if_else</span>(st1 <span class="sc">==</span> <span class="st">&quot;LOSING TEAM&quot;</span>  <span class="sc">&amp;</span> st2 <span class="sc">==</span> <span class="st">&quot;WINNING TEAM&quot;</span>, <span class="dv">1</span>, <span class="dv">0</span>),</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>      <span class="at">team_loss =</span> <span class="fu">if_else</span>(st1 <span class="sc">==</span> <span class="st">&quot;LOSING TEAM&quot;</span>  <span class="sc">&amp;</span> st2 <span class="sc">==</span> <span class="st">&quot;LOSING TEAM&quot;</span>,  <span class="dv">1</span>, <span class="dv">0</span>)</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(pairs_tbl)</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>hero_pairs_tbl <span class="ot">&lt;-</span> match_teamdata_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_nest</span>(match_id, <span class="at">.key =</span> <span class="st">&quot;match_data&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">pairs_data =</span> <span class="fu">future_map</span>(</span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>      match_data, calculate_pairwise_weights,</span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>      <span class="at">.progress =</span> <span class="cn">TRUE</span></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>hero_edges_tbl <span class="ot">&lt;-</span> hero_pairs_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(pairs_data) <span class="sc">%&gt;%</span></span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(pairs_data) <span class="sc">%&gt;%</span></span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(h1, h2) <span class="sc">%&gt;%</span></span>
+<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>,</span>
+<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_appear    =</span> <span class="fu">n</span>(),</span>
+<span id="cb24-36"><a href="#cb24-36" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(</span>
+<span id="cb24-37"><a href="#cb24-37" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(team_win, team_loss, winner, loser),</span>
+<span id="cb24-38"><a href="#cb24-38" aria-hidden="true" tabindex="-1"></a>      sum</span>
+<span id="cb24-39"><a href="#cb24-39" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb24-42"><a href="#cb24-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">team_win_prop   =</span> team_win  <span class="sc">/</span> n_appear,</span>
+<span id="cb24-43"><a href="#cb24-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">team_loss_prop  =</span> team_loss <span class="sc">/</span> n_appear,</span>
+<span id="cb24-44"><a href="#cb24-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">winner_prop     =</span> winner <span class="sc">/</span> n_appear,</span>
+<span id="cb24-45"><a href="#cb24-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">loser_prop      =</span> loser  <span class="sc">/</span> n_appear,</span>
+<span id="cb24-46"><a href="#cb24-46" aria-hidden="true" tabindex="-1"></a>    <span class="at">total_win_prop  =</span> (team_win  <span class="sc">+</span> winner) <span class="sc">/</span> n_appear,</span>
+<span id="cb24-47"><a href="#cb24-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">total_loss_prop =</span> (team_loss <span class="sc">+</span> loser) <span class="sc">/</span> n_appear,</span>
+<span id="cb24-48"><a href="#cb24-48" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb24-49"><a href="#cb24-49" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(h1, h2)</span>
+<span id="cb24-50"><a href="#cb24-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-51"><a href="#cb24-51" aria-hidden="true" tabindex="-1"></a>hero_edges_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 12,321
+## Columns: 13
+## $ h1              [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;, &quot;1&quot;,…
+## $ h2              [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;1&quot;, &quot;10&quot;, &quot;100&quot;, &quot;101&quot;, &quot;102&quot;, &quot;103&quot;, &quot;104&quot;, &quot;105&quot;, &quot;…
+## $ n_appear        [3m[38;5;246m&lt;int&gt;[39m[23m 14973, 1321, 515, 725, 609, 806, 4142, 600, 1028, 351,…
+## $ team_win        [3m[38;5;246m&lt;dbl&gt;[39m[23m 6992, 199, 100, 169, 139, 215, 793, 128, 180, 69, 79, …
+## $ team_loss       [3m[38;5;246m&lt;dbl&gt;[39m[23m 7981, 221, 138, 177, 142, 189, 945, 148, 280, 102, 128…
+## $ winner          [3m[38;5;246m&lt;dbl&gt;[39m[23m 0, 438, 154, 201, 149, 182, 1030, 154, 310, 98, 176, 4…
+## $ loser           [3m[38;5;246m&lt;dbl&gt;[39m[23m 0, 463, 123, 178, 179, 220, 1374, 170, 258, 82, 211, 4…
+## $ team_win_prop   [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.4669739, 0.1506435, 0.1941748, 0.2331034, 0.2282430,…
+## $ team_loss_prop  [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.5330261, 0.1672975, 0.2679612, 0.2441379, 0.2331691,…
+## $ winner_prop     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.0000000, 0.3315670, 0.2990291, 0.2772414, 0.2446634,…
+## $ loser_prop      [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.0000000, 0.3504921, 0.2388350, 0.2455172, 0.2939245,…
+## $ total_win_prop  [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.4669739, 0.4822104, 0.4932039, 0.5103448, 0.4729064,…
+## $ total_loss_prop [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.5330261, 0.5177896, 0.5067961, 0.4896552, 0.5270936,…</code></pre>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>hero_undirected_tblgraph <span class="ot">&lt;-</span> <span class="fu">tbl_graph</span>(</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">nodes    =</span> hero_data_tbl,</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">edges    =</span> hero_edges_tbl <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="fu">as.numeric</span>(h1) <span class="sc">&lt;</span> <span class="fu">as.numeric</span>(h2)),</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">directed =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">node_key =</span> <span class="st">&quot;hero_id&quot;</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">cntr_eigen_teamwin  =</span> <span class="fu">centrality_eigen</span>(<span class="at">weights =</span> team_win_prop),</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">cntr_eigen_teamloss =</span> <span class="fu">centrality_eigen</span>(<span class="at">weights =</span> team_loss_prop),</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">cntr_eigen_winner   =</span> <span class="fu">centrality_eigen</span>(<span class="at">weights =</span> winner_prop),</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">cntr_eigen_loser    =</span> <span class="fu">centrality_eigen</span>(<span class="at">weights =</span> loser_prop)</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>hero_undirected_tblgraph <span class="sc">%&gt;%</span> <span class="fu">print</span>()</span></code></pre></div>
+<pre><code>## # A tbl_graph: 112 nodes and 6105 edges
+## #
+## # An undirected simple graph with 2 components
+## #
+## # Node Data: 112 × 7 (active)
+##   hero_id name  localized_name cntr_eigen_team… cntr_eigen_team…
+##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;                     &lt;dbl&gt;            &lt;dbl&gt;
+## 1 1       anti… Anti-Mage                 0.819            0.867
+## 2 2       axe   Axe                       0.900            0.754
+## 3 3       bane  Bane                      0.758            0.863
+## 4 4       bloo… Bloodseeker               0.876            0.795
+## 5 5       crys… Crystal Maiden            0.898            0.701
+## 6 6       drow… Drow Ranger               0.934            0.753
+## # … with 106 more rows, and 2 more variables: cntr_eigen_winner &lt;dbl&gt;,
+## #   cntr_eigen_loser &lt;dbl&gt;
+## #
+## # Edge Data: 6,105 × 13
+##    from    to n_appear team_win team_loss winner loser team_win_prop
+##   &lt;int&gt; &lt;int&gt;    &lt;int&gt;    &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;         &lt;dbl&gt;
+## 1     1    11     1321      199       221    438   463         0.151
+## 2     1    99      515      100       138    154   123         0.194
+## 3     1   100      725      169       177    201   178         0.233
+## # … with 6,102 more rows, and 5 more variables: team_loss_prop &lt;dbl&gt;,
+## #   winner_prop &lt;dbl&gt;, loser_prop &lt;dbl&gt;, total_win_prop &lt;dbl&gt;,
+## #   total_loss_prop &lt;dbl&gt;</code></pre>
 </div>
 <div id="r-environment" class="section level1" number="5">
 <h1><span class="header-section-number">5</span> R Environment</h1>
-<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
@@ -853,7 +906,7 @@ individual matches and the heroes as nodes on the graph.</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-11-15                  
+##  date     2021-11-16                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
