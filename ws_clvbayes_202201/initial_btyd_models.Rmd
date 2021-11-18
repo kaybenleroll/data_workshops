@@ -531,17 +531,17 @@ pnbd_basic_prior_stanmodel <- stan_model(
 ```
 
 
-```{r fit_basic_prior_stan_model, echo=TRUE, warning=TRUE}
+```{r fit_basic_prior_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
 stan_data_lst <- customer_basic_pnbd_cbs_lst
 
 pnbd_basic_prior_stanfit <- sampling(
   pnbd_basic_prior_stanmodel,
   data    = stan_data_lst,
   chains  =    4,
+  warmup  = 1000,
   iter    = 2000,
   # control = list(
-  #   adapt_delta   = 0.995,
-  #   max_treedepth = 15
+  #   adapt_delta   = 0.99
   #   ),
   seed    = 4242
   )
@@ -552,7 +552,7 @@ pnbd_basic_prior_stanfit %>% summary()
 
 We first want to check the HMC diagnostics.
 
-```{r calculate_basic_prior_hmc_diagnostics, echo=TRUE}
+```{r calculate_basic_prior_hmc_diagnostics, echo=TRUE, message=TRUE, warning=TRUE, eval=FALSE}
 pnbd_basic_prior_stanfit %>% check_hmc_diagnostics()
 
 pnbd_basic_prior_stanfit %>% get_bfmi() %>% round(4)
@@ -560,7 +560,185 @@ pnbd_basic_prior_stanfit %>% get_bfmi() %>% round(4)
 
 
 
+## Construct Third Stan Model
 
+
+```{r compile_basic_prior_fixedcov_model, echo=TRUE}
+pnbd_basic_fixedcov_stanmodel <- stan_model(
+  "stan_code/clv_pnbd_fixedcov.stan",
+  model_name    = "pnbd_basic_fixedcov_model",
+  warn_pedantic =  TRUE,
+  verbose       = FALSE
+  )
+```
+
+
+```{r fit_basic_fixedcov1_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
+stan_data_lst <- compose_data(
+  customer_basic_pnbd_cbs_lst,
+
+  mu_cov = 1,
+  lb_cov = 1
+  )
+
+pnbd_basic_fixedcov1_stanfit <- sampling(
+  pnbd_basic_fixedcov_stanmodel,
+  data    = stan_data_lst,
+  chains  =    4,
+  warmup  = 1000,
+  iter    = 2000,
+  # control = list(
+  #   adapt_delta   = 0.99
+  #   ),
+  seed    = 4242
+  )
+
+pnbd_basic_fixedcov1_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
+```
+
+We now refit the model with a higher level of coefficient-of-variance.
+
+```{r fit_basic_fixedcov2_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
+stan_data_lst <- compose_data(
+  customer_basic_pnbd_cbs_lst,
+
+  mu_cov = 2,
+  lb_cov = 2
+  )
+
+pnbd_basic_fixedcov2_stanfit <- sampling(
+  pnbd_basic_fixedcov_stanmodel,
+  data    = stan_data_lst,
+  chains  =    4,
+  warmup  = 1000,
+  iter    = 2000,
+  # control = list(
+  #   adapt_delta   = 0.99
+  #   ),
+  seed    = 4242
+  )
+
+pnbd_basic_fixedcov2_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
+```
+
+
+
+We first want to check the HMC diagnostics.
+
+```{r calculate_basic_fixedcov_hmc_diagnostics, echo=TRUE, message=TRUE, warning=TRUE}
+pnbd_basic_fixedcov2_stanfit %>% check_hmc_diagnostics()
+
+pnbd_basic_fixedcov2_stanfit %>% get_bfmi() %>% round(4)
+```
+
+
+
+
+```{r fit_basic_fixedcov05_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
+stan_data_lst <- compose_data(
+  customer_basic_pnbd_cbs_lst,
+
+  mu_cov = 0.5,
+  lb_cov = 0.5
+  )
+
+pnbd_basic_fixedcov05_stanfit <- sampling(
+  pnbd_basic_fixedcov_stanmodel,
+  data    = stan_data_lst,
+  chains  =    4,
+  warmup  = 1000,
+  iter    = 2000,
+  # control = list(
+  #   adapt_delta   = 0.99
+  #   ),
+  seed    = 4242
+  )
+
+pnbd_basic_fixedcov05_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
+
+pnbd_basic_fixedcov05_stanfit %>% check_hmc_diagnostics()
+
+pnbd_basic_fixedcov05_stanfit %>% get_bfmi() %>% round(4)
+```
+
+
+We now combine all the posterior data and compare the parameter estimates for
+each of the different parameter values.
+
+```{r compare_different_posterior_parameters, echo=TRUE}
+post05_customer_tbl <- pnbd_basic_fixedcov05_stanfit %>%
+  recover_types(customer_basic_pnbd_cbs_tbl) %>%
+  spread_draws(mu[customer_id], lambda[customer_id]) %>%
+  ungroup()
+
+
+post10_customer_tbl <- pnbd_basic_fixedcov1_stanfit %>%
+  recover_types(customer_basic_pnbd_cbs_tbl) %>%
+  spread_draws(mu[customer_id], lambda[customer_id]) %>%
+  ungroup()
+
+
+post20_customer_tbl <- pnbd_basic_fixedcov2_stanfit %>%
+  recover_types(customer_basic_pnbd_cbs_tbl) %>%
+  spread_draws(mu[customer_id], lambda[customer_id]) %>%
+  ungroup()
+
+
+post_custdata_tbl <- list(
+    `CoV 0.5` = post05_customer_tbl,
+    `CoV 1.0` = post10_customer_tbl,
+    `CoV 2.0` = post20_customer_tbl
+    ) %>%
+  bind_rows(.id = "label")
+
+post_custdata_tbl %>% glimpse()
+```
+
+```{r plot_sample_customer_boxplots, echo=TRUE}
+qn_prob  <- c(0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95)
+qn_label <- sprintf("p%02d", qn_prob * 100)
+
+summdata_tbl <- post_custdata_tbl %>%
+  group_by(label, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    qn     = glue("{qn_label}"),
+    mu     = quantile(mu,     probs = qn_prob),
+    lambda = quantile(lambda, probs = qn_prob)
+    )
+
+plot_tbl <- summdata_tbl %>%
+  group_nest(customer_id, .key = "cust_data") %>%
+  slice_sample(n = 20) %>%
+  unnest(cust_data) %>%
+  pivot_wider(
+    id_cols = c(label, customer_id),
+    names_from = "qn",
+    values_from = c(mu, lambda)
+    )
+
+cust_data_tbl <- customer_basic_parameters_tbl %>%
+  semi_join(plot_tbl, by = "customer_id")
+
+
+ggplot() +
+  geom_errorbar(
+    aes(x = customer_id, ymin = mu_p25, ymax = mu_p75, colour = label),
+    data = plot_tbl, width = 0, size = 2.0, position = position_dodge(width = 0.5)) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = mu_p10, ymax = mu_p90, colour = label),
+    data = plot_tbl, width = 0, size = 0.5, position = position_dodge(width = 0.5)) +
+  geom_point(
+    aes(x = customer_id, y = customer_mu),
+    data = cust_data_tbl, size = 2) +
+  labs(
+    x      = "Customer ID",
+    y      = "Posterior mu",
+    colour = "Data"
+    ) +
+  ggtitle("Comparison Plot of Posterior Parameters")
+```
 
 # R Environment
 
