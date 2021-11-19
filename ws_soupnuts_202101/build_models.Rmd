@@ -1414,6 +1414,20 @@ wc_plot %>% plot()
 ```
 
 
+# Write Data to Disk
+
+We now want to write this data to the disk for later use.
+
+```{r write_data_disk, echo=TRUE}
+product_group_tnxgroups_tbl %>% write_rds("data/product_group_tnxgroups_tbl.rds")
+
+customer_rfmdata      %>% write_rds("data/customer_rfmdata.rds")
+customer_segments_tbl %>% write_rds("data/customer_segments_tbl.rds")
+
+validation_rfm_data_tbl %>% write_rds("data/validation_rfm_data_tbl.rds")
+```
+
+
 # R Environment
  
 ```{r show_session_info, echo=TRUE, message=TRUE}

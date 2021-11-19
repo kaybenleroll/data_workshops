@@ -50,6 +50,8 @@ initial_rfm_models.html: exploring_retail_data.html
 build_models.html: initial_arules_models.html initial_btyd_models.html \
   initial_rfm_models.html initial_timeseries_models.html
 
+summary_slides.html: build_models.html
+
 
 clean-html:
 	rm -fv *.html

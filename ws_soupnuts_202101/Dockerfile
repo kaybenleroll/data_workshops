@@ -1,4 +1,4 @@
-FROM rocker/verse:4.1.0
+FROM rocker/verse:4.1.1
 
 RUN apt-get update \
   && apt-get upgrade -y \
@@ -42,6 +42,7 @@ RUN apt-get update \
     ggwordcloud \
     kableExtra \
     pryr \
+    revealjs \
     rfm \
     rmdformats \
     sessioninfo \
