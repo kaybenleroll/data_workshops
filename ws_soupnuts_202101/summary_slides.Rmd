@@ -56,6 +56,10 @@ product_group_tnxgroups_tbl <- read_rds("data/product_group_tnxgroups_tbl.rds")
 customer_segments_tbl       <- read_rds("data/customer_segments_tbl.rds")
 
 validation_rfm_data_tbl     <- read_rds("data/validation_rfm_data_tbl.rds")
+
+segment_group_mat           <- read_rds("data/segment_group_mat.rds")
+
+product_group_tokens_tbl    <- read_rds("data/product_group_tokens_tbl.rds")
 ```
 
 
@@ -125,6 +129,8 @@ ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
   theme(axis.text.y = element_text(size = 12))
 ```
 
+
+
 # Customer Segmentation
 
 ---
@@ -141,31 +147,12 @@ ggplot(plot_tbl) +
     x = "Segment",
     y = "Count"
     ) +
-  ggtitle("Segmentation Sizes") +
+  ggtitle("RFM Modelling Segmentation Sizes") +
   theme(
     axis.text.x = element_text(angle = 20, vjust = 0.5),
     legend.position = "none"
     )
 ```
-
-
-# Product Clusters
-
----
-
-```{r plot_product_group_splits, echo=FALSE}
-plot_tbl <- product_group_tnxgroups_tbl %>%
-  count(product_group, name = "cluster_count")
-
-ggplot(plot_tbl) +
-  geom_col(aes(x = product_group, y = cluster_count)) +
-  labs(
-    x = "Product Group",
-    y = "Cluster Size"
-    ) +
-  ggtitle("Produce Cluster Sizes")
-```
-
 
 ---
 
@@ -212,14 +199,75 @@ segment_plot + scale_y_log10(labels = label_comma())
 
 
 
+
+
+# Product Clusters
+
+---
+
+```{r plot_product_group_splits, echo=FALSE}
+plot_tbl <- product_group_tnxgroups_tbl %>%
+  count(product_group, name = "cluster_count")
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = product_group, y = cluster_count)) +
+  labs(
+    x = "Product Group",
+    y = "Cluster Size"
+    ) +
+  ggtitle("Product Cluster Sizes")
+```
+
+---
+
+```{r visualise_ca_biplots, echo=FALSE}
+segment_group_ca %>%
+  fviz_ca_biplot(
+    repel = TRUE,
+    title = "CA Biplot of Customer Segment Against Product Group"
+    )
+```
+
+---
+
+```{r plot_tnx_007_word_cloud, echo=FALSE}
+wc_007_tbl <- product_group_tokens_tbl %>%
+  filter(product_group == "TNX_007") %>%
+  count(word, name = "freq") %>%
+  slice_max(order_by = freq, n = 100)
+
+wc_plot <- ggwordcloud2(
+    data    = wc_007_tbl,
+    shuffle = FALSE,
+    size    = 4,
+    seed    = 42421
+    ) +
+  ggtitle("Word Cloud from Product Group TNX_007")
+
+wc_plot %>% plot()
+```
+
+
+# Future Work
+
+---
+
+* Lack of stakeholder input
+* Returns not properly analysed
+* RFM Models are simplistic
+* Clustering requires more work
+* Product data lacks depth
+
+
+
 # Thank You
 
-## Get in Touch
-
-\
+---
 
 
 mickcooney@gmail.com
+
+\
 
 GitHub: <http://www.github.com/kaybenleroll>
 
