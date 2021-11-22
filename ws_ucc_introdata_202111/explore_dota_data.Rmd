@@ -33,6 +33,10 @@ library(scales)
 library(glue)
 library(DT)
 library(tidygraph)
+library(visNetwork)
+library(arules)
+library(arulesViz)
+
 
 
 resolve_conflicts <- function(pkg_priority) {
@@ -69,7 +73,8 @@ resolve_conflicts <- function(pkg_priority) {
 }
 
 conflict_lst <- resolve_conflicts(
-  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "Matrix",
+    "arules")
   )
 
 
@@ -217,6 +222,7 @@ ggplot(plotdata_tbl) +
   ggtitle("Barplot of Matches by Game Mode")
 ```
 
+
 ## Plot Hero Appearances and Win-Rate
 
 We want to look at how often the various heroes appear in the data set and
@@ -253,6 +259,27 @@ ggplot(plot_tbl) +
 ```
 
 
+## Plot Top Appearances by Region
+
+```{r plot_top10_appearance_hero_region, echo=TRUE}
+plot_tbl <- match_teamdata_tbl %>%
+  count(region, name, name = "n_appear") %>%
+  group_by(region) %>%
+  slice_max(order_by = n_appear, n = 10) %>%
+  ungroup()
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+
 
 # Construct Mixed-Node Graph
 
@@ -276,7 +303,7 @@ mixed_nodes_tbl <- list(
   bind_rows()
 
 mixed_edges_tbl <- match_teamdata_tbl %>%
-  select(match_id, hero_id, team_status)
+  select(from = match_id, to = hero_id, team_status)
 
 
 mixednode_tblgraph <- tbl_graph(
@@ -289,13 +316,13 @@ mixednode_tblgraph <- tbl_graph(
 
 
 
-# Construct Undirected Hero-Node Graph
+# Construct Hero-Node Graph
 
 ```{r construct_heronode_data, echo=TRUE, cache=TRUE}
 calculate_pairwise_weights <- function(matchdata_tbl) {
   pairs_tbl <- expand_grid(
-      one = matchdata_tbl %>% select(h1 = hero_id, st1 = team_status),
-      two = matchdata_tbl %>% select(h2 = hero_id, st2 = team_status)
+      one = matchdata_tbl %>% select(from = hero_id, st1 = team_status),
+      two = matchdata_tbl %>% select(to   = hero_id, st2 = team_status)
       ) %>%
     unnest(c(one, two)) %>%
     mutate(
@@ -322,7 +349,7 @@ hero_pairs_tbl <- match_teamdata_tbl %>%
 hero_edges_tbl <- hero_pairs_tbl %>%
   select(pairs_data) %>%
   unnest(pairs_data) %>%
-  group_by(h1, h2) %>%
+  group_by(from, to) %>%
   summarise(
     .groups = "drop",
 
@@ -340,16 +367,18 @@ hero_edges_tbl <- hero_pairs_tbl %>%
     total_win_prop  = (team_win  + winner) / n_appear,
     total_loss_prop = (team_loss + loser) / n_appear,
     ) %>%
-  arrange(h1, h2)
+  arrange(from, to)
 
 hero_edges_tbl %>% glimpse()
 ```
 
 
+## Construct Undirected Network
+
 ```{r construct_undirected_hero_graph}
 hero_undirected_tblgraph <- tbl_graph(
     nodes    = hero_data_tbl,
-    edges    = hero_edges_tbl %>% filter(as.numeric(h1) < as.numeric(h2)),
+    edges    = hero_edges_tbl %>% filter(as.numeric(from) < as.numeric(to)),
     directed = FALSE,
     node_key = "hero_id"
     ) %>%
@@ -363,6 +392,85 @@ hero_undirected_tblgraph <- tbl_graph(
 hero_undirected_tblgraph %>% print()
 ```
 
+
+```{r plot_subgraph, echo=TRUE}
+hero_undirected_tblgraph %>%
+  convert(to_subgraph, hero_id %in% 1:5) %>%
+  toVisNetworkData(idToLabel = FALSE) %>%
+  visNetwork(
+    nodes = .$nodes,
+    edges = .$edges
+    )
+```
+
+## Construct Directed Network
+
+
+```{r construct_directed_hero_graph}
+hero_directed_tblgraph <- tbl_graph(
+    nodes    = hero_data_tbl,
+    edges    = hero_edges_tbl %>% filter(as.numeric(from) != as.numeric(to)),
+    directed = TRUE,
+    node_key = "hero_id"
+    ) %>%
+  mutate(
+    cntr_eigen_teamwin  = centrality_eigen(weights = team_win_prop),
+    cntr_eigen_teamloss = centrality_eigen(weights = team_loss_prop),
+    cntr_eigen_winner   = centrality_eigen(weights = winner_prop),
+    cntr_eigen_loser    = centrality_eigen(weights = loser_prop)
+    )
+
+hero_undirected_tblgraph %>% print()
+```
+
+
+
+# Investigate Association Rules
+
+
+## All Hero/Match Data
+
+```{r investigate_association_rules, echo=TRUE}
+match_teamdata_tbl %>%
+  select(match_id, name, team_status) %>%
+  write_csv("data/hero_matches.csv")
+
+hero_arules <- read.transactions(
+    file   = "data/hero_matches.csv",
+    format = "single",
+    sep    = ",",
+    header = TRUE,
+    cols   = c("match_id", "name")
+    )
+```
+
+```{r invoke_ruleexplorer_1, echo=TRUE}
+hero_arules %>% ruleExplorer()
+```
+
+
+
+## Winner Hero/Match Data
+
+
+```{r investigate_association_rules, echo=TRUE, eval=FALSE}
+match_teamdata_tbl %>%
+  select(match_id, name, team_status) %>%
+  filter(team_status == "WINNING TEAM") %>%
+  write_csv("data/hero_matches_winner.csv")
+
+hero_winner_arules <- read.transactions(
+    file   = "data/hero_matches_winner.csv",
+    format = "single",
+    sep    = ",",
+    header = TRUE,
+    cols   = c("match_id", "name")
+    )
+```
+
+```{r invoke_ruleexplorer_2, echo=TRUE, eval=FALSE}
+hero_winner_arules %>% ruleExplorer()
+```
 
 
 
