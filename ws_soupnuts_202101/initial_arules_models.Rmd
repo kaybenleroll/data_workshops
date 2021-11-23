@@ -481,8 +481,7 @@ further graph clustering algorithms to create further groupings.
 
 ```{r create_large_component_clusters, echo=TRUE}
 apriori_rules_large_tblgraph <- apriori_rules_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph) %>%
+  convert(to_subgraph, component_size == max(component_size)) %>%
   morph(to_undirected) %>%
   mutate(
     sub_id = group_louvain()
@@ -713,8 +712,7 @@ product_groups_lower_all_tbl %>% glimpse()
 
 ```{r construct_largest_subgraph_groups, echo=TRUE}
 apriori_lower_rules_bigcomp_tblgraph <- apriori_lower_rules_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph) %>%
+  convert(to_subgraph, component_size == max(component_size)) %>%
   mutate(
     sub_id = group_louvain()
     )

@@ -173,7 +173,13 @@ nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
   bind_rows()
 
 edges_tbl <- tnx_purchase_tbl %>%
-  select(stock_code, invoice_id, quantity, price)
+  group_by(stock_code, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_quantity = sum(quantity),
+    total_cost     = sum(quantity * price)
+    )
 
 
 basket_tblgraph <- tbl_graph(
@@ -247,8 +253,7 @@ cluster_func <- c(
     )
 
 largecomp_tblgraph <- basket_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph)
+  convert(to_subgraph, component_size == max(component_size))
 
 cluster_data_tbl <- tibble(cluster_func_name = cluster_func) %>%
   mutate(
@@ -364,8 +369,7 @@ pairwise_largecomp_tblgraph <- pairwise_tblgraph %>%
   group_by(component_id) %>%
   mutate(component_size = n()) %>%
   ungroup() %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph)
+  convert(to_subgraph, component_size == max(component_size))
 
 pairwise_largecomp_tblgraph %>% print()
 ```
