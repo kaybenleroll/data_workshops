@@ -60,6 +60,15 @@ clean-cache:
 	rm -rfv *_cache
 	rm -rfv *_files
 
+clean-data:
+	rm -rfv data/*.rds
+
+clean-precompute:
+	rm -rfv precompute/*.rds
+
+
+mrproper: clean-html clean-cache clean-data clean-precompute
+	rm data/*.xlsx
 
 
 ### Docker targets

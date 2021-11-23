@@ -19,6 +19,9 @@ library(scales)
 library(cowplot)
 library(knitr)
 library(glue)
+library(FactoMineR)
+library(factoextra)
+library(ggwordcloud)
 
 
 source("lib_utils.R")
@@ -221,6 +224,9 @@ ggplot(plot_tbl) +
 ---
 
 ```{r visualise_ca_biplots, echo=FALSE}
+segment_group_ca <- segment_group_mat %>%
+  CA(graph = FALSE)
+
 segment_group_ca %>%
   fviz_ca_biplot(
     repel = TRUE,
