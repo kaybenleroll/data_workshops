@@ -515,6 +515,14 @@ ggplot(postcheck_facet_plotdata_tbl) +
 ```
 
 
+### Write Model to Disk
+
+```{r}
+pnbd_basic_fixed_stanmodel %>% write_rds("data/pnbd_basic_fixed_stanmodel.rds")
+pnbd_basic_fixed_stanfit   %>% write_rds("data/pnbd_basic_fixed_stanfit.rds")
+```
+
+
 ## Construct Second Stan Model
 
 We now want to improve the model by adding priors around the hyper-parameters
@@ -559,6 +567,13 @@ pnbd_basic_prior_stanfit %>% get_bfmi() %>% round(4)
 ```
 
 
+### Write Model to Disk
+
+```{r}
+pnbd_basic_prior_stanmodel %>% write_rds("data/pnbd_basic_prior_stanmodel.rds")
+pnbd_basic_prior_stanfit   %>% write_rds("data/pnbd_basic_prior_stanfit.rds")
+```
+
 
 ## Construct Third Stan Model
 
@@ -573,7 +588,7 @@ pnbd_basic_fixedcov_stanmodel <- stan_model(
 ```
 
 
-```{r fit_basic_fixedcov1_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
+```{r fit_basic_fixedcov10_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
 stan_data_lst <- compose_data(
   customer_basic_pnbd_cbs_lst,
 
@@ -581,7 +596,7 @@ stan_data_lst <- compose_data(
   lb_cov = 1
   )
 
-pnbd_basic_fixedcov1_stanfit <- sampling(
+pnbd_basic_fixedcov10_stanfit <- sampling(
   pnbd_basic_fixedcov_stanmodel,
   data    = stan_data_lst,
   chains  =    4,
@@ -593,12 +608,12 @@ pnbd_basic_fixedcov1_stanfit <- sampling(
   seed    = 4242
   )
 
-pnbd_basic_fixedcov1_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
+pnbd_basic_fixedcov10_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
 ```
 
 We now refit the model with a higher level of coefficient-of-variance.
 
-```{r fit_basic_fixedcov2_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
+```{r fit_basic_fixedcov20_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
 stan_data_lst <- compose_data(
   customer_basic_pnbd_cbs_lst,
 
@@ -606,7 +621,7 @@ stan_data_lst <- compose_data(
   lb_cov = 2
   )
 
-pnbd_basic_fixedcov2_stanfit <- sampling(
+pnbd_basic_fixedcov20_stanfit <- sampling(
   pnbd_basic_fixedcov_stanmodel,
   data    = stan_data_lst,
   chains  =    4,
@@ -618,7 +633,7 @@ pnbd_basic_fixedcov2_stanfit <- sampling(
   seed    = 4242
   )
 
-pnbd_basic_fixedcov2_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
+pnbd_basic_fixedcov20_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
 ```
 
 
@@ -626,9 +641,9 @@ pnbd_basic_fixedcov2_stanfit %>% summary(pars = c("lb_mean", "mu_mean"))
 We first want to check the HMC diagnostics.
 
 ```{r calculate_basic_fixedcov_hmc_diagnostics, echo=TRUE, message=TRUE, warning=TRUE}
-pnbd_basic_fixedcov2_stanfit %>% check_hmc_diagnostics()
+pnbd_basic_fixedcov20_stanfit %>% check_hmc_diagnostics()
 
-pnbd_basic_fixedcov2_stanfit %>% get_bfmi() %>% round(4)
+pnbd_basic_fixedcov20_stanfit %>% get_bfmi() %>% round(4)
 ```
 
 
@@ -672,13 +687,13 @@ post05_customer_tbl <- pnbd_basic_fixedcov05_stanfit %>%
   ungroup()
 
 
-post10_customer_tbl <- pnbd_basic_fixedcov1_stanfit %>%
+post10_customer_tbl <- pnbd_basic_fixedcov10_stanfit %>%
   recover_types(customer_basic_pnbd_cbs_tbl) %>%
   spread_draws(mu[customer_id], lambda[customer_id]) %>%
   ungroup()
 
 
-post20_customer_tbl <- pnbd_basic_fixedcov2_stanfit %>%
+post20_customer_tbl <- pnbd_basic_fixedcov20_stanfit %>%
   recover_types(customer_basic_pnbd_cbs_tbl) %>%
   spread_draws(mu[customer_id], lambda[customer_id]) %>%
   ungroup()
@@ -737,8 +752,75 @@ ggplot() +
     y      = "Posterior mu",
     colour = "Data"
     ) +
-  ggtitle("Comparison Plot of Posterior Parameters")
+  ggtitle("Comparison Plot of Posterior Parameters") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
 ```
+
+
+```{r}
+pnbd_basic_fixedcov_stanmodel %>% write_rds("data/pnbd_basic_fixedcov_stanmodel.rds")
+pnbd_basic_fixedcov05_stanfit %>% write_rds("data/pnbd_basic_fixedcov05_stanfit.rds")
+pnbd_basic_fixedcov10_stanfit %>% write_rds("data/pnbd_basic_fixedcov10_stanfit.rds")
+pnbd_basic_fixedcov20_stanfit %>% write_rds("data/pnbd_basic_fixedcov20_stanfit.rds")
+```
+
+
+## Construct Fixed/Parameter CoV Model
+
+
+```{r compile_basic_fixedlbcov_model, echo=TRUE}
+pnbd_basic_fixedlbcov_stanmodel <- stan_model(
+  "stan_code/clv_pnbd_fixedlbcov.stan",
+  model_name    = "pnbd_basic_fixedlbcov_model",
+  warn_pedantic =  TRUE,
+  verbose       = FALSE
+  )
+```
+
+
+```{r fit_basic_fixedlbcov_stan_model, echo=TRUE, warning=TRUE, cache=TRUE}
+stan_data_lst <- compose_data(
+  customer_basic_pnbd_cbs_lst,
+
+  lb_cov = 1
+  )
+
+pnbd_basic_fixedlbcov_stanfit <- sampling(
+  pnbd_basic_fixedlbcov_stanmodel,
+  data    = stan_data_lst,
+  chains  =    4,
+  warmup  = 1000,
+  iter    = 2000,
+  # control = list(
+  #   adapt_delta   = 0.99
+  #   ),
+  seed    = 4242
+  )
+
+pnbd_basic_fixedlbcov_stanfit %>% summary()
+```
+
+
+We first want to check the HMC diagnostics.
+
+```{r calculate_basic_fixedlbcov_hmc_diagnostics, echo=TRUE, message=TRUE, warning=TRUE, eval=FALSE}
+pnbd_basic_fixedlbcov_stanfit %>% check_hmc_diagnostics()
+
+pnbd_basic_fixedlbcov_stanfit %>% get_bfmi() %>% round(4)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # R Environment
 
