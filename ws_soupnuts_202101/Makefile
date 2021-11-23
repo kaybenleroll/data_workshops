@@ -50,6 +50,8 @@ initial_rfm_models.html: exploring_retail_data.html
 build_models.html: initial_arules_models.html initial_btyd_models.html \
   initial_rfm_models.html initial_timeseries_models.html
 
+summary_slides.html: build_models.html
+
 
 clean-html:
 	rm -fv *.html
@@ -58,6 +60,15 @@ clean-cache:
 	rm -rfv *_cache
 	rm -rfv *_files
 
+clean-data:
+	rm -rfv data/*.rds
+
+clean-precompute:
+	rm -rfv precompute/*.rds
+
+
+mrproper: clean-html clean-cache clean-data clean-precompute
+	rm data/*.xlsx
 
 
 ### Docker targets

@@ -303,8 +303,7 @@ to see which clustering may be the
 ```{r create_largest_subgraph_clusters, echo=TRUE, cache=TRUE}
 run_subgraph_clusters <- function(graph_cluster_func, rules_tblgraph, ...) {
   subgraph_clusters_tbl <- rules_tblgraph %>%
-    to_subgraph(component_size == max(component_size)) %>%
-    use_series(subgraph) %>%
+    convert(to_subgraph, component_size == max(component_size)) %>%
     morph(to_undirected) %>%
     mutate(
       sub_id = graph_cluster_func(...)
@@ -387,8 +386,7 @@ algorithm and use this to create our various product groups.
 
 ```{r construct_fast_greedy_clusters, echo=TRUE}
 subgraph_groups_tbl <- apriori_rules_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph) %>%
+  convert(to_subgraph, component_size == max(component_size)) %>%
   morph(to_undirected) %>%
   mutate(
     sub_id = group_louvain()
@@ -509,7 +507,13 @@ nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
   bind_rows()
 
 edges_tbl <- tnx_purchase_tbl %>%
-  select(stock_code, invoice_id, quantity, price)
+  group_by(stock_code, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_quantity = sum(quantity),
+    total_cost     = sum(quantity * price)
+    )
 
 
 basket_tblgraph <- tbl_graph(
@@ -583,8 +587,7 @@ cluster_func <- c(
     )
 
 largecomp_tblgraph <- basket_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph)
+  convert(to_subgraph, component_size == max(component_size))
 
 cluster_data_tbl <- tibble(cluster_func_name = cluster_func) %>%
   mutate(
@@ -1328,6 +1331,7 @@ make_df_matrix <- function(data_tbl) {
 
 ```{r create_segment_group_frequency_data, echo=TRUE}
 segment_group_freq_tbl <- tnx_correspondence_tbl %>%
+  filter(product_group != "TNX_011") %>%
   count(segment, product_group, name = "freq_count") %>%
   pivot_wider(
     id_cols     = segment,
@@ -1373,19 +1377,19 @@ segment_group_ca %>%
 
 
 According to the biplots, there is a suggested relationship between customers
-in the "Champions" category and those products in grouping "TNX_009" - we
-ignore "TNX_010" as it is very small.
+in the "Champions" category and those products in grouping "TNX_007" - we may
+also want to look at customers in group "TNX_001".
 
 As before, let us look at a wordcloud on the types of items in that.
 
-```{r plot_tnx_009_word_cloud, echo=TRUE}
-wc_009_tbl <- product_group_tokens_tbl %>%
-  filter(product_group == "TNX_009") %>%
+```{r plot_tnx_007_word_cloud, echo=TRUE}
+wc_007_tbl <- product_group_tokens_tbl %>%
+  filter(product_group == "TNX_007") %>%
   count(word, name = "freq") %>%
   slice_max(order_by = freq, n = 100)
 
 wc_plot <- ggwordcloud2(
-    data    = wc_009_tbl,
+    data    = wc_007_tbl,
     shuffle = FALSE,
     size    = 4,
     seed    = 42421
@@ -1411,6 +1415,24 @@ wc_plot <- ggwordcloud2(
     )
 
 wc_plot %>% plot()
+```
+
+
+# Write Data to Disk
+
+We now want to write this data to the disk for later use.
+
+```{r write_data_disk, echo=TRUE}
+product_group_tnxgroups_tbl %>% write_rds("data/product_group_tnxgroups_tbl.rds")
+
+customer_rfmdata      %>% write_rds("data/customer_rfmdata.rds")
+customer_segments_tbl %>% write_rds("data/customer_segments_tbl.rds")
+
+validation_rfm_data_tbl %>% write_rds("data/validation_rfm_data_tbl.rds")
+
+segment_group_mat %>% write_rds("data/segment_group_mat.rds")
+
+product_group_tokens_tbl %>% write_rds("data/product_group_tokens_tbl.rds")
 ```
 
 

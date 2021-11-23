@@ -1,0 +1,279 @@
+---
+title: "Project Overview: Results and Conclusions"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Wednesday, 8 December 2021"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+
+```{r knit_opts, include=FALSE, message=FALSE, warning=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(knitr)
+library(glue)
+library(FactoMineR)
+library(factoextra)
+library(ggwordcloud)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  message    = FALSE,
+  warning    = FALSE,
+  fig.width  =    11,
+  fig.height =     8
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1 
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+```{r load_datasets, echo=FALSE}
+tnxdata_tbl                 <- read_rds("data/retail_data_raw_tbl.rds")
+customer_cohort_tbl         <- read_rds("data/customer_cohort_tbl.rds")
+daily_spend_tbl             <- read_rds("data/daily_spend_tbl.rds")
+product_group_tnxgroups_tbl <- read_rds("data/product_group_tnxgroups_tbl.rds")
+
+customer_segments_tbl       <- read_rds("data/customer_segments_tbl.rds")
+
+validation_rfm_data_tbl     <- read_rds("data/validation_rfm_data_tbl.rds")
+
+segment_group_mat           <- read_rds("data/segment_group_mat.rds")
+
+product_group_tokens_tbl    <- read_rds("data/product_group_tokens_tbl.rds")
+```
+
+
+
+# Transaction Data
+
+---
+
+```{r show_tnxdata, echo=FALSE}
+tnxdata_tbl %>%
+  select(-excel_sheet) %>%
+  head(n = 5) %>%
+  kable()
+```
+
+---
+
+```{r plot_first_transaction_date, echo=FALSE}
+plot_tbl <- customer_cohort_tbl %>%
+  count(first_tnx_date, name = "customer_count")
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = first_tnx_date, y = customer_count)) +
+  labs(
+    x = "First Transaction Date",
+    y = "Count"
+    ) +
+  ggtitle("New Customers by Date")
+```
+
+---
+
+```{r plot_ym_cohort, echo=FALSE}
+plot_tbl <- customer_cohort_tbl %>%
+  count(cohort_ym, name = "customer_count") %>%
+  mutate(
+    cohort_date = as.Date(glue("{cohort_ym} 01"), format = "%Y %m %d")
+    )
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = cohort_date, y = customer_count)) +
+  labs(
+    x = "First Transaction Date",
+    y = "Count"
+    ) +
+  ggtitle("New Customers by Month")
+```
+
+---
+
+```{r plot_customer_transaction_times, echo=FALSE}
+plot_tbl <- daily_spend_tbl %>%
+  group_nest(customer_id, .key = "cust_data") %>%
+  filter(map_int(cust_data, nrow) >= 3) %>%
+  slice_sample(n = 30) %>%
+  unnest(cust_data)
+
+
+ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Date",
+    y = "Customer ID",
+    title = "Visualisation of Transaction Times for 30 Customers"
+    ) +
+  theme(axis.text.y = element_text(size = 12))
+```
+
+
+
+# Customer Segmentation
+
+---
+
+
+```{r plot_customer_segment_count, echo=FALSE}
+plot_tbl <- customer_segments_tbl %>%
+  count(segment, name = "count", sort = TRUE)
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = segment, y = count, fill = segment)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  labs(
+    x = "Segment",
+    y = "Count"
+    ) +
+  ggtitle("RFM Modelling Segmentation Sizes") +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5),
+    legend.position = "none"
+    )
+```
+
+---
+
+```{r show_segmentation_validation, echo=FALSE}
+plot_tbl <- validation_rfm_data_tbl %>%
+  select(
+    customer_id, segment,
+    Transactions  = transaction_count,
+    Recency       = recency_days,
+    `Total Spend` = amount
+    ) %>%
+  pivot_longer(
+    !c(customer_id, segment),
+    names_to  = "quantity",
+    values_to = "value"
+    ) %>%
+  mutate(
+    value = pmax(0.1, value)
+    )
+
+segment_plot <- ggplot(plot_tbl) +
+  geom_boxplot(aes(x = segment, y = value, fill = segment)) +
+  expand_limits(y = 0.1) +
+  facet_wrap(vars(quantity), ncol = 2, scales = "free_y") +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  labs(
+    x = "Customer Segment",
+    y = "Value"
+    ) +
+  ggtitle("Segmentation Metrics for Recent Data") +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8),
+    legend.position = "none"
+    )
+
+segment_plot + scale_y_continuous(labels = label_comma())
+```
+
+---
+
+```{r plot_segmentation_metrics_logscale, echo=FALSE}
+segment_plot + scale_y_log10(labels = label_comma())
+```
+
+
+
+
+
+# Product Clusters
+
+---
+
+```{r plot_product_group_splits, echo=FALSE}
+plot_tbl <- product_group_tnxgroups_tbl %>%
+  count(product_group, name = "cluster_count")
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = product_group, y = cluster_count)) +
+  labs(
+    x = "Product Group",
+    y = "Cluster Size"
+    ) +
+  ggtitle("Product Cluster Sizes")
+```
+
+---
+
+```{r visualise_ca_biplots, echo=FALSE}
+segment_group_ca <- segment_group_mat %>%
+  CA(graph = FALSE)
+
+segment_group_ca %>%
+  fviz_ca_biplot(
+    repel = TRUE,
+    title = "CA Biplot of Customer Segment Against Product Group"
+    )
+```
+
+---
+
+```{r plot_tnx_007_word_cloud, echo=FALSE}
+wc_007_tbl <- product_group_tokens_tbl %>%
+  filter(product_group == "TNX_007") %>%
+  count(word, name = "freq") %>%
+  slice_max(order_by = freq, n = 100)
+
+wc_plot <- ggwordcloud2(
+    data    = wc_007_tbl,
+    shuffle = FALSE,
+    size    = 4,
+    seed    = 42421
+    ) +
+  ggtitle("Word Cloud from Product Group TNX_007")
+
+wc_plot %>% plot()
+```
+
+
+# Future Work
+
+---
+
+* Lack of stakeholder input
+* Returns not properly analysed
+* RFM Models are simplistic
+* Clustering requires more work
+* Product data lacks depth
+
+
+
+# Thank You
+
+---
+
+
+mickcooney@gmail.com
+
+\
+
+GitHub: <http://www.github.com/kaybenleroll>
+
