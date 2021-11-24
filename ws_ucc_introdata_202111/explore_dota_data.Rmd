@@ -262,13 +262,13 @@ ggplot(plot_tbl) +
 ## Plot Top Appearances by Region
 
 ```{r plot_top10_appearance_hero_region, echo=TRUE}
-plot_tbl <- match_teamdata_tbl %>%
+region_appearance_tbl <- match_teamdata_tbl %>%
   count(region, name, name = "n_appear") %>%
   group_by(region) %>%
   slice_max(order_by = n_appear, n = 10) %>%
   ungroup()
 
-ggplot(plot_tbl) +
+ggplot(region_appearance_tbl) +
   geom_col(aes(x = name, y = n_appear)) +
   scale_y_continuous(labels = label_comma()) +
   labs(
@@ -276,7 +276,44 @@ ggplot(plot_tbl) +
     y = "Appearances"
     ) +
   facet_wrap(vars(region), scales = "free") +
-  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 6))
+```
+
+```{r show_region_appearances, echo=TRUE}
+nested_plot_tbl <- region_appearance_tbl %>%
+  group_nest(region)
+
+ggplot(nested_plot_tbl %>% slice(1:6) %>% unnest(data)) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+
+
+ggplot(nested_plot_tbl %>% slice(7:12) %>% unnest(data)) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+
+
+ggplot(nested_plot_tbl %>% slice(13:20) %>% unnest(data)) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
 ```
 
 
@@ -430,7 +467,7 @@ hero_undirected_tblgraph %>% print()
 
 ## All Hero/Match Data
 
-```{r investigate_association_rules, echo=TRUE}
+```{r investigate_alldata_association_rules, echo=TRUE}
 match_teamdata_tbl %>%
   select(match_id, name, team_status) %>%
   write_csv("data/hero_matches.csv")
@@ -453,7 +490,7 @@ hero_arules %>% ruleExplorer()
 ## Winner Hero/Match Data
 
 
-```{r investigate_association_rules, echo=TRUE, eval=FALSE}
+```{r investigate_winnerdata_association_rules, echo=TRUE, eval=FALSE}
 match_teamdata_tbl %>%
   select(match_id, name, team_status) %>%
   filter(team_status == "WINNING TEAM") %>%
