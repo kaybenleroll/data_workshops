@@ -1,0 +1,519 @@
+---
+title: "UCC Data & Analytics Society: Exploring DotA2 Match Data"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Wednesday, November 3 2021"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(furrr)
+library(cowplot)
+library(scales)
+library(glue)
+library(DT)
+library(tidygraph)
+library(visNetwork)
+library(arules)
+library(arulesViz)
+
+
+
+resolve_conflicts <- function(pkg_priority) {
+  get_index <- function(pkg_name) {
+    idx <- str_which(pkg_priority, pkg_name)
+
+    if(length(idx) == 0) {
+      idx <- 0L
+    }
+
+    return(idx)
+  }
+
+  conflict_lst <- conflict_scout()
+
+  for(func_name in names(conflict_lst)) {
+    pkg_index <- map_int(conflict_lst[[func_name]], get_index)
+
+    pkg_index <- pkg_index[pkg_index > 0]
+
+    if(length(pkg_index) == 0) {
+      pkg_use <- conflict_lst[[func_name]][1]
+    } else {
+      pkg_use <- pkg_index %>%
+        min() %>%
+        pkg_priority[.]
+
+    }
+
+    conflict_prefer(func_name, pkg_use)
+  }
+
+  return(conflict_lst)
+}
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "Matrix",
+    "arules")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+
+
+---
+
+
+All code and data for this workshop is available at the following URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+Code is available in the `ws_ucc_intro_202111/` directory.
+
+
+# Load Data
+
+```{r load_dota2_data, echo=TRUE}
+matchdata_tbl <- read_rds("data/matchdata_wide_tbl.rds")
+matchdata_tbl %>% glimpse()
+
+match_teamdata_tbl <- read_rds("data/match_teamdata_tbl.rds")
+match_teamdata_tbl %>% glimpse()
+
+hero_data_tbl <- read_rds("data/hero_data_tbl.rds")
+hero_data_tbl %>% glimpse()
+
+cluster_region_tbl <- read_rds("data/cluster_region_tbl.rds")
+cluster_region_tbl %>% glimpse()
+```
+
+
+
+## Construct Fields
+
+We want to construct additional fields.
+
+```{r construct_additional_fields, echo=TRUE}
+matchdata_tbl <- matchdata_tbl %>%
+  left_join(cluster_region_tbl, by = "cluster")
+
+matchdata_tbl %>% glimpse()
+
+
+match_teamdata_tbl <- match_teamdata_tbl %>%
+  mutate(
+    team_status = if_else(result * team_comp < 0, "LOSING TEAM", "WINNING TEAM")
+    ) %>%
+  left_join(hero_data_tbl, by = "hero_id") %>%
+  left_join(cluster_region_tbl, by = "cluster")
+
+match_teamdata_tbl %>% glimpse()
+```
+
+Just to confirm this data has merged properly, we want to check if any of the
+joined tables are blank.
+
+```{r perform_basic_data_checks, echo=TRUE}
+matchdata_tbl %>%
+  filter(are_na(region)) %>%
+  glimpse()
+
+
+match_teamdata_tbl %>%
+  filter(are_na(region)) %>%
+  glimpse()
+```
+
+
+# Produce Basic Categorical Barplots
+
+First we want to look at how some of the various categorical variables are
+distributed, and illustrate this by producing barplots of the counts.
+
+We start with the region of the match.
+
+```{r plot_region_barplot, echo=TRUE}
+plotdata_tbl <- matchdata_tbl %>%
+  count(region, name = "match_count")
+
+ggplot(plotdata_tbl) +
+  geom_col(aes(x = region, y = match_count)) +
+  labs(
+    x = "Region",
+    y = "Match Count"
+    ) +
+#  scale_y_log10(labels = label_comma()) +
+  ggtitle("Barplot of Matches by Region") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+
+Now we look at the `game_type`:
+
+```{r plot_gametype_barplot, echo=TRUE}
+plotdata_tbl <- matchdata_tbl %>%
+  count(game_type, name = "match_count")
+
+ggplot(plotdata_tbl) +
+  geom_col(aes(x = game_type, y = match_count)) +
+  labs(
+    x = "Game Type",
+    y = "Match Count"
+    ) +
+  scale_y_log10(labels = label_comma()) +
+  ggtitle("Barplot of Matches by Game Type")
+```
+
+
+Finally, we look at the distribution of `game_mode`.
+
+```{r plot_gamemode_barplot, echo=TRUE}
+plotdata_tbl <- matchdata_tbl %>%
+  count(game_mode, name = "match_count")
+
+ggplot(plotdata_tbl) +
+  geom_col(aes(x = game_mode, y = match_count)) +
+  labs(
+    x = "Game Mode",
+    y = "Match Count"
+    ) +
+  scale_y_log10(labels = label_comma()) +
+  ggtitle("Barplot of Matches by Game Mode")
+```
+
+
+## Plot Hero Appearances and Win-Rate
+
+We want to look at how often the various heroes appear in the data set and
+what their individual win rate is.
+
+```{r construct_hero_appearance_winrate_data, echo=TRUE}
+hero_winrate_tbl <- match_teamdata_tbl %>%
+  count(hero_id, name, team_status, name = "n_appear") %>%
+  group_by(name) %>%
+  mutate(
+    n_matches = sum(n_appear),
+    prop      = n_appear / sum(n_appear)
+    ) %>%
+  ungroup()
+
+hero_winrate_tbl %>% glimpse()
+```
+
+First we want to get a sense of how win rates are distributed, as well as how
+often heroes appear in the data.
+
+```{r plot_hero_appearance_winrate, echo=TRUE}
+plot_tbl <- hero_winrate_tbl %>%
+  filter(team_status == "WINNING TEAM")
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = n_matches), bins = 25) +
+  scale_x_continuous(labels = label_comma()) +
+  labs(
+    x = "Appearances",
+    y = "Count"
+    ) +
+  ggtitle("Histogram of Hero Appearances")
+```
+
+
+## Plot Top Appearances by Region
+
+```{r plot_top10_appearance_hero_region, echo=TRUE}
+region_appearance_tbl <- match_teamdata_tbl %>%
+  count(region, name, name = "n_appear") %>%
+  group_by(region) %>%
+  slice_max(order_by = n_appear, n = 10) %>%
+  ungroup()
+
+ggplot(region_appearance_tbl) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 6))
+```
+
+```{r show_region_appearances, echo=TRUE}
+nested_plot_tbl <- region_appearance_tbl %>%
+  group_nest(region)
+
+ggplot(nested_plot_tbl %>% slice(1:6) %>% unnest(data)) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+
+
+ggplot(nested_plot_tbl %>% slice(7:12) %>% unnest(data)) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+
+
+ggplot(nested_plot_tbl %>% slice(13:20) %>% unnest(data)) +
+  geom_col(aes(x = name, y = n_appear)) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Hero",
+    y = "Appearances"
+    ) +
+  facet_wrap(vars(region), scales = "free") +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+
+
+# Construct Mixed-Node Graph
+
+We have a number of different was of thinking about how we might construct
+graphs from this data. The first and most obvious one is to convert both
+individual matches and the heroes as nodes on the graph.
+
+```{r construct_mixed_type_graph, echo=TRUE}
+nodes_match_tbl <- match_teamdata_tbl %>%
+  transmute(node_id = match_id, node_type = "Match", game_mode, game_type, region) %>%
+  distinct()
+
+nodes_hero_tbl <- match_teamdata_tbl %>%
+  transmute(node_id = hero_id, node_type = "Hero", name, localized_name) %>%
+  distinct()
+
+mixed_nodes_tbl <- list(
+    nodes_match_tbl,
+    nodes_hero_tbl
+    ) %>%
+  bind_rows()
+
+mixed_edges_tbl <- match_teamdata_tbl %>%
+  select(from = match_id, to = hero_id, team_status)
+
+
+mixednode_tblgraph <- tbl_graph(
+  nodes    = mixed_nodes_tbl,
+  edges    = mixed_edges_tbl,
+  directed = FALSE,
+  node_key = "node_id"
+  )
+```
+
+
+
+# Construct Hero-Node Graph
+
+```{r construct_heronode_data, echo=TRUE, cache=TRUE}
+calculate_pairwise_weights <- function(matchdata_tbl) {
+  pairs_tbl <- expand_grid(
+      one = matchdata_tbl %>% select(from = hero_id, st1 = team_status),
+      two = matchdata_tbl %>% select(to   = hero_id, st2 = team_status)
+      ) %>%
+    unnest(c(one, two)) %>%
+    mutate(
+      team_win  = if_else(st1 == "WINNING TEAM" & st2 == "WINNING TEAM", 1, 0),
+      winner    = if_else(st1 == "WINNING TEAM" & st2 == "LOSING TEAM",  1, 0),
+      loser     = if_else(st1 == "LOSING TEAM"  & st2 == "WINNING TEAM", 1, 0),
+      team_loss = if_else(st1 == "LOSING TEAM"  & st2 == "LOSING TEAM",  1, 0)
+      )
+
+  return(pairs_tbl)
+}
+
+
+hero_pairs_tbl <- match_teamdata_tbl %>%
+  group_nest(match_id, .key = "match_data") %>%
+  mutate(
+    pairs_data = future_map(
+      match_data, calculate_pairwise_weights,
+      
+      .progress = TRUE
+      )
+    )
+
+hero_edges_tbl <- hero_pairs_tbl %>%
+  select(pairs_data) %>%
+  unnest(pairs_data) %>%
+  group_by(from, to) %>%
+  summarise(
+    .groups = "drop",
+
+    n_appear    = n(),
+    across(
+      c(team_win, team_loss, winner, loser),
+      sum
+      )
+    ) %>%
+  mutate(
+    team_win_prop   = team_win  / n_appear,
+    team_loss_prop  = team_loss / n_appear,
+    winner_prop     = winner / n_appear,
+    loser_prop      = loser  / n_appear,
+    total_win_prop  = (team_win  + winner) / n_appear,
+    total_loss_prop = (team_loss + loser) / n_appear,
+    ) %>%
+  arrange(from, to)
+
+hero_edges_tbl %>% glimpse()
+```
+
+
+## Construct Undirected Network
+
+```{r construct_undirected_hero_graph}
+hero_undirected_tblgraph <- tbl_graph(
+    nodes    = hero_data_tbl,
+    edges    = hero_edges_tbl %>% filter(as.numeric(from) < as.numeric(to)),
+    directed = FALSE,
+    node_key = "hero_id"
+    ) %>%
+  mutate(
+    cntr_eigen_teamwin  = centrality_eigen(weights = team_win_prop),
+    cntr_eigen_teamloss = centrality_eigen(weights = team_loss_prop),
+    cntr_eigen_winner   = centrality_eigen(weights = winner_prop),
+    cntr_eigen_loser    = centrality_eigen(weights = loser_prop)
+    )
+
+hero_undirected_tblgraph %>% print()
+```
+
+
+```{r plot_subgraph, echo=TRUE}
+hero_undirected_tblgraph %>%
+  convert(to_subgraph, hero_id %in% 1:5) %>%
+  toVisNetworkData(idToLabel = FALSE) %>%
+  visNetwork(
+    nodes = .$nodes,
+    edges = .$edges
+    )
+```
+
+## Construct Directed Network
+
+
+```{r construct_directed_hero_graph}
+hero_directed_tblgraph <- tbl_graph(
+    nodes    = hero_data_tbl,
+    edges    = hero_edges_tbl %>% filter(as.numeric(from) != as.numeric(to)),
+    directed = TRUE,
+    node_key = "hero_id"
+    ) %>%
+  mutate(
+    cntr_eigen_teamwin  = centrality_eigen(weights = team_win_prop),
+    cntr_eigen_teamloss = centrality_eigen(weights = team_loss_prop),
+    cntr_eigen_winner   = centrality_eigen(weights = winner_prop),
+    cntr_eigen_loser    = centrality_eigen(weights = loser_prop)
+    )
+
+hero_undirected_tblgraph %>% print()
+```
+
+
+
+# Investigate Association Rules
+
+
+## All Hero/Match Data
+
+```{r investigate_alldata_association_rules, echo=TRUE}
+match_teamdata_tbl %>%
+  select(match_id, name, team_status) %>%
+  write_csv("data/hero_matches.csv")
+
+hero_arules <- read.transactions(
+    file   = "data/hero_matches.csv",
+    format = "single",
+    sep    = ",",
+    header = TRUE,
+    cols   = c("match_id", "name")
+    )
+```
+
+```{r invoke_ruleexplorer_1, echo=TRUE, eval=FALSE}
+hero_arules %>% ruleExplorer()
+```
+
+
+
+## Winner Hero/Match Data
+
+
+```{r investigate_winnerdata_association_rules, echo=TRUE}
+match_teamdata_tbl %>%
+  select(match_id, name, team_status) %>%
+  filter(team_status == "WINNING TEAM") %>%
+  write_csv("data/hero_matches_winner.csv")
+
+hero_winner_arules <- read.transactions(
+    file   = "data/hero_matches_winner.csv",
+    format = "single",
+    sep    = ",",
+    header = TRUE,
+    cols   = c("match_id", "name")
+    )
+```
+
+```{r invoke_ruleexplorer_2, echo=TRUE, eval=FALSE}
+hero_winner_arules %>% ruleExplorer()
+```
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
+

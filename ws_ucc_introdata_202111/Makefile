@@ -18,7 +18,7 @@ PROJECT_FOLDER=workshop
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
 GITHUB_USER=$(shell gh config get gh_user)
 
-CONTAINER_NAME=soupnuts-workshop
+CONTAINER_NAME=ucc-workshop
 
 ### Project build targets
 .SUFFIXES: .Rmd .html .dot .png
