@@ -1,5 +1,5 @@
 ---
-title: "UCC Data & Analytics Society: Retrieving Data"
+title: "UCC Data & Analytics Society: Exploring DotA2 Match Data"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Wednesday, November 3 2021"
 output:
@@ -183,7 +183,7 @@ ggplot(plotdata_tbl) +
     x = "Region",
     y = "Match Count"
     ) +
-  scale_y_log10(labels = label_comma()) +
+#  scale_y_log10(labels = label_comma()) +
   ggtitle("Barplot of Matches by Region") +
   theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
 ```
@@ -481,7 +481,7 @@ hero_arules <- read.transactions(
     )
 ```
 
-```{r invoke_ruleexplorer_1, echo=TRUE}
+```{r invoke_ruleexplorer_1, echo=TRUE, eval=FALSE}
 hero_arules %>% ruleExplorer()
 ```
 
@@ -490,7 +490,7 @@ hero_arules %>% ruleExplorer()
 ## Winner Hero/Match Data
 
 
-```{r investigate_winnerdata_association_rules, echo=TRUE, eval=FALSE}
+```{r investigate_winnerdata_association_rules, echo=TRUE}
 match_teamdata_tbl %>%
   select(match_id, name, team_status) %>%
   filter(team_status == "WINNING TEAM") %>%
