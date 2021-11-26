@@ -1,0 +1,165 @@
+---
+title: "Initial Exploration of the P/NBD Model"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(CLVTools)
+library(rstan)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+rstan_options(auto_write = FALSE)
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+In this workbook we investigate different ways to model the transaction
+frequency of individual customers, with a view to expanding this approach into
+a more traditional P/NBD model.
+
+```{r load_transaction_data, echo=TRUE}
+customer_basic_transactions_tbl <- read_rds("data/customer_basic_transactions_tbl.rds")
+
+customer_basic_transactions_tbl %>% glimpse()
+```
+
+
+
+```{r construct_frequency_modelling_data, echo=TRUE}
+freqmodelling_tbl <- customer_basic_transactions_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    tnx_count = n(),
+    tnx_time  = (max(tnx_date) - min(tnx_date)) %>% as.numeric() %>% divide_by(7)
+    )
+
+freqmodelling_tbl %>% glimpse()
+```
+
+
+# Construct Non-hierarchical Frequency Model
+
+```{r construct_nonhier_freqmodel, echo=TRUE}
+nonhier_freq_stanmodel <- stan_model(
+  "stan_code/clv_freqmodel.stan",
+  model_name    = "nonhier_freqmodel",
+  warn_pedantic = TRUE,
+  verbose       = FALSE
+  )
+
+stan_data_lst <- freqmodelling_tbl %>%
+  filter(tnx_count > 1) %>%
+  mutate(
+    x = tnx_count - 1,
+    t = tnx_time
+    ) %>%
+  compose_data()
+
+
+nonhier_freq_stanfit <- sampling(
+  nonhier_freq_stanmodel,
+  data    = stan_data_lst,
+  chains  =    4,
+  warmup  = 1000,
+  iter    = 2000,
+  # control = list(
+  #   adapt_delta   = 0.99
+  #   ),
+  seed    = 42
+  )
+```
+
+
+
+# Construct brms Version of Frequency Model
+
+```{r build_brms_freqmodel, echo=TRUE, eval=FALSE}
+freqmodel_brmsfit <- brm(
+  bf(tnx_count ~ (1 | customer_id)),
+  prior  = c(set_prior("gamma(1, 3)", class = "Intercept")),
+  data   = freqmodelling_tbl,
+  family = poisson(),
+  chains = 4,
+  iter   = 2000,
+  seed   = 42
+  )
+```
+
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
