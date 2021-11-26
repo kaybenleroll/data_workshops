@@ -328,7 +328,7 @@ generate_customer_transactions <- function(lifetime, tnx_rate, mx_nu, mx_g,
 We now run these data routines to generate the transaction data.
 
 ```{r generate_basic_dataset, echo=TRUE}
-customer_basic_sims_tbl <- customer_basic_parameters_tbl %>%
+customer_basic_transactions_tbl <- customer_basic_parameters_tbl %>%
   mutate(
     sim_data = pmap(
       list(
@@ -348,7 +348,7 @@ customer_basic_sims_tbl <- customer_basic_parameters_tbl %>%
   unnest(sim_data) %>%
   arrange(customer_id, tnx_date)
 
-customer_basic_sims_tbl %>% glimpse()
+customer_basic_transactions_tbl %>% glimpse()
 ```
 
 ## Write Data to Disk
@@ -356,9 +356,9 @@ customer_basic_sims_tbl %>% glimpse()
 We now write this data to disk.
 
 ```{r write_basic_data_disk, echo=TRUE}
-customer_basic_parameters_tbl %>% write_rds("data/customer_basic_parameters_tbl.rds")
+customer_basic_parameters_tbl   %>% write_rds("data/customer_basic_parameters_tbl.rds")
 
-customer_basic_sims_tbl       %>% write_rds("data/customer_basic_sims_tbl.rds")
+customer_basic_transactions_tbl %>% write_rds("data/customer_basic_transactions_tbl.rds")
 ```
 
 
@@ -381,7 +381,7 @@ We now combine all this data to construct our CLV input data.
 
 
 ```{r construct_clvinput_data, echo=TRUE}
-customer_basic_input_clvdata <- customer_basic_sims_tbl %>%
+customer_basic_input_clvdata <- customer_basic_transactions_tbl %>%
   count(customer_id, tnx_date, wt = tnx_amount, name = "total_spend") %>%
   arrange(customer_id, tnx_date) %>%
   left_join(customer_cohort_data_tbl, by = "customer_id") %>%

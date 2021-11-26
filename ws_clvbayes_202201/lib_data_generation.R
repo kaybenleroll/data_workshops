@@ -7,8 +7,8 @@ generate_customer_cohort_data <- function(input_data_tbl, first_date, last_date)
 
 
 
-generate_customer_transactions <- function(lifetime, tnx_rate, mx_nu, mx_g,
-                                           first_date, final_date = final_date) {
+generate_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_p,
+                                             first_date, final_date = final_date) {
 
   obs_weeks <- difftime(final_date, first_date, units = "weeks") %>% as.numeric()
 
@@ -34,7 +34,14 @@ generate_customer_transactions <- function(lifetime, tnx_rate, mx_nu, mx_g,
 }
 
 
-generate_pnbd_customer_simulation_params <- function(customer_cohort_data_tbl) {
+generate_pnbd_customer_simulation_params <- function(customer_cohort_data_tbl, params_lst) {
+  mu_shape     <- params_lst$mu_shape
+  mu_rate      <- params_lst$mu_rate
+  lambda_shape <- params_lst$lambda_shape
+  lambda_rate  <- params_lst$lambda_rate
+  mx_q         <- params_lst$mx_q
+  mx_g         <- params_lst$mx_g
+
   customer_basic_parameters_tbl <- customer_cohort_data_tbl %>%
     select(customer_id, cohort_qtr, cohort_ym, first_tnx_date) %>%
     arrange(first_tnx_date, customer_id) %>%
@@ -42,7 +49,8 @@ generate_pnbd_customer_simulation_params <- function(customer_cohort_data_tbl) {
       customer_mu     = rgamma(n(), shape = mu_shape,     rate = mu_rate),
       customer_tau    = rexp(n(), rate = customer_mu),
       customer_lambda = rgamma(n(), shape = lambda_shape, rate = lambda_rate),
-      customer_nu     = rgamma(n(), shape = mx_q,         rate = mx_g)
+      customer_nu     = rgamma(n(), shape = mx_q,         rate = mx_g),
+      customer_p      = params_lst$mx_p
     )
 
   return(customer_basic_parameters_tbl)
@@ -50,23 +58,23 @@ generate_pnbd_customer_simulation_params <- function(customer_cohort_data_tbl) {
 
 
 generate_customer_transaction_data <- function(sim_params_tbl) {
-  customer_transaction_tbl <- sim_params_tbl %>%
+  customer_transactions_tbl <- sim_params_tbl %>%
     mutate(
       sim_data = pmap(
         list(
           lifetime   = customer_tau,
           tnx_rate   = customer_lambda,
           mx_nu      = customer_nu,
-          mx_g       = mx_g,
+          mx_p       = customer_p,
           first_date = first_tnx_date
         ),
-        generate_customer_transactions,
+        generate_individual_transactions,
         final_date = final_date_observed
-      )
-    ) %>%
+        )
+      ) %>%
     select(
       customer_id, cohort_qtr, cohort_ym, sim_data
-    ) %>%
+      ) %>%
     unnest(sim_data) %>%
     arrange(customer_id, tnx_date)
 
