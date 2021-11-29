@@ -207,13 +207,14 @@
     <div id="toc">
       <ul>
       <li><a href="#construct-non-hierarchical-frequency-model"><span class="toc-section-number">1</span> Construct Non-hierarchical Frequency Model</a></li>
-      <li><a href="#construct-brms-version-of-frequency-model"><span class="toc-section-number">2</span> Construct brms Version of Frequency Model</a></li>
-      <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
+      <li><a href="#construct-hierarchical-frequency-model"><span class="toc-section-number">2</span> Construct Hierarchical Frequency Model</a></li>
+      <li><a href="#construct-brms-version-of-frequency-model"><span class="toc-section-number">3</span> Construct brms Version of Frequency Model</a></li>
+      <li><a href="#r-environment"><span class="toc-section-number">4</span> R Environment</a></li>
       </ul>
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: November 26, 2021</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: November 29, 2021</p>
           </div>
    </div>
      
@@ -236,7 +237,7 @@ a more traditional P/NBD model.</p>
 ## $ cohort_ym   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 03&quot;, &quot;2010 03&quot;, &quot;2010 03&quot;, &quot;2010 03&quot;, &quot;2010 03&quot;, &quot;20…
 ## $ tnx_date    [3m[38;5;246m&lt;date&gt;[39m[23m 2010-03-02, 2010-05-09, 2010-06-21, 2010-10-03, 2010-10-0…
 ## $ tnx_amount  [3m[38;5;246m&lt;dbl&gt;[39m[23m 1296.65, 1578.65, 1405.42, 1777.45, 1620.50, 47.64, 59.78,…</code></pre>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>freqmodelling_tbl <span class="ot">&lt;-</span> customer_basic_transactions_tbl <span class="sc">%&gt;%</span></span>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>basic_freqmodelling_tbl <span class="ot">&lt;-</span> customer_basic_transactions_tbl <span class="sc">%&gt;%</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(customer_id) <span class="sc">%&gt;%</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>,</span>
@@ -245,58 +246,91 @@ a more traditional P/NBD model.</p>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">tnx_time  =</span> (<span class="fu">max</span>(tnx_date) <span class="sc">-</span> <span class="fu">min</span>(tnx_date)) <span class="sc">%&gt;%</span> <span class="fu">as.numeric</span>() <span class="sc">%&gt;%</span> <span class="fu">divide_by</span>(<span class="dv">7</span>)</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>freqmodelling_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>basic_freqmodelling_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 3
 ## $ customer_id [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, &quot;123…
 ## $ tnx_count   [3m[38;5;246m&lt;int&gt;[39m[23m 5, 2, 1, 1, 7, 1, 4, 2, 2, 2, 5, 2, 1, 3, 1, 2, 2, 6, 1, 6…
 ## $ tnx_time    [3m[38;5;246m&lt;dbl&gt;[39m[23m 30.948575, 3.018043, 0.000000, 0.000000, 21.251864, 0.0000…</code></pre>
+<p>We also want to construct the a version of the data where only the customers
+with multiple transactions remain in the dataset.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>customer_basic_tnxsummary_tbl <span class="ot">&lt;-</span> basic_freqmodelling_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(tnx_count <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> tnx_count <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">t =</span> tnx_time</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>customer_basic_tnxsummary_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 2,779
+## Columns: 5
+## $ customer_id [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12350&quot;, &quot;12352&quot;, &quot;12353&quot;, &quot;12354&quot;, &quot;123…
+## $ tnx_count   [3m[38;5;246m&lt;int&gt;[39m[23m 5, 2, 7, 4, 2, 2, 2, 5, 2, 3, 2, 2, 6, 6, 2, 3, 13, 4, 2, …
+## $ tnx_time    [3m[38;5;246m&lt;dbl&gt;[39m[23m 30.948575, 3.018043, 21.251864, 47.219356, 33.796245, 0.80…
+## $ x           [3m[38;5;246m&lt;dbl&gt;[39m[23m 4, 1, 6, 3, 1, 1, 1, 4, 1, 2, 1, 1, 5, 5, 1, 2, 12, 3, 1, …
+## $ t           [3m[38;5;246m&lt;dbl&gt;[39m[23m 30.948575, 3.018043, 21.251864, 47.219356, 33.796245, 0.80…</code></pre>
 <div id="construct-non-hierarchical-frequency-model" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Construct Non-hierarchical Frequency Model</h1>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>nonhier_freq_stanmodel <span class="ot">&lt;-</span> <span class="fu">stan_model</span>(</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;stan_code/clv_freqmodel.stan&quot;</span>,</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_name    =</span> <span class="st">&quot;nonhier_freqmodel&quot;</span>,</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">warn_pedantic =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">verbose       =</span> <span class="cn">FALSE</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>stan_data_lst <span class="ot">&lt;-</span> freqmodelling_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(tnx_count <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> tnx_count <span class="sc">-</span> <span class="dv">1</span>,</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">t =</span> tnx_time</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compose_data</span>()</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>nonhier_freq_stanfit <span class="ot">&lt;-</span> <span class="fu">sampling</span>(</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  nonhier_freq_stanmodel,</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">data    =</span> stan_data_lst,</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains  =</span>    <span class="dv">4</span>,</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup  =</span> <span class="dv">1000</span>,</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter    =</span> <span class="dv">2000</span>,</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># control = list(</span></span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   adapt_delta   = 0.99</span></span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   ),</span></span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed    =</span> <span class="dv">42</span></span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>nonhier_freq_stanmodel <span class="ot">&lt;-</span> <span class="fu">stan_model</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;stan_code/clv_freqmodel_nonhier.stan&quot;</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_name    =</span> <span class="st">&quot;freqmodel_nonhier&quot;</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">warn_pedantic =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">verbose       =</span> <span class="cn">FALSE</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>stan_data_lst <span class="ot">&lt;-</span> customer_basic_tnxsummary_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compose_data</span>()</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>nonhier_freq_stanfit <span class="ot">&lt;-</span> <span class="fu">sampling</span>(</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  nonhier_freq_stanmodel,</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">data   =</span> stan_data_lst,</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span>    <span class="dv">4</span>,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter   =</span> <span class="dv">1000</span>,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># control = list(</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   adapt_delta   = 0.99</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   ),</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed   =</span> <span class="dv">42</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
 </div>
-<div id="construct-brms-version-of-frequency-model" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> Construct brms Version of Frequency Model</h1>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>freqmodel_brmsfit <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(tnx_count <span class="sc">~</span> (<span class="dv">1</span> <span class="sc">|</span> customer_id)),</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior  =</span> <span class="fu">c</span>(<span class="fu">set_prior</span>(<span class="st">&quot;gamma(1, 3)&quot;</span>, <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>)),</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data   =</span> freqmodelling_tbl,</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">poisson</span>(),</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter   =</span> <span class="dv">2000</span>,</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed   =</span> <span class="dv">42</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
+<div id="construct-hierarchical-frequency-model" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Construct Hierarchical Frequency Model</h1>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>hier_freq_stanmodel <span class="ot">&lt;-</span> <span class="fu">stan_model</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;stan_code/clv_freqmodel_hier.stan&quot;</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">model_name    =</span> <span class="st">&quot;freqmodel_hier&quot;</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">warn_pedantic =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">verbose       =</span> <span class="cn">FALSE</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>stan_data_lst <span class="ot">&lt;-</span> customer_basic_tnxsummary_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compose_data</span>()</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>hier_freq_stanfit <span class="ot">&lt;-</span> <span class="fu">sampling</span>(</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  hier_freq_stanmodel,</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">data   =</span> stan_data_lst,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span>    <span class="dv">4</span>,</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter   =</span> <span class="dv">1000</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># control = list(</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   adapt_delta   = 0.95</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">#   ),</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed   =</span> <span class="dv">42</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
 </div>
-<div id="r-environment" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> R Environment</h1>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div id="construct-brms-version-of-frequency-model" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Construct brms Version of Frequency Model</h1>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>freqmodel_brmsfit <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(tnx_count <span class="sc">~</span> (<span class="dv">1</span> <span class="sc">|</span> customer_id)),</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior  =</span> <span class="fu">c</span>(<span class="fu">set_prior</span>(<span class="st">&quot;gamma(1, 3)&quot;</span>, <span class="at">class =</span> <span class="st">&quot;Intercept&quot;</span>)),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data   =</span> freqmodelling_tbl,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> <span class="fu">poisson</span>(),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter   =</span> <span class="dv">2000</span>,</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed   =</span> <span class="dv">42</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
+</div>
+<div id="r-environment" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> R Environment</h1>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
@@ -307,7 +341,7 @@ a more traditional P/NBD model.</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-11-26                  
+##  date     2021-11-29                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package        * version    date       lib source                             
@@ -349,10 +383,12 @@ a more traditional P/NBD model.</p>
 ##  DT               0.19       2021-09-02 [1] RSPM (R 4.1.0)                     
 ##  dygraphs         1.1.1.6    2018-07-11 [1] RSPM (R 4.1.0)                     
 ##  ellipsis         0.3.2      2021-04-29 [1] RSPM (R 4.1.0)                     
+##  epitrix          0.2.2      2019-01-15 [1] RSPM (R 4.1.0)                     
 ##  evaluate         0.14       2019-05-28 [1] RSPM (R 4.1.0)                     
 ##  fansi            0.5.0      2021-05-25 [1] RSPM (R 4.1.0)                     
 ##  farver           2.1.0      2021-02-28 [1] RSPM (R 4.1.0)                     
 ##  fastmap          1.1.0      2021-01-25 [1] RSPM (R 4.1.0)                     
+##  fontawesome      0.2.2      2021-07-02 [1] RSPM (R 4.1.0)                     
 ##  forcats        * 0.5.1      2021-01-27 [1] RSPM (R 4.1.0)                     
 ##  fs             * 1.5.0      2020-07-31 [1] RSPM (R 4.1.0)                     
 ##  furrr          * 0.2.3      2021-06-25 [1] RSPM (R 4.1.0)                     
@@ -378,6 +414,7 @@ a more traditional P/NBD model.</p>
 ##  jquerylib        0.1.4      2021-04-26 [1] RSPM (R 4.1.0)                     
 ##  jsonlite         1.7.2      2020-12-09 [1] RSPM (R 4.1.0)                     
 ##  knitr            1.36       2021-09-29 [1] RSPM (R 4.1.0)                     
+##  labeling         0.4.2      2020-10-20 [1] RSPM (R 4.1.0)                     
 ##  later            1.3.0      2021-08-18 [1] RSPM (R 4.1.0)                     
 ##  lattice          0.20-44    2021-05-02 [2] CRAN (R 4.1.1)                     
 ##  lifecycle        1.0.1      2021-09-24 [1] RSPM (R 4.1.0)                     
@@ -432,7 +469,7 @@ a more traditional P/NBD model.</p>
 ##  sass             0.4.0      2021-05-12 [1] RSPM (R 4.1.0)                     
 ##  scales         * 1.1.1      2020-05-11 [1] RSPM (R 4.1.0)                     
 ##  sessioninfo      1.1.1      2018-11-05 [1] RSPM (R 4.1.0)                     
-##  shiny            1.7.1      2021-10-02 [1] RSPM (R 4.1.0)                     
+##  shiny          * 1.7.1      2021-10-02 [1] RSPM (R 4.1.0)                     
 ##  shinyjs          2.0.0      2020-09-09 [1] RSPM (R 4.1.0)                     
 ##  shinystan        2.5.0      2018-05-01 [1] RSPM (R 4.1.0)                     
 ##  shinythemes      1.2.0      2021-01-25 [1] RSPM (R 4.1.0)                     
@@ -461,7 +498,7 @@ a more traditional P/NBD model.</p>
 ## 
 ## [1] /usr/local/lib/R/site-library
 ## [2] /usr/local/lib/R/library</code></pre>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
 </div>
 </div>
 
