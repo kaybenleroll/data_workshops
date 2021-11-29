@@ -40,10 +40,6 @@ full_deps.dot:
 depgraph: full_deps.png
 
 
-exploring_retail_data.html: retrieve_retail_data.html
-exploring_retail_dataexplorer.html: exploring_retail_data.html
-initial_btyd_models.html: exploring_retail_data.html
-
 
 
 mrproper: clean-cache clean-data clean-html

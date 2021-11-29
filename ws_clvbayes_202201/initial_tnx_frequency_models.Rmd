@@ -88,7 +88,7 @@ customer_basic_transactions_tbl %>% glimpse()
 
 
 ```{r construct_frequency_modelling_data, echo=TRUE}
-freqmodelling_tbl <- customer_basic_transactions_tbl %>%
+basic_freqmodelling_tbl <- customer_basic_transactions_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
@@ -97,41 +97,81 @@ freqmodelling_tbl <- customer_basic_transactions_tbl %>%
     tnx_time  = (max(tnx_date) - min(tnx_date)) %>% as.numeric() %>% divide_by(7)
     )
 
-freqmodelling_tbl %>% glimpse()
+basic_freqmodelling_tbl %>% glimpse()
 ```
+
+We also want to construct the a version of the data where only the customers
+with multiple transactions remain in the dataset.
+
+```{r construct_transaction_clvdata, echo=TRUE}
+customer_basic_tnxsummary_tbl <- basic_freqmodelling_tbl %>%
+  filter(tnx_count > 1) %>%
+  mutate(
+    x = tnx_count - 1,
+    t = tnx_time
+    )
+
+customer_basic_tnxsummary_tbl %>% glimpse()
+```
+
 
 
 # Construct Non-hierarchical Frequency Model
 
 ```{r construct_nonhier_freqmodel, echo=TRUE}
 nonhier_freq_stanmodel <- stan_model(
-  "stan_code/clv_freqmodel.stan",
-  model_name    = "nonhier_freqmodel",
+  "stan_code/clv_freqmodel_nonhier.stan",
+  model_name    = "freqmodel_nonhier",
   warn_pedantic = TRUE,
   verbose       = FALSE
   )
 
-stan_data_lst <- freqmodelling_tbl %>%
-  filter(tnx_count > 1) %>%
-  mutate(
-    x = tnx_count - 1,
-    t = tnx_time
-    ) %>%
+stan_data_lst <- customer_basic_tnxsummary_tbl %>%
   compose_data()
-
 
 nonhier_freq_stanfit <- sampling(
   nonhier_freq_stanmodel,
-  data    = stan_data_lst,
-  chains  =    4,
-  warmup  = 1000,
-  iter    = 2000,
+  data   = stan_data_lst,
+  chains =    4,
+  iter   = 1000,
   # control = list(
   #   adapt_delta   = 0.99
   #   ),
-  seed    = 42
+  seed   = 42
   )
 ```
+
+
+
+# Construct Hierarchical Frequency Model
+
+```{r construct_hier_freqmodel, echo=TRUE}
+hier_freq_stanmodel <- stan_model(
+  "stan_code/clv_freqmodel_hier.stan",
+  model_name    = "freqmodel_hier",
+  warn_pedantic = TRUE,
+  verbose       = FALSE
+  )
+
+stan_data_lst <- customer_basic_tnxsummary_tbl %>%
+  compose_data()
+
+hier_freq_stanfit <- sampling(
+  hier_freq_stanmodel,
+  data   = stan_data_lst,
+  chains =    4,
+  iter   = 1000,
+  # control = list(
+  #   adapt_delta   = 0.95
+  #   ),
+  seed   = 42
+  )
+```
+
+
+
+
+
 
 
 
