@@ -1,0 +1,104 @@
+---
+title: "Calculate Bond Portfolio Cashflows"
+author: "Mick Cooney"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(stringr)
+library(glue)
+library(purrr)
+library(furrr)
+library(DT)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "DT")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+## Load Portfolio Report Data
+
+
+For the purposes of illustration of the possibilities of this approach, we also
+add a more complex spreadsheet example.
+
+
+```{r load_report_spreadsheet, echo=TRUE}
+report_colnames <- c(
+  "Security", "PK", "ID", "Position", "Price", "PCS", "FX Rate", "Principal",
+  "Accrued", "Market Val", "Cost Price", "Cost FX Rate", "Cost Principal",
+  "Cost Accrued", "Cost Val", "Cost Date"
+  )
+
+report_portfolio_tbl <- read_excel(
+  path      = "data/bond_portfolio_20160711.xlsx",
+  skip      = 13,
+  col_names = report_colnames
+  )
+
+report_portfolio_tbl %>% glimpse()
+```
+
+
+
+# R Environment
+ 
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```

@@ -1,0 +1,274 @@
+---
+title: "Bond Portfolio"
+author: "Mick Cooney"
+date: "13 July 2016"
+output:
+  html_document:
+    toc: true
+    number_sections: true
+    fig_caption: yes
+    theme: cerulean
+    css: styles.css
+  pdf_document: default
+---
+
+<!--
+(Title:) Bond Portfolio
+
+Author: Mick Cooney
+
+Date: 2016
+
+Abstract: This is a quick exploratory analysis for a bond portfolio
+
+Keywords: bond portfolio
+
+-->
+
+```{r knit_opts, include = FALSE}
+rm(list = ls())
+
+knitr::opts_chunk$set(tidy = FALSE, cache = FALSE)
+
+library(lubridate)
+library(data.table)
+library(ggplot2)
+library(scales)
+
+library(readODS)
+
+
+options(width            = 90)
+options(stringsAsFactors = FALSE)
+
+options(datatable.print.nrows      = 10L)
+options(datatable.prettyprint.char = 80L)
+
+source("custom_functions.R")
+```
+
+```{r set_variables, echo=TRUE}
+portfolio_date    <- as.Date('2014-10-01')
+portfolio_capital <- 3000000
+
+```
+
+
+
+---
+
+# Load Old Portfolio
+
+Just to test the proof of concept, I am loading an old speculative
+portfolio from 2014 where I was taking the bond data and constructing
+the portfolio based on the price and FX rate for USD. We can then use
+the count of contracts (assuming a common face value of \$1,000
+USD/CAD).
+
+```{r load_data, echo=TRUE}
+bond_portfolio_dt <- fread("data/highyield_bond_portfolio.csv")
+
+bond_portfolio_dt[, bond_id       := .I]
+bond_portfolio_dt[, issued_date   := as.Date(issued_date)]
+bond_portfolio_dt[, maturity_date := as.Date(maturity_date)]
+bond_portfolio_dt[, face_value    := 1000]
+
+str(bond_portfolio_dt)
+
+print(bond_portfolio_dt)
+
+cadusd_dt <- fread("cadusd.csv")
+cadusd_dt[, date := as.Date(Date, format = '%d/%m/%Y')]
+fx_dt <- cadusd_dt[, .(symbol = 'CADUSD.FX', date, close = Rate)][order(symbol,date)]
+
+print(fx_dt)
+```
+
+With the desired issues and FX data loaded we then calculate the
+contract count for each issue.
+
+
+```{r calculate_portfolio, echo=TRUE}
+exchange_rate     <- fx_dt[date == portfolio_date, close]
+
+port_dt <- calculate_portfolio_amounts(bond_portfolio_dt
+                                      ,fund_capital  = portfolio_capital
+                                      ,exchange_rate = exchange_rate)
+
+print(port_dt)
+```
+
+We also want to look at the schedule of coupon payments.
+
+```{r show_coupon_payments, echo=TRUE}
+coupon_data_dt <- create_coupon_schedule(port_dt, portfolio_date)
+
+schedule_dt <- merge(port_dt[, .(bond_id, issuer, currency)]
+                    ,coupon_data_dt
+                    ,by = 'bond_id')
+```
+
+
+# Load New Portfolio
+
+We now move forward to July 2016, and we have a given portfolio as
+exported out of Bloomberg's PRTU functionality. We have exported the
+portfolio as an OpenDocument ODS file, and we will load that file
+directly into our code.
+
+```{r load_new_portfolio, echo=TRUE}
+portfolio_date <- as.Date('2016-07-14')
+
+portfolio_file <- "~/Dropbox/Shared/HTnR/Transfer/bond_portfolio_20160711.ods"
+
+bondportfolio_dt <- load_portfolio_file(portfolio_file)
+
+print(bondportfolio_dt)
+```
+
+With the data loaded and all the datatypes set to the correct types,
+we can now start doing some simple analysis on the cashflows.
+
+## Perform Data Cleaning Checks
+
+We want to do some very simple data cleaning checks. For example, we
+need to ensure that the given FX rate for a bond issue is not 1.00
+only in the case when the bond is USD denominated.
+
+```{r data_clean, echo=TRUE}
+print(bondportfolio_dt[abs(fx_rate - 1) > 1e-4 & currency != 'USD'])
+```
+
+
+# Show Coupon and Maturity Cashflows
+
+We now want to investigate combined cashflows from the bond portfolio
+as a whole. In particular, USD cashflows will be hedged using futures
+so we want to do that in a rigourous way and determine what to trade
+in futures to help hedge the currency risk.
+
+```{r show_coupon, echo=TRUE}
+max_date <- bondportfolio_dt[, max(maturity_date)]
+
+bondportfolio_coupon_dt <- create_coupon_schedule(bondportfolio_dt, portfolio_date)
+
+bondportfolio_coupon_dt <- merge(bondportfolio_dt[, .(bond_id, currency, coupon, position)]
+                                ,bondportfolio_coupon_dt
+                                ,by = 'bond_id')
+
+bondportfolio_coupon_dt[, coupon_month := format(coupon_date, '%Y%m')]
+
+
+cashflow_dt <- dcast(bondportfolio_coupon_dt
+                    ,bond_id + currency + coupon + position ~ coupon_month
+                    ,value.var = 'cashflow'
+                    ,fill = 0)
+
+ym_values <- format(seq(portfolio_date, max_date, by = 'month'), '%Y%m')
+
+ym_fill <- ym_values[!ym_values %in% names(cashflow_dt)]
+
+zero_cols <- matrix(0, ncol = length(ym_fill), nrow = nrow(cashflow_dt))
+colnames(zero_cols) <- ym_fill
+
+
+cashflow_dt <- cbind(cashflow_dt, zero_cols)
+
+ordered_cols <- sort(names(cashflow_dt)[grep("\\d{6}", names(cashflow_dt))])
+
+cashflow_dt <- cashflow_dt[, c("bond_id", "currency", "coupon", "position"
+                              ,sort(ordered_cols))
+                           ,with = FALSE]
+
+print(cashflow_dt[, lapply(.SD, sum), by = 'currency', .SDcols = ym_values])
+```
+
+# Calculate Yield Data
+
+We often wish to calculate the *yield to maturity* - the discount rate
+for the cashflows that gives us a Net Present Value for the bond to be
+0. The yield-to-maturity is one way of quantifying the amount of
+interest paid by that particular contract. As the price of the bond
+changes, the yield on the bond will change.
+
+```{r calculate_bond_ytm, echo=TRUE}
+bonddata_dt <- merge(bondportfolio_dt[, .(bond_id, market_val)]
+                    ,bondportfolio_coupon_dt
+                    ,by = 'bond_id')
+
+bond_ytm_dt <- bonddata_dt[, {
+    bond_cost = market_val[1]
+
+    days  = as.numeric(coupon_date - portfolio_date)
+
+    duration_data = calculate_duration_data(days, cashflow, bond_cost)
+
+    data.table(t(duration_data))
+}, by = bond_id]
+
+bondportfolio_dt <- merge(bondportfolio_dt
+                         ,bond_ytm_dt
+                         ,by = 'bond_id')
+
+bondportfolio_dt[, maturity := as.numeric(maturity_date - portfolio_date) / 365]
+
+print(bondportfolio_dt)
+```
+
+
+
+# Calculate Hedging Amounts
+
+In this section we develop the ability to extract the coupon dates for
+each of the bond issues and assign a cashflow to the next delivery
+date for the FX futures. This allows us to see how many futures of
+each contract size are required at each delivery.
+
+We currently will assume contract sizes of 100,000 CAD and 10,000 CAD.
+
+```{r calculate_hedging_data, echo=TRUE}
+datedelivery_dt <- fread("data/delivery_dates.csv")
+datedelivery_dt[, delivery := as.Date(delivery)]
+
+datedelivery_dt[, mergedate := delivery]
+setkey(datedelivery_dt, mergedate)
+
+bondportfolio_coupon_dt[, mergedate := coupon_date]
+setkey(bondportfolio_coupon_dt, mergedate)
+
+bondportfolio_cashflow_dt <- datedelivery_dt[bondportfolio_coupon_dt, roll = -Inf]
+bondportfolio_cashflow_dt <- bondportfolio_cashflow_dt[, .(bond_id, currency, coupon_date, delivery, cashflow)]
+bondportfolio_cashflow_dt <- bondportfolio_cashflow_dt[order(bond_id, coupon_date)]
+
+bondportfolio_delivery_dt <- bondportfolio_cashflow_dt[, .(total_cashflow = sum(cashflow))
+                                                       ,keyby = .(currency, delivery)]
+
+print(bondportfolio_delivery_dt)
+```
+
+We aggregate the cashflows by delivery and then display them in a
+table, ordering by delivery date.
+
+```{r show_delivery_currency, echo=TRUE}
+bondportfolio_currency_dt <- dcast(bondportfolio_delivery_dt
+                                  ,delivery ~ currency
+                                  ,value.var = 'total_cashflow'
+                                  ,fill = 0)
+
+print(bondportfolio_currency_dt)
+```
+
+We also do the hedging calculations for the futures.
+
+
+```{r show_hedge_trades, echo=TRUE}
+calc_hedges <- create_hedging_function(c(100000, 10000))
+
+bondportfolio_contracts_dt <- bondportfolio_currency_dt[, data.table(t(calc_hedges(USD))), by = delivery]
+
+bondportfolio_hedge_dt <- merge(bondportfolio_currency_dt
+                               ,bondportfolio_contracts_dt
+                               ,keyby = 'delivery')
+
+print(bondportfolio_hedge_dt)
+```
