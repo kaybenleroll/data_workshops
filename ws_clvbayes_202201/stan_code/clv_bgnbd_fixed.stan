@@ -24,8 +24,8 @@ model {
   lambda ~ gamma(r, alpha);
   p      ~ beta (a, b);
 
-  real[n] t1;
-  real[n] t2;
+  vector[n] t1;
+  vector[n] t2;
 
   // likelihood
   t1 = log(p) + (x-1) .* log(1-p) + x .* log(lambda) - lambda .* t_x;
