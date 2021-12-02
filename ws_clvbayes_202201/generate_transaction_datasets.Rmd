@@ -143,6 +143,7 @@ customer_basic_transactions_tbl <- customer_basic_simparams_tbl %>%
 customer_basic_transactions_tbl %>% glimpse()
 ```
 
+
 ### Write Data to Disk
 
 We now write this data to disk.
