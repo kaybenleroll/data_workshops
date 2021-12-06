@@ -208,7 +208,7 @@
       <ul>
       <li><a href="#load-data"><span class="toc-section-number">1</span> Load Data</a>
       <ul>
-      <li><a href="#load-portfolio-data"><span class="toc-section-number">1.1</span> Load Portfolio Data</a></li>
+      <li><a href="#load-portfolio-report-data"><span class="toc-section-number">1.1</span> Load Portfolio Report Data</a></li>
       </ul></li>
       <li><a href="#r-environment"><span class="toc-section-number">2</span> R Environment</a></li>
       </ul>
@@ -229,50 +229,46 @@
 <h1><span class="header-section-number">1</span> Load Data</h1>
 <p>We first want to load our datasets and prepare them for some simple association
 rules mining.</p>
-<div id="load-portfolio-data" class="section level2" number="1.1">
-<h2><span class="header-section-number">1.1</span> Load Portfolio Data</h2>
-<p>We load a first example of our portfolio, containing the basic information we
-need to properly account for cashflows.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>portfolio_cols <span class="ot">&lt;-</span> <span class="fu">cols</span>(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">issuer        =</span> <span class="fu">col_character</span>(),</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">currency      =</span> <span class="fu">col_character</span>(),</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">coupon        =</span> <span class="fu">col_number</span>(),</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">issued_date   =</span> <span class="fu">col_date</span>(<span class="at">format =</span> <span class="st">&quot;%Y-%m-%d&quot;</span>),</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">maturity_date =</span> <span class="fu">col_date</span>(<span class="at">format =</span> <span class="st">&quot;%Y-%m-%d&quot;</span>),</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">price         =</span> <span class="fu">col_number</span>()</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;data/highyield_bond_portfolio.csv&quot;</span>,</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> portfolio_cols</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 37
-## Columns: 6
-## $ issuer        [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;AGT Food &amp; Ingredients Inc&quot;, &quot;Athabasca Oil Corp&quot;, &quot;Cen…
-## $ currency      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;USD&quot;, &quot;USD&quot;, …
-## $ coupon        [3m[38;5;246m&lt;dbl&gt;[39m[23m 9.000, 7.500, 8.625, 8.875, 7.500, 5.400, 7.625, 11.375,…
-## $ issued_date   [3m[38;5;246m&lt;date&gt;[39m[23m 2013-04-11, 2012-11-19, 2013-04-18, 2010-09-22, 2014-09…
-## $ maturity_date [3m[38;5;246m&lt;date&gt;[39m[23m 2016-02-14, 2016-11-19, 2018-04-14, 2017-09-22, 2019-09…
-## $ price         [3m[38;5;246m&lt;dbl&gt;[39m[23m 107.63, 100.50, 87.25, 73.75, 100.50, 104.13, 103.25, 11…</code></pre>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>create_coupon_payment_dates <span class="ot">&lt;-</span> <span class="cf">function</span>(init_date, final_date) {</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  max_year <span class="ot">&lt;-</span> <span class="fu">difftime</span>(final_date, init_date, <span class="at">units =</span> <span class="st">&quot;days&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.numeric</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">divide_by</span>(<span class="dv">183</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ceiling</span>()</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  coupon_date_tbl <span class="ot">&lt;-</span> (init_date <span class="sc">%m+%</span> <span class="fu">months</span>(<span class="dv">6</span> <span class="sc">*</span> <span class="dv">1</span><span class="sc">:</span>max_year)) <span class="sc">%&gt;%</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;coupon_date&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(coupon_date <span class="sc">&lt;=</span> final_date)</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(coupon_date_tbl)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div id="load-portfolio-report-data" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Load Portfolio Report Data</h2>
+<p>For the purposes of illustration of the possibilities of this approach, we also
+add a more complex spreadsheet example.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>report_colnames <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Security&quot;</span>, <span class="st">&quot;PK&quot;</span>, <span class="st">&quot;ID&quot;</span>, <span class="st">&quot;Position&quot;</span>, <span class="st">&quot;Price&quot;</span>, <span class="st">&quot;PCS&quot;</span>, <span class="st">&quot;FX Rate&quot;</span>, <span class="st">&quot;Principal&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Accrued&quot;</span>, <span class="st">&quot;Market Val&quot;</span>, <span class="st">&quot;Cost Price&quot;</span>, <span class="st">&quot;Cost FX Rate&quot;</span>, <span class="st">&quot;Cost Principal&quot;</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Cost Accrued&quot;</span>, <span class="st">&quot;Cost Val&quot;</span>, <span class="st">&quot;Cost Date&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>report_portfolio_tbl <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">path      =</span> <span class="st">&quot;data/bond_portfolio_20160711.xlsx&quot;</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">skip      =</span> <span class="dv">13</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_names =</span> report_colnames</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>report_portfolio_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 35
+## Columns: 16
+## $ Security         &lt;chr&gt; &quot;ACQCN 5 ⅝ 05/25/21&quot;, &quot;AGTCN 9 02/14/18&quot;, &quot;ATHCN 7 ½ …
+## $ PK               &lt;chr&gt; &quot;EK277159     Corp&quot;, &quot;EJ550565     Corp&quot;, &quot;EJ440202  …
+## $ ID               &lt;chr&gt; &quot;CA05277BAA85&quot;, &quot;CA01859AAA57&quot;, &quot;CA04682RAB39&quot;, &quot;0543…
+## $ Position         &lt;dbl&gt; 300, 150, 314, 100, 200, 335, 115, 145, 70, 167, 300,…
+## $ Price            &lt;dbl&gt; 94.75, 104.00, 89.00, 78.50, 98.38, 87.25, 99.75, 100…
+## $ PCS              &lt;chr&gt; &quot;USER&quot;, &quot;USER&quot;, &quot;USER&quot;, &quot;USER&quot;, &quot;USER&quot;, &quot;BVAL&quot;, &quot;USER…
+## $ `FX Rate`        &lt;dbl&gt; 1.0000, 1.0000, 1.0000, 1.2907, 1.0000, 1.0000, 1.000…
+## $ Principal        &lt;dbl&gt; 284250.00, 156000.00, 279460.00, 102230.55, 196750.00…
+## $ Accrued          &lt;dbl&gt; 2311.64, 5584.93, 3613.15, 2733.57, 1304.38, 10762.45…
+## $ `Market Val`     &lt;dbl&gt; 286561.64, 161584.93, 283073.15, 104964.12, 198054.38…
+## $ `Cost Price`     &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ `Cost FX Rate`   &lt;dbl&gt; 1.0000, 1.0000, 1.0000, 1.3023, 1.0000, 1.0000, 1.000…
+## $ `Cost Principal` &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ `Cost Accrued`   &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ `Cost Val`       &lt;lgl&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, N…
+## $ `Cost Date`      &lt;chr&gt; &quot;02/25/16&quot;, &quot;06/13/16&quot;, &quot;02/23/16&quot;, &quot;03/18/16&quot;, &quot;06/2…</code></pre>
 </div>
 </div>
 <div id="r-environment" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> R Environment</h1>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
@@ -289,8 +285,6 @@ need to properly account for cashflows.</p>
 ##  package     * version date       lib source        
 ##  assertthat    0.2.1   2019-03-21 [1] RSPM (R 4.1.0)
 ##  backports     1.3.0   2021-10-27 [1] RSPM (R 4.1.0)
-##  bit           4.0.4   2020-08-04 [1] RSPM (R 4.1.0)
-##  bit64         4.0.5   2020-08-30 [1] RSPM (R 4.1.0)
 ##  bookdown      0.24    2021-09-02 [1] RSPM (R 4.1.0)
 ##  broom         0.7.9   2021-07-27 [1] RSPM (R 4.1.0)
 ##  bslib         0.3.1   2021-10-06 [1] RSPM (R 4.1.0)
@@ -360,7 +354,6 @@ need to properly account for cashflows.</p>
 ##  tzdb          0.2.0   2021-10-27 [1] RSPM (R 4.1.0)
 ##  utf8          1.2.2   2021-07-24 [1] RSPM (R 4.1.0)
 ##  vctrs         0.3.8   2021-04-29 [1] RSPM (R 4.1.0)
-##  vroom         1.5.5   2021-09-14 [1] RSPM (R 4.1.0)
 ##  withr         2.4.2   2021-04-18 [1] RSPM (R 4.1.0)
 ##  xfun          0.27    2021-10-18 [1] RSPM (R 4.1.0)
 ##  xml2          1.3.2   2020-04-23 [1] RSPM (R 4.1.0)
