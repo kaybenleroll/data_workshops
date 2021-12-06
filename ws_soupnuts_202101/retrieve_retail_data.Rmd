@@ -7,7 +7,6 @@ output:
     toc_depth: 3
     use_bookdown: TRUE
     code_folding: hide
-    css: styles.css
     fig_caption: TRUE
 
   html_document:
@@ -37,7 +36,9 @@ library(fs)
 
 source("lib_utils.R")
 
-resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
 
 
 knitr::opts_chunk$set(
@@ -132,10 +133,25 @@ retail_data_tbl %>% glimpse()
 ```
 
 
+A number of invoice entries have been duplicated so we only keep on set of
+this data.
+
+```{r deduplicate_rows, echo=TRUE}
+dedupe_data_tbl <- retail_data_tbl %>%
+  group_nest(excel_sheet, Invoice, .key = "invoice_data") %>%
+  group_by(Invoice) %>%
+  slice_max(order_by = excel_sheet, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  unnest(invoice_data)  
+
+dedupe_data_tbl %>% glimpse()
+```
+
+
 Finally, we output this data to the disk.
 
 ```{r write_data_to_disk, echo=TRUE}
-retail_data_tbl %>% write_rds("data/retail_data_raw_tbl.rds")
+dedupe_data_tbl %>% write_rds("data/retail_data_raw_tbl.rds")
 ```
 
 

@@ -18,7 +18,7 @@ PROJECT_FOLDER=workshop
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
 GITHUB_USER=$(shell gh config get gh_user)
 
-CONTAINER_NAME=workshop
+CONTAINER_NAME=soupnuts-workshop
 
 ### Project build targets
 .SUFFIXES: .Rmd .html .dot .png
@@ -43,12 +43,14 @@ depgraph: full_deps.png
 exploring_retail_data.html: retrieve_retail_data.html
 exploring_retail_dataexplorer.html: exploring_retail_data.html
 exploring_graph_data.html: exploring_retail_data.html
-initial_arules_models.html: exploring_retail_data.html exploring_graph_data.html
+initial_arules_models.html: exploring_graph_data.html exploring_retail_data.html
 initial_timeseries_models.html: exploring_retail_data.html
 initial_btyd_models.html: exploring_retail_data.html
 initial_rfm_models.html: exploring_retail_data.html
-build_models.html: initial_rfm_models.html initial_arules_models.html \
-  initial_timeseries_models.html initial_btyd_models.html
+build_models.html: initial_arules_models.html initial_btyd_models.html \
+  initial_rfm_models.html initial_timeseries_models.html
+
+summary_slides.html: build_models.html
 
 
 clean-html:
@@ -58,6 +60,15 @@ clean-cache:
 	rm -rfv *_cache
 	rm -rfv *_files
 
+clean-data:
+	rm -rfv data/*.rds
+
+clean-precompute:
+	rm -rfv precompute/*.rds
+
+
+mrproper: clean-html clean-cache clean-data clean-precompute
+	rm data/*.xlsx
 
 
 ### Docker targets
