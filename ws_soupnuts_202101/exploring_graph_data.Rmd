@@ -7,7 +7,6 @@ output:
     toc_depth: 3
     use_bookdown: TRUE
     code_folding: hide
-    css: styles.css
     fig_caption: TRUE
 
   html_document:
@@ -41,7 +40,9 @@ library(tidygraph)
 
 source("lib_utils.R")
 
-resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
 
 
 knitr::opts_chunk$set(
@@ -98,6 +99,16 @@ tnx_purchase_tbl <- tnx_data_tbl %>%
 
 tnx_purchase_tbl %>% glimpse()
 ```
+
+We also load the stock description data, as this will be useful as part of the
+graph analysis.
+
+```{r load_stock_description, echo=TRUE}
+stock_description_tbl <- read_rds("data/stock_description_tbl.rds")
+
+stock_description_tbl %>% glimpse()
+```
+
 
 
 # Basket Analysis
@@ -162,7 +173,13 @@ nodes_tbl <- list(stock_nodes_tbl, invoice_nodes_tbl) %>%
   bind_rows()
 
 edges_tbl <- tnx_purchase_tbl %>%
-  select(stock_code, invoice_id, quantity, price)
+  group_by(stock_code, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_quantity = sum(quantity),
+    total_cost     = sum(quantity * price)
+    )
 
 
 basket_tblgraph <- tbl_graph(
@@ -236,8 +253,7 @@ cluster_func <- c(
     )
 
 largecomp_tblgraph <- basket_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph)
+  convert(to_subgraph, component_size == max(component_size))
 
 cluster_data_tbl <- tibble(cluster_func_name = cluster_func) %>%
   mutate(
@@ -323,15 +339,6 @@ pairwise_nodes_tbl <- tnx_data_tbl %>%
   mutate(
     stock_code = str_to_upper(stock_code)
     ) %>%
-  group_by(stock_code) %>%
-  summarise(
-    .groups = "drop",
-    
-    stock_desc = description %>%
-      unique() %>%
-      sort() %>%
-      str_c(collapse = " : ")
-    ) %>%
   arrange(stock_code)
 
 pairwise_edges_tbl <- basket_data_tbl %>%
@@ -362,8 +369,7 @@ pairwise_largecomp_tblgraph <- pairwise_tblgraph %>%
   group_by(component_id) %>%
   mutate(component_size = n()) %>%
   ungroup() %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph)
+  convert(to_subgraph, component_size == max(component_size))
 
 pairwise_largecomp_tblgraph %>% print()
 ```

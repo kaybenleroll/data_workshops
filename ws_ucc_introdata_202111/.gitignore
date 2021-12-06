@@ -1,0 +1,8 @@
+*.dot
+*.png
+
+*_cache
+*_files
+
+temp.R
+graph.Rmd

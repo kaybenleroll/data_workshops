@@ -7,7 +7,6 @@ output:
     toc_depth: 3
     use_bookdown: TRUE
     code_folding: hide
-    css: styles.css
     fig_caption: TRUE
 
   html_document:
@@ -43,7 +42,8 @@ library(tidygraph)
 
 source("lib_utils.R")
 
-resolve_conflicts(
+
+conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "arules",
     "Matrix", "DT")
   )
@@ -111,9 +111,9 @@ We also want to load the free-text description of the various stock items as
 this will help will interpretation of the various rules we have found.
 
 ```{r load_stock_code_descriptions, echo=TRUE}
-stock_code_lookups_tbl <- read_rds("data/stock_code_lookup_tbl.rds")
+stock_description_tbl <- read_rds("data/stock_description_tbl.rds")
 
-stock_code_lookups_tbl %>% glimpse()
+stock_description_tbl %>% glimpse()
 ```
 
 
@@ -156,16 +156,8 @@ freq_codes <- itemFrequency(basket_arules) %>%
   head(20) %>%
   names()
 
-tnx_purchase_tbl %>%
-  select(stock_code, description) %>%
+stock_description_tbl %>%
   filter(stock_code %in% freq_codes) %>%
-  distinct() %>%
-  drop_na(description) %>%
-  group_by(stock_code) %>%
-  summarise(
-    .groups = "drop",
-    desc = description %>% sort() %>% unique() %>% str_c(collapse = " : ")
-    ) %>%
   arrange(stock_code) %>%
   datatable()
 ```
@@ -472,7 +464,7 @@ product_groups_all_tbl %>%
     .groups = "drop",
 
     product_count = n(),
-    product_str   = str_c(stock_code, collapse = ", ")
+    product_str   = str_c(stock_code, collapse = ":")
     ) %>%
   ungroup() %>%
   select(-product_group_id) %>%
@@ -489,8 +481,7 @@ further graph clustering algorithms to create further groupings.
 
 ```{r create_large_component_clusters, echo=TRUE}
 apriori_rules_large_tblgraph <- apriori_rules_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph) %>%
+  convert(to_subgraph, component_size == max(component_size)) %>%
   morph(to_undirected) %>%
   mutate(
     sub_id = group_louvain()
@@ -527,7 +518,7 @@ product_groups_largest_tbl %>%
     .groups = "drop",
 
     product_count = n(),
-    product_str   = str_c(stock_code, collapse = ", ")
+    product_str   = str_c(stock_code, collapse = ":")
     ) %>%
   ungroup() %>%
   select(-product_group_id) %>%
@@ -637,8 +628,8 @@ interpretation of the different groupings is easier.
 ```{r display_stock_groups, echo=TRUE}
 product_groups_tbl %>%
   filter(group_size > 1, group_size < 15) %>%
-  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
-  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  mutate(stock_code = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_description_tbl, by = "stock_code") %>%
   datatable()
 ```
 
@@ -721,8 +712,7 @@ product_groups_lower_all_tbl %>% glimpse()
 
 ```{r construct_largest_subgraph_groups, echo=TRUE}
 apriori_lower_rules_bigcomp_tblgraph <- apriori_lower_rules_tblgraph %>%
-  to_subgraph(component_size == max(component_size)) %>%
-  use_series(subgraph) %>%
+  convert(to_subgraph, component_size == max(component_size)) %>%
   mutate(
     sub_id = group_louvain()
     )
@@ -776,8 +766,8 @@ interpretation of the different groupings is easier.
 ```{r display_lower_stock_groups, echo=TRUE}
 product_groups_lower_tbl %>%
   filter(group_size > 1, group_size != max(group_size)) %>%
-  mutate(stock_code_upr = stock_code %>% str_trim() %>% str_to_upper()) %>%
-  left_join(stock_code_lookups_tbl, by = "stock_code_upr") %>%
+  mutate(stock_code = stock_code %>% str_trim() %>% str_to_upper()) %>%
+  left_join(stock_description_tbl, by = "stock_code") %>%
   datatable()
 ```
 

@@ -27,5 +27,7 @@ resolve_conflicts <- function(pkg_priority) {
 
     conflict_prefer(func_name, pkg_use)
   }
+
+  return(conflict_lst)
 }
 
