@@ -285,10 +285,16 @@ customer_basic_cbs_tbl <- customer_basic_transactions_tbl %>%
 customer_basic_cbs_tbl %>% glimpse()
 ```
 
+We now write that CBS data to disk for later use.
 
-## Construct First Stan Model
+```{r write_basic_cbs_disk, echo=TRUE}
+customer_basic_cbs_tbl %>% write_rds("data/customer_basic_cbs_tbl.rds")
+```
 
-```{r compile_basic_fixed_model, echo=TRUE}
+
+## Construct Fixed Hyper-parameter Model
+
+```{r compile_pnbd_basic_fixed_model, echo=TRUE}
 pnbd_basic_fixed_stanmodel <- cmdstan_model(
   "stan_code/clv_pnbd_fixed.stan",
   pedantic =  TRUE,
@@ -297,7 +303,7 @@ pnbd_basic_fixed_stanmodel <- cmdstan_model(
 ```
 
 
-```{r fit_basic_fixed_stan_model, echo=TRUE}
+```{r fit_pnbd_basic_fixed_stan_model, echo=TRUE}
 stan_data_lst <- customer_basic_cbs_tbl %>%
   select(-first_tnx_date, -last_tnx_date) %>%
   compose_data(
@@ -319,7 +325,7 @@ pnbd_basic_fixed_stanfit <- pnbd_basic_fixed_stanmodel$sample(
 
 We first want to check the HMC diagnostics.
 
-```{r calculate_basic_fixed_hmc_diagnostics, echo=TRUE}
+```{r calculate_pnbd_basic_fixed_hmc_diagnostics, echo=TRUE}
 pnbd_basic_fixed_stanfit$cmdstan_diagnose()
 ```
 
@@ -390,7 +396,7 @@ pnbd_basic_fixed_stanfit   %>% write_rds("data/pnbd_basic_fixed_stanfit.rds")
 
 
 
-## Construct Second Stan Model
+## Construct Hyper-parameter Model
 
 We now want to improve the model by adding priors around the hyper-parameters
 for how the $\mu$ and $\lambda$ parameters are distributed. To do this, we
@@ -437,6 +443,19 @@ pnbd_basic_prior_stanfit$save_output_files(
 )
 ```
 
+
+```{r extract_basic_pnbd_prior_posterior_params, echo=TRUE}
+customer_basic_pnbd_prior_draws <- pnbd_basic_prior_stanfit$draws()
+
+customer_basic_pnbd_prior_posterior_tbl <- customer_basic_pnbd_prior_draws %>%
+  recover_types(customer_basic_cbs_tbl) %>%
+  spread_draws(mu[customer_id], lambda[customer_id]) %>%
+  ungroup()
+
+customer_basic_pnbd_prior_posterior_tbl %>% glimpse()
+```
+
+
 ### Write Model to Disk
 
 ```{r write_pnbd_basic_prior_disk, echo=TRUE}
@@ -446,7 +465,7 @@ pnbd_basic_prior_stanfit   %>% write_rds("data/pnbd_basic_prior_stanfit.rds")
 
 
 
-## Construct Third Stan Model
+## Construct Fixed-Coefficient of Variance Model
 
 In this model we fix the coefficient of variation for the hyperparameters and
 model the means - we then sample fixing different values for the coefficient of
@@ -489,6 +508,8 @@ We first want to check the HMC diagnostics.
 ```{r calculate_basic_fixedcov10_hmc_diagnostics, echo=TRUE, warning=TRUE}
 pnbd_basic_fixedcov10_stanfit$cmdstan_diagnose()
 ```
+
+
 
 
 ### CoV = 2.0
@@ -648,7 +669,7 @@ ggplot() +
 
 
 
-## Construct Fixed/Parameter CoV Model
+## Construct Fixed Single CoV Parameter Model
 
 
 ```{r compile_basic_fixedlbcov_model, echo=TRUE}
@@ -664,7 +685,7 @@ pnbd_basic_fixedlbcov_stanmodel <- cmdstan_model(
 stan_data_lst <- customer_basic_cbs_tbl %>%
   select(-first_tnx_date, -last_tnx_date) %>%
   compose_data(
-    lb_cov = 0.5
+    lb_cov = 1
     )
 
 pnbd_basic_fixedlbcov_stanfit <- pnbd_basic_fixedlbcov_stanmodel$sample(
@@ -689,14 +710,114 @@ pnbd_basic_fixedlbcov_stanfit$cmdstan_diagnose()
 
 
 
+# Compare Posterior Distributions
 
 
+```{r construct_posterior_ecdf_function, echo=TRUE}
+construct_posterior_ecdf_function <- function(customer_params_tbl) {
+  calculate_data_probs <- function(posterior_tbl) {
+    customer_posterior_tbl <- posterior_tbl %>%
+      group_by(customer_id) %>%
+      summarise(
+        posterior_mu     = list(mu),
+        posterior_lambda = list(lambda)
+        )
+
+    customer_checkdata_tbl <- customer_params_tbl %>%
+      select(customer_id, customer_mu, customer_lambda, customer_tau) %>%
+      inner_join(customer_posterior_tbl, by = "customer_id") %>%
+      mutate(
+        post_mu_qval     = map2_dbl(customer_mu,     posterior_mu,     ~ ecdf(.y)(.x)),
+        post_lambda_qval = map2_dbl(customer_lambda, posterior_lambda, ~ ecdf(.y)(.x))
+        ) %>%
+      select(customer_id, customer_mu, customer_lambda, post_mu_qval, post_lambda_qval)
+
+    return(customer_checkdata_tbl)      
+  }
+  
+  return(calculate_data_probs)
+}
+```
+
+```{r calculate_posterior_uniform_probabilities, echo=TRUE}
+calculate_posterior_data_probs <- customer_basic_parameters_tbl %>%
+  construct_posterior_ecdf_function()
+
+posterior_uniformcheck_tbl <- list(
+    fixed = customer_basic_pnbd_fixed_posterior_tbl,
+    prior = customer_basic_pnbd_prior_posterior_tbl,
+    cov05 = post05_customer_tbl,
+    cov10 = post10_customer_tbl,
+    cov20 = post20_customer_tbl
+    ) %>%
+  enframe(name = "label", value = "post_data") %>%
+  mutate(
+    check_data = map(post_data, calculate_posterior_data_probs)
+    )
+
+plotdata_tbl <- posterior_uniformcheck_tbl %>%
+  select(label, check_data) %>%
+  unnest(check_data)
+
+ggplot(plotdata_tbl) +
+  geom_histogram(aes(x = post_lambda_qval), bins = 50) +
+  facet_wrap(vars(label), scale = "free") +
+  xlab("Cumulative Probability") +
+  ggtitle("Cumulative Probability of lambda Values")
+
+ggplot(plotdata_tbl) +
+  geom_histogram(aes(x = post_mu_qval), bins = 50) +
+  facet_wrap(vars(label), scale = "free") +
+  xlab("Cumulative Probability") +
+  ggtitle("Cumulative Probability of mu Values")
+```
 
 
+# Construct BG/NBD Models
+
+## Construct Fixed Hyper-parameter Model
+
+```{r compile_basic_bgnbd_fixed_model, echo=TRUE}
+bgnbd_basic_fixed_stanmodel <- cmdstan_model(
+  "stan_code/clv_bgnbd_fixed.stan",
+  pedantic =  TRUE,
+  dir      = "stan_models/"
+  )
+```
 
 
+```{r fit_basic_bgnbd_fixed_stan_model, echo=TRUE}
+stan_data_lst <- customer_basic_cbs_tbl %>%
+  select(-first_tnx_date, -last_tnx_date) %>%
+  compose_data(
+    r     =  1,
+    alpha =  5,
+    
+    a     =  1,
+    b     =  1,
+    )
 
+bgnbd_basic_fixed_stanfit <- bgnbd_basic_fixed_stanmodel$sample(
+  data          =  stan_data_lst,
+  chains        =              4,
+  iter_warmup   =           1000,
+  iter_sampling =           1000,
+  seed          =            427
+  )
+```
 
+We first want to check the HMC diagnostics.
+
+```{r calculate_basic_bgnbd_fixed_hmc_diagnostics, echo=TRUE}
+bgnbd_basic_fixed_stanfit$cmdstan_diagnose()
+```
+
+```{r write_bgnbd_basic_fixed_drawfiles, echo=TRUE}
+bgnbd_basic_fixed_stanfit$save_output_files(
+  dir      = "stan_models",
+  basename = "bgnbd_basic_fixed"
+  )
+```
 
 
 
