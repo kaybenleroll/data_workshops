@@ -1,7 +1,7 @@
 ---
 title: "Project Overview: Results and Conclusions"
 author: "Mick Cooney <mickcooney@gmail.com>"
-date: "Wednesday, 8 December 2021"
+date: "Monday, 6 December 2021"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -64,6 +64,21 @@ segment_group_mat           <- read_rds("data/segment_group_mat.rds")
 
 product_group_tokens_tbl    <- read_rds("data/product_group_tokens_tbl.rds")
 ```
+
+
+# Key Findings
+
+---
+
+Information in data
+
+\
+
+RFM modelling is useful
+
+\
+
+More work to be done
 
 
 
@@ -140,17 +155,21 @@ ggplot(plot_tbl, aes(x = invoice_date, y = customer_id, group = customer_id)) +
 
 
 ```{r plot_customer_segment_count, echo=FALSE}
+n_customer <- customer_segments_tbl %>% nrow()
+
 plot_tbl <- customer_segments_tbl %>%
   count(segment, name = "count", sort = TRUE)
 
 ggplot(plot_tbl) +
   geom_col(aes(x = segment, y = count, fill = segment)) +
+  scale_y_continuous(labels = label_comma()) +
   scale_fill_brewer(type = "qual", palette = "Set1") +
   labs(
-    x = "Segment",
-    y = "Count"
+    x        = "Segment",
+    y        = "Count",
+    title    = "RFM Modelling Segmentation Sizes",
+    subtitle = glue("{cust_count} Customers", cust_count = label_comma()(n_customer))
     ) +
-  ggtitle("RFM Modelling Segmentation Sizes") +
   theme(
     axis.text.x = element_text(angle = 20, vjust = 0.5),
     legend.position = "none"
@@ -209,16 +228,20 @@ segment_plot + scale_y_log10(labels = label_comma())
 ---
 
 ```{r plot_product_group_splits, echo=FALSE}
+n_product <- product_group_tnxgroups_tbl %>% nrow()
+
 plot_tbl <- product_group_tnxgroups_tbl %>%
   count(product_group, name = "cluster_count")
 
 ggplot(plot_tbl) +
   geom_col(aes(x = product_group, y = cluster_count)) +
+  scale_y_continuous(labels = label_comma()) +
   labs(
-    x = "Product Group",
-    y = "Cluster Size"
-    ) +
-  ggtitle("Product Cluster Sizes")
+    x        = "Product Group",
+    y        = "Cluster Size",
+    title    = "Product Cluster Sizes",
+    subtitle = glue("{prod_count} Unique Products", prod_count = label_comma()(n_product))
+    )
 ```
 
 ---
@@ -258,17 +281,30 @@ wc_plot %>% plot()
 
 ---
 
-* Lack of stakeholder input
-* Returns not properly analysed
-* RFM Models are simplistic
-* Clustering requires more work
-* Product data lacks depth
+Lack of stakeholder input
 
+\
 
+Sales returns not analysed properly
 
-# Thank You
+\
+
+Product data lacks depth
 
 ---
+
+RFM models simplistic (BTYD worth exploring)
+
+\
+
+Clustering can be expanded
+
+
+
+
+## Thank You
+
+\
 
 
 mickcooney@gmail.com
