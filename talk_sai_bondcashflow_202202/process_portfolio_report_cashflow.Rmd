@@ -33,8 +33,7 @@ library(rlang)
 library(stringr)
 library(glue)
 library(purrr)
-library(furrr)
-library(DT)
+library(readxl)
 
 
 source("lib_utils.R")
