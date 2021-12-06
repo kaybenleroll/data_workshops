@@ -32,23 +32,30 @@ transformed parameters {
 
 
 model {
-  lb_mean ~ lognormal(-2.5, 0.50);
-  mu_mean ~ lognormal(-2.5, 0.50);
+  lb_mean ~ lognormal(-1.6, 1.00);
+  mu_mean ~ lognormal(-2.1, 1.00);
 
-  lb_cov  ~ lognormal(0, 0.2);
-  mu_cov  ~ lognormal(0, 0.02);
+  lb_cov  ~ lognormal(-0.02,   0.20);
+  mu_cov  ~ lognormal(-0.0002, 0.02);
 
   lambda ~ gamma(r, alpha);
   mu     ~ gamma(s, beta);
 
+print("params:", lb_mean, " ", lb_cov, " ", mu_mean, " ", mu_cov);
+print("distrib:", r, " ", alpha, " ", s, " ", beta);
+print("   ");
+
   // likelihood
+  vector[n] lht;
+  vector[n] rht;
+
+  lht = log(lambda) - (lambda + mu) .* T_cal;
+  rht = log(mu)     - (lambda + mu) .* t_x;
+
   target += x .* log(lambda) - log(lambda + mu);
 
   for (i in 1:n) {
-    target += log_sum_exp(
-      log(lambda[i]) - (lambda[i] + mu[i]) .* T_cal[i],
-      log(mu[i])     - (lambda[i] + mu[i]) .* t_x[i]
-      );
+    target += log_sum_exp(lht[i], rht[i]);
   }
 }
 

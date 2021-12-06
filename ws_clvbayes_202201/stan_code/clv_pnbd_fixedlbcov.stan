@@ -35,7 +35,7 @@ model {
   lb_mean ~ lognormal(-2.5, 0.50);
   mu_mean ~ lognormal(-2.5, 0.50);
 
-  mu_cov  ~ lognormal(-0.03125, 0.25);
+  mu_cov  ~ lognormal(-0.125, 0.50);
 
   lambda ~ gamma(r, alpha);
   mu     ~ gamma(s, beta);
