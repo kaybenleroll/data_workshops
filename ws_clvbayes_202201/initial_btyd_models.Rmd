@@ -297,8 +297,9 @@ customer_basic_cbs_tbl %>% write_rds("data/customer_basic_cbs_tbl.rds")
 ```{r compile_pnbd_basic_fixed_model, echo=TRUE}
 pnbd_basic_fixed_stanmodel <- cmdstan_model(
   "stan_code/clv_pnbd_fixed.stan",
-  pedantic =  TRUE,
-  dir      = "stan_models/"
+  include_paths = "stan_code/",
+  pedantic      =  TRUE,
+  dir           = "stan_models/"
   )
 ```
 
@@ -405,8 +406,9 @@ try using Gamma distributed hyper-priors.
 ```{r compile_basic_prior_model, echo=TRUE}
 pnbd_basic_prior_stanmodel <- cmdstan_model(
   "stan_code/clv_pnbd_prior.stan",
-  pedantic =  TRUE,
-  dir      = "stan_models/"
+  include_paths = "stan_code/",
+  pedantic      =  TRUE,
+  dir           = "stan_models/"
   )
 ```
 
@@ -474,8 +476,9 @@ variance.
 ```{r compile_basic_prior_fixedcov_model, echo=TRUE}
 pnbd_basic_fixedcov_stanmodel <- cmdstan_model(
   "stan_code/clv_pnbd_fixedcov.stan",
-  pedantic =  TRUE,
-  dir      = "stan_models/"
+  include_paths = "stan_code/",
+  pedantic      =  TRUE,
+  dir           = "stan_models/"
   )
 ```
 
@@ -675,8 +678,9 @@ ggplot() +
 ```{r compile_basic_fixedlbcov_model, echo=TRUE}
 pnbd_basic_fixedlbcov_stanmodel <- cmdstan_model(
   "stan_code/clv_pnbd_fixedlbcov.stan",
-  pedantic =  TRUE,
-  dir      = "stan_models/"
+  include_paths = "stan_code/",
+  pedantic      =  TRUE,
+  dir           = "stan_models/"
   )
 ```
 
@@ -780,8 +784,9 @@ ggplot(plotdata_tbl) +
 ```{r compile_basic_bgnbd_fixed_model, echo=TRUE}
 bgnbd_basic_fixed_stanmodel <- cmdstan_model(
   "stan_code/clv_bgnbd_fixed.stan",
-  pedantic =  TRUE,
-  dir      = "stan_models/"
+  include_paths = "stan_code/",
+  pedantic      =  TRUE,
+  dir           = "stan_models/"
   )
 ```
 

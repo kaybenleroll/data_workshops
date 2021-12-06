@@ -1,3 +1,7 @@
+functions {
+  #include util_functions.stan
+}
+
 data {
   int<lower=1> n;           // number of customers
 
@@ -40,14 +44,5 @@ model {
   lambda ~ gamma(r, alpha);
   mu     ~ gamma(s, beta);
 
-  // likelihood
-  target += x .* log(lambda) - log(lambda + mu);
-
-  for (i in 1:n) {
-    target += log_sum_exp(
-      log(lambda[i]) - (lambda[i] + mu[i]) .* T_cal[i],
-      log(mu[i])     - (lambda[i] + mu[i]) .* t_x[i]
-      );
-  }
+  target += calculate_pnbd_loglik(n, lambda, mu, x, t_x, T_cal);
 }
-

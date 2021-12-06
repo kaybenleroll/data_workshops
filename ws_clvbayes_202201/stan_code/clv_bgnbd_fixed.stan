@@ -1,3 +1,7 @@
+functions {
+  #include util_functions.stan
+}
+
 data {
   int<lower=1> n;           // number of customers
 
@@ -24,14 +28,5 @@ model {
   lambda ~ gamma(r, alpha);
   p      ~ beta (a, b);
 
-  vector[n] t1;
-  vector[n] t2;
-
-  // likelihood
-  t1 = log(p) + (x-1) .* log(1-p) + x .* log(lambda) - lambda .* t_x;
-  t2 = x .* log(1-p) + x .* log(lambda) - lambda .* T_cal;
-
-  for(i in 1:n) {
-    target += log_sum_exp(t1[i], t2[i]);
-  }
+  target += calculate_bgnbd_loglik(n, lambda, p, x, t_x, T_cal);
 }
