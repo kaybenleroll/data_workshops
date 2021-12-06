@@ -1,3 +1,7 @@
+functions {
+  #include util_functions.stan
+}
+
 data {
   int<lower=1> n;           // number of customers
 
@@ -41,21 +45,6 @@ model {
   lambda ~ gamma(r, alpha);
   mu     ~ gamma(s, beta);
 
-print("params:", lb_mean, " ", lb_cov, " ", mu_mean, " ", mu_cov);
-print("distrib:", r, " ", alpha, " ", s, " ", beta);
-print("   ");
-
-  // likelihood
-  vector[n] lht;
-  vector[n] rht;
-
-  lht = log(lambda) - (lambda + mu) .* T_cal;
-  rht = log(mu)     - (lambda + mu) .* t_x;
-
-  target += x .* log(lambda) - log(lambda + mu);
-
-  for (i in 1:n) {
-    target += log_sum_exp(lht[i], rht[i]);
-  }
+  target += calculate_pnbd_loglik(n, lambda, mu, x, t_x, T_cal);
 }
 

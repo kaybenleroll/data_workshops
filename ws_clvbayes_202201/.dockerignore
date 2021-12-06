@@ -5,6 +5,7 @@ data/*.xlsx
 data/*.rds
 data/*.csv
 
+stan_models/*
 precompute/*.rds
 
 *_cache/*
