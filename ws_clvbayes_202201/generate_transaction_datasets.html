@@ -206,17 +206,17 @@
     <h2><a href="#content">Generate Synthetic Customer Transaction Datasets</a></h2>
     <div id="toc">
       <ul>
-      <li><a href="#load-input-data"><span class="toc-section-number">0.1</span> Load Input Data</a></li>
-      <li><a href="#run-data-generation-for-basic-model"><span class="toc-section-number">1</span> Run Data Generation for Basic Model</a>
+      <li><a href="#load-input-data"><span class="toc-section-number">1</span> Load Input Data</a></li>
+      <li><a href="#run-data-generation-for-basic-model"><span class="toc-section-number">2</span> Run Data Generation for Basic Model</a>
       <ul>
-      <li><a href="#write-data-to-disk"><span class="toc-section-number">1.1</span> Write Data to Disk</a></li>
+      <li><a href="#write-data-to-disk"><span class="toc-section-number">2.0.1</span> Write Data to Disk</a></li>
       </ul></li>
-      <li><a href="#r-environment"><span class="toc-section-number">2</span> R Environment</a></li>
+      <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
       </ul>
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: November 26, 2021</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: December 07, 2021</p>
           </div>
    </div>
      
@@ -228,8 +228,8 @@
 <div id="main">
 <p>In this workbook we use some initial inputs to generate synthetic data to help
 us explore various customer CLV models.</p>
-<div id="load-input-data" class="section level2" number="0.1">
-<h2><span class="header-section-number">0.1</span> Load Input Data</h2>
+<div id="load-input-data" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Load Input Data</h1>
 <p>As a means of simplifying the process of generating synthetic data, and
 because we are not attempting to model the arrival of new customers, we will
 use some summary data on the first transaction data of each customer as an
@@ -262,12 +262,12 @@ and so we convert these values to character strings.</p>
 ## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;, …
 ## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-0…</code></pre>
 </div>
-<div id="run-data-generation-for-basic-model" class="section level1" number="1">
-<h1><span class="header-section-number">1</span> Run Data Generation for Basic Model</h1>
+<div id="run-data-generation-for-basic-model" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Run Data Generation for Basic Model</h1>
 <p>We now want to set up the various parameters required for the data generation.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>pnbd_params_lst <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_shape     =</span>   <span class="dv">1</span>,</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_rate      =</span>   <span class="dv">5</span>,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_rate      =</span>  <span class="dv">10</span>,</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda_shape =</span>   <span class="dv">1</span>,</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">lambda_rate  =</span>   <span class="dv">3</span>,</span>
@@ -286,20 +286,47 @@ produce individual parameters for each of the customers.</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>customer_basic_simparams_tbl <span class="ot">&lt;-</span> customer_cohort_data_tbl <span class="sc">%&gt;%</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_pnbd_customer_simulation_params</span>(<span class="at">params_lst =</span> pnbd_params_lst)</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>customer_basic_transactions_tbl <span class="ot">&lt;-</span> customer_basic_simparams_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_customer_transaction_data</span>()</span></code></pre></div>
-<div id="write-data-to-disk" class="section level2" number="1.1">
-<h2><span class="header-section-number">1.1</span> Write Data to Disk</h2>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>customer_basic_simparams_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 5,852
+## Columns: 9
+## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12490&quot;, &quot;12533&quot;, &quot;12682&quot;, &quot;12758&quot;, &quot;12836&quot;, &quot;12913&quot;, …
+## $ cohort_qtr      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;,…
+## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;,…
+## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2009-12-01, 2009-12-01, 2009-12-01, 2009-12-01, 2009-…
+## $ customer_mu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.193929578, 0.018041910, 0.053443286, 0.002396523, 0.…
+## $ customer_tau    [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.5266278, 75.2259954, 14.2815124, 112.1151678, 15.836…
+## $ customer_lambda [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.13543393, 0.54140899, 0.58536864, 0.07433727, 0.0149…
+## $ customer_nu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.655802984, 1.218495551, 0.826828489, 0.569981858, 0.…
+## $ customer_p      [3m[38;5;246m&lt;dbl&gt;[39m[23m 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>customer_basic_transactions_tbl <span class="ot">&lt;-</span> customer_basic_simparams_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_customer_transaction_data</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(tnx_timestamp) <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="at">tnx_date =</span> <span class="fu">as.Date</span>(tnx_timestamp)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">invoice_id =</span> <span class="fu">sprintf</span>(<span class="st">&quot;%s_%04d&quot;</span>, <span class="fu">format</span>(tnx_date, <span class="st">&quot;%Y%m%d&quot;</span>), <span class="dv">1</span><span class="sc">:</span><span class="fu">n</span>())</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(customer_id, tnx_timestamp, invoice_id, tnx_amount)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>customer_basic_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 44,872
+## Columns: 4
+## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;15719&quot;, &quot;13585&quot;, &quot;17519&quot;, &quot;15712&quot;, &quot;16321&quot;, &quot;15362&quot;, &quot;1…
+## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2009-12-01 00:19:10, 2009-12-01 00:48:16, 2009-12-01 00…
+## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;20091201_0001&quot;, &quot;20091201_0002&quot;, &quot;20091201_0003&quot;, &quot;2009…
+## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 323.91, 57.12, 388.42, 49.98, 50.91, 91.66, 90.06, 43.75…</code></pre>
+<div id="write-data-to-disk" class="section level3" number="2.0.1">
+<h3><span class="header-section-number">2.0.1</span> Write Data to Disk</h3>
 <p>We now write this data to disk.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">#customer_basic_parameters_tbl   %&gt;% write_rds(&quot;data/customer_basic_parameters_tbl.rds&quot;)</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">#customer_basic_transactions_tbl %&gt;% write_rds(&quot;data/customer_basic_transactions_tbl.rds&quot;)</span></span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>customer_basic_simparams_tbl   <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/customer_basic_simparams_tbl.rds&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>customer_basic_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/customer_basic_transactions_tbl.rds&quot;</span>)</span></code></pre></div>
 </div>
 </div>
-<div id="r-environment" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> R Environment</h1>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div id="r-environment" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> R Environment</h1>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
@@ -310,170 +337,164 @@ produce individual parameters for each of the customers.</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-11-26                  
+##  date     2021-12-07                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
-##  package              * version    date       lib source                             
-##  abind                  1.4-5      2016-07-21 [1] RSPM (R 4.1.0)                     
-##  arrayhelpers           1.1-0      2020-02-04 [1] RSPM (R 4.1.0)                     
-##  assertthat             0.2.1      2019-03-21 [1] RSPM (R 4.1.0)                     
-##  backports              1.3.0      2021-10-27 [1] RSPM (R 4.1.0)                     
-##  base64enc              0.1-3      2015-07-28 [1] RSPM (R 4.1.0)                     
-##  bayesplot            * 1.8.1      2021-06-14 [1] RSPM (R 4.1.0)                     
-##  bookdown               0.24       2021-09-02 [1] RSPM (R 4.1.0)                     
-##  boot                   1.3-28     2021-05-03 [2] CRAN (R 4.1.1)                     
-##  bridgesampling         1.1-2      2021-04-16 [1] RSPM (R 4.1.0)                     
-##  brms                 * 2.16.1     2021-11-16 [1] Github (paul-buerkner/brms@6fa5c02)
-##  Brobdingnag            1.2-6      2018-08-13 [1] RSPM (R 4.1.0)                     
-##  broom                  0.7.9      2021-07-27 [1] RSPM (R 4.1.0)                     
-##  bslib                  0.3.1      2021-10-06 [1] RSPM (R 4.1.0)                     
-##  cachem                 1.0.6      2021-08-19 [1] RSPM (R 4.1.0)                     
-##  callr                  3.7.0      2021-04-20 [1] RSPM (R 4.1.0)                     
-##  cellranger             1.1.0      2016-07-27 [1] RSPM (R 4.1.0)                     
-##  checkmate              2.0.0      2020-02-06 [1] RSPM (R 4.1.0)                     
-##  cli                    3.1.0      2021-10-27 [1] RSPM (R 4.1.0)                     
-##  CLVTools             * 0.8.1      2021-10-18 [1] RSPM (R 4.1.0)                     
-##  coda                   0.19-4     2020-09-30 [1] RSPM (R 4.1.0)                     
-##  codetools              0.2-18     2020-11-04 [2] CRAN (R 4.1.1)                     
-##  colorspace             2.0-2      2021-06-24 [1] RSPM (R 4.1.0)                     
-##  colourpicker           1.1.1      2021-10-04 [1] RSPM (R 4.1.0)                     
-##  conflicted           * 1.0.4      2019-06-21 [1] RSPM (R 4.1.0)                     
-##  cowplot              * 1.1.1      2020-12-30 [1] RSPM (R 4.1.0)                     
-##  crayon                 1.4.1      2021-02-08 [1] RSPM (R 4.1.0)                     
-##  crosstalk              1.1.1      2021-01-12 [1] RSPM (R 4.1.0)                     
-##  curl                   4.3.2      2021-06-23 [1] RSPM (R 4.1.0)                     
-##  data.table             1.14.2     2021-09-27 [1] RSPM (R 4.1.0)                     
-##  DBI                    1.1.1      2021-01-15 [1] RSPM (R 4.1.0)                     
-##  dbplyr                 2.1.1      2021-04-06 [1] RSPM (R 4.1.0)                     
-##  digest                 0.6.28     2021-09-23 [1] RSPM (R 4.1.0)                     
-##  directlabels         * 2021.1.13  2021-01-16 [1] RSPM (R 4.1.0)                     
-##  distributional         0.2.2      2021-02-02 [1] RSPM (R 4.1.0)                     
-##  dplyr                * 1.0.7      2021-06-18 [1] RSPM (R 4.1.0)                     
-##  DT                     0.19       2021-09-02 [1] RSPM (R 4.1.0)                     
-##  dygraphs               1.1.1.6    2018-07-11 [1] RSPM (R 4.1.0)                     
-##  ellipsis               0.3.2      2021-04-29 [1] RSPM (R 4.1.0)                     
-##  evaluate               0.14       2019-05-28 [1] RSPM (R 4.1.0)                     
-##  fansi                  0.5.0      2021-05-25 [1] RSPM (R 4.1.0)                     
-##  farver                 2.1.0      2021-02-28 [1] RSPM (R 4.1.0)                     
-##  fastmap                1.1.0      2021-01-25 [1] RSPM (R 4.1.0)                     
-##  fitdistrplus         * 1.1-6      2021-09-28 [1] RSPM (R 4.1.0)                     
-##  forcats              * 0.5.1      2021-01-27 [1] RSPM (R 4.1.0)                     
-##  fs                   * 1.5.0      2020-07-31 [1] RSPM (R 4.1.0)                     
-##  furrr                * 0.2.3      2021-06-25 [1] RSPM (R 4.1.0)                     
-##  future               * 1.22.1     2021-08-25 [1] RSPM (R 4.1.0)                     
-##  gamm4                  0.2-6      2020-04-03 [1] RSPM (R 4.1.0)                     
-##  generics               0.1.1      2021-10-25 [1] RSPM (R 4.1.0)                     
-##  ggdist                 3.0.0      2021-07-19 [1] RSPM (R 4.1.0)                     
-##  ggplot2              * 3.3.5      2021-06-25 [1] RSPM (R 4.1.0)                     
-##  ggridges               0.5.3      2021-01-08 [1] RSPM (R 4.1.0)                     
-##  globals                0.14.0     2020-11-22 [1] RSPM (R 4.1.0)                     
-##  glue                 * 1.4.2      2020-08-27 [1] RSPM (R 4.1.0)                     
-##  gridExtra              2.3        2017-09-09 [1] RSPM (R 4.1.0)                     
-##  gtable                 0.3.0      2019-03-25 [1] RSPM (R 4.1.0)                     
-##  gtools                 3.9.2      2021-06-06 [1] RSPM (R 4.1.0)                     
-##  haven                  2.4.3      2021-08-04 [1] RSPM (R 4.1.0)                     
-##  hms                    1.1.1      2021-09-26 [1] RSPM (R 4.1.0)                     
-##  htmltools              0.5.2      2021-08-25 [1] RSPM (R 4.1.0)                     
-##  htmlwidgets            1.5.4      2021-09-08 [1] RSPM (R 4.1.0)                     
-##  httpuv                 1.6.3      2021-09-09 [1] RSPM (R 4.1.0)                     
-##  httr                   1.4.2      2020-07-20 [1] RSPM (R 4.1.0)                     
-##  igraph                 1.2.7      2021-10-15 [1] RSPM (R 4.1.0)                     
-##  inline                 0.3.19     2021-05-31 [1] RSPM (R 4.1.0)                     
-##  jquerylib              0.1.4      2021-04-26 [1] RSPM (R 4.1.0)                     
-##  jsonlite               1.7.2      2020-12-09 [1] RSPM (R 4.1.0)                     
-##  knitr                  1.36       2021-09-29 [1] RSPM (R 4.1.0)                     
-##  labeling               0.4.2      2020-10-20 [1] RSPM (R 4.1.0)                     
-##  later                  1.3.0      2021-08-18 [1] RSPM (R 4.1.0)                     
-##  lattice                0.20-44    2021-05-02 [2] CRAN (R 4.1.1)                     
-##  lifecycle              1.0.1      2021-09-24 [1] RSPM (R 4.1.0)                     
-##  listenv                0.8.0      2019-12-05 [1] RSPM (R 4.1.0)                     
-##  lme4                   1.1-27.1   2021-06-22 [1] RSPM (R 4.1.0)                     
-##  loo                    2.4.1      2020-12-09 [1] RSPM (R 4.1.0)                     
-##  lubridate            * 1.8.0      2021-10-07 [1] RSPM (R 4.1.0)                     
-##  magrittr             * 2.0.1      2020-11-17 [1] RSPM (R 4.1.0)                     
-##  markdown               1.1        2019-08-07 [1] RSPM (R 4.1.0)                     
-##  MASS                 * 7.3-54     2021-05-03 [2] CRAN (R 4.1.1)                     
-##  Matrix                 1.3-4      2021-06-01 [2] CRAN (R 4.1.1)                     
-##  matrixStats            0.61.0     2021-09-17 [1] RSPM (R 4.1.0)                     
-##  mgcv                   1.8-36     2021-06-01 [2] CRAN (R 4.1.1)                     
-##  mime                   0.12       2021-09-28 [1] RSPM (R 4.1.0)                     
-##  miniUI                 0.1.1.1    2018-05-18 [1] RSPM (R 4.1.0)                     
-##  minqa                  1.2.4      2014-10-09 [1] RSPM (R 4.1.0)                     
-##  modelr                 0.1.8      2020-05-19 [1] RSPM (R 4.1.0)                     
-##  munsell                0.5.0      2018-06-12 [1] RSPM (R 4.1.0)                     
-##  mvtnorm                1.1-3      2021-10-08 [1] RSPM (R 4.1.0)                     
-##  nlme                   3.1-152    2021-02-04 [2] CRAN (R 4.1.1)                     
-##  nloptr                 1.2.2.2    2020-07-02 [1] RSPM (R 4.1.0)                     
-##  numDeriv               2016.8-1.1 2019-06-06 [1] RSPM (R 4.1.0)                     
-##  optimx                 2021-10.12 2021-10-13 [1] RSPM (R 4.1.0)                     
-##  parallelly             1.28.1     2021-09-09 [1] RSPM (R 4.1.0)                     
-##  PerformanceAnalytics * 2.0.4      2020-02-06 [1] RSPM (R 4.1.0)                     
-##  pillar                 1.6.4      2021-10-18 [1] RSPM (R 4.1.0)                     
-##  pkgbuild               1.2.0      2020-12-15 [1] RSPM (R 4.1.0)                     
-##  pkgconfig              2.0.3      2019-09-22 [1] RSPM (R 4.1.0)                     
-##  plyr                   1.8.6      2020-03-03 [1] RSPM (R 4.1.0)                     
-##  posterior            * 1.1.0      2021-09-09 [1] RSPM (R 4.1.0)                     
-##  prettyunits            1.1.1      2020-01-24 [1] RSPM (R 4.1.0)                     
-##  processx               3.5.2      2021-04-30 [1] RSPM (R 4.1.0)                     
-##  projpred               2.0.2      2020-10-28 [1] RSPM (R 4.1.0)                     
-##  promises               1.2.0.1    2021-02-11 [1] RSPM (R 4.1.0)                     
-##  ps                     1.6.0      2021-02-28 [1] RSPM (R 4.1.0)                     
-##  purrr                * 0.3.4      2020-04-17 [1] RSPM (R 4.1.0)                     
-##  quadprog               1.5-8      2019-11-20 [1] RSPM (R 4.1.0)                     
-##  Quandl                 2.11.0     2021-08-11 [1] RSPM (R 4.1.0)                     
-##  quantmod             * 0.4.18     2020-12-09 [1] RSPM (R 4.1.0)                     
-##  R6                     2.5.1      2021-08-19 [1] RSPM (R 4.1.0)                     
-##  Rcpp                 * 1.0.7      2021-07-07 [1] RSPM (R 4.1.0)                     
-##  RcppParallel           5.1.4      2021-05-04 [1] RSPM (R 4.1.0)                     
-##  readr                * 2.0.2      2021-09-27 [1] RSPM (R 4.1.0)                     
-##  readxl                 1.3.1      2019-03-13 [1] RSPM (R 4.1.0)                     
-##  reprex                 2.0.1      2021-08-05 [1] RSPM (R 4.1.0)                     
-##  reshape2               1.4.4      2020-04-09 [1] RSPM (R 4.1.0)                     
-##  rlang                * 0.4.12     2021-10-18 [1] RSPM (R 4.1.0)                     
-##  rmarkdown              2.11       2021-09-14 [1] RSPM (R 4.1.0)                     
-##  rmdformats             1.0.3      2021-10-06 [1] RSPM (R 4.1.0)                     
-##  rsample              * 0.1.0      2021-05-08 [1] RSPM (R 4.1.0)                     
-##  rsconnect              0.8.24     2021-08-05 [1] RSPM (R 4.1.0)                     
-##  rstan                * 2.26.4     2021-11-16 [1] local                              
-##  rstantools             2.1.1      2020-07-06 [1] RSPM (R 4.1.0)                     
-##  rstudioapi             0.13       2020-11-12 [1] RSPM (R 4.1.0)                     
-##  rvest                  1.0.2      2021-10-16 [1] RSPM (R 4.1.0)                     
-##  sass                   0.4.0      2021-05-12 [1] RSPM (R 4.1.0)                     
-##  scales               * 1.1.1      2020-05-11 [1] RSPM (R 4.1.0)                     
-##  sessioninfo            1.1.1      2018-11-05 [1] RSPM (R 4.1.0)                     
-##  shiny                  1.7.1      2021-10-02 [1] RSPM (R 4.1.0)                     
-##  shinyjs                2.0.0      2020-09-09 [1] RSPM (R 4.1.0)                     
-##  shinystan              2.5.0      2018-05-01 [1] RSPM (R 4.1.0)                     
-##  shinythemes            1.2.0      2021-01-25 [1] RSPM (R 4.1.0)                     
-##  StanHeaders          * 2.26.4     2021-11-16 [1] local                              
-##  stringi                1.7.5      2021-10-04 [1] RSPM (R 4.1.0)                     
-##  stringr              * 1.4.0      2019-02-10 [1] RSPM (R 4.1.0)                     
-##  survival             * 3.2-11     2021-04-26 [2] CRAN (R 4.1.1)                     
-##  svUnit                 1.0.6      2021-04-19 [1] RSPM (R 4.1.0)                     
-##  tensorA                0.36.2     2020-11-19 [1] RSPM (R 4.1.0)                     
-##  threejs                0.3.3      2020-01-21 [1] RSPM (R 4.1.0)                     
-##  tibble               * 3.1.5      2021-09-30 [1] RSPM (R 4.1.0)                     
-##  tidybayes            * 3.0.1      2021-08-22 [1] RSPM (R 4.1.0)                     
-##  tidyquant            * 1.0.3      2021-03-05 [1] RSPM (R 4.1.0)                     
-##  tidyr                * 1.1.4      2021-09-27 [1] RSPM (R 4.1.0)                     
-##  tidyselect             1.1.1      2021-04-30 [1] RSPM (R 4.1.0)                     
-##  tidyverse            * 1.3.1      2021-04-15 [1] RSPM (R 4.1.0)                     
-##  TTR                  * 0.24.2     2020-09-01 [1] RSPM (R 4.1.0)                     
-##  tzdb                   0.2.0      2021-10-27 [1] RSPM (R 4.1.0)                     
-##  utf8                   1.2.2      2021-07-24 [1] RSPM (R 4.1.0)                     
-##  V8                     3.4.2      2021-05-01 [1] RSPM (R 4.1.0)                     
-##  vctrs                  0.3.8      2021-04-29 [1] RSPM (R 4.1.0)                     
-##  withr                  2.4.2      2021-04-18 [1] RSPM (R 4.1.0)                     
-##  xfun                   0.27       2021-10-18 [1] RSPM (R 4.1.0)                     
-##  xml2                   1.3.2      2020-04-23 [1] RSPM (R 4.1.0)                     
-##  xtable                 1.8-4      2019-04-21 [1] RSPM (R 4.1.0)                     
-##  xts                  * 0.12.1     2020-09-09 [1] RSPM (R 4.1.0)                     
-##  yaml                   2.2.1      2020-02-01 [1] RSPM (R 4.1.0)                     
-##  zoo                  * 1.8-9      2021-03-09 [1] RSPM (R 4.1.0)                     
+##  package        * version    date       lib source                             
+##  abind            1.4-5      2016-07-21 [1] RSPM (R 4.1.0)                     
+##  arrayhelpers     1.1-0      2020-02-04 [1] RSPM (R 4.1.0)                     
+##  assertthat       0.2.1      2019-03-21 [1] RSPM (R 4.1.0)                     
+##  backports        1.3.0      2021-10-27 [1] RSPM (R 4.1.0)                     
+##  base64enc        0.1-3      2015-07-28 [1] RSPM (R 4.1.0)                     
+##  bayesplot      * 1.8.1      2021-06-14 [1] RSPM (R 4.1.0)                     
+##  bookdown         0.24       2021-09-02 [1] RSPM (R 4.1.0)                     
+##  boot             1.3-28     2021-05-03 [2] CRAN (R 4.1.1)                     
+##  bridgesampling   1.1-2      2021-04-16 [1] RSPM (R 4.1.0)                     
+##  brms           * 2.16.1     2021-12-02 [1] Github (paul-buerkner/brms@6fa5c02)
+##  Brobdingnag      1.2-6      2018-08-13 [1] RSPM (R 4.1.0)                     
+##  broom            0.7.9      2021-07-27 [1] RSPM (R 4.1.0)                     
+##  bslib            0.3.1      2021-10-06 [1] RSPM (R 4.1.0)                     
+##  cachem           1.0.6      2021-08-19 [1] RSPM (R 4.1.0)                     
+##  callr            3.7.0      2021-04-20 [1] RSPM (R 4.1.0)                     
+##  cellranger       1.1.0      2016-07-27 [1] RSPM (R 4.1.0)                     
+##  checkmate        2.0.0      2020-02-06 [1] RSPM (R 4.1.0)                     
+##  cli              3.1.0      2021-10-27 [1] RSPM (R 4.1.0)                     
+##  CLVTools       * 0.8.1      2021-10-18 [1] RSPM (R 4.1.0)                     
+##  cmdstanr       * 0.4.0      2021-12-02 [1] Github (stan-dev/cmdstanr@3233585) 
+##  coda             0.19-4     2020-09-30 [1] RSPM (R 4.1.0)                     
+##  codetools        0.2-18     2020-11-04 [2] CRAN (R 4.1.1)                     
+##  colorspace       2.0-2      2021-06-24 [1] RSPM (R 4.1.0)                     
+##  colourpicker     1.1.1      2021-10-04 [1] RSPM (R 4.1.0)                     
+##  conflicted     * 1.0.4      2019-06-21 [1] RSPM (R 4.1.0)                     
+##  cowplot        * 1.1.1      2020-12-30 [1] RSPM (R 4.1.0)                     
+##  crayon           1.4.1      2021-02-08 [1] RSPM (R 4.1.0)                     
+##  crosstalk        1.1.1      2021-01-12 [1] RSPM (R 4.1.0)                     
+##  curl             4.3.2      2021-06-23 [1] RSPM (R 4.1.0)                     
+##  data.table       1.14.2     2021-09-27 [1] RSPM (R 4.1.0)                     
+##  DBI              1.1.1      2021-01-15 [1] RSPM (R 4.1.0)                     
+##  dbplyr           2.1.1      2021-04-06 [1] RSPM (R 4.1.0)                     
+##  digest           0.6.28     2021-09-23 [1] RSPM (R 4.1.0)                     
+##  directlabels   * 2021.1.13  2021-01-16 [1] RSPM (R 4.1.0)                     
+##  distributional   0.2.2      2021-02-02 [1] RSPM (R 4.1.0)                     
+##  dplyr          * 1.0.7      2021-06-18 [1] RSPM (R 4.1.0)                     
+##  DT               0.19       2021-09-02 [1] RSPM (R 4.1.0)                     
+##  dygraphs         1.1.1.6    2018-07-11 [1] RSPM (R 4.1.0)                     
+##  ellipsis         0.3.2      2021-04-29 [1] RSPM (R 4.1.0)                     
+##  epitrix          0.2.2      2019-01-15 [1] RSPM (R 4.1.0)                     
+##  evaluate         0.14       2019-05-28 [1] RSPM (R 4.1.0)                     
+##  fansi            0.5.0      2021-05-25 [1] RSPM (R 4.1.0)                     
+##  farver           2.1.0      2021-02-28 [1] RSPM (R 4.1.0)                     
+##  fastmap          1.1.0      2021-01-25 [1] RSPM (R 4.1.0)                     
+##  forcats        * 0.5.1      2021-01-27 [1] RSPM (R 4.1.0)                     
+##  fs             * 1.5.0      2020-07-31 [1] RSPM (R 4.1.0)                     
+##  furrr          * 0.2.3      2021-06-25 [1] RSPM (R 4.1.0)                     
+##  future         * 1.22.1     2021-08-25 [1] RSPM (R 4.1.0)                     
+##  gamm4            0.2-6      2020-04-03 [1] RSPM (R 4.1.0)                     
+##  generics         0.1.1      2021-10-25 [1] RSPM (R 4.1.0)                     
+##  ggdist           3.0.0      2021-07-19 [1] RSPM (R 4.1.0)                     
+##  ggplot2        * 3.3.5      2021-06-25 [1] RSPM (R 4.1.0)                     
+##  ggridges         0.5.3      2021-01-08 [1] RSPM (R 4.1.0)                     
+##  globals          0.14.0     2020-11-22 [1] RSPM (R 4.1.0)                     
+##  glue           * 1.4.2      2020-08-27 [1] RSPM (R 4.1.0)                     
+##  gridExtra        2.3        2017-09-09 [1] RSPM (R 4.1.0)                     
+##  gtable           0.3.0      2019-03-25 [1] RSPM (R 4.1.0)                     
+##  gtools           3.9.2      2021-06-06 [1] RSPM (R 4.1.0)                     
+##  haven            2.4.3      2021-08-04 [1] RSPM (R 4.1.0)                     
+##  hms              1.1.1      2021-09-26 [1] RSPM (R 4.1.0)                     
+##  htmltools        0.5.2      2021-08-25 [1] RSPM (R 4.1.0)                     
+##  htmlwidgets      1.5.4      2021-09-08 [1] RSPM (R 4.1.0)                     
+##  httpuv           1.6.3      2021-09-09 [1] RSPM (R 4.1.0)                     
+##  httr             1.4.2      2020-07-20 [1] RSPM (R 4.1.0)                     
+##  igraph           1.2.7      2021-10-15 [1] RSPM (R 4.1.0)                     
+##  inline           0.3.19     2021-05-31 [1] RSPM (R 4.1.0)                     
+##  jquerylib        0.1.4      2021-04-26 [1] RSPM (R 4.1.0)                     
+##  jsonlite         1.7.2      2020-12-09 [1] RSPM (R 4.1.0)                     
+##  knitr            1.36       2021-09-29 [1] RSPM (R 4.1.0)                     
+##  labeling         0.4.2      2020-10-20 [1] RSPM (R 4.1.0)                     
+##  later            1.3.0      2021-08-18 [1] RSPM (R 4.1.0)                     
+##  lattice          0.20-44    2021-05-02 [2] CRAN (R 4.1.1)                     
+##  lifecycle        1.0.1      2021-09-24 [1] RSPM (R 4.1.0)                     
+##  listenv          0.8.0      2019-12-05 [1] RSPM (R 4.1.0)                     
+##  lme4             1.1-27.1   2021-06-22 [1] RSPM (R 4.1.0)                     
+##  loo              2.4.1      2020-12-09 [1] RSPM (R 4.1.0)                     
+##  lubridate        1.8.0      2021-10-07 [1] RSPM (R 4.1.0)                     
+##  magrittr       * 2.0.1      2020-11-17 [1] RSPM (R 4.1.0)                     
+##  markdown         1.1        2019-08-07 [1] RSPM (R 4.1.0)                     
+##  MASS             7.3-54     2021-05-03 [2] CRAN (R 4.1.1)                     
+##  Matrix           1.3-4      2021-06-01 [2] CRAN (R 4.1.1)                     
+##  matrixStats      0.61.0     2021-09-17 [1] RSPM (R 4.1.0)                     
+##  mgcv             1.8-36     2021-06-01 [2] CRAN (R 4.1.1)                     
+##  mime             0.12       2021-09-28 [1] RSPM (R 4.1.0)                     
+##  miniUI           0.1.1.1    2018-05-18 [1] RSPM (R 4.1.0)                     
+##  minqa            1.2.4      2014-10-09 [1] RSPM (R 4.1.0)                     
+##  modelr           0.1.8      2020-05-19 [1] RSPM (R 4.1.0)                     
+##  munsell          0.5.0      2018-06-12 [1] RSPM (R 4.1.0)                     
+##  mvtnorm          1.1-3      2021-10-08 [1] RSPM (R 4.1.0)                     
+##  nlme             3.1-152    2021-02-04 [2] CRAN (R 4.1.1)                     
+##  nloptr           1.2.2.2    2020-07-02 [1] RSPM (R 4.1.0)                     
+##  numDeriv         2016.8-1.1 2019-06-06 [1] RSPM (R 4.1.0)                     
+##  optimx           2021-10.12 2021-10-13 [1] RSPM (R 4.1.0)                     
+##  parallelly       1.28.1     2021-09-09 [1] RSPM (R 4.1.0)                     
+##  pillar           1.6.4      2021-10-18 [1] RSPM (R 4.1.0)                     
+##  pkgbuild         1.2.0      2020-12-15 [1] RSPM (R 4.1.0)                     
+##  pkgconfig        2.0.3      2019-09-22 [1] RSPM (R 4.1.0)                     
+##  plyr             1.8.6      2020-03-03 [1] RSPM (R 4.1.0)                     
+##  posterior      * 1.1.0      2021-09-09 [1] RSPM (R 4.1.0)                     
+##  prettyunits      1.1.1      2020-01-24 [1] RSPM (R 4.1.0)                     
+##  processx         3.5.2      2021-04-30 [1] RSPM (R 4.1.0)                     
+##  projpred         2.0.2      2020-10-28 [1] RSPM (R 4.1.0)                     
+##  promises         1.2.0.1    2021-02-11 [1] RSPM (R 4.1.0)                     
+##  ps               1.6.0      2021-02-28 [1] RSPM (R 4.1.0)                     
+##  purrr          * 0.3.4      2020-04-17 [1] RSPM (R 4.1.0)                     
+##  quadprog         1.5-8      2019-11-20 [1] RSPM (R 4.1.0)                     
+##  R6               2.5.1      2021-08-19 [1] RSPM (R 4.1.0)                     
+##  Rcpp           * 1.0.7      2021-07-07 [1] RSPM (R 4.1.0)                     
+##  RcppParallel     5.1.4      2021-05-04 [1] RSPM (R 4.1.0)                     
+##  readr          * 2.0.2      2021-09-27 [1] RSPM (R 4.1.0)                     
+##  readxl           1.3.1      2019-03-13 [1] RSPM (R 4.1.0)                     
+##  reprex           2.0.1      2021-08-05 [1] RSPM (R 4.1.0)                     
+##  reshape2         1.4.4      2020-04-09 [1] RSPM (R 4.1.0)                     
+##  rlang          * 0.4.12     2021-10-18 [1] RSPM (R 4.1.0)                     
+##  rmarkdown        2.11       2021-09-14 [1] RSPM (R 4.1.0)                     
+##  rmdformats       1.0.3      2021-10-06 [1] RSPM (R 4.1.0)                     
+##  rsconnect        0.8.24     2021-08-05 [1] RSPM (R 4.1.0)                     
+##  rstan          * 2.26.4     2021-12-02 [1] local                              
+##  rstantools       2.1.1      2020-07-06 [1] RSPM (R 4.1.0)                     
+##  rstudioapi       0.13       2020-11-12 [1] RSPM (R 4.1.0)                     
+##  rvest            1.0.2      2021-10-16 [1] RSPM (R 4.1.0)                     
+##  sass             0.4.0      2021-05-12 [1] RSPM (R 4.1.0)                     
+##  scales         * 1.1.1      2020-05-11 [1] RSPM (R 4.1.0)                     
+##  sessioninfo      1.1.1      2018-11-05 [1] RSPM (R 4.1.0)                     
+##  shiny            1.7.1      2021-10-02 [1] RSPM (R 4.1.0)                     
+##  shinyjs          2.0.0      2020-09-09 [1] RSPM (R 4.1.0)                     
+##  shinystan        2.5.0      2018-05-01 [1] RSPM (R 4.1.0)                     
+##  shinythemes      1.2.0      2021-01-25 [1] RSPM (R 4.1.0)                     
+##  StanHeaders    * 2.26.4     2021-12-02 [1] local                              
+##  stringi          1.7.5      2021-10-04 [1] RSPM (R 4.1.0)                     
+##  stringr        * 1.4.0      2019-02-10 [1] RSPM (R 4.1.0)                     
+##  svUnit           1.0.6      2021-04-19 [1] RSPM (R 4.1.0)                     
+##  tensorA          0.36.2     2020-11-19 [1] RSPM (R 4.1.0)                     
+##  threejs          0.3.3      2020-01-21 [1] RSPM (R 4.1.0)                     
+##  tibble         * 3.1.5      2021-09-30 [1] RSPM (R 4.1.0)                     
+##  tidybayes      * 3.0.1      2021-08-22 [1] RSPM (R 4.1.0)                     
+##  tidyr          * 1.1.4      2021-09-27 [1] RSPM (R 4.1.0)                     
+##  tidyselect       1.1.1      2021-04-30 [1] RSPM (R 4.1.0)                     
+##  tidyverse      * 1.3.1      2021-04-15 [1] RSPM (R 4.1.0)                     
+##  tzdb             0.2.0      2021-10-27 [1] RSPM (R 4.1.0)                     
+##  utf8             1.2.2      2021-07-24 [1] RSPM (R 4.1.0)                     
+##  V8               3.4.2      2021-05-01 [1] RSPM (R 4.1.0)                     
+##  vctrs            0.3.8      2021-04-29 [1] RSPM (R 4.1.0)                     
+##  withr            2.4.2      2021-04-18 [1] RSPM (R 4.1.0)                     
+##  xfun             0.27       2021-10-18 [1] RSPM (R 4.1.0)                     
+##  xml2             1.3.2      2020-04-23 [1] RSPM (R 4.1.0)                     
+##  xtable           1.8-4      2019-04-21 [1] RSPM (R 4.1.0)                     
+##  xts              0.12.1     2020-09-09 [1] RSPM (R 4.1.0)                     
+##  yaml             2.2.1      2020-02-01 [1] RSPM (R 4.1.0)                     
+##  zoo              1.8-9      2021-03-09 [1] RSPM (R 4.1.0)                     
 ## 
 ## [1] /usr/local/lib/R/site-library
 ## [2] /usr/local/lib/R/library</code></pre>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
 </div>
 </div>
 

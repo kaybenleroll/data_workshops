@@ -18,17 +18,20 @@ generate_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_p,
 
   event_times <- rexp(sim_count, rate = tnx_rate)
 
-  use_event_weeks <- cumsum(event_times)
-  use_event_weeks <- use_event_weeks[use_event_weeks < tnx_window]
+  tnx_intervals     <- cumsum(event_times)
+  use_tnx_intervals <- tnx_intervals[tnx_intervals < tnx_window]
 
-  event_dates <- first_date + (use_event_weeks * 7)
+
+  first_tnx_dttm <- as.POSIXct(first_date) + runif(1, min = 0, max = 24 * 60 * 60 - 1)
+
+  event_dates <- first_tnx_dttm + (use_tnx_intervals * (7 * 24 * 60 * 60))
 
   tnx_amounts <- rgamma(1 + length(event_dates), shape = mx_p, rate = mx_nu)
 
   sim_tnx_tbl <- tibble(
-    tnx_date   = c(first_date, event_dates),
-    tnx_amount = tnx_amounts %>% round(2)
-  )
+    tnx_timestamp = c(first_tnx_dttm, event_dates),
+    tnx_amount    = tnx_amounts %>% round(2)
+    )
 
   return(sim_tnx_tbl)
 }
@@ -75,8 +78,7 @@ generate_customer_transaction_data <- function(sim_params_tbl) {
     select(
       customer_id, cohort_qtr, cohort_ym, sim_data
       ) %>%
-    unnest(sim_data) %>%
-    arrange(customer_id, tnx_date)
+    unnest(sim_data)
 
   return(customer_transactions_tbl)
 }
