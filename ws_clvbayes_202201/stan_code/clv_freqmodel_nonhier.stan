@@ -3,6 +3,9 @@ data {
 
   int<lower=0> x[n];     // observed number of transactions
   vector<lower=0>[n] t;  // observed time-period of transactions
+
+  real r;
+  real alpha;
 }
 
 parameters {
@@ -10,7 +13,7 @@ parameters {
 }
 
 model {
-  lambda ~ gamma(1, 3);
+  lambda ~ gamma(r, alpha);
 
   target += poisson_lpmf(x | lambda .* t);
 }

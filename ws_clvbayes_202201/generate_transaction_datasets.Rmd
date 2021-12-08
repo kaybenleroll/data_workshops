@@ -111,7 +111,7 @@ We now want to set up the various parameters required for the data generation.
 ```{r setup_synthesis_parameters, echo=TRUE}
 pnbd_params_lst <- list(
   mu_shape     =   1,
-  mu_rate      =   5,
+  mu_rate      =  10,
 
   lambda_shape =   1,
   lambda_rate  =   3,
@@ -138,7 +138,14 @@ customer_basic_simparams_tbl <- customer_cohort_data_tbl %>%
 customer_basic_simparams_tbl %>% glimpse()
 
 customer_basic_transactions_tbl <- customer_basic_simparams_tbl %>%
-  generate_customer_transaction_data()
+  generate_customer_transaction_data() %>%
+  arrange(tnx_timestamp) %>%
+  group_by(tnx_date = as.Date(tnx_timestamp)) %>%
+  mutate(
+    invoice_id = sprintf("%s_%04d", format(tnx_date, "%Y%m%d"), 1:n())
+    ) %>%
+  ungroup() %>%
+  select(customer_id, tnx_timestamp, invoice_id, tnx_amount)
 
 customer_basic_transactions_tbl %>% glimpse()
 ```
@@ -149,9 +156,11 @@ customer_basic_transactions_tbl %>% glimpse()
 We now write this data to disk.
 
 ```{r write_basic_data_disk, echo=TRUE}
-customer_basic_parameters_tbl   %>% write_rds("data/customer_basic_parameters_tbl.rds")
+customer_basic_simparams_tbl %>%
+  write_rds("data/customer_basic_simparams_tbl.rds")
 
-customer_basic_transactions_tbl %>% write_rds("data/customer_basic_transactions_tbl.rds")
+customer_basic_transactions_tbl %>%
+  write_rds("data/customer_basic_transactions_tbl.rds")
 ```
 
 
