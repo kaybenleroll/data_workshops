@@ -1,14 +1,29 @@
 
 
-generate_customer_cohort_data <- function(input_data_tbl, first_date, last_date) {
+generate_customer_cohort_data <- function(n_customers, first_date, last_date) {
+  tnx_dates <- seq(first_date, last_date, by = "day")
 
+  customer_cohort_tbl <- tnx_dates %>%
+    enframe(name = NULL, value = "first_tnx_date") %>%
+    slice_sample(n = n_customers, replace = TRUE) %>%
+    arrange(first_tnx_date) %>%
+    group_by(format(first_tnx_date, "%Y%m")) %>%
+    mutate(
+      customer_id = sprintf("CUST%s-%04d", format(first_tnx_date, "%Y%m"), 1:n()),
+      cohort_qtr  = first_tnx_date %>% as.yearqtr() %>% as.character(),
+      cohort_ym   = first_tnx_date %>% format("%Y %m")
+      ) %>%
+    ungroup() %>%
+    select(customer_id, cohort_qtr, cohort_ym, first_tnx_date)
+
+  return(customer_cohort_tbl)
 }
 
 
 
 
-generate_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_p,
-                                             first_date, final_date = final_date) {
+generate_pnbd_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_p,
+                                                  first_date, final_date = final_date) {
 
   obs_weeks <- difftime(final_date, first_date, units = "weeks") %>% as.numeric()
 
@@ -60,7 +75,7 @@ generate_pnbd_customer_simulation_params <- function(customer_cohort_data_tbl, p
 }
 
 
-generate_customer_transaction_data <- function(sim_params_tbl) {
+generate_pnbd_customer_transaction_data <- function(sim_params_tbl) {
   customer_transactions_tbl <- sim_params_tbl %>%
     mutate(
       sim_data = pmap(
@@ -71,7 +86,7 @@ generate_customer_transaction_data <- function(sim_params_tbl) {
           mx_p       = customer_p,
           first_date = first_tnx_date
         ),
-        generate_individual_transactions,
+        generate_pnbd_individual_transactions,
         final_date = final_date_observed
         )
       ) %>%

@@ -232,9 +232,9 @@ training_data_date <- as.Date("2011-03-31")
 
 We also wish to load the generated data.
 
-```{r}
-customer_basic_parameters_tbl <- read_rds("data/customer_basic_parameters_tbl.rds")
-customer_basic_parameters_tbl %>% glimpse()
+```{r load_parameter_data, echo=TRUE}
+customer_basic_simparams_tbl <- read_rds("data/customer_basic_simparams_tbl.rds")
+customer_basic_simparams_tbl %>% glimpse()
 
 customer_basic_transactions_tbl <- read_rds("data/customer_basic_transactions_tbl.rds")
 customer_basic_transactions_tbl %>% glimpse()
@@ -251,13 +251,13 @@ models.
 ```{r calculate_transaction_cbs_data, echo=TRUE}
 calculate_transaction_cbs_data <- function(tnx_data_tbl, last_date) {
   cbs_data_tbl <- tnx_data_tbl %>%
-    filter(tnx_date <= last_date) %>%
+    filter(tnx_timestamp <= last_date) %>%
     group_by(customer_id) %>%
     summarise(
       .groups = "drop",
 
-      first_tnx_date = min(tnx_date),
-      last_tnx_date  = max(tnx_date),
+      first_tnx_date = min(tnx_timestamp),
+      last_tnx_date  = max(tnx_timestamp),
 
       x     = n() - 1,
       t_x   = difftime(last_tnx_date, first_tnx_date, units = "weeks") %>% as.numeric(),
@@ -309,7 +309,7 @@ stan_data_lst <- customer_basic_cbs_tbl %>%
   select(-first_tnx_date, -last_tnx_date) %>%
   compose_data(
     r     =  1,
-    alpha = 10,
+    alpha =  3,
     
     s     =  1,
     beta  = 10,
@@ -361,7 +361,7 @@ customer_posterior_tbl <- customer_basic_pnbd_fixed_posterior_tbl %>%
     posterior_lambda = list(lambda)
     )
 
-customer_postcheck_tbl <- customer_basic_parameters_tbl %>%
+customer_postcheck_tbl <- customer_basic_simparams_tbl %>%
   select(customer_id, customer_mu, customer_lambda, customer_tau) %>%
   inner_join(customer_posterior_tbl, by = "customer_id") %>%
   mutate(
@@ -372,6 +372,30 @@ customer_postcheck_tbl <- customer_basic_parameters_tbl %>%
 customer_postcheck_tbl %>% glimpse()
 ```
 
+We now plot the uniformity of the data.
+
+```{r plot_bsic_pnbd_uniformity, echo=TRUE}
+ggplot(customer_postcheck_tbl) +
+  geom_histogram(aes(x = post_mu_qval), bins = 50) +
+  labs(
+    x = expression(mu),
+    y = "Count",
+    title = "Plot of Customer q-values for mu"
+    )
+
+
+ggplot(customer_postcheck_tbl) +
+  geom_histogram(aes(x = post_lambda_qval), bins = 50) +
+  labs(
+    x = expression(lambda),
+    y = "Count",
+    title = "Plot of Customer q-values for lambda"
+    )
+```
+
+As we see, our posterior does a reasonable job of discovering the dropout rate
+$\mu$ but has a low bias on the transaction rate $\lambda$.
+
 
 ```{r plot_posterior_params_facets, echo=TRUE}
 postcheck_facet_plotdata_tbl <- customer_basic_pnbd_fixed_posterior_tbl %>%
@@ -379,7 +403,7 @@ postcheck_facet_plotdata_tbl <- customer_basic_pnbd_fixed_posterior_tbl %>%
   group_nest(customer_id) %>%
   slice_sample(n = 20) %>%
   unnest(data) %>%
-  inner_join(customer_basic_parameters_tbl, by = "customer_id")
+  inner_join(customer_basic_simparams_tbl, by = "customer_id")
 
 ggplot(postcheck_facet_plotdata_tbl) +
   geom_histogram(aes(x = mu), bins = 50) +
@@ -416,7 +440,13 @@ pnbd_basic_prior_stanmodel <- cmdstan_model(
 ```{r fit_basic_prior_stan_model, echo=TRUE, warning=TRUE}
 stan_data_lst <- customer_basic_cbs_tbl %>%
   select(-first_tnx_date, -last_tnx_date) %>%
-  compose_data()
+  compose_data(
+    lb_mean_a = -1.6000,   lb_mean_b =  1.0000,
+    lb_cov_a  = -2.1000,   lb_cov_b  =  1.0000,
+
+    mu_mean_a = -0.0200,   mu_mean_b =  0.2000,
+    mu_cov_a  = -0.0002,   mu_cov_b  =  0.0200
+    )
 
 pnbd_basic_prior_stanfit <- pnbd_basic_prior_stanmodel$sample(
   data          =  stan_data_lst,
@@ -456,6 +486,68 @@ customer_basic_pnbd_prior_posterior_tbl <- customer_basic_pnbd_prior_draws %>%
 
 customer_basic_pnbd_prior_posterior_tbl %>% glimpse()
 ```
+
+
+## Fit Sample with Altenative Prior Parameters
+
+```{r fit_basic_prior_altprior_stan_model, echo=TRUE, warning=TRUE}
+stan_data_lst <- customer_basic_cbs_tbl %>%
+  select(-first_tnx_date, -last_tnx_date) %>%
+  compose_data(
+    lb_mean_a = -1.6000,   lb_mean_b =  1.0000,
+    lb_cov_a  = -2.1000,   lb_cov_b  =  1.0000,
+
+    mu_mean_a = -0.0500,   mu_mean_b =  1.0000,
+    mu_cov_a  = -0.1250,   mu_cov_b  =  0.5000
+    )
+
+pnbd_basic_prior_altprior_stanfit <- pnbd_basic_prior_stanmodel$sample(
+  data          =  stan_data_lst,
+  chains        =              4,
+  iter_warmup   =           1000,
+  iter_sampling =           1000,
+  seed          =            422
+  )
+
+pnbd_basic_prior_altprior_stanfit$cmdstan_diagnose()
+
+pnbd_basic_prior_altprior_stanfit$summary(
+  c("lb_mean", "mu_mean", "mu_cov", "r", "alpha", "s", "beta")
+  )
+```
+
+
+## Fit Sample with Altenative Prior Parameters on Early Customers
+
+
+
+```{r fit_basic_prior_altprior_earlycohort_stan_model, echo=TRUE, warning=TRUE}
+stan_data_lst <- customer_basic_cbs_tbl %>%
+  filter(first_tnx_date < as.Date("2010-04-01")) %>%
+  select(-first_tnx_date, -last_tnx_date) %>%
+  compose_data(
+    lb_mean_a = -1.6000,   lb_mean_b =  1.0000,
+    lb_cov_a  = -2.1000,   lb_cov_b  =  1.0000,
+
+    mu_mean_a = -0.0500,   mu_mean_b =  1.0000,
+    mu_cov_a  = -0.1250,   mu_cov_b  =  0.5000
+    )
+
+pnbd_basic_prior_altprior_earlycohort_stanfit <- pnbd_basic_prior_stanmodel$sample(
+  data          =  stan_data_lst,
+  chains        =              4,
+  iter_warmup   =           1000,
+  iter_sampling =           1000,
+  seed          =            422
+  )
+
+pnbd_basic_prior_altprior_earlycohort_stanfit$cmdstan_diagnose()
+
+pnbd_basic_prior_altprior_earlycohort_stanfit$summary(
+  c("lb_mean", "mu_mean", "mu_cov", "r", "alpha", "s", "beta")
+  )
+```
+
 
 
 ### Write Model to Disk
@@ -639,7 +731,7 @@ plot_tbl <- summdata_tbl %>%
     values_from = c(mu, lambda)
     )
 
-cust_data_tbl <- customer_basic_parameters_tbl %>%
+cust_data_tbl <- customer_basic_simparams_tbl %>%
   semi_join(plot_tbl, by = "customer_id")
 
 
@@ -744,7 +836,7 @@ construct_posterior_ecdf_function <- function(customer_params_tbl) {
 ```
 
 ```{r calculate_posterior_uniform_probabilities, echo=TRUE}
-calculate_posterior_data_probs <- customer_basic_parameters_tbl %>%
+calculate_posterior_data_probs <- customer_basic_simparams_tbl %>%
   construct_posterior_ecdf_function()
 
 posterior_uniformcheck_tbl <- list(

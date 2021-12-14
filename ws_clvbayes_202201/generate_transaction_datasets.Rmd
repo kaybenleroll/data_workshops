@@ -35,14 +35,14 @@ library(fs)
 library(purrr)
 library(furrr)
 library(glue)
+library(tidyverse)
 
 
 source("lib_utils.R")
 source("lib_data_generation.R")
 
 conflict_lst <- resolve_conflicts(
-  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
-    "fitdistrplus")
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "tidyquant")
   )
 
 
@@ -138,7 +138,7 @@ customer_basic_simparams_tbl <- customer_cohort_data_tbl %>%
 customer_basic_simparams_tbl %>% glimpse()
 
 customer_basic_transactions_tbl <- customer_basic_simparams_tbl %>%
-  generate_customer_transaction_data() %>%
+  generate_pnbd_customer_transaction_data() %>%
   arrange(tnx_timestamp) %>%
   group_by(tnx_date = as.Date(tnx_timestamp)) %>%
   mutate(
@@ -164,10 +164,54 @@ customer_basic_transactions_tbl %>%
 ```
 
 
+# Generate Synthetic Cohort Data
+
+We now repeat this exercise, but rather than using the new customer data from
+the transaction dataset, we also create a synthetic set of 'new customers' and
+generate a transaction dataset based on that.
+
+```{r generate_synthetic_cohort, echo=TRUE}
+n_customers = 50000
+
+customer_synth_cohort_tbl <- generate_customer_cohort_data(
+    n_customers = n_customers,
+    first_date  = as.Date("2010-01-01"),
+    last_date   = as.Date("2011-12-31")
+    )
+
+customer_synth_cohort_tbl %>% glimpse()
+```
 
 
 
+```{r calculate_synthmodel_customer_data, echo=TRUE}
+pnbd_params_lst <- list(
+  mu_shape     =   1,
+  mu_rate      =  10,
 
+  lambda_shape =   1,
+  lambda_rate  =   3,
+
+  mx_p         = 100,
+  mx_q         =   1,
+  mx_g         =   1
+  )
+
+customer_synth_simparams_tbl <- customer_synth_cohort_tbl %>%
+  generate_pnbd_customer_simulation_params(params_lst = pnbd_params_lst)
+
+customer_synth_transactions_tbl <- customer_synth_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data() %>%
+  arrange(tnx_timestamp) %>%
+  group_by(tnx_date = as.Date(tnx_timestamp)) %>%
+  mutate(
+    invoice_id = sprintf("%s_%04d", format(tnx_date, "%Y%m%d"), 1:n())
+    ) %>%
+  ungroup() %>%
+  select(customer_id, tnx_timestamp, invoice_id, tnx_amount)
+
+customer_synth_transactions_tbl %>% glimpse()
+```
 
 
 

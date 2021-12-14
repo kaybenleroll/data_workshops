@@ -217,7 +217,7 @@
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: December 08, 2021</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: December 14, 2021</p>
           </div>
    </div>
      
@@ -234,23 +234,23 @@ a more traditional P/NBD model.</p>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>customer_basic_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 44,872
 ## Columns: 4
-## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;15719&quot;, &quot;13585&quot;, &quot;17519&quot;, &quot;15712&quot;, &quot;16321&quot;, &quot;15362&quot;, &quot;1…
-## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2009-12-01 00:19:10, 2009-12-01 00:48:16, 2009-12-01 00…
-## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;20091201_0001&quot;, &quot;20091201_0002&quot;, &quot;20091201_0003&quot;, &quot;2009…
-## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 323.91, 57.12, 388.42, 49.98, 50.91, 91.66, 90.06, 43.75…</code></pre>
+## $ customer_id   &lt;chr&gt; &quot;15719&quot;, &quot;13585&quot;, &quot;17519&quot;, &quot;15712&quot;, &quot;16321&quot;, &quot;15362&quot;, &quot;1…
+## $ tnx_timestamp &lt;dttm&gt; 2009-12-01 00:19:10, 2009-12-01 00:48:16, 2009-12-01 00…
+## $ invoice_id    &lt;chr&gt; &quot;20091201_0001&quot;, &quot;20091201_0002&quot;, &quot;20091201_0003&quot;, &quot;2009…
+## $ tnx_amount    &lt;dbl&gt; 323.91, 57.12, 388.42, 49.98, 50.91, 91.66, 90.06, 43.75…</code></pre>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>customer_basic_simparams_tbl <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">&quot;data/customer_basic_simparams_tbl.rds&quot;</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>customer_basic_simparams_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 9
-## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12490&quot;, &quot;12533&quot;, &quot;12682&quot;, &quot;12758&quot;, &quot;12836&quot;, &quot;12913&quot;, …
-## $ cohort_qtr      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;,…
-## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;,…
-## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2009-12-01, 2009-12-01, 2009-12-01, 2009-12-01, 2009-…
-## $ customer_mu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.193929578, 0.018041910, 0.053443286, 0.002396523, 0.…
-## $ customer_tau    [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.5266278, 75.2259954, 14.2815124, 112.1151678, 15.836…
-## $ customer_lambda [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.13543393, 0.54140899, 0.58536864, 0.07433727, 0.0149…
-## $ customer_nu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.655802984, 1.218495551, 0.826828489, 0.569981858, 0.…
-## $ customer_p      [3m[38;5;246m&lt;dbl&gt;[39m[23m 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
+## $ customer_id     &lt;chr&gt; &quot;12490&quot;, &quot;12533&quot;, &quot;12682&quot;, &quot;12758&quot;, &quot;12836&quot;, &quot;12913&quot;, …
+## $ cohort_qtr      &lt;chr&gt; &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;,…
+## $ cohort_ym       &lt;chr&gt; &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;,…
+## $ first_tnx_date  &lt;date&gt; 2009-12-01, 2009-12-01, 2009-12-01, 2009-12-01, 2009-…
+## $ customer_mu     &lt;dbl&gt; 0.193929578, 0.018041910, 0.053443286, 0.002396523, 0.…
+## $ customer_tau    &lt;dbl&gt; 0.5266278, 75.2259954, 14.2815124, 112.1151678, 15.836…
+## $ customer_lambda &lt;dbl&gt; 0.13543393, 0.54140899, 0.58536864, 0.07433727, 0.0149…
+## $ customer_nu     &lt;dbl&gt; 0.655802984, 1.218495551, 0.826828489, 0.569981858, 0.…
+## $ customer_p      &lt;dbl&gt; 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>basic_freqmodelling_tbl <span class="ot">&lt;-</span> customer_basic_transactions_tbl <span class="sc">%&gt;%</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(customer_id) <span class="sc">%&gt;%</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
@@ -263,9 +263,9 @@ a more traditional P/NBD model.</p>
 <span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>basic_freqmodelling_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 3
-## $ customer_id [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, &quot;123…
-## $ tnx_count   [3m[38;5;246m&lt;int&gt;[39m[23m 13, 2, 1, 1, 19, 1, 13, 1, 2, 1, 8, 6, 1, 23, 1, 3, 2, 18,…
-## $ tnx_time    [3m[38;5;246m&lt;dbl&gt;[39m[23m 39.296747, 6.408267, 0.000000, 0.000000, 22.843697, 0.0000…</code></pre>
+## $ customer_id &lt;chr&gt; &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, &quot;123…
+## $ tnx_count   &lt;int&gt; 13, 2, 1, 1, 19, 1, 13, 1, 2, 1, 8, 6, 1, 23, 1, 3, 2, 18,…
+## $ tnx_time    &lt;dbl&gt; 39.296747, 6.408267, 0.000000, 0.000000, 22.843697, 0.0000…</code></pre>
 <p>We also want to construct the a version of the data where only the customers
 with multiple transactions remain in the dataset.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>customer_basic_tnxsummary_tbl <span class="ot">&lt;-</span> basic_freqmodelling_tbl <span class="sc">%&gt;%</span></span>
@@ -278,11 +278,11 @@ with multiple transactions remain in the dataset.</p>
 <span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>customer_basic_tnxsummary_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 4,016
 ## Columns: 5
-## $ customer_id [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12350&quot;, &quot;12352&quot;, &quot;12354&quot;, &quot;12356&quot;, &quot;123…
-## $ tnx_count   [3m[38;5;246m&lt;int&gt;[39m[23m 13, 2, 19, 13, 2, 8, 6, 23, 3, 2, 18, 4, 17, 23, 6, 43, 3,…
-## $ tnx_time    [3m[38;5;246m&lt;dbl&gt;[39m[23m 39.2967474, 6.4082670, 22.8436966, 53.2475741, 2.5483911, …
-## $ x           [3m[38;5;246m&lt;dbl&gt;[39m[23m 12, 1, 18, 12, 1, 7, 5, 22, 2, 1, 17, 3, 16, 22, 5, 42, 2,…
-## $ t           [3m[38;5;246m&lt;dbl&gt;[39m[23m 39.2967474, 6.4082670, 22.8436966, 53.2475741, 2.5483911, …</code></pre>
+## $ customer_id &lt;chr&gt; &quot;12346&quot;, &quot;12347&quot;, &quot;12350&quot;, &quot;12352&quot;, &quot;12354&quot;, &quot;12356&quot;, &quot;123…
+## $ tnx_count   &lt;int&gt; 13, 2, 19, 13, 2, 8, 6, 23, 3, 2, 18, 4, 17, 23, 6, 43, 3,…
+## $ tnx_time    &lt;dbl&gt; 39.2967474, 6.4082670, 22.8436966, 53.2475741, 2.5483911, …
+## $ x           &lt;dbl&gt; 12, 1, 18, 12, 1, 7, 5, 22, 2, 1, 17, 3, 16, 22, 5, 42, 2,…
+## $ t           &lt;dbl&gt; 39.2967474, 6.4082670, 22.8436966, 53.2475741, 2.5483911, …</code></pre>
 <div id="construct-fixed-hyper-prior-frequency-model" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Construct Fixed Hyper-prior Frequency Model</h1>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>nonhier_freq_stanmodel <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(</span>
@@ -311,52 +311,52 @@ with multiple transactions remain in the dataset.</p>
 ## Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
 ## Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
 ## Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
-## Chain 2 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 1 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 2 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 3 Iteration:  100 / 2000 [  5%]  (Warmup) 
-## Chain 2 Iteration:  200 / 2000 [ 10%]  (Warmup) 
 ## Chain 1 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 2 Iteration:  200 / 2000 [ 10%]  (Warmup) 
 ## Chain 4 Iteration:  200 / 2000 [ 10%]  (Warmup) 
 ## Chain 3 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-## Chain 2 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 1 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 2 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 4 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 3 Iteration:  300 / 2000 [ 15%]  (Warmup) 
-## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 1 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 4 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 3 Iteration:  400 / 2000 [ 20%]  (Warmup) 
-## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 ## Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 ## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 ## Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 1 Iteration:  600 / 2000 [ 30%]  (Warmup) 
 ## Chain 2 Iteration:  600 / 2000 [ 30%]  (Warmup) 
 ## Chain 4 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-## Chain 1 Iteration:  600 / 2000 [ 30%]  (Warmup) 
 ## Chain 3 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
 ## Chain 2 Iteration:  700 / 2000 [ 35%]  (Warmup) 
 ## Chain 4 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
 ## Chain 3 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 1 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 4 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 3 Iteration:  800 / 2000 [ 40%]  (Warmup) 
-## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
 ## Chain 1 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
 ## Chain 4 Iteration:  900 / 2000 [ 45%]  (Warmup) 
 ## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-## Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-## Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 ## Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 ## Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 ## Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 4 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 3 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
@@ -367,8 +367,8 @@ with multiple transactions remain in the dataset.</p>
 ## Chain 2 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 4 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 3 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
-## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 1 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 4 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 3 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
@@ -380,31 +380,31 @@ with multiple transactions remain in the dataset.</p>
 ## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
 ## Chain 3 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
 ## Chain 1 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
 ## Chain 4 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
 ## Chain 3 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
 ## Chain 1 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 4 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 3 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
 ## Chain 4 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
 ## Chain 3 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
 ## Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 1 finished in 55.7 seconds.
-## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 1 finished in 55.2 seconds.
 ## Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 2 finished in 55.8 seconds.
-## Chain 4 finished in 55.7 seconds.
+## Chain 4 finished in 54.9 seconds.
 ## Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 3 finished in 56.0 seconds.
+## Chain 3 finished in 55.4 seconds.
+## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 2 finished in 55.7 seconds.
 ## 
 ## All 4 chains finished successfully.
-## Mean chain execution time: 55.8 seconds.
-## Total execution time: 56.2 seconds.</code></pre>
+## Mean chain execution time: 55.3 seconds.
+## Total execution time: 56.3 seconds.</code></pre>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>nonhier_freq_stanfit<span class="sc">$</span><span class="fu">cmdstan_diagnose</span>()</span></code></pre></div>
-<pre><code>## Processing csv files: /tmp/Rtmp0KBWWc/clv_freqmodel_nonhier-202112081724-1-8b9801.csv, /tmp/Rtmp0KBWWc/clv_freqmodel_nonhier-202112081724-2-8b9801.csv, /tmp/Rtmp0KBWWc/clv_freqmodel_nonhier-202112081724-3-8b9801.csv, /tmp/Rtmp0KBWWc/clv_freqmodel_nonhier-202112081724-4-8b9801.csv
+<pre><code>## Processing csv files: /tmp/Rtmpej5ofO/clv_freqmodel_nonhier-202112141505-1-8b9b08.csv, /tmp/Rtmpej5ofO/clv_freqmodel_nonhier-202112141505-2-8b9b08.csv, /tmp/Rtmpej5ofO/clv_freqmodel_nonhier-202112141505-3-8b9b08.csv, /tmp/Rtmpej5ofO/clv_freqmodel_nonhier-202112141505-4-8b9b08.csv
 ## 
 ## Checking sampler transitions treedepth.
 ## Treedepth satisfactory for all transitions.
@@ -434,11 +434,11 @@ with multiple transactions remain in the dataset.</p>
 <span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>nonhier_post_freq_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 16,064,000
 ## Columns: 5
-## $ customer_id [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;123…
-## $ lambda      [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.171395, 0.483192, 0.150377, 0.305180, 0.306166, 0.679487…
-## $ .chain      [3m[38;5;246m&lt;int&gt;[39m[23m 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1…
-## $ .iteration  [3m[38;5;246m&lt;int&gt;[39m[23m 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,…
-## $ .draw       [3m[38;5;246m&lt;int&gt;[39m[23m 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,…</code></pre>
+## $ customer_id &lt;chr&gt; &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;12346&quot;, &quot;123…
+## $ lambda      &lt;dbl&gt; 0.171395, 0.483192, 0.150377, 0.305180, 0.306166, 0.679487…
+## $ .chain      &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1…
+## $ .iteration  &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,…
+## $ .draw       &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,…</code></pre>
 <p>We now use the posterior distribution of each parameter to construct an ECDF
 function that we use to calculate the q-value of the parameter</p>
 <div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>nonhier_qval_validation_tbl <span class="ot">&lt;-</span> nonhier_post_freq_tbl <span class="sc">%&gt;%</span></span>
@@ -456,17 +456,17 @@ function that we use to calculate the q-value of the parameter</p>
 <span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>nonhier_qval_validation_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 4,016
 ## Columns: 11
-## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12350&quot;, &quot;12352&quot;, &quot;12354&quot;, &quot;12356&quot;, …
-## $ lambda_vals     [3m[38;5;246m&lt;list&gt;[39m[23m &lt;0.1713950, 0.4831920, 0.1503770, 0.3051800, 0.306166…
-## $ cohort_qtr      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 Q1&quot;, &quot;2010 Q4&quot;, &quot;2011 Q1&quot;, &quot;2010 Q4&quot;, &quot;2011 Q2&quot;,…
-## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2011 02&quot;, &quot;2010 11&quot;, &quot;2011 04&quot;,…
-## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2010-03-02, 2010-10-31, 2011-02-02, 2010-11-12, 2011-…
-## $ customer_mu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.059719401, 0.052733188, 0.009250274, 0.011487417, 0.…
-## $ customer_tau    [3m[38;5;246m&lt;dbl&gt;[39m[23m 40.257594, 11.478977, 22.871965, 84.193929, 4.446975, …
-## $ customer_lambda [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.52079849, 0.07316715, 0.85507824, 0.25477053, 0.3086…
-## $ customer_nu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.06066443, 1.90715501, 3.78362180, 1.18160127, 0.3537…
-## $ customer_p      [3m[38;5;246m&lt;dbl&gt;[39m[23m 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…
-## $ lambda_qval     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.98200, 0.15650, 0.76775, 0.67475, 0.50675, 0.33975, …</code></pre>
+## $ customer_id     &lt;chr&gt; &quot;12346&quot;, &quot;12347&quot;, &quot;12350&quot;, &quot;12352&quot;, &quot;12354&quot;, &quot;12356&quot;, …
+## $ lambda_vals     &lt;list&gt; &lt;0.1713950, 0.4831920, 0.1503770, 0.3051800, 0.306166…
+## $ cohort_qtr      &lt;chr&gt; &quot;2010 Q1&quot;, &quot;2010 Q4&quot;, &quot;2011 Q1&quot;, &quot;2010 Q4&quot;, &quot;2011 Q2&quot;,…
+## $ cohort_ym       &lt;chr&gt; &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2011 02&quot;, &quot;2010 11&quot;, &quot;2011 04&quot;,…
+## $ first_tnx_date  &lt;date&gt; 2010-03-02, 2010-10-31, 2011-02-02, 2010-11-12, 2011-…
+## $ customer_mu     &lt;dbl&gt; 0.059719401, 0.052733188, 0.009250274, 0.011487417, 0.…
+## $ customer_tau    &lt;dbl&gt; 40.257594, 11.478977, 22.871965, 84.193929, 4.446975, …
+## $ customer_lambda &lt;dbl&gt; 0.52079849, 0.07316715, 0.85507824, 0.25477053, 0.3086…
+## $ customer_nu     &lt;dbl&gt; 0.06066443, 1.90715501, 3.78362180, 1.18160127, 0.3537…
+## $ customer_p      &lt;dbl&gt; 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…
+## $ lambda_qval     &lt;dbl&gt; 0.98200, 0.15650, 0.76775, 0.67475, 0.50675, 0.33975, …</code></pre>
 <div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(nonhier_qval_validation_tbl) <span class="sc">+</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="fu">aes</span>(<span class="at">x =</span> lambda_qval), <span class="at">bins =</span> <span class="dv">50</span>)</span></code></pre></div>
 <p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAACEAAAAYACAMAAABL/F//AAAC/VBMVEUAAAABAQECAgIDAwMEBAQFBQUGBgYHBwcICAgJCQkKCgoLCwsMDAwNDQ0ODg4PDw8QEBARERESEhITExMUFBQVFRUWFhYXFxcYGBgZGRkaGhobGxscHBwdHR0eHh4fHx8gICAhISEiIiIjIyMkJCQlJSUmJiYnJycoKCgpKSkqKiorKyssLCwtLS0uLi4vLy8wMDAxMTEyMjIzMzM0NDQ1NTU2NjY3Nzc4ODg5OTk6Ojo7Ozs8PDw9PT0+Pj4/Pz9AQEBBQUFCQkJDQ0NERERGRkZHR0dISEhJSUlKSkpLS0tMTExNTU1OTk5PT09QUFBRUVFSUlJTU1NUVFRVVVVWVlZXV1dYWFhZWVlaWlpbW1tcXFxdXV1eXl5fX19gYGBhYWFiYmJjY2NkZGRlZWVmZmZnZ2doaGhpaWlqampra2tsbGxtbW1ubm5vb29wcHBxcXFycnJzc3N0dHR1dXV2dnZ3d3d4eHh5eXl6enp7e3t8fHx9fX1+fn5/f3+AgICBgYGCgoKDg4OEhISFhYWGhoaHh4eIiIiJiYmKioqLi4uMjIyNjY2Ojo6Pj4+QkJCRkZGSkpKTk5OUlJSVlZWWlpaXl5eYmJiZmZmampqbm5ucnJydnZ2enp6fn5+goKChoaGioqKjo6OkpKSlpaWmpqanp6eoqKipqamqqqqrq6usrKytra2urq6vr6+wsLCxsbGysrKzs7O0tLS1tbW2tra3t7e4uLi5ubm6urq7u7u8vLy9vb2+vr6/v7/AwMDBwcHCwsLDw8PExMTFxcXGxsbHx8fIyMjJycnKysrLy8vMzMzNzc3Ozs7Pz8/Q0NDR0dHS0tLT09PU1NTV1dXW1tbX19fY2NjZ2dna2trb29vc3Nzd3d3e3t7f39/g4ODh4eHi4uLj4+Pk5OTl5eXm5ubn5+fo6Ojp6enq6urr6+vs7Ozt7e3u7u7v7+/w8PDx8fHy8vLz8/P09PT19fX29vb39/f4+Pj5+fn6+vr7+/v8/Pz9/f3+/v7///9RsX/cAAAACXBIWXMAAB2HAAAdhwGP5fFlAAAgAElEQVR4nOzdffC3WV3Y97OywrKuRLqrLmycAj6wBO3YaEeCxaJjNG4yyphMQ8LEjq0wCpTBrkIzGqbGSYzUKGzECW0wPjClGWcYJYxDig+dxKfKIKO1NDaAgKF0RHmYRQPCnun99GPve38XF99zrvM5v3Ou6/X6Z3/3975/1/dzPZzveQ/cDykDABRKFz0AADAfAQEAFBMQAEAxAQEAFBMQAEAxAQEAFBMQAEAxAQEAFBMQAEAxAQEAFBMQAEAxAQEAFBMQAEAxAQEAFBMQAEAxAQEAFBsjIP6PL/uyf3jRMwAAJxsjIH4hpe+46BkAgJMJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJCACgmIAAAIoJiEue+ald4HQAMB4BkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQCkBkQUEAJQSEFlAAEApAZEFBACUEhBZQABAKQGRBQQAlBIQWUAAQKl2AfGe3/949fcKCACYSrOA+LPPSu/9xA9emB7069dee9t33n3rHU/70Y8sfbOAAICpNAuI16XrAuKvnQ+IVz7y6g+f/PaFbxYQADCVVgFx/1+4PiCelG778jO/c+WVV9+U0lfd+5w7U3rC+89/t4AAgKk0Cohfelq6LiA+/oj0zTf+/B/fkR72mkv//ZN7UnrB+W8XEAAwlRYB8fK/+tgr/+/EJwLinSm9+MZf8n0p3Xvliw/cmW5+b34oAQEAU2kREE+/9rsdPhEGl3rgn934S56cbn7P1a9ektIrzh1BQADAVFoExCtffMnjrwuIf5rSv77hV7wzpade+/LNKd1z7ggCAgCm0uxPYXz9dQHxXZe+vv+XX/mPX3Ptf3XIr0/phde+/Ngj0+POfbOAAICphATEM9IjX/Y5l/9PjZue9UdXXnhpSved/eQT000ffug3CwgAmEpIQHzJg38LxOf+8uUXXpzSz5z95NNTevdDv1lAAMBUIgLigVtTuv2+d/3p777qrpTu+tClV56X0s+f/cJvSOmtZ1+/7cHSEBAAMI+IgPiDlJ7writfvf8pKT330n+/NaVfPPuFz0jpN8++nicgTnGBZwAAfUUExMfe974/vfblb31aevj9OX9HSm84+4X3pPTbZ1+/6wlXPUZAAMBMQn4PxHWeltIv5PzdKb327JWvTukdD/1V4/8eCAEBANeJDohvS+mnrvwpjB87e+VJKX3wob9KQADAVKID4ntS+umcfy6lF1174YHPSI8996sEBABMJSIg3vRvfuUTLz8zpTfm/I6UvubaC7+b0ted+2YBAQBTiQiIS1/+xrUvP/6F6dMv/znOu9Mt1/4V7x9K6WXnvllAAMBUIgLiR1L6xmtfviKlv3X5v9+b0g9eeeGjX5Rufte5bxYQADCViID44Oek9MLLf5DzgVfelh595dX3fWa67U2XX3l+Ss8+/80CAgCmEvKbKF97c0p3fcvffdbdKaUfv/rSq1K69fk/8fKnpvT4Pzz/zQICAKYS86cwfvbOa3+/5KN+8uyll9589ZW737rwzQICAKYS9Mc4P3Tf19718Nuf8vff9+BLb3n2599y+1f88Ll/ifMyAQEAU2kWEJsICACYioDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYjcLCBEBgCHISCygACAUgIiCwgAKCUgsoAAgFICIgsIACglILKAAIBSAiILCAAoJSCygACAUgIiCwgAKCUgsoAAgFICIgsIACglILKAAIBSAiILCAAoJSCygACAUgIiCwgAKCUgsoAAgFICIgsIACglILKAAIBSAiILCAAoJSCygACAUgIiCwgAKCUgsoAAgFICIgsIACglILKAAIBSAiILCAAoJSCygACAUgIiCwgAKCUgsoAAgFICIgsIACglILKAAIBSAiILCAAoJSCygACAUgIizxgQ/d4JAJYIiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSAyAICAEoJiCwgAKCUgMgCAgBKCYgsIACglIDIAgIASgmILCAAoJSA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fOOH46jjtJm44zTHJSCAAMddnf1OfOOH46jjtJm44zTHJSCAAMddnf1OfOOH46jjtJm44zTHJSCAAMddnf1OfOOH46jjtJm44zTHJSCAAMddnf1OfOOH46jjtJm44zTHJSCAAMddnf1OfOOH46jjtJm44zTHJSCAAMddnf1OfOOH46jjtJm44zTHJSCAAMddnf1OfOOH46jjtJm44zTHJSCAAMddnWOdeMf7cMpbNTLWNMclIIAAx12dY514x/twyls1MtY0xyUggADHXZ1jnXjH+3DKWzUy1jTHJSCAAMddnWOdeMf7cMpbNTLWNMclIIAAx12dY514x/twyls1MtY0xyUggADHXZ1jnXjH+3DKWzUy1jTHJSCAAMddnWOdeMf7cMpbNTLWNMclIIAAx12dY514x/twyls1MtY0xyUggADHXZ1jnXjH+3DKWzUy38T7JCCAAMddnWOdeMf7cMpbNTLfxPskIIAAx12dY514x/twyls1Mt/E+yQggADHXZ1jnXjH+3DKWzUy38T7JCCAAMddnWOdeMf7cMpbNTLfxPskIIAAx12dY514x/twyls1Mt/E+yQggADHXZ1jnXjH+3DKWzUy38T7JCCAAMddnWOdeMf7cMpbNTLfxPskIIAAx12dY514x/twyls1Mt/E+yQggADHXZ1jnXjH+3DKWzUy38T7JCCAAMddnWOdeMf7cMpbNTLfxPskIIAAx12dY514x/twyls1Mt/E+yQggADHXZ1jnXjH+3DKWzUy38T7JCCAAMddnWOdeMf7cMpbNTLfxPskIIAAx12dY514x/twyls1Mt/E+yQggADHXZ1jnXjH+3DKWzUy38T7JCCAAMddnWOd+Fj34ZRpOk7capzDEhBAgOOuzrFOfKz7cMo0HSduNc5hCQggwHFX51gnPtZ9OGWajhO3GuewBAQQ4Lirc6wTH+s+nDJNx4lbjXNYAgIIcNzVOdaJj3UfTpmm48StxjksAQEEOO7qHOvEx7oPp0zTceJW4xyWgAACHHd1jnXiY92HU6bpOHGrcQ5LQAABjrs6xzrxse7DKdN0nLjVOIclIIAAVifnDfa53mqcwxIQQACrk/MG+1xvNc5hCQgggNXJeYN9rrca57AEBBDA6uS8wT7XW41zWAICCGB1ct5gn+utxjksAQEEsDo5b7DP9VbjHJaAAAJYnZw32Od6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" width="1056" /></p>
@@ -500,95 +500,95 @@ function that we use to calculate the q-value of the parameter</p>
 ## Chain 3 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 1 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 2 Iteration:  100 / 2000 [  5%]  (Warmup) 
-## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
-## Chain 3 Iteration:  200 / 2000 [ 10%]  (Warmup) 
 ## Chain 1 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 3 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 2 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 1 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 3 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 4 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-## Chain 1 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 2 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 3 Iteration:  400 / 2000 [ 20%]  (Warmup) 
-## Chain 4 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 1 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 4 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-## Chain 4 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 4 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 ## Chain 3 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 ## Chain 1 Iteration:  600 / 2000 [ 30%]  (Warmup) 
 ## Chain 2 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 ## Chain 3 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-## Chain 4 Iteration:  600 / 2000 [ 30%]  (Warmup) 
 ## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
 ## Chain 2 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-## Chain 3 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 4 Iteration:  600 / 2000 [ 30%]  (Warmup) 
 ## Chain 1 Iteration:  800 / 2000 [ 40%]  (Warmup) 
-## Chain 4 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 3 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
-## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 4 Iteration:  700 / 2000 [ 35%]  (Warmup) 
 ## Chain 1 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-## Chain 4 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
 ## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-## Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-## Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 4 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 ## Chain 4 Iteration:  900 / 2000 [ 45%]  (Warmup) 
 ## Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 3 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
 ## Chain 3 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
 ## Chain 4 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
-## Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
 ## Chain 2 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 1 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 3 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 4 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-## Chain 1 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 2 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 3 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-## Chain 4 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 1 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 4 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-## Chain 4 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 4 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 ## Chain 3 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
-## Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 ## Chain 1 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 ## Chain 2 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
 ## Chain 3 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
 ## Chain 1 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
 ## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
 ## Chain 3 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-## Chain 4 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
 ## Chain 1 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 4 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
 ## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 3 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-## Chain 4 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 4 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
 ## Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 3 finished in 72.9 seconds.
-## Chain 4 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 3 finished in 74.5 seconds.
 ## Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 1 finished in 73.6 seconds.
+## Chain 1 finished in 75.4 seconds.
+## Chain 4 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
 ## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 2 finished in 74.3 seconds.
+## Chain 2 finished in 76.0 seconds.
 ## Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 4 finished in 75.1 seconds.
+## Chain 4 finished in 76.9 seconds.
 ## 
 ## All 4 chains finished successfully.
-## Mean chain execution time: 74.0 seconds.
-## Total execution time: 75.5 seconds.</code></pre>
+## Mean chain execution time: 75.7 seconds.
+## Total execution time: 78.1 seconds.</code></pre>
 <div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>hier_freq_stanfit<span class="sc">$</span><span class="fu">summary</span>(</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;lb_mean&quot;</span>, <span class="st">&quot;lb_cov&quot;</span>, <span class="st">&quot;r&quot;</span>, <span class="st">&quot;alpha&quot;</span>)</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
@@ -600,7 +600,7 @@ function that we use to calculate the q-value of the parameter</p>
 ## 3 r        2.04   2.04  0.0574  0.0580  1.95  2.13   1.00    2982.    3113.
 ## 4 alpha    3.78   3.78  0.126   0.128   3.57  3.98   1.00    3208.    3086.</code></pre>
 <div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>hier_freq_stanfit<span class="sc">$</span><span class="fu">cmdstan_diagnose</span>()</span></code></pre></div>
-<pre><code>## Processing csv files: /tmp/Rtmp0KBWWc/clv_freqmodel_hier-202112081726-1-5602d9.csv, /tmp/Rtmp0KBWWc/clv_freqmodel_hier-202112081726-2-5602d9.csv, /tmp/Rtmp0KBWWc/clv_freqmodel_hier-202112081726-3-5602d9.csv, /tmp/Rtmp0KBWWc/clv_freqmodel_hier-202112081726-4-5602d9.csv
+<pre><code>## Processing csv files: /tmp/Rtmpej5ofO/clv_freqmodel_hier-202112141506-1-5605e0.csv, /tmp/Rtmpej5ofO/clv_freqmodel_hier-202112141506-2-5605e0.csv, /tmp/Rtmpej5ofO/clv_freqmodel_hier-202112141506-3-5605e0.csv, /tmp/Rtmpej5ofO/clv_freqmodel_hier-202112141506-4-5605e0.csv
 ## 
 ## Checking sampler transitions treedepth.
 ## Treedepth satisfactory for all transitions.
@@ -647,7 +647,7 @@ function that we use to calculate the q-value of the parameter</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-12-08                  
+##  date     2021-12-14                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package        * version   date       lib source                             
@@ -765,7 +765,7 @@ function that we use to calculate the q-value of the parameter</p>
 ##  rmarkdown        2.11      2021-09-14 [1] RSPM (R 4.1.0)                     
 ##  rmdformats       1.0.3     2021-10-06 [1] RSPM (R 4.1.0)                     
 ##  rsconnect        0.8.24    2021-08-05 [1] RSPM (R 4.1.0)                     
-##  rstan            2.26.4    2021-12-02 [1] local                              
+##  rstan          * 2.26.4    2021-12-02 [1] local                              
 ##  rstantools       2.1.1     2020-07-06 [1] RSPM (R 4.1.0)                     
 ##  rstudioapi       0.13      2020-11-12 [1] RSPM (R 4.1.0)                     
 ##  rvest            1.0.2     2021-10-16 [1] RSPM (R 4.1.0)                     
@@ -776,7 +776,7 @@ function that we use to calculate the q-value of the parameter</p>
 ##  shinyjs          2.0.0     2020-09-09 [1] RSPM (R 4.1.0)                     
 ##  shinystan        2.5.0     2018-05-01 [1] RSPM (R 4.1.0)                     
 ##  shinythemes      1.2.0     2021-01-25 [1] RSPM (R 4.1.0)                     
-##  StanHeaders      2.26.4    2021-12-02 [1] local                              
+##  StanHeaders    * 2.26.4    2021-12-02 [1] local                              
 ##  stringi          1.7.5     2021-10-04 [1] RSPM (R 4.1.0)                     
 ##  stringr        * 1.4.0     2019-02-10 [1] RSPM (R 4.1.0)                     
 ##  svUnit           1.0.6     2021-04-19 [1] RSPM (R 4.1.0)                     
