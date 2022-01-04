@@ -35,7 +35,6 @@ library(fs)
 library(purrr)
 library(furrr)
 library(glue)
-library(rstan)
 library(cmdstanr)
 library(brms)
 library(posterior)
@@ -44,6 +43,8 @@ library(tidybayes)
 
 
 source("lib_utils.R")
+source("lib_btyd.R")
+
 
 conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
@@ -65,8 +66,6 @@ options(
   warn  = 1,
   mc.cores = parallel::detectCores()
   )
-
-rstan_options(auto_write = FALSE)
 
 theme_set(theme_cowplot())
 
@@ -228,6 +227,8 @@ the same thing here.
 
 ```{r set_training_data_date, echo=TRUE}
 training_data_date <- as.Date("2011-03-31")
+
+synth_training_date <- as.Date("2016-12-31")
 ```
 
 We also wish to load the generated data.
@@ -241,32 +242,17 @@ customer_basic_transactions_tbl %>% glimpse()
 
 customer_cohort_data_tbl <- read_rds("data/customer_cohort_tbl.rds")
 customer_cohort_data_tbl %>% glimpse()
+
+customer_synth_simparams_tbl <- read_rds("data/customer_synth_050000_simparams_tbl.rds")
+customer_synth_simparams_tbl %>% glimpse()
+
+customer_synth_transactions_tbl <- read_rds("data/customer_synth_050000_transactions_tbl.rds")
+customer_synth_transactions_tbl %>% glimpse()
 ```
 
 
 We now convert the transaction data into the CBS format as an input the BTYD
 models.
-
-
-```{r calculate_transaction_cbs_data, echo=TRUE}
-calculate_transaction_cbs_data <- function(tnx_data_tbl, last_date) {
-  cbs_data_tbl <- tnx_data_tbl %>%
-    filter(tnx_timestamp <= last_date) %>%
-    group_by(customer_id) %>%
-    summarise(
-      .groups = "drop",
-
-      first_tnx_date = min(tnx_timestamp),
-      last_tnx_date  = max(tnx_timestamp),
-
-      x     = n() - 1,
-      t_x   = difftime(last_tnx_date, first_tnx_date, units = "weeks") %>% as.numeric(),
-      T_cal = difftime(last_date,     first_tnx_date, units = "weeks") %>% as.numeric()
-      )
-
-  return(cbs_data_tbl)
-}
-```
 
 
 We now combine all this data to construct our CLV input data.
@@ -558,6 +544,63 @@ pnbd_basic_prior_stanfit   %>% write_rds("data/pnbd_basic_prior_stanfit.rds")
 ```
 
 
+## Fit Sample on Larger Dataset
+
+```{r fit_customer_pnbd_basic_synth_model, echo=TRUE}
+customer_synth_cbs_tbl <- customer_synth_transactions_tbl %>%
+  calculate_transaction_cbs_data(
+    last_date = synth_training_date
+    ) %>%
+  filter(
+    first_tnx_date < synth_training_date,
+    x > 0
+    )
+
+stan_data_lst <- customer_synth_cbs_tbl %>%
+  select(-first_tnx_date, -last_tnx_date) %>%
+  compose_data(
+    lb_mean_a = -1.6000,   lb_mean_b =  1.0000,
+    lb_cov_a  = -2.1000,   lb_cov_b  =  1.0000,
+
+    mu_mean_a = -0.0500,   mu_mean_b =  1.0000,
+    mu_cov_a  = -0.1250,   mu_cov_b  =  0.5000
+  )
+
+pnbd_basic_prior_synth_stanfit <- pnbd_basic_prior_stanmodel$sample(
+  data          =  stan_data_lst,
+  chains        =              4,
+  iter_warmup   =           1000,
+  iter_sampling =           1000,
+  seed          =            422
+  )
+
+pnbd_basic_prior_synth_stanfit$save_output_files(
+  dir      = "stan_models",
+  basename = "pnbd_basic_prior_synth"
+  )
+```
+
+
+```{r check_pnbd_basic_prior_diagnostics, echo=TRUE}
+pnbd_basic_prior_synth_stanfit$cmdstan_diagnose()
+
+pnbd_basic_prior_synth_stanfit$summary(
+  c("lb_mean", "mu_mean", "lb_cov", "mu_cov", "r", "alpha", "s", "beta")
+  )
+```
+
+
+```{r extract_basic_pnbd_prior_synth_posterior_params, echo=TRUE}
+customer_basic_pnbd_prior_synth_draws <- pnbd_basic_prior_synth_stanfit$draws()
+
+customer_basic_pnbd_prior_synth_posterior_tbl <- customer_basic_pnbd_prior_synth_draws %>%
+  recover_types(customer_synth_cbs_tbl) %>%
+  spread_draws(mu[customer_id], lambda[customer_id]) %>%
+  ungroup()
+
+customer_basic_pnbd_prior_synth_posterior_tbl %>% glimpse()
+```
+
 
 ## Construct Fixed-Coefficient of Variance Model
 
@@ -842,6 +885,7 @@ calculate_posterior_data_probs <- customer_basic_simparams_tbl %>%
 posterior_uniformcheck_tbl <- list(
     fixed = customer_basic_pnbd_fixed_posterior_tbl,
     prior = customer_basic_pnbd_prior_posterior_tbl,
+    synth = customer_basic_pnbd_prior_synth_posterior_tbl,
     cov05 = post05_customer_tbl,
     cov10 = post10_customer_tbl,
     cov20 = post20_customer_tbl

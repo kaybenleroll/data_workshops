@@ -39,7 +39,12 @@ full_deps.dot:
 
 depgraph: full_deps.png
 
+exploring_retail_data.html: retrieve_retail_data.html
+generate_transaction_datasets.html: exploring_retail_data.html
 
+exploring_btyd_synthetic_data.html: exploring_retail_data.html
+initial_btyd_models.html: exploring_retail_data.html
+initial_tnx_frequency_models.html: exploring_retail_data.html
 
 
 mrproper: clean-cache clean-data clean-html
