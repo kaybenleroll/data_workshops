@@ -35,6 +35,7 @@ library(glue)
 library(purrr)
 library(furrr)
 library(DT)
+library(lubridate)
 
 
 source("lib_utils.R")
@@ -84,7 +85,8 @@ portfolio_cols <- cols(
   coupon        = col_number(),
   issued_date   = col_date(format = "%Y-%m-%d"),
   maturity_date = col_date(format = "%Y-%m-%d"),
-  price         = col_number()
+  price         = col_number(),
+  position      = col_integer()
   )
 
 first_portfolio_tbl <- read_csv(
@@ -96,6 +98,9 @@ first_portfolio_tbl %>% glimpse()
 ```
 
 
+
+# Construct Cashflow Data
+
 ```{r create_coupon_payment_dates, echo=TRUE}
 create_coupon_payment_dates <- function(init_date, final_date) {
   max_year <- difftime(final_date, init_date, units = "days") %>%
@@ -104,12 +109,62 @@ create_coupon_payment_dates <- function(init_date, final_date) {
     ceiling()
   
   coupon_date_tbl <- (init_date %m+% months(6 * 1:max_year)) %>%
-    enframe(name = NULL, value = "coupon_date") %>%
-    filter(coupon_date <= final_date)
+    enframe(name = NULL, value = "cashflow_date") %>%
+    filter(cashflow_date <= final_date)
   
   return(coupon_date_tbl)
 }
+```
 
+
+```{r calculate_cashflow_data, echo=TRUE}
+calculate_cashflow_data <- function(init_date, final_date, position, coupon,
+                                    contract_size = 1000) {
+  
+  par_value      <- position  * contract_size
+  coupon_payment <- par_value * coupon * 0.01
+  
+  coupon_data_tbl <- create_coupon_payment_dates(init_date, final_date) %>%
+    mutate(
+      cashflow_amt = coupon_payment
+      )
+  
+  final_tbl <- tibble(
+    cashflow_date = final_date,
+    cashflow_amt  = par_value
+    )
+  
+  cashflow_tbl <- list(coupon_data_tbl, final_tbl) %>%
+    bind_rows()
+  
+  return(cashflow_tbl)
+}
+```
+
+
+```{r calculate_portfolio_cashflow_data, echo=TRUE}
+calculate_portfolio_cashflow_data <- function(portfolio_tbl, current_date,
+                                              id_cols = c("issuer", "currency")) {
+  cashflow_tbl <- first_portfolio_tbl %>%
+    mutate(
+      cash_data = pmap(
+        list(
+          init_date  = issued_date,
+          final_date = maturity_date,
+          position   = position,
+          coupon     = coupon
+          ),
+        calculate_cashflow_data,
+        contract_size = 1000
+        )
+      ) %>%
+    select(any_of(id_cols), cash_data) %>%
+    unnest(cash_data) %>%
+    filter(cashflow_date >= current_date) %>%
+    arrange(cashflow_date)
+  
+  return(cashflow_tbl)
+}
 ```
 
 
