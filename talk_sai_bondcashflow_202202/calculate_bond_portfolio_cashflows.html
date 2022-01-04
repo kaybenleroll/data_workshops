@@ -210,12 +210,13 @@
       <ul>
       <li><a href="#load-portfolio-data"><span class="toc-section-number">1.1</span> Load Portfolio Data</a></li>
       </ul></li>
-      <li><a href="#r-environment"><span class="toc-section-number">2</span> R Environment</a></li>
+      <li><a href="#construct-cashflow-data"><span class="toc-section-number">2</span> Construct Cashflow Data</a></li>
+      <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
       </ul>
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney</p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: December 06, 2021</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 04, 2022</p>
           </div>
    </div>
      
@@ -239,23 +240,29 @@ need to properly account for cashflows.</p>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">coupon        =</span> <span class="fu">col_number</span>(),</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">issued_date   =</span> <span class="fu">col_date</span>(<span class="at">format =</span> <span class="st">&quot;%Y-%m-%d&quot;</span>),</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">maturity_date =</span> <span class="fu">col_date</span>(<span class="at">format =</span> <span class="st">&quot;%Y-%m-%d&quot;</span>),</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">price         =</span> <span class="fu">col_number</span>()</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;data/highyield_bond_portfolio.csv&quot;</span>,</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> portfolio_cols</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">price         =</span> <span class="fu">col_number</span>(),</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">position      =</span> <span class="fu">col_integer</span>()</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;data/highyield_bond_portfolio.csv&quot;</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> portfolio_cols</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 37
-## Columns: 6
+## Columns: 7
 ## $ issuer        [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;AGT Food &amp; Ingredients Inc&quot;, &quot;Athabasca Oil Corp&quot;, &quot;Cen…
 ## $ currency      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, &quot;USD&quot;, &quot;USD&quot;, …
 ## $ coupon        [3m[38;5;246m&lt;dbl&gt;[39m[23m 9.000, 7.500, 8.625, 8.875, 7.500, 5.400, 7.625, 11.375,…
 ## $ issued_date   [3m[38;5;246m&lt;date&gt;[39m[23m 2013-04-11, 2012-11-19, 2013-04-18, 2010-09-22, 2014-09…
 ## $ maturity_date [3m[38;5;246m&lt;date&gt;[39m[23m 2016-02-14, 2016-11-19, 2018-04-14, 2017-09-22, 2019-09…
-## $ price         [3m[38;5;246m&lt;dbl&gt;[39m[23m 107.63, 100.50, 87.25, 73.75, 100.50, 104.13, 103.25, 11…</code></pre>
+## $ price         [3m[38;5;246m&lt;dbl&gt;[39m[23m 107.63, 100.50, 87.25, 73.75, 100.50, 104.13, 103.25, 11…
+## $ position      [3m[38;5;246m&lt;int&gt;[39m[23m 64, 83, 219, 264, 237, 61, 177, 203, 90, 242, 115, 105, …</code></pre>
+</div>
+</div>
+<div id="construct-cashflow-data" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Construct Cashflow Data</h1>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>create_coupon_payment_dates <span class="ot">&lt;-</span> <span class="cf">function</span>(init_date, final_date) {</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  max_year <span class="ot">&lt;-</span> <span class="fu">difftime</span>(final_date, init_date, <span class="at">units =</span> <span class="st">&quot;days&quot;</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.numeric</span>() <span class="sc">%&gt;%</span></span>
@@ -263,16 +270,58 @@ need to properly account for cashflows.</p>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ceiling</span>()</span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  coupon_date_tbl <span class="ot">&lt;-</span> (init_date <span class="sc">%m+%</span> <span class="fu">months</span>(<span class="dv">6</span> <span class="sc">*</span> <span class="dv">1</span><span class="sc">:</span>max_year)) <span class="sc">%&gt;%</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;coupon_date&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(coupon_date <span class="sc">&lt;=</span> final_date)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;cashflow_date&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(cashflow_date <span class="sc">&lt;=</span> final_date)</span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(coupon_date_tbl)</span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>calculate_cashflow_data <span class="ot">&lt;-</span> <span class="cf">function</span>(init_date, final_date, position, coupon,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">contract_size =</span> <span class="dv">1000</span>) {</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  par_value      <span class="ot">&lt;-</span> position  <span class="sc">*</span> contract_size</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  coupon_payment <span class="ot">&lt;-</span> par_value <span class="sc">*</span> coupon <span class="sc">*</span> <span class="fl">0.01</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  coupon_data_tbl <span class="ot">&lt;-</span> <span class="fu">create_coupon_payment_dates</span>(init_date, final_date) <span class="sc">%&gt;%</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">cashflow_amt =</span> coupon_payment</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  final_tbl <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">cashflow_date =</span> final_date,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">cashflow_amt  =</span> par_value</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  cashflow_tbl <span class="ot">&lt;-</span> <span class="fu">list</span>(coupon_data_tbl, final_tbl) <span class="sc">%&gt;%</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bind_rows</span>()</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(cashflow_tbl)</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>calculate_portfolio_cashflow_data <span class="ot">&lt;-</span> <span class="cf">function</span>(portfolio_tbl, current_date,</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">id_cols =</span> <span class="fu">c</span>(<span class="st">&quot;issuer&quot;</span>, <span class="st">&quot;currency&quot;</span>)) {</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  cashflow_tbl <span class="ot">&lt;-</span> first_portfolio_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">cash_data =</span> <span class="fu">pmap</span>(</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">list</span>(</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">init_date  =</span> issued_date,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">final_date =</span> maturity_date,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">position   =</span> position,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">coupon     =</span> coupon</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>          ),</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        calculate_cashflow_data,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="at">contract_size =</span> <span class="dv">1000</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="fu">any_of</span>(id_cols), cash_data) <span class="sc">%&gt;%</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">unnest</span>(cash_data) <span class="sc">%&gt;%</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(cashflow_date <span class="sc">&gt;=</span> current_date) <span class="sc">%&gt;%</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(cashflow_date)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(cashflow_tbl)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
 </div>
-</div>
-<div id="r-environment" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> R Environment</h1>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div id="r-environment" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> R Environment</h1>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
@@ -283,7 +332,7 @@ need to properly account for cashflows.</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2021-12-06                  
+##  date     2022-01-04                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
 ##  package     * version date       lib source        
@@ -330,7 +379,7 @@ need to properly account for cashflows.</p>
 ##  knitr         1.36    2021-09-29 [1] RSPM (R 4.1.0)
 ##  lifecycle     1.0.1   2021-09-24 [1] RSPM (R 4.1.0)
 ##  listenv       0.8.0   2019-12-05 [1] RSPM (R 4.1.0)
-##  lubridate     1.8.0   2021-10-07 [1] RSPM (R 4.1.0)
+##  lubridate   * 1.8.0   2021-10-07 [1] RSPM (R 4.1.0)
 ##  magrittr    * 2.0.1   2020-11-17 [1] RSPM (R 4.1.0)
 ##  modelr        0.1.8   2020-05-19 [1] RSPM (R 4.1.0)
 ##  munsell       0.5.0   2018-06-12 [1] RSPM (R 4.1.0)
@@ -341,7 +390,7 @@ need to properly account for cashflows.</p>
 ##  R6            2.5.1   2021-08-19 [1] RSPM (R 4.1.0)
 ##  Rcpp          1.0.7   2021-07-07 [1] RSPM (R 4.1.0)
 ##  readr       * 2.0.2   2021-09-27 [1] RSPM (R 4.1.0)
-##  readxl      * 1.3.1   2019-03-13 [1] RSPM (R 4.1.0)
+##  readxl        1.3.1   2019-03-13 [1] RSPM (R 4.1.0)
 ##  reprex        2.0.1   2021-08-05 [1] RSPM (R 4.1.0)
 ##  rlang       * 0.4.12  2021-10-18 [1] RSPM (R 4.1.0)
 ##  rmarkdown     2.11    2021-09-14 [1] RSPM (R 4.1.0)
