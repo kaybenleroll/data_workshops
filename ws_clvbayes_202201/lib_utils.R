@@ -31,3 +31,18 @@ resolve_conflicts <- function(pkg_priority) {
   return(conflict_lst)
 }
 
+
+calculate_distribution_qvals <- function(data_tbl, distrib_vals, ref_val, ...) {
+  qval_data_tbl <- data_tbl %>%
+    group_by(..., {{ ref_val }}) %>%
+    summarise(
+      .groups = "drop",
+
+      dval_lst = list({{ distrib_vals }})
+    ) %>%
+    mutate(
+      q_val = map2_dbl(dval_lst, {{ref_val}}, ~ ecdf(.x)(.y))
+    )
+
+  return(qval_data_tbl)
+}

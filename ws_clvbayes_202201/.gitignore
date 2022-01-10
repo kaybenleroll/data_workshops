@@ -1,3 +1,5 @@
+old_workbooks/*.Rmd
+
 *.dot
 *.png
 
