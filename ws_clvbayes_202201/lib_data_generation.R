@@ -9,7 +9,7 @@ generate_customer_cohort_data <- function(n_customers, first_date, last_date) {
     arrange(first_tnx_date) %>%
     group_by(format(first_tnx_date, "%Y%m")) %>%
     mutate(
-      customer_id = sprintf("CUST%s-%04d", format(first_tnx_date, "%Y%m"), 1:n()),
+      customer_id = sprintf("C%s_%04d", format(first_tnx_date, "%Y%m"), 1:n()),
       cohort_qtr  = first_tnx_date %>% as.yearqtr() %>% as.character(),
       cohort_ym   = first_tnx_date %>% format("%Y %m")
       ) %>%
@@ -99,3 +99,15 @@ generate_pnbd_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_
 }
 
 
+generate_transaction_metadata <- function(data_tbl) {
+  transactions_tbl <- data_tbl %>%
+    arrange(tnx_timestamp) %>%
+    group_by(tnx_date = as.Date(tnx_timestamp)) %>%
+    mutate(
+      invoice_id = sprintf("T%s-%04d", format(tnx_date, "%Y%m%d"), 1:n())
+    ) %>%
+    ungroup() %>%
+    select(customer_id, tnx_timestamp, invoice_id, tnx_amount)
+
+  return(transactions_tbl)
+}

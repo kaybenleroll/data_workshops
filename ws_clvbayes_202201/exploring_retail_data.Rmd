@@ -1098,7 +1098,7 @@ ts_data_tbl <- list(
   bind_rows(.id = "series") %>%
   arrange(series, period_date)
 
-ts_data_tbl %>% write_rds("data/retail_timeseries_tbl.rds")
+ts_data_tbl %>% glimpse()
 ```
 
 
@@ -1766,17 +1766,10 @@ Finally we output the various datasets we have constructed to disks.
 
 
 ```{r write_to_disk, echo=TRUE}
-stock_code_lookup_tbl %>% write_rds("data/stock_code_lookup_tbl.rds")
-
-returns_lookup_tbl %>% write_rds("data/returns_lookup_tbl.rds")
-
-cleaned_data_tbl %>% write_rds("data/retail_data_cleaned_tbl.rds")
-
-customer_cohort_tbl %>% write_rds("data/customer_cohort_tbl.rds")
-
+cleaned_data_tbl        %>% write_rds("data/retail_data_cleaned_tbl.rds")
+customer_cohort_tbl     %>% write_rds("data/customer_cohort_tbl.rds")
 daily_spend_invoice_tbl %>% write_rds("data/daily_spend_invoice_tbl.rds")
-
-daily_spend_tbl %>% write_rds("data/daily_spend_tbl.rds")
+daily_spend_tbl         %>% write_rds("data/daily_spend_tbl.rds")
 ```
 
 

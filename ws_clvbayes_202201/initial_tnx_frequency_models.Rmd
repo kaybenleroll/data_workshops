@@ -59,9 +59,10 @@ knitr::opts_chunk$set(
   )
 
 options(
-  width = 80L,
-  warn  = 1,
-  mc.cores = parallel::detectCores()
+  width        = 80L,
+  warn         = 1,
+  brms.backend = "cmdstanr",
+  mc.cores     = parallel::detectCores()
   )
 
 theme_set(theme_cowplot())
@@ -75,176 +76,181 @@ In this workbook we investigate different ways to model the transaction
 frequency of individual customers, with a view to expanding this approach into
 a more traditional P/NBD model.
 
-```{r load_transaction_data, echo=TRUE}
-customer_basic_transactions_tbl <- read_rds("data/customer_basic_transactions_tbl.rds")
-customer_basic_transactions_tbl %>% glimpse()
+# Load and Configure Datasets
 
-customer_basic_simparams_tbl <- read_rds("data/customer_basic_simparams_tbl.rds")
-customer_basic_simparams_tbl %>% glimpse()
+We first want to load some synthetic transaction data.
+
+```{r load_synth_transaction_data, echo=TRUE}
+customer_cohort_tbl <- read_rds("data/synthdata_longframe_cohort_tbl.rds")
+customer_cohort_tbl %>% glimpse()
+
+customer_simparams_tbl <- read_rds("data/synthdata_longframe_simparams_tbl.rds")
+customer_simparams_tbl %>% glimpse()
+
+customer_transactions_tbl <- read_rds("data/synthdata_longframe_transactions_tbl.rds")
+customer_transactions_tbl %>% glimpse()
 ```
 
 
+## Construct Frequency Data
 
 ```{r construct_frequency_modelling_data, echo=TRUE}
-basic_freqmodelling_tbl <- customer_basic_transactions_tbl %>%
+customer_summarystats_tbl <- customer_transactions_tbl %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
     
-    tnx_count = n(),
-    tnx_time  = difftime(max(tnx_timestamp), min(tnx_timestamp), units = "weeks") %>% as.numeric()
+    tnx_count    = n(),
+    first_tnx_ts = min(tnx_timestamp),
+    last_tnx_ts  = max(tnx_timestamp),
+    tnx_weeks    = difftime(last_tnx_ts, first_tnx_ts, units = "weeks") %>% as.numeric(),
+    btyd_count   = tnx_count - 1,
+    tnx_freq     = btyd_count / tnx_weeks
     )
 
-basic_freqmodelling_tbl %>% glimpse()
+customer_summarystats_tbl %>% glimpse()
 ```
 
-We also want to construct the a version of the data where only the customers
-with multiple transactions remain in the dataset.
+We want to view the transactions to get a sense of how regular our transactions
+are in general.
 
-```{r construct_transaction_clvdata, echo=TRUE}
-customer_basic_tnxsummary_tbl <- basic_freqmodelling_tbl %>%
-  filter(tnx_count > 1) %>%
-  mutate(
-    x = tnx_count - 1,
-    t = tnx_time
+```{r plot_customer_transaction_times, echo=TRUE}
+plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id, .key = "cust_data") %>%
+  filter(map_int(cust_data, nrow) > 3) %>%
+  slice_sample(n = 30) %>%
+  unnest(cust_data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Date",
+    y = "Customer ID",
+    title = "Visualisation of Customer Transaction Times"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+
+## Construct Data Subsets
+
+For the purposes of saving on time and computation, we construct a subset of
+the data first, and rather than constructing different samples each time we
+instead construct sets of `customer_id` to draw upon, then using those list
+of values when we want to take a subset.
+
+We do this by randomly shuffling the data
+
+```{r construct_data_subset_ids, echo=TRUE}
+shuffle_tbl <- customer_summarystats_tbl %>%
+  slice_sample(n = nrow(.), replace = FALSE)
+
+id_1000  <- shuffle_tbl %>% head(1000)  %>% pull(customer_id) %>% sort()
+id_5000  <- shuffle_tbl %>% head(5000)  %>% pull(customer_id) %>% sort()
+id_10000 <- shuffle_tbl %>% head(10000) %>% pull(customer_id) %>% sort()
+```
+
+We now have a list of `customer_id` values we use to subset the data.
+
+
+# Construct Flat Frequency Model
+
+For first frequency model we fit each customer's transaction frequency
+independent of the other customers. We start with the estimation that the
+average customer frequency is about one transaction every four weeks (once a
+month) so this value determines our initial prior distribution for the
+transaction frequency.
+
+For our initial fit, we use only 1,000 eligible customers to reduce computation
+time.
+
+
+## Fit brms Model
+
+To start with we fit our model using `brms` as this provides a large amount
+of infrastructure and additional functionality that may be of use.
+
+```{r fit_flat_brms_frequency_model, echo=TRUE}
+fit_data_tbl <- customer_summarystats_tbl %>%
+  filter(
+    customer_id %in% id_1000,
+    btyd_count > 0
     )
 
-customer_basic_tnxsummary_tbl %>% glimpse()
+freqmodel_flat_brmfit <- brm(
+  formula = btyd_count ~ 0 + offset(log(tnx_weeks)) + customer_id,
+  data    = fit_data_tbl,
+  family  = poisson(),
+  prior   = c(
+    set_prior("gamma(1, 4)", class = "b", lb = 0)
+    ),
+  warmup   = 500,
+  iter     = 1000,
+  chains   = 4,
+  seed     = 421
+  )
 ```
 
 
-# Construct Fixed Hyper-prior Frequency Model
+Now that we have fit the model we want to see how well our posterior
+distribution is covering the 'correct' values.
+
+```{r construct_flat_freq_model_check, echo=TRUE}
+freqmodel_flat_postcheck_tbl <- freqmodel_flat_brmfit %>%
+  tidy_draws() %>%
+  pivot_longer(
+    !c(.chain, .iteration, .draw),
+    names_prefix = "b_customer_id",
+    names_to     = "customer_id",
+    values_to    = "post_freqmean"
+    ) %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(.draw, customer_id, customer_lambda, post_freqmean) %>%
+  calculate_distribution_qvals(post_freqmean, customer_lambda, customer_id)
+
+freqmodel_flat_postcheck_tbl %>% glimpse()
+```
 
 
+## Fit Stan Model
 
-```{r construct_nonhier_freqmodel, echo=TRUE}
-nonhier_freq_stanmodel <- cmdstan_model(
-  "stan_code/clv_freqmodel_nonhier.stan",
+```{r compile_freqmodel_flat_stanmodel, echo=TRUE}
+freqmodel_flat_stanmodel <- cmdstan_model(
+  "stan_code/freqmodel_flat.stan",
   include_paths = "stan_code/",
   pedantic      =  TRUE,
   dir           = "stan_models/"
   )
+```
 
-stan_data_lst <- customer_basic_tnxsummary_tbl %>%
+
+```{r fit_freqmodel_flat_stanmodel, echo=TRUE}
+stan_data_lst <- fit_data_tbl %>%
+  select(customer_id, btyd_count, tnx_weeks) %>%
   compose_data(
     r     =  1,
-    alpha =  3
+    alpha =  4
     )
 
-nonhier_freq_stanfit <- nonhier_freq_stanmodel$sample(
-  data          =  stan_data_lst,
-  chains        =              4,
-  iter_warmup   =           1000,
-  iter_sampling =           1000,
-  seed          =            421
-  )
-```
-
-```{r nonhier_freq_calculate_diagnostics_output_files, echo=TRUE}
-nonhier_freq_stanfit$cmdstan_diagnose()
-
-nonhier_freq_stanfit$save_output_files(
-  dir      = "stan_models",
-  basename = "nonhier_freq"
-)
-```
-
-
-## Perform Customer Frequency Validation
-
-```{r perform_nonhier_customer_freq_validation, echo=TRUE}
-nonhier_post_freq_tbl <- nonhier_freq_stanfit$draws() %>%
-  recover_types(customer_basic_tnxsummary_tbl) %>%
-  spread_draws(lambda[customer_id]) %>%
-  ungroup()
-
-nonhier_post_freq_tbl %>% glimpse()
-```
-
-We now use the posterior distribution of each parameter to construct an ECDF
-function that we use to calculate the q-value of the parameter
-
-```{r calculate_posterior_qvalues, echo=TRUE}
-nonhier_qval_validation_tbl <- nonhier_post_freq_tbl %>%
-  group_by(customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    lambda_vals = list(lambda)
-    ) %>%
-  inner_join(customer_basic_simparams_tbl, by = "customer_id") %>%
-  mutate(
-    lambda_qval = map2_dbl(lambda_vals, customer_lambda, ~ ecdf(.x)(.y))
-    )
-
-nonhier_qval_validation_tbl %>% glimpse()
-```
-
-```{r}
-ggplot(nonhier_qval_validation_tbl) +
-  geom_histogram(aes(x = lambda_qval), bins = 50)
-```
-
-
-# Construct Hierarchical Frequency Model
-
-```{r construct_hier_freqmodel, echo=TRUE}
-hier_freq_stanmodel <- cmdstan_model(
-  "stan_code/clv_freqmodel_hier.stan",
-  include_paths = "stan_code/",
-  pedantic      =  TRUE,
-  dir           = "stan_models/"
+freqmodel_flat_stanfit <- freqmodel_flat_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                         1000,
+  iter_sampling   =                         1000,
+  seed            =                          421,
+  output_dir      =                "stan_models",
+  output_basename =             "freqmodel_flat"
   )
 
-stan_data_lst <- customer_basic_tnxsummary_tbl %>%
-  compose_data()
-
-hier_freq_stanfit <- hier_freq_stanmodel$sample(
-  data          =  stan_data_lst,
-  chains        =              4,
-  iter_warmup   =           1000,
-  iter_sampling =           1000,
-  seed          =            422
-  )
-
-hier_freq_stanfit$summary(
-  c("lb_mean", "lb_cov", "r", "alpha")
-  )
+freqmodel_flat_stanfit$cmdstan_summary()
 ```
 
-```{r hier_freq_calculate_diagnostics_output_files, echo=TRUE}
-hier_freq_stanfit$cmdstan_diagnose()
+We first want to check the HMC diagnostics.
 
-hier_freq_stanfit$save_output_files(
-  dir      = "stan_models",
-  basename = "hier_freq"
-)
+```{r calculate_freqmodel_flat_hmc_diagnostics, echo=TRUE}
+freqmodel_flat_stanfit$cmdstan_diagnose()
 ```
-
-
-
-
-
-
-
-# Construct brms Version of Frequency Model
-
-```{r build_brms_freqmodel, echo=TRUE, eval=FALSE}
-freqmodel_brmsfit <- brm(
-  bf(tnx_count ~ (1 | customer_id)),
-  prior  = c(set_prior("gamma(1, 3)", class = "Intercept")),
-  data   = freqmodelling_tbl,
-  family = poisson(),
-  chains = 4,
-  iter   = 2000,
-  seed   = 42
-  )
-```
-
-
-
-
-
 
 
 
