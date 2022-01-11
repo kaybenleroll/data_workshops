@@ -43,6 +43,7 @@ library(tidybayes)
 
 
 source("lib_utils.R")
+source("lib_data_generation.R")
 
 conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
@@ -203,6 +204,40 @@ our probabilities. In fact, early works on this often referred to the above as
 the 'method of inverse probabilities'.
 
 
+## Bayes Rule with Continuous Variables
+
+We now want to consider the case when our random variables are continuous
+rather than discrete-valued. Fortunately, we can follow a similar logic, using
+integrals rather than sums.
+
+$$
+p(A \, | \, B) = \frac{\int p(B \, | \, A) \, p(A)}{\int p(B)}
+$$
+
+In most cases however we can ignore the denominator (the "normalising
+constant") as in most cases it is irrelevant for our analysis.
+
+Finally, in practical data analysis, we want to draw inferences on unknown
+parameters $\theta$ in the model from observed data, $D$.
+
+
+$$
+p(\theta \, | \, D) = \int p(\theta) \, p(D \, | \, \theta)
+$$
+
+In the above formula, we have
+
+  * $p(\theta \, | \, D)$ is the 'un-normalised' *posterior distribution* for
+    $\theta$,
+  * $p(D \, | \, \theta)$ is the *likelihood model*,
+  * $p(\theta)$ is the *prior distribution* for $\theta$.
+
+Thus, we combine a prior distribution over $\theta$ with a likelihood model for
+the data $D$ to calculate the posterior distribution for $\theta$.
+
+
+
+
 # Illustrating the Concepts
 
 The above section focused mostly on conceptual ideas, and it is often useful
@@ -314,7 +349,9 @@ We can now plug all these values in to calculate that conditional probability.
 P(A = \text{infected} \, | \, B = \text{positive})
   &=& \frac{P(B \, | \, A) \, P(A)}
            {P(B \, | \, A) \, P(A) + P(B \, | \, \neg A) \, P(\neg A)} \\
+\\
   &=& \frac{(0.95)(0.01)}{(0.95)(0.01) + (0.05)(0.99)} \\
+\\
   &=& 0.1610
 \end{eqnarray*}
 
@@ -330,16 +367,11 @@ prevalence of the disease on the efficacy of the test.
 
 
 
-# Bayes Rule with Continuous Variables
-
-
-
-
 
 # R Environment
 
 ```{r show_session_info, echo=TRUE, message=TRUE}
-options(width = 120L)
+options(width = 100L)
 sessioninfo::session_info()
 options(width = 80L)
 ```

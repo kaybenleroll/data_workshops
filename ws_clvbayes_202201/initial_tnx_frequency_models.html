@@ -221,7 +221,7 @@
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 10, 2022</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 11, 2022</p>
           </div>
    </div>
      
@@ -241,31 +241,31 @@ a more traditional P/NBD model.</p>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>customer_cohort_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 50,000
 ## Columns: 4
-## $ customer_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C20110…
-## $ cohort_qtr     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, …
-## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, …
-## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-0…</code></pre>
+## $ customer_id    &lt;chr&gt; &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C20110…
+## $ cohort_qtr     &lt;chr&gt; &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, …
+## $ cohort_ym      &lt;chr&gt; &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, …
+## $ first_tnx_date &lt;date&gt; 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-0…</code></pre>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>customer_simparams_tbl <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">&quot;data/synthdata_longframe_simparams_tbl.rds&quot;</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>customer_simparams_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 50,000
 ## Columns: 9
-## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C2011…
-## $ cohort_qtr      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;,…
-## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;,…
-## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-…
-## $ customer_mu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.118778905, 0.039760929, 0.432186972, 0.063499527, 0.…
-## $ customer_tau    [3m[38;5;246m&lt;dbl&gt;[39m[23m 4.9001519, 3.5221052, 6.1210747, 1.1971200, 10.5074742…
-## $ customer_lambda [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.04068670, 0.10156992, 0.23326311, 0.89430695, 0.2023…
-## $ customer_nu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.27337079, 1.21884063, 0.13202820, 0.10076904, 2.2754…
-## $ customer_p      [3m[38;5;246m&lt;dbl&gt;[39m[23m 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
+## $ customer_id     &lt;chr&gt; &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C2011…
+## $ cohort_qtr      &lt;chr&gt; &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;,…
+## $ cohort_ym       &lt;chr&gt; &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;,…
+## $ first_tnx_date  &lt;date&gt; 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-…
+## $ customer_mu     &lt;dbl&gt; 0.118778905, 0.039760929, 0.432186972, 0.063499527, 0.…
+## $ customer_tau    &lt;dbl&gt; 4.9001519, 3.5221052, 6.1210747, 1.1971200, 10.5074742…
+## $ customer_lambda &lt;dbl&gt; 0.04068670, 0.10156992, 0.23326311, 0.89430695, 0.2023…
+## $ customer_nu     &lt;dbl&gt; 0.27337079, 1.21884063, 0.13202820, 0.10076904, 2.2754…
+## $ customer_p      &lt;dbl&gt; 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>customer_transactions_tbl <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">&quot;data/synthdata_longframe_transactions_tbl.rds&quot;</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>customer_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 542,424
 ## Columns: 4
-## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0011&quot;, &quot;C201101_0007&quot;, &quot;C201101_0008&quot;, &quot;C201101…
-## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2011-01-01 00:39:26, 2011-01-01 00:55:54, 2011-01-01 03…
-## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;T20110101-0001&quot;, &quot;T20110101-0002&quot;, &quot;T20110101-0003&quot;, &quot;T…
-## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 121.35, 86.62, 108.17, 323.42, 870.86, 139.77, 1019.87, …</code></pre>
+## $ customer_id   &lt;chr&gt; &quot;C201101_0011&quot;, &quot;C201101_0007&quot;, &quot;C201101_0008&quot;, &quot;C201101…
+## $ tnx_timestamp &lt;dttm&gt; 2011-01-01 00:39:26, 2011-01-01 00:55:54, 2011-01-01 03…
+## $ invoice_id    &lt;chr&gt; &quot;T20110101-0001&quot;, &quot;T20110101-0002&quot;, &quot;T20110101-0003&quot;, &quot;T…
+## $ tnx_amount    &lt;dbl&gt; 121.35, 86.62, 108.17, 323.42, 870.86, 139.77, 1019.87, …</code></pre>
 <div id="construct-frequency-data" class="section level2" number="1.1">
 <h2><span class="header-section-number">1.1</span> Construct Frequency Data</h2>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>customer_summarystats_tbl <span class="ot">&lt;-</span> customer_transactions_tbl <span class="sc">%&gt;%</span></span>
@@ -284,13 +284,13 @@ a more traditional P/NBD model.</p>
 <span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>customer_summarystats_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 50,000
 ## Columns: 7
-## $ customer_id  [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C201101_…
-## $ tnx_count    [3m[38;5;246m&lt;int&gt;[39m[23m 1, 1, 4, 2, 5, 33, 2, 8, 11, 1, 6, 31, 1, 21, 2, 48, 9, 4…
-## $ first_tnx_ts [3m[38;5;246m&lt;dttm&gt;[39m[23m 2011-01-01 03:03:42, 2011-01-01 11:34:55, 2011-01-01 19:…
-## $ last_tnx_ts  [3m[38;5;246m&lt;dttm&gt;[39m[23m 2011-01-01 03:03:42, 2011-01-01 11:34:55, 2011-01-06 21:…
-## $ tnx_weeks    [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.0000000, 0.0000000, 0.7245146, 0.1741180, 8.1989808, 87…
-## $ btyd_count   [3m[38;5;246m&lt;dbl&gt;[39m[23m 0, 0, 3, 1, 4, 32, 1, 7, 10, 0, 5, 30, 0, 20, 1, 47, 8, 3…
-## $ tnx_freq     [3m[38;5;246m&lt;dbl&gt;[39m[23m NaN, NaN, 4.14070354, 5.74323314, 0.48786551, 0.36592594,…</code></pre>
+## $ customer_id  &lt;chr&gt; &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C201101_…
+## $ tnx_count    &lt;int&gt; 1, 1, 4, 2, 5, 33, 2, 8, 11, 1, 6, 31, 1, 21, 2, 48, 9, 4…
+## $ first_tnx_ts &lt;dttm&gt; 2011-01-01 03:03:42, 2011-01-01 11:34:55, 2011-01-01 19:…
+## $ last_tnx_ts  &lt;dttm&gt; 2011-01-01 03:03:42, 2011-01-01 11:34:55, 2011-01-06 21:…
+## $ tnx_weeks    &lt;dbl&gt; 0.0000000, 0.0000000, 0.7245146, 0.1741180, 8.1989808, 87…
+## $ btyd_count   &lt;dbl&gt; 0, 0, 3, 1, 4, 32, 1, 7, 10, 0, 5, 30, 0, 20, 1, 47, 8, 3…
+## $ tnx_freq     &lt;dbl&gt; NaN, NaN, 4.14070354, 5.74323314, 0.48786551, 0.36592594,…</code></pre>
 <p>We want to view the transactions to get a sense of how regular our transactions
 are in general.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>plot_tbl <span class="ot">&lt;-</span> customer_transactions_tbl <span class="sc">%&gt;%</span></span>
@@ -352,219 +352,69 @@ of infrastructure and additional functionality that may be of use.</p>
 <span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior   =</span> <span class="fu">c</span>(</span>
 <span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">set_prior</span>(<span class="st">&quot;gamma(1, 4)&quot;</span>, <span class="at">class =</span> <span class="st">&quot;b&quot;</span>, <span class="at">lb =</span> <span class="dv">0</span>)</span>
 <span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup  =</span> <span class="dv">500</span>,</span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter    =</span> <span class="dv">1000</span>,</span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains  =</span> <span class="dv">4</span>,</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed    =</span> <span class="dv">421</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">warmup   =</span> <span class="dv">500</span>,</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter     =</span> <span class="dv">1000</span>,</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains   =</span> <span class="dv">4</span>,</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed     =</span> <span class="dv">421</span></span>
 <span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## 
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
- 
-Running MCMC with 4 parallel chains...
+<pre><code>## Running MCMC with 4 parallel chains...
 ## 
 ## Chain 1 Iteration:   1 / 1000 [  0%]  (Warmup) 
 ## Chain 2 Iteration:   1 / 1000 [  0%]  (Warmup) 
 ## Chain 3 Iteration:   1 / 1000 [  0%]  (Warmup) 
 ## Chain 4 Iteration:   1 / 1000 [  0%]  (Warmup) 
+## Chain 2 Iteration: 100 / 1000 [ 10%]  (Warmup) 
 ## Chain 4 Iteration: 100 / 1000 [ 10%]  (Warmup) 
 ## Chain 1 Iteration: 100 / 1000 [ 10%]  (Warmup) 
-## Chain 2 Iteration: 100 / 1000 [ 10%]  (Warmup) 
 ## Chain 3 Iteration: 100 / 1000 [ 10%]  (Warmup) 
+## Chain 2 Iteration: 200 / 1000 [ 20%]  (Warmup) 
 ## Chain 1 Iteration: 200 / 1000 [ 20%]  (Warmup) 
 ## Chain 4 Iteration: 200 / 1000 [ 20%]  (Warmup) 
-## Chain 2 Iteration: 200 / 1000 [ 20%]  (Warmup) 
 ## Chain 3 Iteration: 200 / 1000 [ 20%]  (Warmup) 
+## Chain 2 Iteration: 300 / 1000 [ 30%]  (Warmup) 
 ## Chain 1 Iteration: 300 / 1000 [ 30%]  (Warmup) 
 ## Chain 4 Iteration: 300 / 1000 [ 30%]  (Warmup) 
-## Chain 2 Iteration: 300 / 1000 [ 30%]  (Warmup) 
 ## Chain 3 Iteration: 300 / 1000 [ 30%]  (Warmup) 
+## Chain 2 Iteration: 400 / 1000 [ 40%]  (Warmup) 
 ## Chain 1 Iteration: 400 / 1000 [ 40%]  (Warmup) 
 ## Chain 4 Iteration: 400 / 1000 [ 40%]  (Warmup) 
-## Chain 2 Iteration: 400 / 1000 [ 40%]  (Warmup) 
 ## Chain 3 Iteration: 400 / 1000 [ 40%]  (Warmup) 
-## Chain 1 Iteration: 500 / 1000 [ 50%]  (Warmup) 
-## Chain 1 Iteration: 501 / 1000 [ 50%]  (Sampling) 
-## Chain 4 Iteration: 500 / 1000 [ 50%]  (Warmup) 
-## Chain 4 Iteration: 501 / 1000 [ 50%]  (Sampling) 
 ## Chain 2 Iteration: 500 / 1000 [ 50%]  (Warmup) 
 ## Chain 2 Iteration: 501 / 1000 [ 50%]  (Sampling) 
+## Chain 1 Iteration: 500 / 1000 [ 50%]  (Warmup) 
+## Chain 1 Iteration: 501 / 1000 [ 50%]  (Sampling) 
 ## Chain 3 Iteration: 500 / 1000 [ 50%]  (Warmup) 
 ## Chain 3 Iteration: 501 / 1000 [ 50%]  (Sampling) 
-## Chain 1 Iteration: 600 / 1000 [ 60%]  (Sampling) 
-## Chain 4 Iteration: 600 / 1000 [ 60%]  (Sampling) 
+## Chain 4 Iteration: 500 / 1000 [ 50%]  (Warmup) 
+## Chain 4 Iteration: 501 / 1000 [ 50%]  (Sampling) 
 ## Chain 2 Iteration: 600 / 1000 [ 60%]  (Sampling) 
+## Chain 1 Iteration: 600 / 1000 [ 60%]  (Sampling) 
 ## Chain 3 Iteration: 600 / 1000 [ 60%]  (Sampling) 
-## Chain 1 Iteration: 700 / 1000 [ 70%]  (Sampling) 
-## Chain 4 Iteration: 700 / 1000 [ 70%]  (Sampling) 
+## Chain 4 Iteration: 600 / 1000 [ 60%]  (Sampling) 
 ## Chain 2 Iteration: 700 / 1000 [ 70%]  (Sampling) 
+## Chain 1 Iteration: 700 / 1000 [ 70%]  (Sampling) 
+## Chain 2 Iteration: 800 / 1000 [ 80%]  (Sampling) 
 ## Chain 3 Iteration: 700 / 1000 [ 70%]  (Sampling) 
 ## Chain 1 Iteration: 800 / 1000 [ 80%]  (Sampling) 
-## Chain 4 Iteration: 800 / 1000 [ 80%]  (Sampling) 
-## Chain 2 Iteration: 800 / 1000 [ 80%]  (Sampling) 
-## Chain 3 Iteration: 800 / 1000 [ 80%]  (Sampling) 
+## Chain 4 Iteration: 700 / 1000 [ 70%]  (Sampling) 
 ## Chain 1 Iteration: 900 / 1000 [ 90%]  (Sampling) 
-## Chain 4 Iteration: 900 / 1000 [ 90%]  (Sampling) 
 ## Chain 2 Iteration: 900 / 1000 [ 90%]  (Sampling) 
-## Chain 3 Iteration: 900 / 1000 [ 90%]  (Sampling) 
-## Chain 1 Iteration: 1000 / 1000 [100%]  (Sampling) 
-## Chain 1 finished in 22.6 seconds.
-## Chain 4 Iteration: 1000 / 1000 [100%]  (Sampling) 
-## Chain 4 finished in 22.5 seconds.
+## Chain 3 Iteration: 800 / 1000 [ 80%]  (Sampling) 
+## Chain 4 Iteration: 800 / 1000 [ 80%]  (Sampling) 
 ## Chain 2 Iteration: 1000 / 1000 [100%]  (Sampling) 
-## Chain 2 finished in 23.0 seconds.
+## Chain 1 Iteration: 1000 / 1000 [100%]  (Sampling) 
+## Chain 1 finished in 21.1 seconds.
+## Chain 2 finished in 21.1 seconds.
+## Chain 3 Iteration: 900 / 1000 [ 90%]  (Sampling) 
+## Chain 4 Iteration: 900 / 1000 [ 90%]  (Sampling) 
 ## Chain 3 Iteration: 1000 / 1000 [100%]  (Sampling) 
-## Chain 3 finished in 23.3 seconds.
+## Chain 4 Iteration: 1000 / 1000 [100%]  (Sampling) 
+## Chain 3 finished in 22.4 seconds.
+## Chain 4 finished in 22.4 seconds.
 ## 
 ## All 4 chains finished successfully.
-## Mean chain execution time: 22.9 seconds.
-## Total execution time: 23.7 seconds.</code></pre>
+## Mean chain execution time: 21.8 seconds.
+## Total execution time: 22.7 seconds.</code></pre>
 <p>Now that we have fit the model we want to see how well our posterior
 distribution is covering the ‘correct’ values.</p>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>freqmodel_flat_postcheck_tbl <span class="ot">&lt;-</span> freqmodel_flat_brmfit <span class="sc">%&gt;%</span></span>
@@ -582,10 +432,10 @@ distribution is covering the ‘correct’ values.</p>
 <span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>freqmodel_flat_postcheck_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 667
 ## Columns: 4
-## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0025&quot;, &quot;C201101_0084&quot;, &quot;C201101_0102&quot;, &quot;C2011…
-## $ customer_lambda [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.52662824, 0.04212908, 1.42542220, 0.18835734, 0.2466…
-## $ dval_lst        [3m[38;5;246m&lt;list&gt;[39m[23m &lt;0.581039000, 0.037907900, 0.396058000, 0.146467000, …
-## $ q_val           [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.9330, 0.1230, 1.0000, 1.0000, 0.8555, 0.3280, 0.8030…</code></pre>
+## $ customer_id     &lt;chr&gt; &quot;C201101_0025&quot;, &quot;C201101_0084&quot;, &quot;C201101_0102&quot;, &quot;C2011…
+## $ customer_lambda &lt;dbl&gt; 0.52662824, 0.04212908, 1.42542220, 0.18835734, 0.2466…
+## $ dval_lst        &lt;list&gt; &lt;0.581039000, 0.037907900, 0.396058000, 0.146467000, …
+## $ q_val           &lt;dbl&gt; 0.9330, 0.1230, 1.0000, 1.0000, 0.8555, 0.3280, 0.8030…</code></pre>
 </div>
 <div id="fit-stan-model" class="section level2" number="2.2">
 <h2><span class="header-section-number">2.2</span> Fit Stan Model</h2>
@@ -595,160 +445,22 @@ distribution is covering the ‘correct’ values.</p>
 <span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">pedantic      =</span>  <span class="cn">TRUE</span>,</span>
 <span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">dir           =</span> <span class="st">&quot;stan_models/&quot;</span></span>
 <span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
-<pre><code>## 
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
--
-
-\
-
-|
-
-/
-
- </code></pre>
-<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>stan_data_lst <span class="ot">&lt;-</span> fit_data_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(customer_id, btyd_count, tnx_weeks) <span class="sc">%&gt;%</span></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compose_data</span>(</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">r     =</span>  <span class="dv">1</span>,</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span>  <span class="dv">4</span></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>freqmodel_flat_stanfit <span class="ot">&lt;-</span> freqmodel_flat_stanmodel<span class="sc">$</span><span class="fu">sample</span>(</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">data            =</span>                stan_data_lst,</span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains          =</span>                            <span class="dv">4</span>,</span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter_warmup     =</span>                         <span class="dv">1000</span>,</span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter_sampling   =</span>                         <span class="dv">1000</span>,</span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed            =</span>                          <span class="dv">421</span>,</span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">output_dir      =</span>                <span class="st">&quot;stan_models&quot;</span>,</span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">output_basename =</span>             <span class="st">&quot;freqmodel_flat&quot;</span></span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>stan_data_lst <span class="ot">&lt;-</span> fit_data_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(customer_id, btyd_count, tnx_weeks) <span class="sc">%&gt;%</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">compose_data</span>(</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">r     =</span>  <span class="dv">1</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha =</span>  <span class="dv">4</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>freqmodel_flat_stanfit <span class="ot">&lt;-</span> freqmodel_flat_stanmodel<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">data            =</span>                stan_data_lst,</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains          =</span>                            <span class="dv">4</span>,</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter_warmup     =</span>                         <span class="dv">1000</span>,</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">iter_sampling   =</span>                         <span class="dv">1000</span>,</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed            =</span>                          <span class="dv">421</span>,</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">output_dir      =</span>                <span class="st">&quot;stan_models&quot;</span>,</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">output_basename =</span>             <span class="st">&quot;freqmodel_flat&quot;</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
 <pre><code>## Running MCMC with 4 parallel chains...
 ## 
 ## Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
@@ -758,97 +470,786 @@ distribution is covering the ‘correct’ values.</p>
 ## Chain 1 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 2 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 3 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 1 Iteration:  200 / 2000 [ 10%]  (Warmup) 
 ## Chain 2 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
 ## Chain 3 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 4 Iteration:  200 / 2000 [ 10%]  (Warmup) 
 ## Chain 1 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 2 Iteration:  300 / 2000 [ 15%]  (Warmup) 
-## Chain 4 Iteration:  200 / 2000 [ 10%]  (Warmup) 
-## Chain 1 Iteration:  400 / 2000 [ 20%]  (Warmup) 
-## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 3 Iteration:  300 / 2000 [ 15%]  (Warmup) 
 ## Chain 4 Iteration:  300 / 2000 [ 15%]  (Warmup) 
-## Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 1 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 3 Iteration:  400 / 2000 [ 20%]  (Warmup) 
 ## Chain 4 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 ## Chain 1 Iteration:  600 / 2000 [ 30%]  (Warmup) 
 ## Chain 2 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-## Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
 ## Chain 3 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-## Chain 2 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-## Chain 1 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 4 Iteration:  600 / 2000 [ 30%]  (Warmup) 
-## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 2 Iteration:  700 / 2000 [ 35%]  (Warmup) 
 ## Chain 3 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-## Chain 1 Iteration:  900 / 2000 [ 45%]  (Warmup) 
 ## Chain 4 Iteration:  700 / 2000 [ 35%]  (Warmup) 
-## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 1 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 3 Iteration:  800 / 2000 [ 40%]  (Warmup) 
 ## Chain 4 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 1 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 4 Iteration:  900 / 2000 [ 45%]  (Warmup) 
 ## Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 ## Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-## Chain 4 Iteration:  900 / 2000 [ 45%]  (Warmup) 
-## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 ## Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 3 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 4 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
 ## Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
 ## Chain 2 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-## Chain 4 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
-## Chain 2 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
-## Chain 3 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-## Chain 1 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 4 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
-## Chain 1 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-## Chain 3 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 1 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 3 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 2 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
 ## Chain 4 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 1 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 3 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
 ## Chain 3 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
-## Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-## Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 ## Chain 4 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 ## Chain 1 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 ## Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 ## Chain 2 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
-## Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
 ## Chain 1 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
 ## Chain 3 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
-## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
 ## Chain 3 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
-## Chain 1 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 4 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 1 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
 ## Chain 3 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
-## Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
 ## Chain 4 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
 ## Chain 3 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-## Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 ## Chain 4 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
-## Chain 1 finished in 5.9 seconds.
-## Chain 2 finished in 5.8 seconds.
-## Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
-## Chain 3 finished in 5.9 seconds.
+## Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 1 finished in 5.8 seconds.
 ## Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
 ## Chain 4 finished in 5.9 seconds.
+## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 2 finished in 6.0 seconds.
+## Chain 3 finished in 6.0 seconds.
 ## 
 ## All 4 chains finished successfully.
 ## Mean chain execution time: 5.9 seconds.
-## Total execution time: 6.3 seconds.</code></pre>
+## Total execution time: 6.1 seconds.</code></pre>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>freqmodel_flat_stanfit<span class="sc">$</span><span class="fu">cmdstan_summary</span>()</span></code></pre></div>
+<pre><code>## Inference for Stan model: freqmodel_flat_model
+## 4 chains: each with iter=(1000,1000,1000,1000); warmup=(0,0,0,0); thin=(1,1,1,1); 4000 iterations saved.
+## 
+## Warmup took (3.0, 3.1, 3.1, 3.1) seconds, 12 seconds total
+## Sampling took (2.8, 2.9, 2.9, 2.8) seconds, 11 seconds total
+## 
+##                  Mean     MCSE   StdDev       5%    50%    95%    N_Eff  N_Eff/s    R_hat
+## 
+## lp__            -3522  4.8e-01  1.9e+01 -3.6e+03  -3522  -3492     1569      139      1.0
+## accept_stat__    0.86  1.9e-03  1.2e-01     0.62   0.89   1.00  4.2e+03  3.7e+02  1.0e+00
+## stepsize__       0.25  7.3e-03  1.0e-02     0.23   0.25   0.26  2.0e+00  1.8e-01  1.0e+13
+## treedepth__       4.0      nan  2.7e-15      4.0    4.0    4.0      nan      nan      nan
+## n_leapfrog__       15      nan  1.3e-13       15     15     15      nan      nan      nan
+## divergent__      0.00      nan  0.0e+00     0.00   0.00   0.00      nan      nan      nan
+## energy__         3856  7.0e-01  2.7e+01     3813   3855   3901  1.5e+03  1.3e+02  1.0e+00
+## 
+## lambda[1]        0.39  3.1e-03  2.7e-01  6.9e-02   0.33   0.89     7354      650     1.00
+## lambda[2]        0.43  3.9e-03  3.1e-01  6.6e-02   0.36    1.0     6152      543     1.00
+## lambda[3]         1.2  2.7e-03  1.9e-01  9.1e-01    1.2    1.5     5099      450     1.00
+## lambda[4]        0.20  6.8e-04  5.4e-02  1.2e-01   0.20   0.30     6271      554     1.00
+## lambda[5]        0.35  2.6e-03  2.0e-01  9.2e-02   0.31   0.74     6102      539     1.00
+## lambda[6]        0.54  3.9e-03  3.2e-01  1.4e-01   0.48    1.2     6489      573     1.00
+## lambda[7]        0.37  2.3e-03  1.9e-01  1.3e-01   0.34   0.72     6541      578     1.00
+## lambda[8]       0.065  3.8e-04  3.2e-02  2.3e-02  0.059   0.12     7300      645     1.00
+## lambda[9]        0.31  1.6e-03  1.3e-01  1.4e-01   0.29   0.54     6021      532     1.00
+## lambda[10]       0.43  3.2e-03  2.6e-01  1.1e-01   0.38   0.93     6477      572     1.00
+## lambda[11]      0.059  4.9e-04  4.2e-02  1.0e-02  0.050   0.14     7061      624     1.00
+## lambda[12]       0.49  4.5e-03  3.5e-01  8.5e-02   0.42    1.1     5999      530     1.00
+## lambda[13]       0.41  2.1e-03  1.7e-01  1.8e-01   0.39   0.71     6021      532     1.00
+## lambda[14]       0.15  8.8e-04  7.3e-02  5.0e-02   0.14   0.28     6860      606     1.00
+## lambda[15]       0.19  1.8e-03  1.4e-01  3.2e-02   0.16   0.46     5740      507     1.00
+## lambda[16]       0.35  3.0e-03  2.4e-01  7.0e-02   0.30   0.83     6794      600     1.00
+## lambda[17]       0.32  2.3e-03  1.8e-01  9.0e-02   0.29   0.66     6471      572     1.00
+## lambda[18]       0.12  4.4e-04  3.3e-02  7.5e-02   0.12   0.18     5644      499     1.00
+## lambda[19]      0.042  1.5e-04  1.2e-02  2.5e-02  0.041  0.063     6041      534     1.00
+## lambda[20]       0.29  7.6e-04  6.5e-02  1.9e-01   0.28   0.40     7287      644     1.00
+## lambda[21]       0.21  2.5e-04  2.1e-02  1.8e-01   0.21   0.25     7512      664     1.00
+## lambda[22]       0.89  2.8e-03  2.2e-01  5.6e-01   0.88    1.3     6580      581     1.00
+## lambda[23]      0.046  1.5e-04  1.1e-02  2.9e-02  0.045  0.066     5397      477     1.00
+## lambda[24]       0.44  2.1e-03  1.6e-01  2.2e-01   0.43   0.73     5699      503     1.00
+## lambda[25]       0.25  1.7e-03  1.4e-01  7.1e-02   0.22   0.50     6258      553     1.00
+## lambda[26]       0.50  1.1e-03  8.9e-02  3.7e-01   0.50   0.66     7025      621     1.00
+## lambda[27]       0.20  1.7e-03  1.4e-01  3.6e-02   0.17   0.49     6962      615     1.00
+## lambda[28]       0.52  3.7e-03  3.0e-01  1.4e-01   0.46    1.1     6239      551     1.00
+## lambda[29]       0.85  1.7e-03  1.2e-01  6.6e-01   0.85    1.1     5135      454     1.00
+## lambda[30]       0.27  1.9e-03  1.6e-01  7.4e-02   0.24   0.57     7119      629     1.00
+## lambda[31]      0.083  2.8e-04  2.3e-02  5.0e-02  0.081   0.12     6451      570     1.00
+## lambda[32]       0.10  7.9e-04  6.1e-02  2.7e-02  0.092   0.22     5858      518     1.00
+## lambda[33]       0.59  1.3e-03  9.7e-02  4.4e-01   0.58   0.76     5955      526     1.00
+## lambda[34]      0.099  7.1e-04  5.7e-02  2.6e-02  0.088   0.21     6526      577     1.00
+## lambda[35]       0.43  3.7e-03  3.1e-01  7.2e-02   0.36    1.1     7170      633     1.00
+## lambda[36]       0.23  2.0e-03  1.6e-01  4.0e-02   0.19   0.54     6367      563     1.00
+## lambda[37]       0.22  1.4e-03  1.1e-01  7.6e-02   0.20   0.42     5942      525     1.00
+## lambda[38]       0.41  3.9e-03  2.9e-01  7.1e-02   0.34   0.96     5621      497     1.00
+## lambda[39]       0.13  4.4e-04  3.2e-02  7.9e-02   0.12   0.18     5281      467     1.00
+## lambda[40]       0.38  1.3e-03  1.1e-01  2.3e-01   0.37   0.57     6556      579     1.00
+## lambda[41]       0.27  2.2e-03  1.9e-01  4.8e-02   0.22   0.64     7317      646     1.00
+## lambda[42]       0.35  1.5e-03  1.2e-01  1.7e-01   0.34   0.57     6206      548     1.00
+## lambda[43]       0.57  2.9e-03  2.4e-01  2.4e-01   0.53    1.0     6643      587      1.0
+## lambda[44]       0.47  4.5e-03  3.3e-01  8.2e-02   0.39    1.1     5345      472     1.00
+## lambda[45]       0.29  1.3e-03  9.7e-02  1.5e-01   0.28   0.47     5891      520     1.00
+## lambda[46]       0.12  3.9e-04  3.0e-02  7.7e-02   0.12   0.17     5907      522      1.0
+## lambda[47]       0.62  4.4e-03  3.5e-01  1.6e-01   0.56    1.3     6296      556     1.00
+## lambda[48]        1.2  2.1e-03  1.8e-01  9.7e-01    1.2    1.5     6785      599     1.00
+## lambda[49]        1.0  2.7e-03  2.1e-01  6.9e-01    1.0    1.4     6135      542     1.00
+## lambda[50]       0.23  5.6e-04  4.4e-02  1.6e-01   0.22   0.30     6334      560     1.00
+## lambda[51]       0.51  2.9e-03  2.3e-01  2.0e-01   0.48   0.94     6056      535     1.00
+## lambda[52]       0.24  2.2e-03  1.7e-01  4.2e-02   0.20   0.56     5953      526     1.00
+## lambda[53]       0.55  2.7e-03  1.9e-01  2.8e-01   0.53   0.90     5063      447      1.0
+## lambda[54]       0.25  1.8e-03  1.4e-01  7.2e-02   0.23   0.53     6416      567      1.0
+## lambda[55]       0.35  3.0e-03  2.4e-01  6.4e-02   0.29   0.82     6395      565     1.00
+## lambda[56]       0.95  5.1e-03  3.8e-01  4.1e-01   0.90    1.6     5567      492     1.00
+## lambda[57]       0.76  9.3e-04  7.2e-02  6.4e-01   0.75   0.88     6021      532     1.00
+## lambda[58]       0.79  2.5e-03  2.1e-01  4.8e-01   0.77    1.2     7387      653     1.00
+## lambda[59]       0.12  7.1e-04  5.3e-02  4.8e-02   0.11   0.22     5591      494     1.00
+## lambda[60]       0.40  1.3e-03  1.1e-01  2.4e-01   0.39   0.59     6603      583     1.00
+## lambda[61]       0.22  2.1e-03  1.6e-01  3.6e-02   0.18   0.53     5731      506     1.00
+## lambda[62]       0.84  2.6e-03  1.9e-01  5.5e-01   0.82    1.2     5610      496      1.0
+## lambda[63]       0.62  4.4e-03  3.5e-01  1.8e-01   0.56    1.3     6590      582     1.00
+## lambda[64]       0.14  2.8e-04  2.3e-02  1.0e-01   0.13   0.18     6634      586     1.00
+## lambda[65]       0.37  2.0e-03  1.6e-01  1.5e-01   0.35   0.67     6591      582      1.0
+## lambda[66]       0.50  3.4e-03  2.9e-01  1.4e-01   0.44    1.0     7088      626     1.00
+## lambda[67]       0.30  1.0e-03  7.7e-02  1.8e-01   0.29   0.43     5852      517     1.00
+## lambda[68]       0.11  9.9e-04  7.7e-02  2.1e-02  0.093   0.26     5970      527     1.00
+## lambda[69]       0.31  2.6e-03  2.2e-01  5.9e-02   0.26   0.74     7217      638     1.00
+## lambda[70]       0.59  2.4e-03  1.9e-01  3.2e-01   0.57   0.92     5907      522      1.0
+## lambda[71]       0.43  3.8e-03  3.0e-01  8.1e-02   0.36    1.0     6389      564     1.00
+## lambda[72]       0.32  1.5e-03  1.2e-01  1.6e-01   0.31   0.54     6095      538     1.00
+## lambda[73]       0.23  1.8e-03  1.4e-01  6.3e-02   0.20   0.50     5822      514     1.00
+## lambda[74]       0.26  1.7e-03  1.3e-01  8.7e-02   0.24   0.51     5758      509      1.0
+## lambda[75]       0.50  1.2e-03  1.0e-01  3.4e-01   0.50   0.68     7249      640     1.00
+## lambda[76]       0.76  1.5e-03  1.3e-01  5.5e-01   0.75   1.00     7867      695     1.00
+## lambda[77]       0.34  1.9e-03  1.5e-01  1.4e-01   0.31   0.62     5934      524     1.00
+## lambda[78]       0.23  2.1e-03  1.6e-01  4.1e-02   0.19   0.54     6305      557      1.0
+## lambda[79]       0.20  1.9e-03  1.4e-01  3.8e-02   0.17   0.48     5936      524     1.00
+## lambda[80]      0.017  8.7e-05  7.0e-03  7.0e-03  0.016  0.030     6576      581     1.00
+## lambda[81]       0.37  1.9e-03  1.7e-01  1.4e-01   0.35   0.68     7734      683     1.00
+## lambda[82]       0.61  4.2e-03  3.0e-01  2.1e-01   0.56    1.2     5165      456     1.00
+## lambda[83]       0.69  2.3e-03  1.8e-01  4.3e-01   0.68    1.0     6387      564     1.00
+## lambda[84]       0.47  4.5e-03  3.3e-01  8.6e-02   0.40    1.1     5532      489      1.0
+## lambda[85]       0.41  3.5e-03  2.9e-01  7.1e-02   0.34   0.98     7069      624     1.00
+## lambda[86]       0.18  1.1e-03  8.8e-02  5.9e-02   0.16   0.34     6582      581     1.00
+## lambda[87]       0.20  1.5e-03  1.1e-01  5.6e-02   0.18   0.42     6118      540     1.00
+## lambda[88]       0.30  2.2e-03  1.8e-01  8.4e-02   0.27   0.63     6500      574     1.00
+## lambda[89]      0.045  3.2e-04  2.5e-02  1.2e-02  0.040  0.094     6344      560     1.00
+## lambda[90]       0.88  3.0e-03  2.2e-01  5.5e-01   0.86    1.3     5500      486     1.00
+## lambda[91]       0.72  4.0e-03  3.0e-01  3.1e-01   0.68    1.3     5892      521     1.00
+## lambda[92]       0.25  1.5e-03  1.3e-01  8.2e-02   0.23   0.48     6575      581     1.00
+## lambda[93]       0.34  3.0e-03  2.4e-01  6.1e-02   0.28   0.81     6458      571     1.00
+## lambda[94]       0.65  2.1e-03  1.6e-01  4.0e-01   0.63   0.94     6341      560      1.0
+## lambda[95]       0.11  6.1e-04  4.8e-02  4.2e-02   0.10   0.20     6199      548      1.0
+## lambda[96]       0.19  1.6e-03  1.3e-01  3.6e-02   0.16   0.45     6729      595     1.00
+## lambda[97]       0.20  2.0e-03  1.4e-01  3.3e-02   0.17   0.48     5425      479      1.0
+## lambda[98]       0.40  3.8e-03  3.0e-01  6.5e-02   0.32   0.98     6192      547     1.00
+## lambda[99]       0.27  3.1e-04  2.6e-02  2.3e-01   0.27   0.31     6975      616     1.00
+## lambda[100]      0.52  2.5e-03  2.0e-01  2.5e-01   0.50   0.88     6349      561     1.00
+## lambda[101]      0.17  1.5e-03  1.2e-01  3.2e-02   0.14   0.39     5855      517      1.0
+## lambda[102]      0.31  2.4e-03  1.7e-01  8.7e-02   0.27   0.64     5175      457     1.00
+## lambda[103]      0.64  4.0e-03  3.2e-01  2.2e-01   0.59    1.2     6207      548     1.00
+## lambda[104]     0.047  4.0e-04  3.4e-02  8.7e-03  0.039   0.12     7096      627     1.00
+## lambda[105]      0.78  5.8e-04  4.4e-02  7.1e-01   0.78   0.86     5773      510     1.00
+## lambda[106]      0.14  5.5e-04  4.4e-02  7.5e-02   0.13   0.22     6373      563     1.00
+## lambda[107]      0.10  2.0e-04  1.6e-02  7.6e-02   0.10   0.13     6849      605     1.00
+## lambda[108]      0.59  4.3e-03  3.4e-01  1.7e-01   0.52    1.3     6369      563     1.00
+## lambda[109]      0.77  1.6e-03  1.2e-01  5.8e-01   0.77   0.98     5982      528     1.00
+## lambda[110]      0.33  2.0e-03  1.7e-01  1.1e-01   0.31   0.65     7051      623      1.0
+## lambda[111]      0.56  4.5e-03  3.3e-01  1.5e-01   0.49    1.2     5458      482      1.0
+## lambda[112]      0.11  1.1e-03  8.2e-02  1.9e-02  0.096   0.27     5429      480     1.00
+## lambda[113]      0.59  7.6e-04  5.6e-02  5.0e-01   0.58   0.68     5464      483      1.0
+## lambda[114]      0.24  1.2e-03  9.6e-02  1.0e-01   0.22   0.41     6382      564      1.0
+## lambda[115]      0.25  1.5e-03  1.2e-01  9.6e-02   0.24   0.46     5968      527     1.00
+## lambda[116]      0.38  4.2e-04  3.2e-02  3.3e-01   0.38   0.44     5558      491     1.00
+## lambda[117]     0.099  3.8e-04  3.0e-02  5.6e-02  0.096   0.15     5942      525     1.00
+## lambda[118]      0.17  1.5e-03  1.2e-01  3.2e-02   0.14   0.39     5722      505     1.00
+## lambda[119]      0.49  3.3e-03  2.5e-01  1.6e-01   0.45   0.97     5966      527     1.00
+## lambda[120]      0.38  1.5e-03  1.2e-01  2.0e-01   0.37   0.60     6816      602     1.00
+## lambda[121]      0.32  2.0e-03  1.5e-01  1.2e-01   0.30   0.60     5334      471     1.00
+## lambda[122]      0.12  6.1e-04  4.8e-02  5.1e-02   0.11   0.20     6191      547     1.00
+## lambda[123]      0.13  8.5e-04  6.5e-02  4.2e-02   0.11   0.25     5846      516     1.00
+## lambda[124]      0.12  9.7e-04  7.2e-02  3.1e-02   0.11   0.26     5561      491     1.00
+## lambda[125]      0.34  3.4e-03  2.5e-01  5.9e-02   0.28   0.83     5265      465     1.00
+## lambda[126]      0.13  7.7e-04  6.2e-02  4.4e-02   0.12   0.24     6588      582      1.0
+## lambda[127]      0.59  3.0e-03  2.3e-01  2.8e-01   0.56    1.0     5809      513     1.00
+## lambda[128]      0.55  3.9e-03  3.1e-01  1.7e-01   0.50    1.1     6211      549     1.00
+## lambda[129]      0.21  1.1e-03  9.4e-02  8.2e-02   0.20   0.39     7025      621     1.00
+## lambda[130]      0.24  2.0e-03  1.7e-01  4.0e-02   0.20   0.55     7248      640     1.00
+## lambda[131]      0.63  2.5e-03  2.0e-01  3.4e-01   0.61   0.98     6395      565     1.00
+## lambda[132]      0.39  3.4e-03  2.7e-01  7.0e-02   0.32   0.94     6395      565     1.00
+## lambda[133]      0.47  4.1e-03  3.4e-01  7.9e-02   0.39    1.1     6837      604     1.00
+## lambda[134]      0.13  1.2e-03  9.8e-02  2.1e-02   0.11   0.33     6363      562     1.00
+## lambda[135]      0.27  1.8e-03  1.5e-01  7.8e-02   0.24   0.55     6884      608     1.00
+## lambda[136]      0.31  2.8e-03  2.2e-01  5.4e-02   0.26   0.72     6085      538      1.0
+## lambda[137]      0.17  1.1e-03  9.4e-02  4.5e-02   0.15   0.34     6715      593     1.00
+## lambda[138]      0.85  3.2e-03  2.5e-01  5.0e-01   0.83    1.3     6032      533     1.00
+## lambda[139]      0.53  3.8e-03  3.0e-01  1.5e-01   0.48    1.1     6220      550     1.00
+## lambda[140]      0.23  1.2e-03  9.4e-02  1.1e-01   0.22   0.41     6474      572     1.00
+## lambda[141]      0.40  3.0e-03  2.4e-01  1.1e-01   0.36   0.87     6034      533     1.00
+## lambda[142]      0.26  2.5e-03  1.9e-01  4.7e-02   0.22   0.63     5776      510     1.00
+## lambda[143]      0.33  1.7e-03  1.5e-01  1.3e-01   0.31   0.60     7081      626     1.00
+## lambda[144]      0.48  4.3e-03  3.4e-01  8.4e-02   0.41    1.2     6132      542     1.00
+## lambda[145]      0.71  4.4e-03  3.4e-01  2.5e-01   0.65    1.3     6166      545     1.00
+## lambda[146]      0.53  2.3e-03  1.9e-01  2.6e-01   0.51   0.88     6790      600     1.00
+## lambda[147]     0.064  4.3e-04  3.2e-02  2.2e-02  0.059   0.12     5665      500     1.00
+## lambda[148]      0.15  7.7e-04  6.2e-02  6.7e-02   0.14   0.27     6541      578     1.00
+## lambda[149]      0.38  3.5e-03  2.7e-01  7.0e-02   0.32   0.92     6256      553     1.00
+## lambda[150]      0.28  2.0e-03  1.6e-01  7.2e-02   0.25   0.58     6564      580     1.00
+## lambda[151]      0.57  1.8e-03  1.4e-01  3.7e-01   0.56   0.82     6220      549     1.00
+## lambda[152]     0.086  3.1e-04  2.2e-02  5.2e-02  0.085   0.13     4990      441      1.0
+## lambda[153]      0.24  1.7e-03  1.4e-01  6.5e-02   0.21   0.49     6453      570      1.0
+## lambda[154]      0.59  3.4e-03  2.5e-01  2.5e-01   0.56    1.1     5429      480     1.00
+## lambda[155]      0.71  5.1e-03  4.1e-01  1.9e-01   0.62    1.5     6598      583     1.00
+## lambda[156]      0.21  3.1e-04  2.3e-02  1.7e-01   0.20   0.25     5623      497     1.00
+## lambda[157]      0.23  2.1e-03  1.7e-01  3.6e-02   0.19   0.56     6536      577     1.00
+## lambda[158]      0.42  3.3e-03  2.6e-01  1.1e-01   0.37   0.91     6023      532     1.00
+## lambda[159]      0.18  1.4e-03  1.0e-01  4.9e-02   0.16   0.37     5601      495     1.00
+## lambda[160]      0.40  9.2e-04  7.3e-02  2.9e-01   0.39   0.52     6229      550     1.00
+## lambda[161]       1.4  7.3e-04  6.2e-02  1.3e+00    1.4    1.5     7259      641     1.00
+## lambda[162]      0.15  8.3e-04  6.6e-02  6.1e-02   0.14   0.27     6418      567     1.00
+## lambda[163]      0.18  1.2e-03  9.2e-02  6.2e-02   0.16   0.36     6313      558     1.00
+## lambda[164]      0.21  8.0e-04  6.3e-02  1.1e-01   0.20   0.32     6174      545     1.00
+## lambda[165]      0.33  3.6e-04  3.0e-02  2.8e-01   0.33   0.38     6873      607     1.00
+## lambda[166]      0.70  3.8e-03  2.9e-01  3.0e-01   0.67    1.2     5506      486     1.00
+## lambda[167]      0.45  4.1e-03  3.2e-01  8.4e-02   0.38    1.1     6101      539     1.00
+## lambda[168]      0.91  2.2e-03  1.8e-01  6.4e-01   0.89    1.2     6491      573     1.00
+## lambda[169]      0.10  2.3e-04  1.8e-02  7.6e-02   0.10   0.13     5878      519     1.00
+## lambda[170]      0.47  3.1e-03  2.7e-01  1.3e-01   0.42   0.98     7295      644     1.00
+## lambda[171]      0.75  3.7e-03  3.0e-01  3.2e-01   0.71    1.3     6814      602      1.0
+## lambda[172]      0.68  1.4e-03  1.1e-01  5.1e-01   0.67   0.88     6577      581     1.00
+## lambda[173]      0.25  1.9e-03  1.4e-01  6.6e-02   0.22   0.53     5691      503     1.00
+## lambda[174]      0.81  1.8e-03  1.4e-01  6.0e-01   0.81    1.1     6018      532     1.00
+## lambda[175]      0.12  4.4e-04  3.5e-02  6.5e-02   0.11   0.18     6425      568     1.00
+## lambda[176]      0.39  3.6e-03  2.7e-01  7.0e-02   0.33   0.91     5831      515      1.0
+## lambda[177]     0.090  5.8e-04  4.4e-02  3.2e-02  0.083   0.17     5740      507     1.00
+## lambda[178]      0.17  3.4e-04  2.8e-02  1.2e-01   0.17   0.22     6670      589     1.00
+## lambda[179]      0.27  1.4e-03  1.1e-01  1.2e-01   0.26   0.48     6406      566     1.00
+## lambda[180]     0.085  5.8e-04  4.3e-02  2.8e-02  0.078   0.16     5558      491     1.00
+## lambda[181]      0.12  1.0e-03  8.5e-02  2.4e-02   0.10   0.29     6936      613     1.00
+## lambda[182]      0.73  2.7e-03  2.1e-01  4.2e-01   0.71    1.1     6109      540      1.0
+## lambda[183]      0.25  8.9e-04  7.5e-02  1.4e-01   0.24   0.38     6951      614     1.00
+## lambda[184]      0.45  4.2e-03  3.3e-01  7.6e-02   0.37    1.1     6173      545     1.00
+## lambda[185]      0.23  2.1e-03  1.6e-01  4.1e-02   0.19   0.53     5956      526     1.00
+## lambda[186]      0.50  2.2e-03  1.8e-01  2.5e-01   0.49   0.83     6267      554     1.00
+## lambda[187]      0.38  3.8e-03  2.8e-01  6.8e-02   0.31   0.93     5343      472      1.0
+## lambda[188]      0.46  1.8e-03  1.4e-01  2.5e-01   0.44   0.71     6001      530     1.00
+## lambda[189]      0.20  1.3e-03  1.0e-01  6.9e-02   0.18   0.40     6314      558      1.0
+## lambda[190]      0.29  2.0e-03  1.6e-01  7.8e-02   0.26   0.60     6504      575     1.00
+## lambda[191]      0.55  3.1e-03  2.4e-01  2.2e-01   0.52    1.0     6103      539      1.0
+## lambda[192]      0.38  8.9e-04  6.8e-02  2.7e-01   0.37   0.50     5893      521     1.00
+## lambda[193]      0.66  5.0e-03  3.8e-01  1.8e-01   0.59    1.4     5864      518     1.00
+## lambda[194]      0.36  8.8e-04  6.5e-02  2.6e-01   0.36   0.48     5585      493     1.00
+## lambda[195]      0.29  8.4e-04  6.3e-02  1.9e-01   0.28   0.40     5630      497     1.00
+## lambda[196]      0.19  1.6e-03  1.4e-01  3.5e-02   0.16   0.46     7120      629     1.00
+## lambda[197]      0.50  2.0e-03  1.5e-01  2.8e-01   0.49   0.78     6147      543      1.0
+## lambda[198]      0.27  1.5e-03  1.2e-01  1.1e-01   0.25   0.49     6228      550     1.00
+## lambda[199]      0.56  1.9e-03  1.6e-01  3.3e-01   0.55   0.84     6982      617     1.00
+## lambda[200]      0.22  1.9e-03  1.5e-01  3.9e-02   0.18   0.51     6639      587     1.00
+## lambda[201]     0.075  7.3e-04  5.3e-02  1.3e-02  0.064   0.18     5248      464      1.0
+## lambda[202]      0.13  4.0e-04  3.2e-02  8.3e-02   0.13   0.19     6517      576      1.0
+## lambda[203]      0.48  4.5e-03  3.3e-01  9.0e-02   0.41    1.1     5530      489      1.0
+## lambda[204]      0.12  9.2e-04  7.0e-02  3.4e-02   0.11   0.25     5788      511     1.00
+## lambda[205]      0.28  1.5e-03  1.2e-01  1.1e-01   0.26   0.51     6691      591     1.00
+## lambda[206]      0.49  4.4e-03  3.5e-01  8.5e-02   0.41    1.2     6128      541     1.00
+## lambda[207]      0.69  5.0e-03  3.9e-01  1.9e-01   0.62    1.4     6059      535     1.00
+## lambda[208]      0.43  2.6e-03  2.0e-01  1.7e-01   0.41   0.79     5780      511      1.0
+## lambda[209]      0.32  4.1e-04  3.2e-02  2.7e-01   0.32   0.37     5824      515     1.00
+## lambda[210]      0.67  3.8e-03  3.2e-01  2.4e-01   0.62    1.3     7086      626     1.00
+## lambda[211]      0.52  1.2e-03  8.7e-02  3.9e-01   0.51   0.67     5648      499     1.00
+## lambda[212]      0.36  1.3e-03  1.0e-01  2.1e-01   0.35   0.54     5969      527     1.00
+## lambda[213]     0.087  2.9e-04  2.3e-02  5.4e-02  0.085   0.13     6222      550     1.00
+## lambda[214]     0.088  2.0e-04  1.6e-02  6.3e-02  0.087   0.12     6530      577      1.0
+## lambda[215]      0.32  1.1e-03  8.1e-02  2.0e-01   0.31   0.46     5381      475     1.00
+## lambda[216]      0.33  2.0e-03  1.5e-01  1.3e-01   0.31   0.61     5756      509     1.00
+## lambda[217]     0.028  2.0e-04  1.6e-02  7.8e-03  0.025  0.058     6074      537     1.00
+## lambda[218]      0.13  3.4e-04  2.8e-02  9.1e-02   0.13   0.18     6613      584      1.0
+## lambda[219]       1.3  8.3e-04  6.8e-02  1.2e+00    1.3    1.4     6793      600     1.00
+## lambda[220]      0.25  1.5e-03  1.1e-01  1.0e-01   0.24   0.47     5779      511     1.00
+## lambda[221]      0.33  2.4e-03  2.0e-01  8.8e-02   0.29   0.71     6747      596     1.00
+## lambda[222]      0.22  2.1e-03  1.6e-01  3.8e-02   0.19   0.53     5746      508     1.00
+## lambda[223]      0.35  3.2e-03  2.5e-01  6.6e-02   0.29   0.82     5828      515      1.0
+## lambda[224]      0.35  2.4e-03  2.0e-01  9.9e-02   0.32   0.74     7419      655     1.00
+## lambda[225]      0.33  1.4e-03  1.2e-01  1.6e-01   0.31   0.54     6851      605      1.0
+## lambda[226]      0.30  1.2e-03  9.8e-02  1.6e-01   0.29   0.48     7109      628     1.00
+## lambda[227]      0.26  1.7e-03  1.3e-01  9.1e-02   0.24   0.52     5762      509     1.00
+## lambda[228]      0.64  2.4e-03  2.0e-01  3.5e-01   0.61    1.0     7134      630     1.00
+## lambda[229]      0.61  3.8e-03  3.1e-01  2.0e-01   0.56    1.2     6352      561     1.00
+## lambda[230]      0.34  9.5e-04  8.0e-02  2.2e-01   0.33   0.48     7098      627     1.00
+## lambda[231]      0.63  3.1e-03  2.6e-01  2.7e-01   0.59    1.1     7256      641     1.00
+## lambda[232]      0.24  1.4e-03  1.2e-01  8.7e-02   0.22   0.47     7187      635     1.00
+## lambda[233]      0.35  2.4e-03  2.0e-01  9.0e-02   0.32   0.72     7354      650     1.00
+## lambda[234]      0.55  2.2e-03  1.7e-01  2.9e-01   0.53   0.86     6187      547     1.00
+## lambda[235]      0.55  1.9e-03  1.4e-01  3.3e-01   0.54   0.80     5857      517     1.00
+## lambda[236]      0.92  4.9e-03  3.5e-01  4.2e-01   0.88    1.5     5092      450     1.00
+## lambda[237]      0.61  4.0e-03  3.1e-01  2.1e-01   0.56    1.2     5917      523     1.00
+## lambda[238]      0.81  1.2e-03  9.2e-02  6.7e-01   0.81   0.96     6345      561     1.00
+## lambda[239]      0.25  1.2e-03  9.6e-02  1.1e-01   0.23   0.42     6228      550     1.00
+## lambda[240]     0.019  1.7e-04  1.3e-02  3.5e-03  0.016  0.044     5774      510      1.0
+## lambda[241]      0.81  4.4e-03  3.3e-01  3.5e-01   0.77    1.4     5762      509     1.00
+## lambda[242]       2.1  4.6e-03  3.5e-01  1.6e+00    2.1    2.7     5827      515     1.00
+## lambda[243]     0.078  2.2e-04  1.8e-02  5.0e-02  0.076   0.11     7130      630     1.00
+## lambda[244]      0.19  1.1e-03  8.7e-02  7.6e-02   0.18   0.35     6176      546     1.00
+## lambda[245]      0.27  2.4e-03  1.9e-01  5.0e-02   0.23   0.64     6070      536     1.00
+## lambda[246]      0.91  4.7e-03  3.9e-01  3.8e-01   0.85    1.6     6815      602     1.00
+## lambda[247]      0.33  2.0e-03  1.7e-01  1.1e-01   0.31   0.64     6563      580     1.00
+## lambda[248]      0.96  3.1e-03  2.6e-01  5.9e-01   0.94    1.4     7169      633     1.00
+## lambda[249]      0.22  1.6e-03  1.3e-01  5.9e-02   0.20   0.47     6283      555     1.00
+## lambda[250]      0.50  2.6e-03  2.1e-01  2.1e-01   0.47   0.88     6454      570     1.00
+## lambda[251]      0.52  4.0e-03  3.0e-01  1.5e-01   0.47    1.1     5606      495      1.0
+## lambda[252]      0.88  2.4e-03  1.9e-01  6.0e-01   0.86    1.2     5941      525     1.00
+## lambda[253]      0.34  3.0e-03  2.4e-01  6.2e-02   0.28   0.79     6228      550     1.00
+## lambda[254]      0.70  1.0e-03  8.6e-02  5.7e-01   0.70   0.85     6670      589     1.00
+## lambda[255]      0.93  2.1e-03  1.7e-01  6.7e-01   0.92    1.2     6607      584     1.00
+## lambda[256]      0.66  1.5e-03  1.2e-01  4.8e-01   0.65   0.87     6244      552     1.00
+## lambda[257]       1.4  2.3e-03  1.7e-01  1.2e+00    1.4    1.7     6004      530     1.00
+## lambda[258]      0.26  9.5e-04  7.3e-02  1.6e-01   0.26   0.40     5937      524     1.00
+## lambda[259]     0.086  3.8e-04  2.8e-02  4.6e-02  0.083   0.14     5691      503     1.00
+## lambda[260]      0.29  2.3e-03  2.0e-01  5.2e-02   0.24   0.68     7732      683      1.0
+## lambda[261]      0.50  4.6e-03  3.6e-01  8.8e-02   0.42    1.2     6172      545     1.00
+## lambda[262]      0.86  2.9e-03  2.2e-01  5.3e-01   0.84    1.3     6064      536     1.00
+## lambda[263]       2.0  4.6e-03  3.7e-01  1.4e+00    2.0    2.6     6324      559     1.00
+## lambda[264]      0.18  8.1e-04  6.3e-02  8.7e-02   0.17   0.29     5935      524     1.00
+## lambda[265]      0.26  3.6e-04  3.0e-02  2.1e-01   0.26   0.31     6827      603     1.00
+## lambda[266]      0.24  1.1e-03  8.5e-02  1.2e-01   0.23   0.40     6336      560     1.00
+## lambda[267]      0.20  1.8e-03  1.5e-01  3.6e-02   0.17   0.49     6426      568     1.00
+## lambda[268]      0.43  1.9e-03  1.6e-01  2.0e-01   0.41   0.73     7268      642      1.0
+## lambda[269]      0.27  2.4e-03  1.9e-01  5.2e-02   0.23   0.65     6048      534     1.00
+## lambda[270]      0.77  3.0e-03  2.3e-01  4.3e-01   0.75    1.2     5686      502     1.00
+## lambda[271]      0.57  6.9e-04  5.9e-02  4.8e-01   0.57   0.67     7358      650     1.00
+## lambda[272]      0.34  3.0e-03  2.4e-01  5.8e-02   0.28   0.81     6156      544     1.00
+## lambda[273]      0.24  4.0e-04  3.1e-02  2.0e-01   0.24   0.30     5922      523     1.00
+## lambda[274]      0.37  1.8e-03  1.4e-01  1.7e-01   0.35   0.63     6278      555     1.00
+## lambda[275]      0.44  7.1e-04  5.4e-02  3.6e-01   0.44   0.53     5785      511     1.00
+## lambda[276]      0.73  2.4e-03  1.9e-01  4.6e-01   0.71    1.1     5957      526     1.00
+## lambda[277]      0.16  8.2e-04  6.2e-02  7.6e-02   0.16   0.28     5767      509      1.0
+## lambda[278]      0.17  8.2e-04  6.4e-02  7.8e-02   0.16   0.28     6016      531     1.00
+## lambda[279]      0.26  1.6e-03  1.2e-01  1.0e-01   0.24   0.48     5747      508     1.00
+## lambda[280]      0.54  2.5e-03  1.9e-01  2.7e-01   0.52   0.89     5901      521     1.00
+## lambda[281]      0.49  2.7e-03  2.2e-01  1.9e-01   0.45   0.91     6737      595     1.00
+## lambda[282]      0.49  4.1e-03  3.5e-01  8.9e-02   0.41    1.2     7251      641     1.00
+## lambda[283]      0.48  3.6e-03  2.7e-01  1.3e-01   0.43   0.99     5857      517     1.00
+## lambda[284]       1.1  4.3e-03  3.3e-01  6.2e-01    1.1    1.7     5824      515     1.00
+## lambda[285]      0.38  2.6e-03  2.3e-01  9.7e-02   0.33   0.81     7823      691     1.00
+## lambda[286]      0.37  3.3e-03  2.7e-01  6.6e-02   0.31   0.89     6617      585     1.00
+## lambda[287]      0.34  1.5e-03  1.2e-01  1.7e-01   0.33   0.56     6841      604     1.00
+## lambda[288]      0.10  5.5e-04  4.1e-02  4.4e-02  0.096   0.18     5517      487     1.00
+## lambda[289]      0.37  1.8e-03  1.3e-01  1.8e-01   0.35   0.60     5628      497     1.00
+## lambda[290]      0.21  1.3e-03  1.0e-01  7.0e-02   0.19   0.40     6520      576     1.00
+## lambda[291]     0.093  6.9e-04  5.3e-02  2.5e-02  0.084   0.20     5949      526      1.0
+## lambda[292]      0.54  2.4e-03  1.8e-01  2.9e-01   0.52   0.86     5417      479     1.00
+## lambda[293]      0.41  3.6e-03  2.8e-01  7.4e-02   0.34   0.96     6276      554     1.00
+## lambda[294]      0.27  1.4e-03  1.1e-01  1.1e-01   0.25   0.47     5698      503      1.0
+## lambda[295]      0.19  1.5e-03  1.1e-01  4.9e-02   0.17   0.40     5715      505     1.00
+## lambda[296]      0.18  1.5e-03  1.2e-01  3.5e-02   0.15   0.41     7076      625     1.00
+## lambda[297]      0.85  1.5e-03  1.2e-01  6.6e-01   0.85    1.1     6652      588     1.00
+## lambda[298]      0.54  3.3e-03  2.6e-01  1.9e-01   0.49    1.0     5985      529     1.00
+## lambda[299]      0.28  2.5e-03  1.9e-01  5.5e-02   0.24   0.65     5587      494     1.00
+## lambda[300]      0.32  2.8e-03  2.2e-01  6.3e-02   0.26   0.73     5896      521     1.00
+## lambda[301]      0.34  2.9e-03  2.4e-01  6.1e-02   0.29   0.81     6715      593     1.00
+## lambda[302]      0.20  5.6e-04  4.5e-02  1.3e-01   0.20   0.28     6373      563     1.00
+## lambda[303]      0.28  9.1e-04  6.9e-02  1.8e-01   0.27   0.40     5742      507     1.00
+## lambda[304]       1.4  2.8e-03  2.2e-01  1.0e+00    1.3    1.7     6100      539     1.00
+## lambda[305]      0.61  6.9e-04  5.3e-02  5.2e-01   0.61   0.70     6019      532     1.00
+## lambda[306]       1.1  3.1e-03  2.2e-01  7.1e-01    1.0    1.4     5324      470      1.0
+## lambda[307]      0.60  4.7e-03  3.5e-01  1.6e-01   0.53    1.3     5643      499      1.0
+## lambda[308]      0.88  1.4e-03  1.2e-01  6.9e-01   0.88    1.1     7298      645     1.00
+## lambda[309]      0.43  1.3e-03  1.0e-01  2.8e-01   0.42   0.62     5882      520     1.00
+## lambda[310]       1.1  3.4e-03  2.6e-01  7.5e-01    1.1    1.6     6184      546     1.00
+## lambda[311]      0.36  2.2e-03  1.8e-01  1.3e-01   0.33   0.69     6790      600     1.00
+## lambda[312]      0.14  7.8e-04  5.2e-02  6.9e-02   0.14   0.24     4533      400     1.00
+## lambda[313]       1.5  4.9e-03  3.8e-01  9.5e-01    1.5    2.2     6046      534     1.00
+## lambda[314]      0.42  3.6e-03  2.9e-01  6.7e-02   0.36   0.98     6719      594     1.00
+## lambda[315]      0.43  1.9e-03  1.7e-01  1.9e-01   0.41   0.74     8018      708     1.00
+## lambda[316]       1.8  1.9e-03  1.6e-01  1.6e+00    1.8    2.1     6928      612     1.00
+## lambda[317]      0.36  9.6e-04  7.9e-02  2.5e-01   0.36   0.51     6821      603     1.00
+## lambda[318]      0.19  5.5e-04  4.2e-02  1.2e-01   0.19   0.26     5797      512     1.00
+## lambda[319]      0.26  2.4e-03  1.9e-01  4.5e-02   0.22   0.64     6376      563     1.00
+## lambda[320]      0.73  4.6e-03  3.6e-01  2.5e-01   0.67    1.4     6373      563     1.00
+## lambda[321]      0.73  2.1e-03  1.7e-01  4.7e-01   0.72    1.0     6373      563     1.00
+## lambda[322]      0.27  1.9e-03  1.5e-01  7.3e-02   0.25   0.56     6899      610     1.00
+## lambda[323]      0.77  4.7e-03  3.8e-01  2.6e-01   0.70    1.5     6560      580     1.00
+## lambda[324]      0.88  3.9e-03  3.1e-01  4.4e-01   0.84    1.4     6280      555     1.00
+## lambda[325]      0.40  2.8e-03  2.3e-01  1.1e-01   0.35   0.84     6601      583     1.00
+## lambda[326]      0.34  2.8e-03  2.4e-01  6.2e-02   0.28   0.79     7019      620     1.00
+## lambda[327]      0.46  2.1e-03  1.6e-01  2.3e-01   0.44   0.75     5971      528     1.00
+## lambda[328]      0.33  1.7e-03  1.3e-01  1.4e-01   0.31   0.58     5944      525     1.00
+## lambda[329]      0.50  2.6e-03  2.2e-01  1.9e-01   0.46   0.91     7011      619      1.0
+## lambda[330]      0.51  1.5e-03  1.3e-01  3.2e-01   0.50   0.74     7568      669     1.00
+## lambda[331]       2.2  5.1e-03  4.0e-01  1.6e+00    2.2    2.9     5985      529     1.00
+## lambda[332]      0.51  2.8e-03  2.1e-01  2.1e-01   0.48   0.91     5766      509      1.0
+## lambda[333]      0.31  6.3e-04  4.7e-02  2.4e-01   0.31   0.39     5637      498     1.00
+## lambda[334]      0.58  3.9e-03  2.8e-01  2.0e-01   0.54    1.1     5450      481     1.00
+## lambda[335]      0.21  1.8e-03  1.5e-01  3.9e-02   0.18   0.49     6494      574      1.0
+## lambda[336]      0.23  2.3e-03  1.7e-01  4.4e-02   0.19   0.55     5359      473     1.00
+## lambda[337]      0.49  2.5e-03  1.9e-01  2.2e-01   0.47   0.85     6098      539     1.00
+## lambda[338]      0.30  1.5e-03  1.2e-01  1.4e-01   0.28   0.51     6175      546     1.00
+## lambda[339]      0.62  1.2e-03  1.0e-01  4.6e-01   0.61   0.79     6793      600     1.00
+## lambda[340]      0.68  3.9e-03  3.4e-01  2.3e-01   0.62    1.3     7539      666     1.00
+## lambda[341]      0.26  1.4e-03  1.1e-01  1.1e-01   0.24   0.47     6256      553     1.00
+## lambda[342]     0.091  4.8e-04  3.9e-02  3.6e-02  0.085   0.16     6705      592     1.00
+## lambda[343]      0.39  3.7e-03  2.9e-01  6.4e-02   0.32   0.95     6171      545     1.00
+## lambda[344]      0.48  6.1e-04  4.5e-02  4.1e-01   0.48   0.56     5436      480     1.00
+## lambda[345]      0.43  3.6e-03  3.0e-01  7.7e-02   0.36    1.0     6635      586     1.00
+## lambda[346]     0.096  5.5e-04  4.4e-02  3.7e-02  0.090   0.18     6391      565     1.00
+## lambda[347]      0.54  7.0e-04  5.4e-02  4.5e-01   0.54   0.63     5985      529     1.00
+## lambda[348]      0.47  1.2e-03  9.4e-02  3.3e-01   0.47   0.64     5987      529      1.0
+## lambda[349]      0.61  4.4e-03  3.5e-01  1.7e-01   0.54    1.3     6367      562     1.00
+## lambda[350]      0.37  2.1e-03  1.6e-01  1.4e-01   0.34   0.67     6067      536     1.00
+## lambda[351]      0.23  4.4e-04  3.2e-02  1.8e-01   0.22   0.28     5176      457     1.00
+## lambda[352]      0.45  3.9e-03  3.3e-01  7.5e-02   0.38    1.1     6815      602     1.00
+## lambda[353]     0.072  3.2e-04  2.4e-02  3.6e-02  0.069   0.12     5647      499     1.00
+## lambda[354]      0.41  3.6e-03  2.8e-01  7.7e-02   0.35   0.96     6392      565      1.0
+## lambda[355]       1.6  2.0e-03  1.6e-01  1.3e+00    1.6    1.8     5858      518      1.0
+## lambda[356]      0.47  2.0e-03  1.6e-01  2.4e-01   0.45   0.76     6757      597     1.00
+## lambda[357]      0.24  1.2e-03  9.5e-02  1.0e-01   0.22   0.41     6029      533     1.00
+## lambda[358]      0.66  2.2e-03  1.6e-01  4.2e-01   0.64   0.94     5244      463      1.0
+## lambda[359]      0.54  7.2e-04  5.6e-02  4.5e-01   0.53   0.63     5880      519     1.00
+## lambda[360]      0.48  2.8e-03  2.2e-01  1.8e-01   0.45   0.89     6216      549     1.00
+## lambda[361]      0.20  1.2e-03  8.9e-02  7.8e-02   0.19   0.36     5592      494     1.00
+## lambda[362]     0.078  7.0e-04  5.5e-02  1.4e-02  0.066   0.19     6349      561     1.00
+## lambda[363]      0.17  1.3e-03  1.0e-01  4.8e-02   0.16   0.37     6120      541     1.00
+## lambda[364]      0.37  2.8e-03  2.1e-01  9.7e-02   0.33   0.78     6025      532     1.00
+## lambda[365]      0.35  5.3e-04  4.0e-02  2.9e-01   0.35   0.42     5849      517     1.00
+## lambda[366]      0.16  1.4e-03  1.1e-01  2.7e-02   0.13   0.37     6446      569     1.00
+## lambda[367]      0.38  2.8e-03  2.2e-01  1.0e-01   0.34   0.79     6246      552     1.00
+## lambda[368]      0.18  8.3e-04  6.1e-02  9.4e-02   0.18   0.29     5420      479     1.00
+## lambda[369]      0.44  3.9e-03  3.1e-01  7.9e-02   0.37    1.1     6435      569      1.0
+## lambda[370]      0.20  1.4e-03  1.2e-01  5.3e-02   0.18   0.43     6964      615     1.00
+## lambda[371]     0.046  4.2e-04  3.3e-02  7.7e-03  0.038   0.11     6164      545     1.00
+## lambda[372]      0.64  2.2e-03  1.7e-01  3.8e-01   0.62   0.94     5773      510     1.00
+## lambda[373]      0.61  4.4e-03  3.5e-01  1.7e-01   0.55    1.3     6227      550     1.00
+## lambda[374]      0.32  1.2e-03  8.7e-02  1.9e-01   0.31   0.47     5660      500     1.00
+## lambda[375]      0.36  2.7e-03  2.1e-01  1.0e-01   0.32   0.75     5898      521     1.00
+## lambda[376]      0.15  7.6e-04  6.0e-02  7.0e-02   0.15   0.26     6319      558     1.00
+## lambda[377]      0.32  1.3e-03  1.1e-01  1.7e-01   0.31   0.52     6750      596     1.00
+## lambda[378]      0.24  2.1e-03  1.8e-01  4.2e-02   0.20   0.56     6949      614     1.00
+## lambda[379]      0.36  1.7e-03  1.3e-01  1.8e-01   0.34   0.59     5280      466     1.00
+## lambda[380]      0.32  2.9e-03  2.3e-01  6.0e-02   0.27   0.76     6118      541     1.00
+## lambda[381]      0.62  1.2e-03  9.7e-02  4.7e-01   0.61   0.78     6482      573     1.00
+## lambda[382]      0.67  2.7e-03  1.9e-01  3.9e-01   0.65   1.00     4756      420     1.00
+## lambda[383]      0.21  6.9e-04  4.9e-02  1.3e-01   0.20   0.29     5095      450     1.00
+## lambda[384]      0.38  2.2e-03  1.9e-01  1.3e-01   0.35   0.73     6907      610     1.00
+## lambda[385]      0.87  3.2e-03  2.5e-01  4.9e-01   0.84    1.3     6477      572      1.0
+## lambda[386]      0.34  2.9e-03  2.4e-01  6.1e-02   0.29   0.80     6646      587     1.00
+## lambda[387]      0.46  2.5e-03  2.1e-01  1.7e-01   0.43   0.83     6667      589     1.00
+## lambda[388]       1.1  4.4e-03  3.5e-01  6.1e-01    1.1    1.8     6230      550     1.00
+## lambda[389]      0.36  2.6e-03  2.0e-01  9.9e-02   0.32   0.73     5847      517     1.00
+## lambda[390]      0.16  1.2e-03  9.6e-02  4.2e-02   0.14   0.34     6471      572     1.00
+## lambda[391]      0.51  1.8e-03  1.4e-01  3.0e-01   0.50   0.77     6115      540      1.0
+## lambda[392]      0.56  3.5e-03  2.8e-01  1.9e-01   0.51    1.1     6744      596     1.00
+## lambda[393]      0.21  7.3e-04  5.7e-02  1.2e-01   0.20   0.31     6100      539     1.00
+## lambda[394]      0.70  2.7e-03  2.2e-01  3.7e-01   0.67    1.1     6548      579     1.00
+## lambda[395]      0.42  1.4e-03  1.1e-01  2.6e-01   0.42   0.61     6095      538     1.00
+## lambda[396]      0.51  8.0e-04  6.2e-02  4.1e-01   0.51   0.62     5969      527     1.00
+## lambda[397]      0.45  3.7e-03  3.2e-01  7.8e-02   0.38    1.1     7647      676     1.00
+## lambda[398]      0.52  3.7e-03  3.0e-01  1.4e-01   0.45    1.1     6620      585     1.00
+## lambda[399]      0.27  1.7e-03  1.3e-01  9.3e-02   0.24   0.52     6039      534     1.00
+## lambda[400]      0.51  1.5e-03  1.2e-01  3.2e-01   0.50   0.73     6426      568     1.00
+## lambda[401]      0.55  2.4e-03  1.9e-01  2.8e-01   0.52   0.88     6229      550     1.00
+## lambda[402]      0.38  3.2e-03  2.6e-01  7.4e-02   0.33   0.89     6836      604     1.00
+## lambda[403]      0.34  1.2e-03  9.4e-02  2.0e-01   0.33   0.50     5779      511     1.00
+## lambda[404]      0.31  2.7e-03  2.2e-01  5.1e-02   0.26   0.73     6411      566     1.00
+## lambda[405]      0.45  4.1e-03  3.3e-01  6.8e-02   0.37    1.1     6782      599     1.00
+## lambda[406]      0.59  1.0e-03  7.4e-02  4.8e-01   0.59   0.72     5588      494     1.00
+## lambda[407]      0.38  2.1e-03  1.5e-01  1.6e-01   0.36   0.67     5531      489     1.00
+## lambda[408]      0.44  4.1e-03  3.1e-01  7.8e-02   0.37    1.0     5567      492     1.00
+## lambda[409]      0.34  2.2e-03  1.7e-01  1.2e-01   0.32   0.66     5826      515     1.00
+## lambda[410]      0.23  9.0e-04  6.7e-02  1.3e-01   0.22   0.35     5528      488     1.00
+## lambda[411]      0.74  1.7e-03  1.4e-01  5.2e-01   0.73   0.98     7041      622     1.00
+## lambda[412]       1.3  3.1e-03  2.6e-01  9.2e-01    1.3    1.8     6698      592     1.00
+## lambda[413]      0.52  7.8e-04  5.9e-02  4.3e-01   0.52   0.62     5716      505     1.00
+## lambda[414]      0.15  1.1e-03  8.7e-02  3.8e-02   0.13   0.31     6594      583     1.00
+## lambda[415]      0.19  1.7e-03  1.3e-01  3.5e-02   0.16   0.44     6113      540     1.00
+## lambda[416]      0.39  3.4e-03  2.7e-01  7.1e-02   0.34   0.92     6335      560     1.00
+## lambda[417]      0.21  1.9e-03  1.5e-01  3.6e-02   0.17   0.50     6570      580     1.00
+## lambda[418]      0.30  1.3e-03  1.0e-01  1.5e-01   0.29   0.49     6263      553     1.00
+## lambda[419]      0.19  1.7e-03  1.4e-01  3.4e-02   0.16   0.47     6781      599     1.00
+## lambda[420]      0.57  3.2e-03  2.5e-01  2.3e-01   0.53    1.0     6072      536     1.00
+## lambda[421]      0.28  2.4e-03  2.0e-01  5.0e-02   0.24   0.66     6649      587     1.00
+## lambda[422]      0.14  7.7e-04  6.3e-02  5.8e-02   0.13   0.26     6679      590     1.00
+## lambda[423]      0.44  3.9e-03  3.0e-01  8.4e-02   0.37    1.0     6200      548     1.00
+## lambda[424]      0.15  1.4e-03  1.1e-01  2.7e-02   0.13   0.35     6265      553     1.00
+## lambda[425]      0.40  3.8e-03  2.8e-01  6.9e-02   0.34   0.94     5548      490      1.0
+## lambda[426]      0.42  2.9e-03  2.5e-01  1.0e-01   0.37   0.88     6992      618     1.00
+## lambda[427]      0.45  4.1e-03  3.2e-01  7.7e-02   0.38    1.1     6261      553     1.00
+## lambda[428]      0.16  5.0e-04  3.9e-02  1.0e-01   0.16   0.23     6024      532     1.00
+## lambda[429]      0.32  2.4e-03  1.8e-01  9.3e-02   0.29   0.68     6027      532     1.00
+## lambda[430]      0.68  4.0e-03  3.1e-01  2.7e-01   0.63    1.3     5964      527     1.00
+## lambda[431]      0.63  1.1e-03  9.0e-02  4.8e-01   0.62   0.78     6249      552     1.00
+## lambda[432]      0.21  4.6e-04  3.6e-02  1.5e-01   0.20   0.27     6239      551     1.00
+## lambda[433]      0.73  1.1e-03  8.6e-02  5.9e-01   0.72   0.87     5992      529     1.00
+## lambda[434]      0.13  4.1e-04  2.9e-02  9.0e-02   0.13   0.18     5038      445      1.0
+## lambda[435]      0.63  4.5e-03  3.6e-01  1.7e-01   0.56    1.3     6685      591     1.00
+## lambda[436]      0.17  1.5e-03  1.2e-01  3.4e-02   0.15   0.41     6466      571     1.00
+## lambda[437]      0.12  8.7e-04  7.0e-02  3.4e-02   0.11   0.25     6525      576     1.00
+## lambda[438]      0.27  1.7e-03  1.4e-01  9.2e-02   0.25   0.53     6205      548     1.00
+## lambda[439]      0.35  1.7e-03  1.5e-01  1.5e-01   0.33   0.61     6984      617     1.00
+## lambda[440]      0.35  2.3e-03  1.8e-01  1.2e-01   0.32   0.67     5793      512      1.0
+## lambda[441]      0.58  1.1e-03  8.7e-02  4.5e-01   0.58   0.73     5973      528     1.00
+## lambda[442]      0.24  1.5e-03  1.2e-01  8.4e-02   0.22   0.48     6476      572     1.00
+## lambda[443]      0.43  4.0e-03  3.0e-01  8.0e-02   0.36    1.0     5628      497     1.00
+## lambda[444]      0.36  6.4e-04  4.8e-02  2.9e-01   0.36   0.45     5732      506     1.00
+## lambda[445]      0.48  1.3e-03  1.1e-01  3.2e-01   0.48   0.67     6622      585     1.00
+## lambda[446]     0.056  2.9e-04  2.5e-02  2.2e-02  0.052   0.10     7102      627     1.00
+## lambda[447]      0.21  1.9e-03  1.5e-01  3.9e-02   0.17   0.48     6219      549     1.00
+## lambda[448]      0.23  7.3e-04  5.3e-02  1.5e-01   0.22   0.32     5367      474     1.00
+## lambda[449]      0.23  2.2e-03  1.6e-01  4.1e-02   0.19   0.54     5070      448     1.00
+## lambda[450]      0.21  1.4e-03  1.2e-01  6.0e-02   0.19   0.44     7129      630     1.00
+## lambda[451]      0.55  4.1e-03  3.1e-01  1.5e-01   0.49    1.2     5878      519      1.0
+## lambda[452]      0.30  1.4e-03  1.2e-01  1.3e-01   0.28   0.53     7614      673     1.00
+## lambda[453]      0.65  3.4e-03  2.8e-01  2.7e-01   0.61    1.2     6619      585     1.00
+## lambda[454]      0.22  5.2e-04  3.9e-02  1.6e-01   0.22   0.29     5775      510     1.00
+## lambda[455]     0.094  5.2e-04  4.0e-02  4.0e-02  0.088   0.17     5778      510     1.00
+## lambda[456]      0.58  2.4e-03  2.0e-01  2.9e-01   0.56   0.95     7295      644     1.00
+## lambda[457]      0.65  2.6e-03  2.1e-01  3.3e-01   0.63    1.0     6552      579     1.00
+## lambda[458]      0.43  3.9e-03  3.1e-01  8.0e-02   0.36    1.0     6299      556     1.00
+## lambda[459]     0.029  2.5e-04  2.1e-02  5.2e-03  0.025  0.071     6875      607     1.00
+## lambda[460]      0.36  2.7e-03  2.1e-01  9.7e-02   0.32   0.74     6132      542     1.00
+## lambda[461]      0.65  2.6e-03  2.2e-01  3.3e-01   0.63    1.0     7012      620     1.00
+## lambda[462]      0.40  2.7e-03  2.3e-01  1.1e-01   0.36   0.85     7387      653     1.00
+## lambda[463]      0.72  4.6e-03  3.6e-01  2.4e-01   0.66    1.4     6213      549     1.00
+## lambda[464]      0.40  3.7e-03  2.8e-01  6.5e-02   0.33   0.92     5980      528      1.0
+## lambda[465]      0.47  2.3e-03  1.9e-01  2.1e-01   0.45   0.83     7328      647     1.00
+## lambda[466]      0.51  2.0e-03  1.5e-01  3.0e-01   0.50   0.77     5477      484      1.0
+## lambda[467]     0.078  4.0e-04  3.2e-02  3.4e-02  0.074   0.14     6463      571     1.00
+## lambda[468]      0.15  7.7e-04  6.2e-02  6.8e-02   0.15   0.27     6638      586     1.00
+## lambda[469]      0.54  2.6e-03  2.0e-01  2.5e-01   0.51   0.91     6104      539     1.00
+## lambda[470]      0.87  1.1e-03  9.1e-02  7.2e-01   0.87    1.0     6433      568     1.00
+## lambda[471]      0.33  1.7e-03  1.4e-01  1.3e-01   0.31   0.60     6777      599     1.00
+## lambda[472]      0.92  2.5e-03  1.9e-01  6.3e-01   0.90    1.3     5656      500     1.00
+## lambda[473]      0.49  4.0e-03  3.4e-01  8.9e-02   0.41    1.1     7299      645     1.00
+## lambda[474]      0.16  4.2e-04  3.3e-02  1.0e-01   0.15   0.21     6227      550      1.0
+## lambda[475]       1.1  1.2e-03  9.4e-02  9.7e-01    1.1    1.3     6309      557     1.00
+## lambda[476]      0.43  1.7e-03  1.3e-01  2.3e-01   0.42   0.66     6273      554     1.00
+## lambda[477]      0.56  2.5e-03  2.0e-01  2.8e-01   0.54   0.93     6681      590     1.00
+## lambda[478]      0.21  7.7e-04  6.4e-02  1.1e-01   0.20   0.32     6932      612     1.00
+## lambda[479]      0.29  1.6e-03  1.3e-01  1.1e-01   0.27   0.52     6720      594     1.00
+## lambda[480]      0.83  3.3e-03  2.5e-01  4.7e-01   0.81    1.3     5824      514     1.00
+## lambda[481]      0.21  1.8e-03  1.5e-01  3.9e-02   0.18   0.49     6795      600     1.00
+## lambda[482]      0.63  4.2e-03  3.2e-01  2.2e-01   0.59    1.2     5733      506     1.00
+## lambda[483]      0.30  1.7e-03  1.3e-01  1.2e-01   0.28   0.55     5942      525     1.00
+## lambda[484]      0.64  5.4e-03  3.7e-01  1.7e-01   0.57    1.4     4819      426     1.00
+## lambda[485]      0.23  1.7e-03  1.3e-01  6.5e-02   0.20   0.47     5705      504     1.00
+## lambda[486]      0.28  2.1e-03  1.6e-01  7.5e-02   0.25   0.58     5898      521     1.00
+## lambda[487]      0.22  1.2e-03  8.7e-02  1.0e-01   0.21   0.38     5708      504     1.00
+## lambda[488]      0.29  1.6e-03  1.3e-01  1.1e-01   0.27   0.52     6284      555     1.00
+## lambda[489]      0.37  3.3e-03  2.6e-01  6.8e-02   0.31   0.87     6170      545     1.00
+## lambda[490]      0.32  1.8e-03  1.4e-01  1.3e-01   0.30   0.58     6239      551     1.00
+## lambda[491]      0.29  9.0e-04  7.2e-02  1.9e-01   0.28   0.42     6311      558     1.00
+## lambda[492]      0.13  4.0e-04  3.2e-02  8.2e-02   0.13   0.18     6272      554     1.00
+## lambda[493]      0.88  2.3e-03  2.0e-01  5.9e-01   0.86    1.2     7372      651     1.00
+## lambda[494]      0.47  4.1e-03  3.4e-01  8.0e-02   0.40    1.1     6736      595     1.00
+## lambda[495]      0.14  1.1e-03  7.9e-02  3.8e-02   0.12   0.28     5481      484      1.0
+## lambda[496]      0.49  1.7e-03  1.3e-01  3.0e-01   0.48   0.73     6266      554     1.00
+## lambda[497]      0.10  7.0e-04  5.1e-02  3.5e-02  0.094   0.20     5332      471     1.00
+## lambda[498]      0.28  5.9e-04  4.6e-02  2.1e-01   0.28   0.36     6153      544     1.00
+## lambda[499]      0.28  1.5e-03  1.2e-01  1.1e-01   0.26   0.51     6449      570     1.00
+## lambda[500]      0.17  4.6e-04  3.7e-02  1.1e-01   0.17   0.23     6489      573     1.00
+## lambda[501]      0.50  4.5e-03  3.7e-01  8.6e-02   0.41    1.2     6639      587     1.00
+## lambda[502]      0.34  1.5e-03  1.2e-01  1.7e-01   0.33   0.57     6202      548     1.00
+## lambda[503]      0.30  2.6e-03  2.1e-01  5.7e-02   0.25   0.71     6369      563     1.00
+## lambda[504]      0.40  3.3e-03  2.9e-01  7.2e-02   0.34   0.94     7663      677      1.0
+## lambda[505]      0.46  3.9e-03  3.2e-01  8.6e-02   0.38    1.1     6762      597     1.00
+## lambda[506]      0.34  3.1e-03  2.4e-01  5.7e-02   0.28   0.82     6126      541      1.0
+## lambda[507]      0.46  1.3e-03  9.7e-02  3.1e-01   0.45   0.63     5775      510      1.0
+## lambda[508]      0.72  2.5e-03  1.9e-01  4.4e-01   0.70    1.1     6128      541      1.0
+## lambda[509]      0.18  8.1e-04  6.2e-02  9.6e-02   0.18   0.30     5738      507     1.00
+## lambda[510]      0.42  1.5e-03  1.1e-01  2.5e-01   0.41   0.63     5809      513      1.0
+## lambda[511]      0.40  1.9e-03  1.6e-01  1.8e-01   0.38   0.69     6986      617     1.00
+## lambda[512]      0.18  5.1e-04  3.8e-02  1.2e-01   0.18   0.25     5703      504     1.00
+## lambda[513]     0.057  4.0e-04  3.2e-02  1.7e-02  0.052   0.12     6382      564     1.00
+## lambda[514]      0.33  1.7e-03  1.3e-01  1.5e-01   0.31   0.57     5362      474     1.00
+## lambda[515]      0.52  3.9e-03  2.9e-01  1.5e-01   0.47    1.1     5589      494     1.00
+## lambda[516]      0.46  3.2e-03  2.7e-01  1.2e-01   0.41   0.96     7108      628     1.00
+## lambda[517]      0.47  3.2e-03  2.5e-01  1.5e-01   0.43   0.94     6050      535     1.00
+## lambda[518]      0.31  2.9e-03  2.2e-01  5.7e-02   0.26   0.75     5691      503     1.00
+## lambda[519]      0.51  1.9e-03  1.5e-01  2.9e-01   0.50   0.78     6480      572      1.0
+## lambda[520]      0.26  6.8e-04  5.0e-02  1.8e-01   0.26   0.35     5414      478      1.0
+## lambda[521]      0.13  1.2e-03  9.1e-02  2.4e-02   0.11   0.31     6134      542     1.00
+## lambda[522]      0.34  2.6e-03  1.9e-01  9.0e-02   0.30   0.71     5552      491     1.00
+## lambda[523]      0.54  1.4e-03  1.1e-01  3.7e-01   0.53   0.74     6059      535      1.0
+## lambda[524]      0.64  2.1e-03  1.5e-01  4.2e-01   0.63   0.91     5167      456     1.00
+## lambda[525]      0.65  1.5e-03  1.2e-01  4.7e-01   0.64   0.86     6356      562     1.00
+## lambda[526]      0.28  1.6e-03  1.3e-01  1.1e-01   0.26   0.52     6489      573     1.00
+## lambda[527]      0.53  1.6e-03  1.2e-01  3.5e-01   0.52   0.75     5919      523      1.0
+## lambda[528]       1.1  1.5e-03  1.2e-01  9.0e-01    1.1    1.3     5972      528     1.00
+## lambda[529]      0.46  4.0e-03  3.2e-01  8.9e-02   0.39    1.0     6318      558     1.00
+## lambda[530]      0.30  1.1e-03  8.6e-02  1.8e-01   0.29   0.45     6077      537     1.00
+## lambda[531]       1.1  2.7e-03  2.1e-01  7.6e-01    1.1    1.4     5876      519      1.0
+## lambda[532]      0.49  2.4e-03  1.8e-01  2.3e-01   0.47   0.82     5931      524     1.00
+## lambda[533]      0.54  3.3e-03  2.7e-01  1.9e-01   0.50    1.0     6522      576      1.0
+## lambda[534]      0.51  2.6e-03  2.1e-01  2.2e-01   0.48   0.89     6511      575     1.00
+## lambda[535]      0.30  2.4e-03  2.0e-01  6.2e-02   0.25   0.69     7012      620     1.00
+## lambda[536]      0.46  1.1e-03  9.0e-02  3.2e-01   0.45   0.61     6267      554     1.00
+## lambda[537]      0.76  3.5e-03  2.8e-01  3.6e-01   0.72    1.3     6273      554     1.00
+## lambda[538]      0.33  2.7e-03  2.3e-01  6.2e-02   0.28   0.79     7153      632     1.00
+## lambda[539]      0.52  1.7e-03  1.3e-01  3.4e-01   0.51   0.75     5459      482     1.00
+## lambda[540]      0.47  8.3e-04  6.8e-02  3.7e-01   0.47   0.59     6602      583     1.00
+## lambda[541]      0.24  2.1e-03  1.7e-01  4.2e-02   0.20   0.56     6310      557     1.00
+## lambda[542]      0.45  3.9e-03  3.2e-01  7.7e-02   0.39    1.1     6963      615     1.00
+## lambda[543]      0.39  2.8e-03  2.2e-01  1.1e-01   0.35   0.80     6213      549     1.00
+## lambda[544]      0.68  3.3e-03  2.6e-01  3.1e-01   0.65    1.1     5964      527     1.00
+## lambda[545]      0.38  2.5e-03  1.9e-01  1.3e-01   0.35   0.73     5924      523     1.00
+## lambda[546]      0.79  2.0e-03  1.5e-01  5.6e-01   0.78    1.1     5679      502      1.0
+## lambda[547]      0.33  3.0e-03  2.4e-01  5.7e-02   0.27   0.79     6122      541     1.00
+## lambda[548]      0.27  2.3e-03  1.9e-01  4.7e-02   0.23   0.63     6632      586     1.00
+## lambda[549]      0.64  1.4e-03  1.1e-01  4.6e-01   0.63   0.84     6515      576     1.00
+## lambda[550]      0.84  2.3e-03  1.7e-01  5.9e-01   0.83    1.1     5381      475     1.00
+## lambda[551]     0.097  7.1e-04  5.7e-02  2.6e-02  0.086   0.21     6450      570     1.00
+## lambda[552]      0.41  1.1e-03  8.7e-02  2.7e-01   0.40   0.56     6811      602     1.00
+## lambda[553]      0.45  2.4e-03  2.0e-01  1.8e-01   0.42   0.82     7130      630     1.00
+## lambda[554]      0.44  3.7e-03  3.1e-01  7.4e-02   0.37    1.0     7159      633     1.00
+## lambda[555]      0.56  4.0e-03  3.1e-01  1.5e-01   0.50    1.1     6125      541     1.00
+## lambda[556]      0.24  1.6e-03  1.2e-01  8.2e-02   0.22   0.47     5640      498     1.00
+## lambda[557]      0.20  1.9e-03  1.4e-01  3.4e-02   0.17   0.49     5503      486     1.00
+## lambda[558]      0.64  3.5e-03  2.8e-01  2.6e-01   0.60    1.2     6251      552     1.00
+## lambda[559]      0.12  5.3e-04  4.0e-02  6.2e-02   0.11   0.19     5542      490     1.00
+## lambda[560]       1.2  4.0e-03  3.1e-01  7.2e-01    1.2    1.7     6026      532     1.00
+## lambda[561]      0.19  1.7e-03  1.3e-01  3.8e-02   0.16   0.44     5520      488      1.0
+## lambda[562]      0.97  3.3e-03  2.8e-01  5.7e-01   0.94    1.5     6875      607     1.00
+## lambda[563]      0.20  1.3e-03  1.1e-01  5.5e-02   0.18   0.40     7239      640     1.00
+## lambda[564]      0.30  1.0e-03  7.8e-02  1.8e-01   0.29   0.44     6039      534     1.00
+## lambda[565]     0.053  3.6e-04  2.7e-02  1.8e-02  0.049   0.10     5565      492      1.0
+## lambda[566]     0.047  3.3e-04  2.8e-02  1.3e-02  0.042   0.10     7083      626     1.00
+## lambda[567]      0.26  9.1e-04  7.1e-02  1.6e-01   0.26   0.39     6101      539     1.00
+## lambda[568]      0.81  3.1e-03  2.5e-01  4.4e-01   0.78    1.3     6897      609      1.0
+## lambda[569]      0.38  1.9e-03  1.4e-01  1.8e-01   0.37   0.65     5861      518     1.00
+## lambda[570]      0.12  9.1e-04  6.7e-02  3.2e-02   0.10   0.24     5521      488      1.0
+## lambda[571]      0.14  5.4e-04  4.5e-02  7.5e-02   0.14   0.22     7044      622     1.00
+## lambda[572]      0.25  1.9e-03  1.8e-01  4.3e-02   0.21   0.59     8221      726     1.00
+## lambda[573]      0.69  4.8e-03  4.0e-01  1.9e-01   0.62    1.5     6948      614     1.00
+## lambda[574]      0.48  4.3e-03  3.5e-01  8.2e-02   0.40    1.2     6741      596     1.00
+## lambda[575]      0.26  7.1e-04  5.9e-02  1.7e-01   0.25   0.36     7071      625     1.00
+## lambda[576]      0.16  9.1e-04  6.7e-02  7.1e-02   0.16   0.29     5469      483     1.00
+## lambda[577]      0.29  2.7e-03  2.0e-01  5.4e-02   0.25   0.68     5609      496     1.00
+## lambda[578]      0.24  7.8e-04  6.0e-02  1.5e-01   0.23   0.35     5780      511     1.00
+## lambda[579]      0.15  5.7e-04  4.8e-02  7.9e-02   0.14   0.23     7024      621     1.00
+## lambda[580]      0.42  1.1e-03  7.7e-02  3.1e-01   0.42   0.56     4790      423     1.00
+## lambda[581]      0.45  1.1e-03  8.2e-02  3.2e-01   0.45   0.59     5438      480     1.00
+## lambda[582]       1.0  5.8e-03  4.5e-01  4.2e-01   0.95    1.9     5948      525     1.00
+## lambda[583]      0.38  3.2e-03  2.7e-01  7.0e-02   0.32   0.91     6928      612     1.00
+## lambda[584]      0.37  3.2e-03  2.7e-01  6.4e-02   0.30   0.87     6720      594     1.00
+## lambda[585]      0.76  3.9e-03  3.4e-01  3.1e-01   0.71    1.4     7366      651     1.00
+## lambda[586]      0.25  1.4e-03  1.1e-01  9.7e-02   0.23   0.46     6288      556     1.00
+## lambda[587]      0.42  3.7e-03  3.0e-01  8.0e-02   0.36   0.99     6692      591     1.00
+## lambda[588]      0.30  2.1e-03  1.7e-01  8.3e-02   0.26   0.62     6560      580     1.00
+## lambda[589]      0.26  1.9e-03  1.5e-01  7.0e-02   0.23   0.54     6377      563     1.00
+## lambda[590]      0.30  2.7e-03  2.1e-01  4.9e-02   0.25   0.72     6183      546      1.0
+## lambda[591]      0.75  1.8e-03  1.4e-01  5.3e-01   0.75   1.00     6358      562     1.00
+## lambda[592]      0.33  9.4e-04  7.5e-02  2.2e-01   0.33   0.46     6409      566     1.00
+## lambda[593]      0.35  1.6e-03  1.3e-01  1.7e-01   0.34   0.60     6492      574      1.0
+## lambda[594]      0.14  7.2e-04  5.5e-02  6.6e-02   0.14   0.24     5933      524     1.00
+## lambda[595]      0.51  1.7e-03  1.4e-01  3.1e-01   0.50   0.76     6362      562     1.00
+## lambda[596]      0.92  2.6e-03  2.2e-01  5.9e-01   0.90    1.3     7080      626     1.00
+## lambda[597]      0.76  2.2e-03  1.7e-01  4.9e-01   0.74    1.1     6483      573     1.00
+## lambda[598]      0.95  1.8e-03  1.4e-01  7.4e-01   0.95    1.2     6355      561      1.0
+## lambda[599]      0.57  1.2e-03  9.7e-02  4.2e-01   0.56   0.73     6746      596     1.00
+## lambda[600]      0.42  3.1e-03  2.4e-01  1.2e-01   0.38   0.87     5886      520     1.00
+## lambda[601]      0.26  1.4e-03  1.1e-01  1.1e-01   0.25   0.46     6436      569      1.0
+## lambda[602]      0.79  4.7e-03  4.1e-01  2.6e-01   0.73    1.6     7356      650     1.00
+## lambda[603]      0.59  3.2e-03  2.7e-01  2.2e-01   0.55    1.1     6886      608     1.00
+## lambda[604]      0.74  1.6e-03  1.2e-01  5.5e-01   0.74   0.96     5889      520     1.00
+## lambda[605]      0.22  2.0e-03  1.6e-01  4.2e-02   0.19   0.53     5923      523     1.00
+## lambda[606]      0.12  6.7e-04  5.3e-02  4.4e-02   0.11   0.22     6172      545     1.00
+## lambda[607]      0.76  1.4e-03  1.2e-01  5.7e-01   0.75   0.97     7415      655     1.00
+## lambda[608]      0.50  5.0e-03  3.5e-01  9.2e-02   0.42    1.2     4902      433      1.0
+## lambda[609]      0.16  1.4e-03  1.1e-01  2.8e-02   0.13   0.38     6715      593     1.00
+## lambda[610]      0.28  3.0e-03  2.1e-01  4.6e-02   0.24   0.68     4672      413     1.00
+## lambda[611]      0.60  4.7e-03  3.5e-01  1.6e-01   0.53    1.3     5619      496     1.00
+## lambda[612]      0.49  2.6e-03  2.2e-01  1.9e-01   0.46   0.91     7200      636     1.00
+## lambda[613]      0.53  2.1e-03  1.6e-01  3.0e-01   0.51   0.82     5988      529     1.00
+## lambda[614]      0.30  1.5e-03  1.2e-01  1.3e-01   0.28   0.52     6644      587     1.00
+## lambda[615]      0.46  2.6e-03  2.0e-01  1.8e-01   0.43   0.83     6307      557     1.00
+## lambda[616]      0.50  4.4e-03  3.4e-01  9.0e-02   0.42    1.2     6078      537     1.00
+## lambda[617]      0.27  1.1e-03  8.7e-02  1.4e-01   0.26   0.42     5923      523      1.0
+## lambda[618]      0.22  1.0e-03  8.1e-02  1.0e-01   0.21   0.36     6261      553     1.00
+## lambda[619]     0.080  5.6e-04  4.5e-02  2.2e-02  0.071   0.16     6520      576     1.00
+## lambda[620]      0.24  1.1e-03  9.0e-02  1.1e-01   0.22   0.40     6486      573     1.00
+## lambda[621]      0.31  2.2e-03  1.7e-01  8.7e-02   0.28   0.63     6430      568     1.00
+## lambda[622]      0.56  2.8e-03  2.2e-01  2.6e-01   0.53   0.95     6296      556     1.00
+## lambda[623]      0.36  1.3e-03  1.0e-01  2.1e-01   0.35   0.54     5991      529     1.00
+## lambda[624]      0.19  9.6e-04  7.6e-02  8.3e-02   0.18   0.33     6322      559     1.00
+## lambda[625]      0.40  1.4e-03  1.2e-01  2.4e-01   0.39   0.61     6445      569     1.00
+## lambda[626]      0.43  1.5e-03  1.1e-01  2.6e-01   0.42   0.63     5870      519     1.00
+## lambda[627]      0.28  1.2e-03  9.3e-02  1.4e-01   0.27   0.45     5800      512     1.00
+## lambda[628]      0.43  2.8e-03  2.2e-01  1.5e-01   0.40   0.83     6058      535     1.00
+## lambda[629]      0.41  1.8e-03  1.4e-01  2.0e-01   0.39   0.66     6381      564     1.00
+## lambda[630]       1.2  4.8e-03  3.7e-01  6.4e-01    1.1    1.8     6033      533      1.0
+## lambda[631]      0.50  2.1e-03  1.6e-01  2.6e-01   0.48   0.79     6108      540     1.00
+## lambda[632]      0.35  1.5e-03  1.3e-01  1.7e-01   0.33   0.58     7231      639     1.00
+## lambda[633]      0.46  1.8e-03  1.3e-01  2.6e-01   0.44   0.70     5730      506     1.00
+## lambda[634]       1.1  5.0e-03  3.8e-01  5.7e-01    1.1    1.8     5723      506      1.0
+## lambda[635]      0.63  3.9e-03  3.2e-01  2.1e-01   0.57    1.2     6947      614     1.00
+## lambda[636]      0.13  1.0e-03  8.1e-02  3.4e-02   0.12   0.29     6537      578     1.00
+## lambda[637]      0.60  3.0e-03  2.3e-01  2.8e-01   0.58    1.0     6061      535      1.0
+## lambda[638]      0.28  2.7e-03  2.0e-01  4.8e-02   0.24   0.68     5573      492     1.00
+## lambda[639]      0.62  2.0e-03  1.5e-01  3.9e-01   0.60   0.90     5830      515      1.0
+## lambda[640]      0.39  3.5e-03  2.8e-01  6.3e-02   0.33   0.93     6375      563     1.00
+## lambda[641]      0.37  1.7e-03  1.4e-01  1.7e-01   0.35   0.63     6745      596     1.00
+## lambda[642]      0.43  3.5e-03  3.0e-01  7.2e-02   0.36    1.0     7644      675     1.00
+## lambda[643]      0.52  1.8e-03  1.5e-01  3.0e-01   0.51   0.78     6648      587     1.00
+## lambda[644]      0.33  1.6e-03  1.2e-01  1.6e-01   0.31   0.54     5850      517     1.00
+## lambda[645]      0.36  2.6e-03  2.1e-01  1.0e-01   0.32   0.75     6224      550      1.0
+## lambda[646]      0.39  3.5e-03  2.8e-01  6.9e-02   0.33   0.95     6301      557     1.00
+## lambda[647]      0.35  2.5e-03  2.0e-01  9.4e-02   0.32   0.72     5975      528     1.00
+## lambda[648]      0.32  1.8e-03  1.4e-01  1.2e-01   0.30   0.58     6584      582     1.00
+## lambda[649]      0.62  2.8e-03  2.2e-01  3.2e-01   0.60    1.0     6110      540     1.00
+## lambda[650]      0.34  2.2e-03  1.7e-01  1.1e-01   0.31   0.65     5733      506     1.00
+## lambda[651]      0.59  4.5e-03  3.4e-01  1.6e-01   0.52    1.3     5732      506     1.00
+## lambda[652]      0.49  2.5e-03  2.0e-01  2.1e-01   0.46   0.86     6629      586     1.00
+## lambda[653]      0.91  4.9e-03  4.0e-01  3.8e-01   0.85    1.6     6654      588     1.00
+## lambda[654]       2.3  5.1e-03  4.3e-01  1.7e+00    2.3    3.1     6904      610     1.00
+## lambda[655]      0.47  2.6e-03  2.1e-01  1.8e-01   0.44   0.88     6722      594     1.00
+## lambda[656]      0.84  3.5e-03  2.8e-01  4.5e-01   0.82    1.4     6457      570     1.00
+## lambda[657]      0.73  3.1e-03  2.6e-01  3.7e-01   0.70    1.2     7059      624     1.00
+## lambda[658]      0.23  2.2e-03  1.7e-01  4.0e-02   0.19   0.57     5879      519     1.00
+## lambda[659]      0.33  3.1e-03  2.4e-01  5.5e-02   0.27   0.80     6047      534     1.00
+## lambda[660]      0.77  3.4e-03  2.7e-01  3.9e-01   0.75    1.2     6305      557      1.0
+## lambda[661]      0.69  3.8e-03  2.9e-01  3.0e-01   0.64    1.2     5584      493     1.00
+## lambda[662]      0.35  3.3e-03  2.5e-01  5.7e-02   0.29   0.84     5914      522      1.0
+## lambda[663]      0.31  2.7e-03  2.2e-01  5.5e-02   0.26   0.75     6655      588     1.00
+## lambda[664]      0.40  3.9e-03  2.9e-01  7.3e-02   0.33   0.95     5271      466      1.0
+## lambda[665]      0.44  3.8e-03  3.1e-01  8.3e-02   0.37    1.0     6378      563     1.00
+## lambda[666]      0.39  3.2e-03  2.7e-01  7.8e-02   0.34   0.90     6782      599     1.00
+## lambda[667]      0.50  4.3e-03  3.5e-01  9.4e-02   0.42    1.2     6504      575     1.00
+## 
+## Samples were drawn using hmc with nuts.
+## For each parameter, N_Eff is a crude measure of effective sample size,
+## and R_hat is the potential scale reduction factor on split chains (at 
+## convergence, R_hat=1).</code></pre>
 <p>We first want to check the HMC diagnostics.</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>freqmodel_flat_stanfit<span class="sc">$</span><span class="fu">cmdstan_diagnose</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>freqmodel_flat_stanfit<span class="sc">$</span><span class="fu">cmdstan_diagnose</span>()</span></code></pre></div>
 <pre><code>## Processing csv files: /home/rstudio/workshop/stan_models/freqmodel_flat-1.csv, /home/rstudio/workshop/stan_models/freqmodel_flat-2.csv, /home/rstudio/workshop/stan_models/freqmodel_flat-3.csv, /home/rstudio/workshop/stan_models/freqmodel_flat-4.csv
 ## 
 ## Checking sampler transitions treedepth.
@@ -869,178 +1270,172 @@ distribution is covering the ‘correct’ values.</p>
 </div>
 <div id="r-environment" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> R Environment</h1>
-<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
 ##  os       Ubuntu 20.04.3 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       RStudio                     
+##  ui       X11                         
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2022-01-10                  
+##  date     2022-01-11                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
-##  package              * version   date       lib source                             
-##  abind                  1.4-5     2016-07-21 [1] RSPM (R 4.1.0)                     
-##  arrayhelpers           1.1-0     2020-02-04 [1] RSPM (R 4.1.0)                     
-##  assertthat             0.2.1     2019-03-21 [1] RSPM (R 4.1.0)                     
-##  backports              1.3.0     2021-10-27 [1] RSPM (R 4.1.0)                     
-##  base64enc              0.1-3     2015-07-28 [1] RSPM (R 4.1.0)                     
-##  bayesplot            * 1.8.1     2021-06-14 [1] RSPM (R 4.1.0)                     
-##  bookdown               0.24      2021-09-02 [1] RSPM (R 4.1.0)                     
-##  boot                   1.3-28    2021-05-03 [2] CRAN (R 4.1.1)                     
-##  bridgesampling         1.1-2     2021-04-16 [1] RSPM (R 4.1.0)                     
-##  brms                 * 2.16.1    2021-12-02 [1] Github (paul-buerkner/brms@6fa5c02)
-##  Brobdingnag            1.2-6     2018-08-13 [1] RSPM (R 4.1.0)                     
-##  broom                  0.7.9     2021-07-27 [1] RSPM (R 4.1.0)                     
-##  bslib                  0.3.1     2021-10-06 [1] RSPM (R 4.1.0)                     
-##  cachem                 1.0.6     2021-08-19 [1] RSPM (R 4.1.0)                     
-##  callr                  3.7.0     2021-04-20 [1] RSPM (R 4.1.0)                     
-##  cellranger             1.1.0     2016-07-27 [1] RSPM (R 4.1.0)                     
-##  checkmate              2.0.0     2020-02-06 [1] RSPM (R 4.1.0)                     
-##  cli                    3.1.0     2021-10-27 [1] RSPM (R 4.1.0)                     
-##  cmdstanr             * 0.4.0     2021-12-02 [1] Github (stan-dev/cmdstanr@3233585) 
-##  coda                   0.19-4    2020-09-30 [1] RSPM (R 4.1.0)                     
-##  codetools              0.2-18    2020-11-04 [2] CRAN (R 4.1.1)                     
-##  colorspace             2.0-2     2021-06-24 [1] RSPM (R 4.1.0)                     
-##  colourpicker           1.1.1     2021-10-04 [1] RSPM (R 4.1.0)                     
-##  conflicted           * 1.0.4     2019-06-21 [1] RSPM (R 4.1.0)                     
-##  cowplot              * 1.1.1     2020-12-30 [1] RSPM (R 4.1.0)                     
-##  crayon                 1.4.1     2021-02-08 [1] RSPM (R 4.1.0)                     
-##  crosstalk              1.1.1     2021-01-12 [1] RSPM (R 4.1.0)                     
-##  curl                   4.3.2     2021-06-23 [1] RSPM (R 4.1.0)                     
-##  data.table             1.14.2    2021-09-27 [1] RSPM (R 4.1.0)                     
-##  DBI                    1.1.1     2021-01-15 [1] RSPM (R 4.1.0)                     
-##  dbplyr                 2.1.1     2021-04-06 [1] RSPM (R 4.1.0)                     
-##  digest                 0.6.28    2021-09-23 [1] RSPM (R 4.1.0)                     
-##  directlabels         * 2021.1.13 2021-01-16 [1] RSPM (R 4.1.0)                     
-##  distributional         0.2.2     2021-02-02 [1] RSPM (R 4.1.0)                     
-##  dplyr                * 1.0.7     2021-06-18 [1] RSPM (R 4.1.0)                     
-##  DT                     0.19      2021-09-02 [1] RSPM (R 4.1.0)                     
-##  dygraphs               1.1.1.6   2018-07-11 [1] RSPM (R 4.1.0)                     
-##  ellipsis               0.3.2     2021-04-29 [1] RSPM (R 4.1.0)                     
-##  evaluate               0.14      2019-05-28 [1] RSPM (R 4.1.0)                     
-##  fansi                  0.5.0     2021-05-25 [1] RSPM (R 4.1.0)                     
-##  farver                 2.1.0     2021-02-28 [1] RSPM (R 4.1.0)                     
-##  fastmap                1.1.0     2021-01-25 [1] RSPM (R 4.1.0)                     
-##  forcats              * 0.5.1     2021-01-27 [1] RSPM (R 4.1.0)                     
-##  fs                   * 1.5.0     2020-07-31 [1] RSPM (R 4.1.0)                     
-##  furrr                * 0.2.3     2021-06-25 [1] RSPM (R 4.1.0)                     
-##  future               * 1.22.1    2021-08-25 [1] RSPM (R 4.1.0)                     
-##  gamm4                  0.2-6     2020-04-03 [1] RSPM (R 4.1.0)                     
-##  generics               0.1.1     2021-10-25 [1] RSPM (R 4.1.0)                     
-##  ggdist                 3.0.0     2021-07-19 [1] RSPM (R 4.1.0)                     
-##  ggplot2              * 3.3.5     2021-06-25 [1] RSPM (R 4.1.0)                     
-##  ggridges               0.5.3     2021-01-08 [1] RSPM (R 4.1.0)                     
-##  globals                0.14.0    2020-11-22 [1] RSPM (R 4.1.0)                     
-##  glue                 * 1.4.2     2020-08-27 [1] RSPM (R 4.1.0)                     
-##  gridExtra              2.3       2017-09-09 [1] RSPM (R 4.1.0)                     
-##  gtable                 0.3.0     2019-03-25 [1] RSPM (R 4.1.0)                     
-##  gtools                 3.9.2     2021-06-06 [1] RSPM (R 4.1.0)                     
-##  haven                  2.4.3     2021-08-04 [1] RSPM (R 4.1.0)                     
-##  highr                  0.9       2021-04-16 [1] RSPM (R 4.1.0)                     
-##  hms                    1.1.1     2021-09-26 [1] RSPM (R 4.1.0)                     
-##  htmltools              0.5.2     2021-08-25 [1] RSPM (R 4.1.0)                     
-##  htmlwidgets            1.5.4     2021-09-08 [1] RSPM (R 4.1.0)                     
-##  httpuv                 1.6.3     2021-09-09 [1] RSPM (R 4.1.0)                     
-##  httr                   1.4.2     2020-07-20 [1] RSPM (R 4.1.0)                     
-##  igraph                 1.2.7     2021-10-15 [1] RSPM (R 4.1.0)                     
-##  inline                 0.3.19    2021-05-31 [1] RSPM (R 4.1.0)                     
-##  jquerylib              0.1.4     2021-04-26 [1] RSPM (R 4.1.0)                     
-##  jsonlite               1.7.2     2020-12-09 [1] RSPM (R 4.1.0)                     
-##  knitr                  1.36      2021-09-29 [1] RSPM (R 4.1.0)                     
-##  labeling               0.4.2     2020-10-20 [1] RSPM (R 4.1.0)                     
-##  later                  1.3.0     2021-08-18 [1] RSPM (R 4.1.0)                     
-##  lattice                0.20-44   2021-05-02 [2] CRAN (R 4.1.1)                     
-##  lifecycle              1.0.1     2021-09-24 [1] RSPM (R 4.1.0)                     
-##  listenv                0.8.0     2019-12-05 [1] RSPM (R 4.1.0)                     
-##  lme4                   1.1-27.1  2021-06-22 [1] RSPM (R 4.1.0)                     
-##  loo                    2.4.1     2020-12-09 [1] RSPM (R 4.1.0)                     
-##  lubridate            * 1.8.0     2021-10-07 [1] RSPM (R 4.1.0)                     
-##  magrittr             * 2.0.1     2020-11-17 [1] RSPM (R 4.1.0)                     
-##  markdown               1.1       2019-08-07 [1] RSPM (R 4.1.0)                     
-##  MASS                   7.3-54    2021-05-03 [2] CRAN (R 4.1.1)                     
-##  Matrix                 1.3-4     2021-06-01 [2] CRAN (R 4.1.1)                     
-##  matrixStats            0.61.0    2021-09-17 [1] RSPM (R 4.1.0)                     
-##  mgcv                   1.8-36    2021-06-01 [2] CRAN (R 4.1.1)                     
-##  mime                   0.12      2021-09-28 [1] RSPM (R 4.1.0)                     
-##  miniUI                 0.1.1.1   2018-05-18 [1] RSPM (R 4.1.0)                     
-##  minqa                  1.2.4     2014-10-09 [1] RSPM (R 4.1.0)                     
-##  modelr                 0.1.8     2020-05-19 [1] RSPM (R 4.1.0)                     
-##  munsell                0.5.0     2018-06-12 [1] RSPM (R 4.1.0)                     
-##  mvtnorm                1.1-3     2021-10-08 [1] RSPM (R 4.1.0)                     
-##  nlme                   3.1-152   2021-02-04 [2] CRAN (R 4.1.1)                     
-##  nloptr                 1.2.2.2   2020-07-02 [1] RSPM (R 4.1.0)                     
-##  parallelly             1.28.1    2021-09-09 [1] RSPM (R 4.1.0)                     
-##  PerformanceAnalytics * 2.0.4     2020-02-06 [1] RSPM (R 4.1.0)                     
-##  pillar                 1.6.4     2021-10-18 [1] RSPM (R 4.1.0)                     
-##  pkgbuild               1.2.0     2020-12-15 [1] RSPM (R 4.1.0)                     
-##  pkgconfig              2.0.3     2019-09-22 [1] RSPM (R 4.1.0)                     
-##  plyr                   1.8.6     2020-03-03 [1] RSPM (R 4.1.0)                     
-##  posterior            * 1.1.0     2021-09-09 [1] RSPM (R 4.1.0)                     
-##  prettyunits            1.1.1     2020-01-24 [1] RSPM (R 4.1.0)                     
-##  processx               3.5.2     2021-04-30 [1] RSPM (R 4.1.0)                     
-##  projpred               2.0.2     2020-10-28 [1] RSPM (R 4.1.0)                     
-##  promises               1.2.0.1   2021-02-11 [1] RSPM (R 4.1.0)                     
-##  ps                     1.6.0     2021-02-28 [1] RSPM (R 4.1.0)                     
-##  purrr                * 0.3.4     2020-04-17 [1] RSPM (R 4.1.0)                     
-##  quadprog               1.5-8     2019-11-20 [1] RSPM (R 4.1.0)                     
-##  Quandl                 2.11.0    2021-08-11 [1] RSPM (R 4.1.0)                     
-##  quantmod             * 0.4.18    2020-12-09 [1] RSPM (R 4.1.0)                     
-##  R6                     2.5.1     2021-08-19 [1] RSPM (R 4.1.0)                     
-##  Rcpp                 * 1.0.7     2021-07-07 [1] RSPM (R 4.1.0)                     
-##  RcppParallel           5.1.4     2021-05-04 [1] RSPM (R 4.1.0)                     
-##  readr                * 2.0.2     2021-09-27 [1] RSPM (R 4.1.0)                     
-##  readxl                 1.3.1     2019-03-13 [1] RSPM (R 4.1.0)                     
-##  reprex                 2.0.1     2021-08-05 [1] RSPM (R 4.1.0)                     
-##  reshape2               1.4.4     2020-04-09 [1] RSPM (R 4.1.0)                     
-##  rlang                * 0.4.12    2021-10-18 [1] RSPM (R 4.1.0)                     
-##  rmarkdown              2.11      2021-09-14 [1] RSPM (R 4.1.0)                     
-##  rmdformats             1.0.3     2021-10-06 [1] RSPM (R 4.1.0)                     
-##  rsconnect              0.8.24    2021-08-05 [1] RSPM (R 4.1.0)                     
-##  rstan                  2.26.4    2021-12-02 [1] local                              
-##  rstantools             2.1.1     2020-07-06 [1] RSPM (R 4.1.0)                     
-##  rstudioapi             0.13      2020-11-12 [1] RSPM (R 4.1.0)                     
-##  rvest                  1.0.2     2021-10-16 [1] RSPM (R 4.1.0)                     
-##  sass                   0.4.0     2021-05-12 [1] RSPM (R 4.1.0)                     
-##  scales               * 1.1.1     2020-05-11 [1] RSPM (R 4.1.0)                     
-##  sessioninfo            1.1.1     2018-11-05 [1] RSPM (R 4.1.0)                     
-##  shiny                  1.7.1     2021-10-02 [1] RSPM (R 4.1.0)                     
-##  shinyjs                2.0.0     2020-09-09 [1] RSPM (R 4.1.0)                     
-##  shinystan              2.5.0     2018-05-01 [1] RSPM (R 4.1.0)                     
-##  shinythemes            1.2.0     2021-01-25 [1] RSPM (R 4.1.0)                     
-##  StanHeaders            2.26.4    2021-12-02 [1] local                              
-##  stringi                1.7.5     2021-10-04 [1] RSPM (R 4.1.0)                     
-##  stringr              * 1.4.0     2019-02-10 [1] RSPM (R 4.1.0)                     
-##  svUnit                 1.0.6     2021-04-19 [1] RSPM (R 4.1.0)                     
-##  tensorA                0.36.2    2020-11-19 [1] RSPM (R 4.1.0)                     
-##  threejs                0.3.3     2020-01-21 [1] RSPM (R 4.1.0)                     
-##  tibble               * 3.1.5     2021-09-30 [1] RSPM (R 4.1.0)                     
-##  tidybayes            * 3.0.1     2021-08-22 [1] RSPM (R 4.1.0)                     
-##  tidyquant            * 1.0.3     2021-03-05 [1] RSPM (R 4.1.0)                     
-##  tidyr                * 1.1.4     2021-09-27 [1] RSPM (R 4.1.0)                     
-##  tidyselect             1.1.1     2021-04-30 [1] RSPM (R 4.1.0)                     
-##  tidyverse            * 1.3.1     2021-04-15 [1] RSPM (R 4.1.0)                     
-##  TTR                  * 0.24.2    2020-09-01 [1] RSPM (R 4.1.0)                     
-##  tzdb                   0.2.0     2021-10-27 [1] RSPM (R 4.1.0)                     
-##  utf8                   1.2.2     2021-07-24 [1] RSPM (R 4.1.0)                     
-##  V8                     3.4.2     2021-05-01 [1] RSPM (R 4.1.0)                     
-##  vctrs                  0.3.8     2021-04-29 [1] RSPM (R 4.1.0)                     
-##  withr                  2.4.2     2021-04-18 [1] RSPM (R 4.1.0)                     
-##  xfun                   0.27      2021-10-18 [1] RSPM (R 4.1.0)                     
-##  xml2                   1.3.2     2020-04-23 [1] RSPM (R 4.1.0)                     
-##  xtable                 1.8-4     2019-04-21 [1] RSPM (R 4.1.0)                     
-##  xts                  * 0.12.1    2020-09-09 [1] RSPM (R 4.1.0)                     
-##  yaml                   2.2.1     2020-02-01 [1] RSPM (R 4.1.0)                     
-##  zoo                  * 1.8-9     2021-03-09 [1] RSPM (R 4.1.0)                     
+##  package        * version   date       lib source                             
+##  abind            1.4-5     2016-07-21 [1] RSPM (R 4.1.0)                     
+##  arrayhelpers     1.1-0     2020-02-04 [1] RSPM (R 4.1.0)                     
+##  assertthat       0.2.1     2019-03-21 [1] RSPM (R 4.1.0)                     
+##  backports        1.3.0     2021-10-27 [1] RSPM (R 4.1.0)                     
+##  base64enc        0.1-3     2015-07-28 [1] RSPM (R 4.1.0)                     
+##  bayesplot      * 1.8.1     2021-06-14 [1] RSPM (R 4.1.0)                     
+##  bookdown         0.24      2021-09-02 [1] RSPM (R 4.1.0)                     
+##  boot             1.3-28    2021-05-03 [2] CRAN (R 4.1.1)                     
+##  bridgesampling   1.1-2     2021-04-16 [1] RSPM (R 4.1.0)                     
+##  brms           * 2.16.1    2021-12-02 [1] Github (paul-buerkner/brms@6fa5c02)
+##  Brobdingnag      1.2-6     2018-08-13 [1] RSPM (R 4.1.0)                     
+##  broom            0.7.9     2021-07-27 [1] RSPM (R 4.1.0)                     
+##  bslib            0.3.1     2021-10-06 [1] RSPM (R 4.1.0)                     
+##  cachem           1.0.6     2021-08-19 [1] RSPM (R 4.1.0)                     
+##  callr            3.7.0     2021-04-20 [1] RSPM (R 4.1.0)                     
+##  cellranger       1.1.0     2016-07-27 [1] RSPM (R 4.1.0)                     
+##  checkmate        2.0.0     2020-02-06 [1] RSPM (R 4.1.0)                     
+##  cli              3.1.0     2021-10-27 [1] RSPM (R 4.1.0)                     
+##  cmdstanr       * 0.4.0     2021-12-02 [1] Github (stan-dev/cmdstanr@3233585) 
+##  coda             0.19-4    2020-09-30 [1] RSPM (R 4.1.0)                     
+##  codetools        0.2-18    2020-11-04 [2] CRAN (R 4.1.1)                     
+##  colorspace       2.0-2     2021-06-24 [1] RSPM (R 4.1.0)                     
+##  colourpicker     1.1.1     2021-10-04 [1] RSPM (R 4.1.0)                     
+##  conflicted     * 1.0.4     2019-06-21 [1] RSPM (R 4.1.0)                     
+##  cowplot        * 1.1.1     2020-12-30 [1] RSPM (R 4.1.0)                     
+##  crayon           1.4.1     2021-02-08 [1] RSPM (R 4.1.0)                     
+##  crosstalk        1.1.1     2021-01-12 [1] RSPM (R 4.1.0)                     
+##  curl             4.3.2     2021-06-23 [1] RSPM (R 4.1.0)                     
+##  data.table       1.14.2    2021-09-27 [1] RSPM (R 4.1.0)                     
+##  DBI              1.1.1     2021-01-15 [1] RSPM (R 4.1.0)                     
+##  dbplyr           2.1.1     2021-04-06 [1] RSPM (R 4.1.0)                     
+##  digest           0.6.28    2021-09-23 [1] RSPM (R 4.1.0)                     
+##  directlabels   * 2021.1.13 2021-01-16 [1] RSPM (R 4.1.0)                     
+##  distributional   0.2.2     2021-02-02 [1] RSPM (R 4.1.0)                     
+##  dplyr          * 1.0.7     2021-06-18 [1] RSPM (R 4.1.0)                     
+##  DT               0.19      2021-09-02 [1] RSPM (R 4.1.0)                     
+##  dygraphs         1.1.1.6   2018-07-11 [1] RSPM (R 4.1.0)                     
+##  ellipsis         0.3.2     2021-04-29 [1] RSPM (R 4.1.0)                     
+##  evaluate         0.14      2019-05-28 [1] RSPM (R 4.1.0)                     
+##  fansi            0.5.0     2021-05-25 [1] RSPM (R 4.1.0)                     
+##  farver           2.1.0     2021-02-28 [1] RSPM (R 4.1.0)                     
+##  fastmap          1.1.0     2021-01-25 [1] RSPM (R 4.1.0)                     
+##  forcats        * 0.5.1     2021-01-27 [1] RSPM (R 4.1.0)                     
+##  fs             * 1.5.0     2020-07-31 [1] RSPM (R 4.1.0)                     
+##  furrr          * 0.2.3     2021-06-25 [1] RSPM (R 4.1.0)                     
+##  future         * 1.22.1    2021-08-25 [1] RSPM (R 4.1.0)                     
+##  gamm4            0.2-6     2020-04-03 [1] RSPM (R 4.1.0)                     
+##  generics         0.1.1     2021-10-25 [1] RSPM (R 4.1.0)                     
+##  ggdist           3.0.0     2021-07-19 [1] RSPM (R 4.1.0)                     
+##  ggplot2        * 3.3.5     2021-06-25 [1] RSPM (R 4.1.0)                     
+##  ggridges         0.5.3     2021-01-08 [1] RSPM (R 4.1.0)                     
+##  globals          0.14.0    2020-11-22 [1] RSPM (R 4.1.0)                     
+##  glue           * 1.4.2     2020-08-27 [1] RSPM (R 4.1.0)                     
+##  gridExtra        2.3       2017-09-09 [1] RSPM (R 4.1.0)                     
+##  gtable           0.3.0     2019-03-25 [1] RSPM (R 4.1.0)                     
+##  gtools           3.9.2     2021-06-06 [1] RSPM (R 4.1.0)                     
+##  haven            2.4.3     2021-08-04 [1] RSPM (R 4.1.0)                     
+##  highr            0.9       2021-04-16 [1] RSPM (R 4.1.0)                     
+##  hms              1.1.1     2021-09-26 [1] RSPM (R 4.1.0)                     
+##  htmltools        0.5.2     2021-08-25 [1] RSPM (R 4.1.0)                     
+##  htmlwidgets      1.5.4     2021-09-08 [1] RSPM (R 4.1.0)                     
+##  httpuv           1.6.3     2021-09-09 [1] RSPM (R 4.1.0)                     
+##  httr             1.4.2     2020-07-20 [1] RSPM (R 4.1.0)                     
+##  igraph           1.2.7     2021-10-15 [1] RSPM (R 4.1.0)                     
+##  inline           0.3.19    2021-05-31 [1] RSPM (R 4.1.0)                     
+##  jquerylib        0.1.4     2021-04-26 [1] RSPM (R 4.1.0)                     
+##  jsonlite         1.7.2     2020-12-09 [1] RSPM (R 4.1.0)                     
+##  knitr            1.36      2021-09-29 [1] RSPM (R 4.1.0)                     
+##  later            1.3.0     2021-08-18 [1] RSPM (R 4.1.0)                     
+##  lattice          0.20-44   2021-05-02 [2] CRAN (R 4.1.1)                     
+##  lifecycle        1.0.1     2021-09-24 [1] RSPM (R 4.1.0)                     
+##  listenv          0.8.0     2019-12-05 [1] RSPM (R 4.1.0)                     
+##  lme4             1.1-27.1  2021-06-22 [1] RSPM (R 4.1.0)                     
+##  loo              2.4.1     2020-12-09 [1] RSPM (R 4.1.0)                     
+##  lubridate        1.8.0     2021-10-07 [1] RSPM (R 4.1.0)                     
+##  magrittr       * 2.0.1     2020-11-17 [1] RSPM (R 4.1.0)                     
+##  markdown         1.1       2019-08-07 [1] RSPM (R 4.1.0)                     
+##  MASS             7.3-54    2021-05-03 [2] CRAN (R 4.1.1)                     
+##  Matrix           1.3-4     2021-06-01 [2] CRAN (R 4.1.1)                     
+##  matrixStats      0.61.0    2021-09-17 [1] RSPM (R 4.1.0)                     
+##  mgcv             1.8-36    2021-06-01 [2] CRAN (R 4.1.1)                     
+##  mime             0.12      2021-09-28 [1] RSPM (R 4.1.0)                     
+##  miniUI           0.1.1.1   2018-05-18 [1] RSPM (R 4.1.0)                     
+##  minqa            1.2.4     2014-10-09 [1] RSPM (R 4.1.0)                     
+##  modelr           0.1.8     2020-05-19 [1] RSPM (R 4.1.0)                     
+##  munsell          0.5.0     2018-06-12 [1] RSPM (R 4.1.0)                     
+##  mvtnorm          1.1-3     2021-10-08 [1] RSPM (R 4.1.0)                     
+##  nlme             3.1-152   2021-02-04 [2] CRAN (R 4.1.1)                     
+##  nloptr           1.2.2.2   2020-07-02 [1] RSPM (R 4.1.0)                     
+##  parallelly       1.28.1    2021-09-09 [1] RSPM (R 4.1.0)                     
+##  pillar           1.6.4     2021-10-18 [1] RSPM (R 4.1.0)                     
+##  pkgbuild         1.2.0     2020-12-15 [1] RSPM (R 4.1.0)                     
+##  pkgconfig        2.0.3     2019-09-22 [1] RSPM (R 4.1.0)                     
+##  plyr             1.8.6     2020-03-03 [1] RSPM (R 4.1.0)                     
+##  posterior      * 1.1.0     2021-09-09 [1] RSPM (R 4.1.0)                     
+##  prettyunits      1.1.1     2020-01-24 [1] RSPM (R 4.1.0)                     
+##  processx         3.5.2     2021-04-30 [1] RSPM (R 4.1.0)                     
+##  projpred         2.0.2     2020-10-28 [1] RSPM (R 4.1.0)                     
+##  promises         1.2.0.1   2021-02-11 [1] RSPM (R 4.1.0)                     
+##  ps               1.6.0     2021-02-28 [1] RSPM (R 4.1.0)                     
+##  purrr          * 0.3.4     2020-04-17 [1] RSPM (R 4.1.0)                     
+##  quadprog         1.5-8     2019-11-20 [1] RSPM (R 4.1.0)                     
+##  R6               2.5.1     2021-08-19 [1] RSPM (R 4.1.0)                     
+##  Rcpp           * 1.0.7     2021-07-07 [1] RSPM (R 4.1.0)                     
+##  RcppParallel     5.1.4     2021-05-04 [1] RSPM (R 4.1.0)                     
+##  readr          * 2.0.2     2021-09-27 [1] RSPM (R 4.1.0)                     
+##  readxl           1.3.1     2019-03-13 [1] RSPM (R 4.1.0)                     
+##  reprex           2.0.1     2021-08-05 [1] RSPM (R 4.1.0)                     
+##  reshape2         1.4.4     2020-04-09 [1] RSPM (R 4.1.0)                     
+##  rlang          * 0.4.12    2021-10-18 [1] RSPM (R 4.1.0)                     
+##  rmarkdown        2.11      2021-09-14 [1] RSPM (R 4.1.0)                     
+##  rmdformats       1.0.3     2021-10-06 [1] RSPM (R 4.1.0)                     
+##  rsconnect        0.8.24    2021-08-05 [1] RSPM (R 4.1.0)                     
+##  rstan            2.26.4    2021-12-02 [1] local                              
+##  rstantools       2.1.1     2020-07-06 [1] RSPM (R 4.1.0)                     
+##  rstudioapi       0.13      2020-11-12 [1] RSPM (R 4.1.0)                     
+##  rvest            1.0.2     2021-10-16 [1] RSPM (R 4.1.0)                     
+##  sass             0.4.0     2021-05-12 [1] RSPM (R 4.1.0)                     
+##  scales         * 1.1.1     2020-05-11 [1] RSPM (R 4.1.0)                     
+##  sessioninfo      1.1.1     2018-11-05 [1] RSPM (R 4.1.0)                     
+##  shiny            1.7.1     2021-10-02 [1] RSPM (R 4.1.0)                     
+##  shinyjs          2.0.0     2020-09-09 [1] RSPM (R 4.1.0)                     
+##  shinystan        2.5.0     2018-05-01 [1] RSPM (R 4.1.0)                     
+##  shinythemes      1.2.0     2021-01-25 [1] RSPM (R 4.1.0)                     
+##  StanHeaders      2.26.4    2021-12-02 [1] local                              
+##  stringi          1.7.5     2021-10-04 [1] RSPM (R 4.1.0)                     
+##  stringr        * 1.4.0     2019-02-10 [1] RSPM (R 4.1.0)                     
+##  svUnit           1.0.6     2021-04-19 [1] RSPM (R 4.1.0)                     
+##  tensorA          0.36.2    2020-11-19 [1] RSPM (R 4.1.0)                     
+##  threejs          0.3.3     2020-01-21 [1] RSPM (R 4.1.0)                     
+##  tibble         * 3.1.5     2021-09-30 [1] RSPM (R 4.1.0)                     
+##  tidybayes      * 3.0.1     2021-08-22 [1] RSPM (R 4.1.0)                     
+##  tidyr          * 1.1.4     2021-09-27 [1] RSPM (R 4.1.0)                     
+##  tidyselect       1.1.1     2021-04-30 [1] RSPM (R 4.1.0)                     
+##  tidyverse      * 1.3.1     2021-04-15 [1] RSPM (R 4.1.0)                     
+##  tzdb             0.2.0     2021-10-27 [1] RSPM (R 4.1.0)                     
+##  utf8             1.2.2     2021-07-24 [1] RSPM (R 4.1.0)                     
+##  V8               3.4.2     2021-05-01 [1] RSPM (R 4.1.0)                     
+##  vctrs            0.3.8     2021-04-29 [1] RSPM (R 4.1.0)                     
+##  withr            2.4.2     2021-04-18 [1] RSPM (R 4.1.0)                     
+##  xfun             0.27      2021-10-18 [1] RSPM (R 4.1.0)                     
+##  xml2             1.3.2     2020-04-23 [1] RSPM (R 4.1.0)                     
+##  xtable           1.8-4     2019-04-21 [1] RSPM (R 4.1.0)                     
+##  xts              0.12.1    2020-09-09 [1] RSPM (R 4.1.0)                     
+##  yaml             2.2.1     2020-02-01 [1] RSPM (R 4.1.0)                     
+##  zoo              1.8-9     2021-03-09 [1] RSPM (R 4.1.0)                     
 ## 
 ## [1] /usr/local/lib/R/site-library
 ## [2] /usr/local/lib/R/library</code></pre>
-<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
 </div>
 </div>
 
