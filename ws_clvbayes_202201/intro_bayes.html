@@ -212,14 +212,15 @@
       <li><a href="#medical-tests"><span class="toc-section-number">1.2</span> Medical Tests</a></li>
       <li><a href="#conditional-probability"><span class="toc-section-number">1.3</span> Conditional Probability</a></li>
       <li><a href="#bayes-rule"><span class="toc-section-number">1.4</span> Bayes Rule</a></li>
+      <li><a href="#bayes-rule-with-continuous-variables"><span class="toc-section-number">1.5</span> Bayes Rule with Continuous Variables</a></li>
       </ul></li>
       <li><a href="#illustrating-the-concepts"><span class="toc-section-number">2</span> Illustrating the Concepts</a>
       <ul>
       <li><a href="#construct-first-simulations"><span class="toc-section-number">2.1</span> Construct First Simulations</a></li>
       <li><a href="#analytical-calculation"><span class="toc-section-number">2.2</span> Analytical Calculation</a></li>
+      <li><a href="#effect-of-prevalance"><span class="toc-section-number">2.3</span> Effect of Prevalance</a></li>
       </ul></li>
-      <li><a href="#bayes-rule-with-continuous-variables"><span class="toc-section-number">3</span> Bayes Rule with Continuous Variables</a></li>
-      <li><a href="#r-environment"><span class="toc-section-number">4</span> R Environment</a></li>
+      <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
       </ul>
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
@@ -329,6 +330,31 @@ P(A \, | \, B) = \frac{P(B \, | \, A) \, P(A)}{P(B)}
 our probabilities. In fact, early works on this often referred to the above as
 the ‘method of inverse probabilities’.</p>
 </div>
+<div id="bayes-rule-with-continuous-variables" class="section level2" number="1.5">
+<h2><span class="header-section-number">1.5</span> Bayes Rule with Continuous Variables</h2>
+<p>We now want to consider the case when our random variables are continuous
+rather than discrete-valued. Fortunately, we can follow a similar logic, using
+integrals rather than sums.</p>
+<p><span class="math display">\[
+p(A \, | \, B) = \frac{\int p(B \, | \, A) \, p(A)}{\int p(B)}
+\]</span></p>
+<p>In most cases however we can ignore the denominator (the “normalising
+constant”) as in most cases it is irrelevant for our analysis.</p>
+<p>Finally, in practical data analysis, we want to draw inferences on unknown
+parameters <span class="math inline">\(\theta\)</span> in the model from observed data, <span class="math inline">\(D\)</span>.</p>
+<p><span class="math display">\[
+p(\theta \, | \, D) = \int p(\theta) \, p(D \, | \, \theta)
+\]</span></p>
+<p>In the above formula, we have</p>
+<ul>
+<li><span class="math inline">\(p(\theta \, | \, D)\)</span> is the ‘un-normalised’ <em>posterior distribution</em> for
+<span class="math inline">\(\theta\)</span>,</li>
+<li><span class="math inline">\(p(D \, | \, \theta)\)</span> is the <em>likelihood model</em>,</li>
+<li><span class="math inline">\(p(\theta)\)</span> is the <em>prior distribution</em> for <span class="math inline">\(\theta\)</span>.</li>
+</ul>
+<p>Thus, we combine a prior distribution over <span class="math inline">\(\theta\)</span> with a likelihood model for
+the data <span class="math inline">\(D\)</span> to calculate the posterior distribution for <span class="math inline">\(\theta\)</span>.</p>
+</div>
 </div>
 <div id="illustrating-the-concepts" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Illustrating the Concepts</h1>
@@ -423,19 +449,23 @@ P(B) = P(B \, | A = \text{infected}) \, P(A = \text{infected}) +
 P(A = \text{infected} \, | \, B = \text{positive})
   &amp;=&amp; \frac{P(B \, | \, A) \, P(A)}
            {P(B \, | \, A) \, P(A) + P(B \, | \, \neg A) \, P(\neg A)} \\
+\\
   &amp;=&amp; \frac{(0.95)(0.01)}{(0.95)(0.01) + (0.05)(0.99)} \\
+\\
   &amp;=&amp; 0.1610
 \end{eqnarray*}\]</span></p>
 </div>
+<div id="effect-of-prevalance" class="section level2" number="2.3">
+<h2><span class="header-section-number">2.3</span> Effect of Prevalance</h2>
+<p>Before we move on from this, we want to investigate the impact of the
+prevalence of the disease on the efficacy of the test.</p>
 </div>
-<div id="bayes-rule-with-continuous-variables" class="section level1" number="3">
-<h1><span class="header-section-number">3</span> Bayes Rule with Continuous Variables</h1>
 </div>
-<div id="r-environment" class="section level1" number="4">
-<h1><span class="header-section-number">4</span> R Environment</h1>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
+<div id="r-environment" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> R Environment</h1>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 100L)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
-<pre><code>## ─ Session info ───────────────────────────────────────────────────────────────────────────────────────────────────────
+<pre><code>## ─ Session info ───────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
 ##  os       Ubuntu 20.04.3 LTS          
@@ -447,7 +477,7 @@ P(A = \text{infected} \, | \, B = \text{positive})
 ##  tz       Etc/UTC                     
 ##  date     2022-01-11                  
 ## 
-## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────
 ##  package        * version   date       lib source                             
 ##  abind            1.4-5     2016-07-21 [1] RSPM (R 4.1.0)                     
 ##  arrayhelpers     1.1-0     2020-02-04 [1] RSPM (R 4.1.0)                     
@@ -515,6 +545,7 @@ P(A = \text{infected} \, | \, B = \text{positive})
 ##  jquerylib        0.1.4     2021-04-26 [1] RSPM (R 4.1.0)                     
 ##  jsonlite         1.7.2     2020-12-09 [1] RSPM (R 4.1.0)                     
 ##  knitr            1.36      2021-09-29 [1] RSPM (R 4.1.0)                     
+##  labeling         0.4.2     2020-10-20 [1] RSPM (R 4.1.0)                     
 ##  later            1.3.0     2021-08-18 [1] RSPM (R 4.1.0)                     
 ##  lattice          0.20-44   2021-05-02 [2] CRAN (R 4.1.1)                     
 ##  lifecycle        1.0.1     2021-09-24 [1] RSPM (R 4.1.0)                     
