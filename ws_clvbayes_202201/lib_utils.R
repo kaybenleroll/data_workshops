@@ -46,3 +46,34 @@ calculate_distribution_qvals <- function(data_tbl, distrib_vals, ref_val, ...) {
 
   return(qval_data_tbl)
 }
+
+
+calculate_medical_summary_stats <- function(population_tbl) {
+
+  n_truepos <- population_tbl %>%
+    filter(infected == TRUE, test_result == TRUE) %>%
+    nrow()
+
+  n_trueneg <- population_tbl %>%
+    filter(infected == FALSE, test_result == FALSE) %>%
+    nrow()
+
+  n_falsepos <- population_tbl %>%
+    filter(infected == FALSE, test_result == TRUE) %>%
+    nrow()
+
+  n_falseneg <- population_tbl %>%
+    filter(infected == TRUE, test_result == FALSE) %>%
+    nrow()
+
+
+  prop_falsepos <- n_falsepos / (n_falsepos + n_truepos)
+  prop_falseneg <- n_falseneg / (n_falseneg + n_trueneg)
+
+  summstat_lst <- list(
+    prop_falsepos = prop_falsepos,
+    prop_falseneg = prop_falseneg
+    )
+
+  return(summstat_lst)
+}

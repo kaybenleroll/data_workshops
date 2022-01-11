@@ -111,3 +111,48 @@ generate_transaction_metadata <- function(data_tbl) {
 
   return(transactions_tbl)
 }
+
+
+
+generate_medical_test_data <- function(n_patient, prevalence = 0.01,
+                                       falsepos = 0.05, falseneg = 0.05) {
+
+  test_prop_tbl <- tribble(
+    ~infected,           ~prop_pos,
+         TRUE,      (1 - falseneg),
+        FALSE,            falsepos
+    )
+
+  calculate_test_result <- function(data_tbl, test_prop) {
+    test_tbl <- data_tbl %>%
+      mutate(
+        test_result = rbernoulli(n = n(), p = test_prop)
+      )
+
+    return(test_tbl)
+  }
+
+  population_tbl <- tibble(patient_id = 1:n_sim) %>%
+    mutate(
+      infected = rbernoulli(n(), p = prevalence)
+      ) %>%
+    group_nest(infected, .key = "patient_data") %>%
+    inner_join(test_prop_tbl, by = "infected") %>%
+    mutate(
+      test_data = map2(patient_data, prop_pos, calculate_test_result)
+      ) %>%
+    unnest(test_data) %>%
+    select(patient_id, infected, test_result)
+
+  return(population_tbl)
+}
+
+
+calculate_medical_test_probability <- function(prevalence = 0.01, false_pos = 0.05, false_neg = 0.05) {
+  t1 <- (1 - false_pos) * prevalence
+  t2 <- false_neg * (1 - prevalence)
+
+  cond_prob <- t1 / (t1 + t2)
+
+  return(cond_prob)
+}
