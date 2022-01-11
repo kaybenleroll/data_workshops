@@ -1,0 +1,345 @@
+---
+title: "Introduction to Bayes Rules and Bayesian Reasoning"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width        = 80L,
+  warn         = 1,
+  brms.backend = "cmdstanr",
+  mc.cores     = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+In this workbook we introduce the basic concepts of conditional probability,
+Bayes Rule, and then discuss how these ideas can be used to reason about data
+and probabilities.
+
+# Basic Concepts
+
+Suppose we have two related but separate random variables, $A$ and $B$ of
+interest. The two variables need not be independent, but they do represent
+separate concepts.
+
+Rather than reasoning in the abstract, we should make things more concrete.
+
+Thus, we let these two variables be binary - that is, they only take two values
+(TRUE and FALSE say) - and let $A$ represent whether or not a patient is
+infected by a virus, and $B$ represents whether or not that patient tests
+positive for that viral infection.
+
+These two things are related but they are not the same - a person could be
+infected with the virus and still test negative, and so on.
+
+With this setup, we wish to assess the probabilities of observing values of
+these variables.
+
+
+## Phase Space
+
+This system is represented by a two-dimensional space - called *phase space* -
+the space of all possible values of the variables. In this case, two binary
+variables, phase space has four possible configurations:
+
+$$
+(A, B),  \; (A, \neg B), \; (\neg A, B), \; (\neg A, \neg B)
+$$
+
+When we have random variables, we fully solve this system by determining the
+probabilities for all the possible values in phase space.
+
+
+## Medical Tests
+
+We use tests for COVID-19 as a way to illustrate these concepts, and use these
+ideas to show broad-stroke differences between the various tests.
+
+First, we need to determine our naming:
+
+  * $A$ is the variable determining the presence of the viral infection
+    (TRUE signifying person is infected)
+  * $B$ is the variable showing the result of the detection test (TRUE
+    signifying the test detected the viral infection)
+
+As mentioned, no test is perfect. An uninfected person can test positive
+(called a False Positive), and an infected person could produce a negative
+test (a False Negative). The quality of a given test is determined by the
+probabilities of it giving false results. We know these in advance and can
+then use them to determine the 'correctness' of a test result.
+
+
+## Conditional Probability
+
+Before we proceed, we introduce *conditional probability*, the probability of
+an event given known information.
+
+We have a number of ways of denoting this, such as $P(A \, | \, B = b)$, which
+is the probability of $A$ given that we know the value of $B$ is $b$.
+
+More generally, we can denote the conditional probability of $A$ given
+information on $B$ as $P(A \, | \, B)$.
+
+
+Note that this concept is not symmetric:
+
+$$
+P(A \, | \, B) \ne P(B \, | \, A)
+$$
+
+
+This is important, as it is easy to get these confused and our intuitions often
+lead us in the wrong direction.
+
+
+To calculate conditional probability, we need to narrow down the state space
+to only those values that correspond to our given information, and then
+calculate the probability in this subspace.
+
+More formally:
+
+$$
+P(A \, | \, B) = \frac{P(A \cap B)}{P(B)} \\
+P(B \, | \, A) = \frac{P(B \cap A)}{P(A)}
+$$
+
+
+## Bayes Rule
+
+We derive Bayes Rule from these basic definitions of conditional probability:
+
+$$
+P(A \, | \, B) = \frac{P(A \cap B)}{P(B)} \implies P(A \cap B) = P(A \, | \, B) \, P(B)
+$$
+
+This does make a certain amount of intuitive sense: to calculate the
+probability of observing both $A$ AND $B$, we take each possible values of
+$B$, calculate the conditional probabilities in each case. Our final
+probability is the weighted sum of the possible outcomes.
+
+However, while conditional probability is not symmetric, intersection is.
+
+That is,
+
+$$
+P(A \cap B) = P(B \cap A)
+$$
+
+Therefore,
+
+
+$$
+P(B \, | \, A) \, P(A) = P(A \, | \, B) \, P(B)
+$$
+
+Finally, we get to the discrete case for Bayes Rules:
+
+$$
+P(A \, | \, B) = \frac{P(B \, | \, A) \, P(A)}{P(B)}
+$$
+
+Close inspection of this shows us that Bayes rule gives us a way to 'invert'
+our probabilities. In fact, early works on this often referred to the above as
+the 'method of inverse probabilities'.
+
+
+# Illustrating the Concepts
+
+The above section focused mostly on conceptual ideas, and it is often useful
+to illustrate these ideas via computation and simulation.
+
+We start with simulating medical tests, using some input values.
+
+For the following work, we assume the prevalence of COVID-19 is 1\% of the
+population.
+
+
+## Construct First Simulations
+
+As discussed previously, we denote $A$ as the presence/absence of the virus in
+the patient (presence denotes infection), and $B$ as the results of the test
+for presence (a TRUE value means the test detected the virus).
+
+As discussed previously, while related, these two variables are separate, an
+uninfected person could test positive and vice versa.
+
+So, a person takes a COVID-19 test and tests positive - what is the probability
+that the patient is infected? How do we go about calculating this?
+
+In mathematical notation, we want to calculate
+
+$$
+P(A = \text{infected} \, | B = \text{positive test})
+$$
+
+Test efficacy is stated in terms of two numbers, the rate of false positives
+and false negatives, that is,
+
+$$
+P(B = \text{positive test} \, | \, A = \text{infected})
+$$
+
+and
+
+$$
+P(B = \text{negative test} \, | \, A = \text{not infected}).
+$$
+
+For PCR tests, we typically have a 5\% rate for both.
+
+Finally, we also need to know the prevalence of the disease in the population,
+the unconditional probability of a patient having the disease.
+
+Let us assume this prevalence is 1\%.
+
+```{r simulate_medical_tests, echo=TRUE}
+n_sim <- 1e7
+
+prevalence    <- 0.01
+prop_falsepos <- 0.05
+prop_falseneg <- 0.05
+
+population_tbl <- generate_medical_test_data(
+    n_patient = n_sim,
+    prevalence = prevalence,
+    falsepos   = prop_falsepos,
+    falseneg   = prop_falseneg
+    )
+
+population_tbl %>% glimpse()
+```
+
+Now we check the simulation proportions conditioning on the test result.
+
+```{r calculate_conditional_proportions, echo=TRUE}
+population_tbl %>%
+  count(infected, test_result, name = "sim_count") %>%
+  group_by(test_result) %>%
+  mutate(
+    ref_count = sum(sim_count),
+    prop      = round(sim_count / ref_count, 6)
+    )
+```
+
+
+So, according to this simulation the probability of a True Positive is about
+16\%.
+
+Please note that all of this ignores a whole lot of real issues with testing!
+But it does highlight a problem with medical testing that needs to be accounted
+for in designing them - that is, the "low base rate fallacy". But we ignore
+all these issues for now.
+
+
+## Analytical Calculation
+
+We now use Bayes Rule to calculate this probability analytically and compare it
+to our simulated value.
+
+$$
+P(A \, | \, B = \text{positive}) = \frac{P(B \, | \, A) \, P(A)}{P(B)}
+$$
+
+We know most of these quantities except for the denominator $P(B)$, but we can
+calculate this from the values we do know:
+
+$$
+P(B) = P(B \, | A = \text{infected}) \, P(A = \text{infected}) +
+  P(B \, | A = \text{not infected}) \, P(A = \text{not infected})
+$$
+
+We can now plug all these values in to calculate that conditional probability.
+
+\begin{eqnarray*}
+P(A = \text{infected} \, | \, B = \text{positive})
+  &=& \frac{P(B \, | \, A) \, P(A)}
+           {P(B \, | \, A) \, P(A) + P(B \, | \, \neg A) \, P(\neg A)} \\
+  &=& \frac{(0.95)(0.01)}{(0.95)(0.01) + (0.05)(0.99)} \\
+  &=& 0.1610
+\end{eqnarray*}
+
+
+
+## Effect of Prevalance
+
+Before we move on from this, we want to investigate the impact of the
+prevalence of the disease on the efficacy of the test.
+
+
+
+
+
+
+# Bayes Rule with Continuous Variables
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
