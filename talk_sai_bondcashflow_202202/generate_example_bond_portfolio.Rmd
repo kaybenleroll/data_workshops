@@ -1,0 +1,176 @@
+---
+title: "Generate Sample Bond Portfolio"
+author: "Mick Cooney"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(stringr)
+library(glue)
+library(purrr)
+library(furrr)
+library(DT)
+library(lubridate)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "DT")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+## Load Company Data
+
+We want to load up the company data that will represent the various bond
+issues in our portfolio.
+
+
+```{r load_company_data, echo=TRUE}
+company_cols <- cols(
+  gics_code = col_character()
+)
+
+company_information_tbl <- read_csv(
+  file      = "data/company_information.csv",
+  col_types = company_cols
+)
+
+company_information_tbl %>% glimpse()
+```
+
+
+
+# Construct Bond Portfolio
+
+```{r construct_bond_portfolio, echo=TRUE}
+base_date     <- as.Date("2019-01-01")
+coupon_values <- seq(5, 10, by = 0.125)
+
+generate_maturity_date <- function(n_dates, min_maturity = 1, max_maturity = 5,
+                                   base_date = as.Date("2019-01-01")) {
+  min_mat <- min_maturity * 365
+  max_mat <- max_maturity * 365
+  
+  maturity_date <- sample(min_mat:max_mat, size = n_dates, replace = TRUE) %>%
+    days() %>%
+    add(base_date)
+  
+  return(maturity_date)
+}
+
+generate_issued_date <- function(maturity_date, base_date, max_years = 5) {
+  expired_days <- sample(
+    x       = 0:(max_years * 365),
+    size    = length(maturity_date),
+    replace = TRUE
+    )
+  
+  term_years <- difftime(maturity_date, base_date) %>%
+    add(expired_days) %>%
+    divide_by(365) %>%
+    ceiling()
+
+  issued_date <- maturity_date - years(term_years) - 1
+  
+  return(issued_date)
+}
+
+
+bond_portfolio_tbl <- company_information_tbl %>%
+  slice_sample(n = nrow(.), replace = FALSE) %>%
+  head(250) %>%
+  mutate(
+    position      = rnbinom(n(), mu = 200, size = 25),
+    coupon        = sample(coupon_values, size = n(), replace = TRUE),
+    price         = rlnorm(
+      n(),
+      meanlog = log(100) - (0.5 * 0.05 * 0.05),
+      sdlog   = 0.05) %>% round(2),
+    maturity_date = generate_maturity_date(
+      n(),
+      min_maturity = 1,
+      max_maturity = 5,
+      base_date    = base_date),
+    issued_date   = generate_issued_date(
+      maturity_date,
+      base_date = base_date,
+      max_years = 5),
+    security = glue(
+      "{ticker_symbol} {coupon_label} {mat_date}",
+      coupon_label = round(coupon, 3) %>% str_replace("\\.0+$", ""),
+      mat_date     = format(maturity_date, "%m/%d/%Y")
+      ) %>% as.character(),
+    currency = str_c(country_code, "D", sep = "")
+    ) %>%
+  select(
+    security, currency, position, price, coupon, issued_date, maturity_date
+    )
+
+bond_portfolio_tbl %>% write_csv("data/sample_bond_portfolio.csv")
+```
+
+
+
+
+
+
+
+# R Environment
+ 
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
