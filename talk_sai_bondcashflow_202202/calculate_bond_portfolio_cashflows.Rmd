@@ -98,6 +98,55 @@ first_portfolio_tbl %>% glimpse()
 ```
 
 
+## Retrieve Frech-Fama Breakpoints
+
+```{r download_ff_me_breakpoints, echo=TRUE}
+if(file_exits("data/ME_Breakpoints_CSV.zip")) {
+  me_breakpoint_url <- "http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/ME_Breakpoints_CSV.zip"
+  
+  curl_download(me_breakpoint_url, destfile = "data/ME_Breakpoints_CSV.zip")
+}
+```
+
+We now need to process this breakpoint data.
+
+```{r }
+
+
+read_lines("data/ME_Breakpoints_CSV.zip") %>%
+  enframe(name = "id", value = "line_str") %>%
+  mutate(char_count = map_int(line_str, nchar), .after = id) %>%
+  filter(char_count == 232) %>%
+  pull(line_str) %>%
+  write_lines("data/breakpoints_parsed.csv")
+
+csv_colnames <- c(
+    "datestr", "data_count",
+    "ME00", "ME05", "ME10", "ME15", "ME20",
+    "ME25", "ME30", "ME35", "ME40", "ME45",
+    "ME50", "ME55", "ME60", "ME65", "ME70",
+    "ME75", "ME80", "ME85", "ME90", "ME95"
+    )
+
+csv_cols <- cols(
+  datestr    = col_character(),
+  data_count = col_integer()
+  )
+
+
+me_breakpoint_tbl <- read_csv(
+  "data/breakpoints_parsed.csv",
+  col_names = csv_colnames,
+  col_types = csv_cols
+  )
+
+
+```
+
+
+
+
+
 
 # Construct Cashflow Data
 
