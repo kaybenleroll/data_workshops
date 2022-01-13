@@ -30,12 +30,14 @@ library(scales)
 library(cowplot)
 library(magrittr)
 library(rlang)
+library(fs)
 library(stringr)
 library(glue)
 library(purrr)
 library(furrr)
 library(DT)
 library(lubridate)
+library(curl)
 
 
 source("lib_utils.R")
@@ -90,7 +92,7 @@ portfolio_cols <- cols(
   )
 
 first_portfolio_tbl <- read_csv(
-  file      = "data/highyield_bond_portfolio.csv",
+  file      = "data/sample_bond_portfolio.csv",
   col_types = portfolio_cols
   )
 
@@ -101,7 +103,7 @@ first_portfolio_tbl %>% glimpse()
 ## Retrieve Frech-Fama Breakpoints
 
 ```{r download_ff_me_breakpoints, echo=TRUE}
-if(file_exits("data/ME_Breakpoints_CSV.zip")) {
+if(file_exists("data/ME_Breakpoints_CSV.zip")) {
   me_breakpoint_url <- "http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/ME_Breakpoints_CSV.zip"
   
   curl_download(me_breakpoint_url, destfile = "data/ME_Breakpoints_CSV.zip")
@@ -144,7 +146,19 @@ me_breakpoint_tbl <- read_csv(
 ```
 
 
+## Futures Expiration Dates
 
+We also want to load the expiration dates for futures to assist the hedging of
+currency risks.
+
+```{r load_futures_expiration_date, echo=TRUE}
+expiration_date_tbl <- read_csv(
+  "data/expiration_date.csv",
+  col_type = cols(expiration_date = col_date())
+  )
+
+expiration_date_tbl %>% glimpse()
+```
 
 
 
@@ -156,7 +170,7 @@ create_coupon_payment_dates <- function(init_date, final_date) {
     as.numeric() %>%
     divide_by(183) %>%
     ceiling()
-  
+
   coupon_date_tbl <- (init_date %m+% months(6 * 1:max_year)) %>%
     enframe(name = NULL, value = "cashflow_date") %>%
     filter(cashflow_date <= final_date)
@@ -214,6 +228,63 @@ calculate_portfolio_cashflow_data <- function(portfolio_tbl, current_date,
   
   return(cashflow_tbl)
 }
+```
+
+
+```{r calculate_portfolio_cashflows, echo=TRUE}
+bond_cashflow_tbl <- bond_portfolio_tbl %>%
+  calculate_portfolio_cashflow_data(
+    current_date = as.Date("2019-01-01")
+    )
+
+bond_cashflow_tbl %>% glimpse()
+```
+
+
+## Aggregate Weekly Cashflows
+
+We now want to aggregate all these cashflows on a weekly basis to help assess
+the FX risk due to holding bonds in both currencies.
+
+```{r calculate_weekly_aggregated_cashflows, echo=TRUE}
+aggregate_cashflows_tbl <- bond_cashflow_tbl %>%
+  mutate(
+    agg_date = map(cashflow_date, ~ friday_dates[friday_dates >= .x][1]) %>% reduce(c)) %>%
+  group_by(currency, agg_date) %>%
+  summarise(
+    .groups = "drop",
+    
+    agg_cashflow = sum(cashflow_amt)
+    ) %>%
+  arrange(agg_date, currency)
+
+aggregate_cashflows_tbl %>% glimpse()
+```
+
+
+## Calculate Futures Delivery Expirations
+
+```{r calculate_futures_expiration_cashflows, echo=TRUE}
+expry_dates <- expiration_date_tbl %>% pull(expiration_date)
+
+futures_exposures_tbl <- bond_cashflow_tbl %>%
+  mutate(
+    exposure_date = map(cashflow_date, ~ expry_dates[expry_dates >= .x][1]) %>% reduce(c)
+    ) %>%
+  group_by(exposure_date, currency) %>%
+  mutate(
+    total_exposure = cumsum(cashflow_amt) %>% round(2)
+    ) %>%
+  ungroup()
+
+
+aggregate_cashflows_tbl %>% glimpse()
+```
+
+We now show this table using the `DT` package
+
+```{r display_aggregate_cashflow, echo=TRUE}
+aggregate_cashflows_tbl %>% datatable()
 ```
 
 

@@ -96,12 +96,13 @@ company_information_tbl %>% glimpse()
 
 # Construct Bond Portfolio
 
+
 ```{r construct_bond_portfolio, echo=TRUE}
-base_date     <- as.Date("2019-01-01")
+current_date  <- as.Date("2019-01-01")
 coupon_values <- seq(5, 10, by = 0.125)
 
 generate_maturity_date <- function(n_dates, min_maturity = 1, max_maturity = 5,
-                                   base_date = as.Date("2019-01-01")) {
+                                   base_date = current_date) {
   min_mat <- min_maturity * 365
   max_mat <- max_maturity * 365
   
@@ -144,12 +145,12 @@ bond_portfolio_tbl <- company_information_tbl %>%
       n(),
       min_maturity = 1,
       max_maturity = 5,
-      base_date    = base_date),
+      base_date    = current_date),
     issued_date   = generate_issued_date(
       maturity_date,
-      base_date = base_date,
+      base_date = current_date,
       max_years = 5),
-    security = glue(
+    issuer = glue(
       "{ticker_symbol} {coupon_label} {mat_date}",
       coupon_label = round(coupon, 3) %>% str_replace("\\.0+$", ""),
       mat_date     = format(maturity_date, "%m/%d/%Y")
@@ -157,7 +158,7 @@ bond_portfolio_tbl <- company_information_tbl %>%
     currency = str_c(country_code, "D", sep = "")
     ) %>%
   select(
-    security, currency, position, price, coupon, issued_date, maturity_date
+    issuer, currency, position, price, coupon, issued_date, maturity_date
     )
 
 bond_portfolio_tbl %>% write_csv("data/sample_bond_portfolio.csv")
