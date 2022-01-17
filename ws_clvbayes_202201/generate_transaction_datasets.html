@@ -219,12 +219,16 @@
       <ul>
       <li><a href="#write-data-to-disk-2"><span class="toc-section-number">4.1</span> Write Data to Disk</a></li>
       </ul></li>
-      <li><a href="#r-environment"><span class="toc-section-number">5</span> R Environment</a></li>
+      <li><a href="#generate-non-lifetime-transaction-data"><span class="toc-section-number">5</span> Generate Non-Lifetime Transaction Data</a>
+      <ul>
+      <li><a href="#write-data-to-disk-3"><span class="toc-section-number">5.1</span> Write Data to Disk</a></li>
+      </ul></li>
+      <li><a href="#r-environment"><span class="toc-section-number">6</span> R Environment</a></li>
       </ul>
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 11, 2022</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 14, 2022</p>
           </div>
    </div>
      
@@ -247,11 +251,11 @@ input to this process.</p>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>customer_cohort_data_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 5
-## $ customer_id     &lt;chr&gt; &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, …
-## $ cohort_qtr      &lt;yearqtr&gt; 2010 Q1, 2010 Q4, 2010 Q3, 2010 Q2, 2011 Q1, 2010 …
-## $ cohort_ym       &lt;chr&gt; &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;,…
-## $ first_tnx_date  &lt;date&gt; 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-…
-## $ total_tnx_count &lt;int&gt; 3, 8, 5, 3, 1, 1, 9, 2, 1, 2, 6, 2, 5, 10, 6, 4, 10, 2…</code></pre>
+## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, …
+## $ cohort_qtr      [3m[38;5;246m&lt;yearqtr&gt;[39m[23m 2010 Q1, 2010 Q4, 2010 Q3, 2010 Q2, 2011 Q1, 2010 …
+## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;,…
+## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-…
+## $ total_tnx_count [3m[38;5;246m&lt;int&gt;[39m[23m 3, 8, 5, 3, 1, 1, 9, 2, 1, 2, 6, 2, 5, 10, 6, 4, 10, 2…</code></pre>
 <p>For the purposes of this work, we can treat the quarterly times as categorical
 and so we convert these values to character strings.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>customer_cohort_data_tbl <span class="ot">&lt;-</span> customer_cohort_data_tbl <span class="sc">%&gt;%</span></span>
@@ -265,10 +269,10 @@ and so we convert these values to character strings.</p>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>customer_cohort_data_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 4
-## $ customer_id    &lt;chr&gt; &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, &quot;…
-## $ cohort_qtr     &lt;chr&gt; &quot;2010 Q1&quot;, &quot;2010 Q4&quot;, &quot;2010 Q3&quot;, &quot;2010 Q2&quot;, &quot;2011 Q1&quot;, …
-## $ cohort_ym      &lt;chr&gt; &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;, …
-## $ first_tnx_date &lt;date&gt; 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-0…</code></pre>
+## $ customer_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, &quot;…
+## $ cohort_qtr     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 Q1&quot;, &quot;2010 Q4&quot;, &quot;2010 Q3&quot;, &quot;2010 Q2&quot;, &quot;2011 Q1&quot;, …
+## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;, …
+## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-0…</code></pre>
 </div>
 <div id="run-data-generation-for-basic-model" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Run Data Generation for Basic Model</h1>
@@ -299,15 +303,15 @@ produce individual parameters for each of the customers.</p>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>synthdata_basic_simparams_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 9
-## $ customer_id     &lt;chr&gt; &quot;12490&quot;, &quot;12533&quot;, &quot;12682&quot;, &quot;12758&quot;, &quot;12836&quot;, &quot;12913&quot;, …
-## $ cohort_qtr      &lt;chr&gt; &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;,…
-## $ cohort_ym       &lt;chr&gt; &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;,…
-## $ first_tnx_date  &lt;date&gt; 2009-12-01, 2009-12-01, 2009-12-01, 2009-12-01, 2009-…
-## $ customer_mu     &lt;dbl&gt; 0.193929578, 0.018041910, 0.053443286, 0.002396523, 0.…
-## $ customer_tau    &lt;dbl&gt; 0.5266278, 75.2259954, 14.2815124, 112.1151678, 15.836…
-## $ customer_lambda &lt;dbl&gt; 0.13543393, 0.54140899, 0.58536864, 0.07433727, 0.0149…
-## $ customer_nu     &lt;dbl&gt; 0.655802984, 1.218495551, 0.826828489, 0.569981858, 0.…
-## $ customer_p      &lt;dbl&gt; 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
+## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12490&quot;, &quot;12533&quot;, &quot;12682&quot;, &quot;12758&quot;, &quot;12836&quot;, &quot;12913&quot;, …
+## $ cohort_qtr      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;,…
+## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;,…
+## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2009-12-01, 2009-12-01, 2009-12-01, 2009-12-01, 2009-…
+## $ customer_mu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.193929578, 0.018041910, 0.053443286, 0.002396523, 0.…
+## $ customer_tau    [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.5266278, 75.2259954, 14.2815124, 112.1151678, 15.836…
+## $ customer_lambda [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.13543393, 0.54140899, 0.58536864, 0.07433727, 0.0149…
+## $ customer_nu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.655802984, 1.218495551, 0.826828489, 0.569981858, 0.…
+## $ customer_p      [3m[38;5;246m&lt;dbl&gt;[39m[23m 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
 <div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>synthdata_basic_transactions_tbl <span class="ot">&lt;-</span> synthdata_basic_simparams_tbl <span class="sc">%&gt;%</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_pnbd_customer_transaction_data</span>(</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">final_tnx_date =</span> <span class="fu">as.Date</span>(<span class="st">&quot;2011-12-09&quot;</span>)</span>
@@ -315,12 +319,12 @@ produce individual parameters for each of the customers.</p>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_transaction_metadata</span>()</span>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>synthdata_basic_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 44,872
+<pre><code>## Rows: 44,977
 ## Columns: 4
-## $ customer_id   &lt;chr&gt; &quot;15719&quot;, &quot;13585&quot;, &quot;17519&quot;, &quot;15712&quot;, &quot;16321&quot;, &quot;15362&quot;, &quot;1…
-## $ tnx_timestamp &lt;dttm&gt; 2009-12-01 00:19:10, 2009-12-01 00:48:16, 2009-12-01 00…
-## $ invoice_id    &lt;chr&gt; &quot;T20091201-0001&quot;, &quot;T20091201-0002&quot;, &quot;T20091201-0003&quot;, &quot;T…
-## $ tnx_amount    &lt;dbl&gt; 323.91, 57.12, 388.42, 49.98, 50.91, 91.66, 90.06, 43.75…</code></pre>
+## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;17592&quot;, &quot;15808&quot;, &quot;15413&quot;, &quot;13590&quot;, &quot;17700&quot;, &quot;17611&quot;, &quot;1…
+## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2009-12-01 00:03:10, 2009-12-01 00:04:42, 2009-12-01 00…
+## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;T20091201-0001&quot;, &quot;T20091201-0002&quot;, &quot;T20091201-0003&quot;, &quot;T…
+## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 75.69, 67.04, 98.48, 99.82, 58.33, 56.81, 88.89, 183.71,…</code></pre>
 <div id="write-data-to-disk" class="section level3" number="2.0.1">
 <h3><span class="header-section-number">2.0.1</span> Write Data to Disk</h3>
 <p>We now write this data to disk.</p>
@@ -346,10 +350,10 @@ customers and transactions within that timeframe.</p>
 <span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>synthdata_shortframe_cohort_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 50,000
 ## Columns: 4
-## $ customer_id    &lt;chr&gt; &quot;C201701_0001&quot;, &quot;C201701_0002&quot;, &quot;C201701_0003&quot;, &quot;C20170…
-## $ cohort_qtr     &lt;chr&gt; &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, …
-## $ cohort_ym      &lt;chr&gt; &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, …
-## $ first_tnx_date &lt;date&gt; 2017-01-01, 2017-01-01, 2017-01-01, 2017-01-01, 2017-0…</code></pre>
+## $ customer_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201701_0001&quot;, &quot;C201701_0002&quot;, &quot;C201701_0003&quot;, &quot;C20170…
+## $ cohort_qtr     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, …
+## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, …
+## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2017-01-01, 2017-01-01, 2017-01-01, 2017-01-01, 2017-0…</code></pre>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>pnbd_params_lst <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_shape     =</span>   <span class="dv">1</span>,</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_rate      =</span>  <span class="dv">10</span>,</span>
@@ -374,12 +378,12 @@ customers and transactions within that timeframe.</p>
 <span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_transaction_metadata</span>()</span>
 <span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>synthdata_shortframe_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 377,745
+<pre><code>## Rows: 384,719
 ## Columns: 4
-## $ customer_id   &lt;chr&gt; &quot;C201701_0031&quot;, &quot;C201701_0030&quot;, &quot;C201701_0015&quot;, &quot;C201701…
-## $ tnx_timestamp &lt;dttm&gt; 2017-01-01 01:23:50, 2017-01-01 01:38:29, 2017-01-01 01…
-## $ invoice_id    &lt;chr&gt; &quot;T20170101-0001&quot;, &quot;T20170101-0002&quot;, &quot;T20170101-0003&quot;, &quot;T…
-## $ tnx_amount    &lt;dbl&gt; 1795.56, 281.25, 79.24, 675.16, 511.30, 168.57, 29.64, 5…</code></pre>
+## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201701_0006&quot;, &quot;C201701_0003&quot;, &quot;C201701_0016&quot;, &quot;C201701…
+## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2017-01-01 00:03:16, 2017-01-01 00:18:33, 2017-01-01 00…
+## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;T20170101-0001&quot;, &quot;T20170101-0002&quot;, &quot;T20170101-0003&quot;, &quot;T…
+## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 126.66, 672.90, 57.55, 92.73, 764.78, 13246.81, 55.42, 2…</code></pre>
 <div id="write-data-to-disk-1" class="section level2" number="3.1">
 <h2><span class="header-section-number">3.1</span> Write Data to Disk</h2>
 <p>We now write this data to disk.</p>
@@ -404,10 +408,10 @@ dataset.</p>
 <span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>synthdata_longframe_cohort_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 50,000
 ## Columns: 4
-## $ customer_id    &lt;chr&gt; &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C20110…
-## $ cohort_qtr     &lt;chr&gt; &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, …
-## $ cohort_ym      &lt;chr&gt; &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, …
-## $ first_tnx_date &lt;date&gt; 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-0…</code></pre>
+## $ customer_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C20110…
+## $ cohort_qtr     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, …
+## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, …
+## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-0…</code></pre>
 <div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>pnbd_params_lst <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_shape     =</span>   <span class="dv">1</span>,</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_rate      =</span>  <span class="dv">10</span>,</span>
@@ -432,12 +436,12 @@ dataset.</p>
 <span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_transaction_metadata</span>()</span>
 <span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>synthdata_longframe_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 542,424
+<pre><code>## Rows: 555,315
 ## Columns: 4
-## $ customer_id   &lt;chr&gt; &quot;C201101_0011&quot;, &quot;C201101_0007&quot;, &quot;C201101_0008&quot;, &quot;C201101…
-## $ tnx_timestamp &lt;dttm&gt; 2011-01-01 00:39:26, 2011-01-01 00:55:54, 2011-01-01 03…
-## $ invoice_id    &lt;chr&gt; &quot;T20110101-0001&quot;, &quot;T20110101-0002&quot;, &quot;T20110101-0003&quot;, &quot;T…
-## $ tnx_amount    &lt;dbl&gt; 121.35, 86.62, 108.17, 323.42, 870.86, 139.77, 1019.87, …</code></pre>
+## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0011&quot;, &quot;C201101_0004&quot;, &quot;C201101_0006&quot;, &quot;C201101…
+## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2011-01-01 00:03:31, 2011-01-01 01:10:28, 2011-01-01 01…
+## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;T20110101-0001&quot;, &quot;T20110101-0002&quot;, &quot;T20110101-0003&quot;, &quot;T…
+## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 114.16, 124.84, 585.49, 69.04, 288.79, 51.33, 86.29, 46.…</code></pre>
 <div id="write-data-to-disk-2" class="section level2" number="4.1">
 <h2><span class="header-section-number">4.1</span> Write Data to Disk</h2>
 <p>We now write this data to disk.</p>
@@ -446,21 +450,69 @@ dataset.</p>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>synthdata_longframe_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/synthdata_longframe_transactions_tbl.rds&quot;</span>)</span></code></pre></div>
 </div>
 </div>
-<div id="r-environment" class="section level1" number="5">
-<h1><span class="header-section-number">5</span> R Environment</h1>
-<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div id="generate-non-lifetime-transaction-data" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Generate Non-Lifetime Transaction Data</h1>
+<p>To help getting started with the frequency model, we also produce a separate
+dataset where all customers are ‘alive’ on the system at the initial date and
+count the number of transactions made during a single year.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>n_customers <span class="ot">=</span> <span class="dv">50000</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_cohort_tbl <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">customer_id =</span> <span class="fu">stri_rand_strings</span>(</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> n_customers,</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">length =</span> <span class="dv">10</span>,</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">pattern =</span> <span class="st">&quot;[A-Z0-9]&quot;</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">cohort_qtr     =</span> <span class="st">&quot;2019 Q1&quot;</span>,</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">cohort_ym      =</span> <span class="st">&quot;2019 01&quot;</span>,</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">first_tnx_date =</span> <span class="fu">as.Date</span>(<span class="st">&quot;2019-01-01&quot;</span>)</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_simparams_tbl <span class="ot">&lt;-</span> synthdata_singleyear_cohort_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_pnbd_customer_simulation_params</span>(</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">params_lst =</span> pnbd_params_lst</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>    customer_id, cohort_qtr, cohort_ym, first_tnx_date, <span class="at">customer_tau =</span> <span class="dv">53</span>,</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>    customer_lambda, customer_nu, customer_p</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_transactions_tbl <span class="ot">&lt;-</span> synthdata_singleyear_simparams_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_pnbd_customer_transaction_data</span>(</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">final_tnx_date =</span> <span class="fu">as.Date</span>(<span class="st">&quot;2019-12-31&quot;</span>)</span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 915,136
+## Columns: 5
+## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;0004NLZ080&quot;, &quot;0004NLZ080&quot;, &quot;0004NLZ080&quot;, &quot;0004NLZ080&quot;, …
+## $ cohort_qtr    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;…
+## $ cohort_ym     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;…
+## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2019-01-01 01:25:42, 2019-02-12 07:27:37, 2019-01-04 16…
+## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 515.94, 586.86, 562.60, 661.43, 610.65, 538.92, 16.91, 1…</code></pre>
+<div id="write-data-to-disk-3" class="section level2" number="5.1">
+<h2><span class="header-section-number">5.1</span> Write Data to Disk</h2>
+<p>We now write this data to disk.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_cohort_tbl       <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/synthdata_singleyear_cohort_tbl.rds&quot;</span>)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_simparams_tbl    <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/synthdata_singleyear_simparams_tbl.rds&quot;</span>)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/synthdata_singleyear_transactions_tbl.rds&quot;</span>)</span></code></pre></div>
+</div>
+</div>
+<div id="r-environment" class="section level1" number="6">
+<h1><span class="header-section-number">6</span> R Environment</h1>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 120L)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
 ##  os       Ubuntu 20.04.3 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       X11                         
+##  ui       RStudio                     
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2022-01-11                  
+##  date     2022-01-14                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package              * version   date       lib source        
@@ -486,6 +538,7 @@ dataset.</p>
 ##  ellipsis               0.3.2     2021-04-29 [1] RSPM (R 4.1.0)
 ##  evaluate               0.14      2019-05-28 [1] RSPM (R 4.1.0)
 ##  fansi                  0.5.0     2021-05-25 [1] RSPM (R 4.1.0)
+##  farver                 2.1.0     2021-02-28 [1] RSPM (R 4.1.0)
 ##  fastmap                1.1.0     2021-01-25 [1] RSPM (R 4.1.0)
 ##  forcats              * 0.5.1     2021-01-27 [1] RSPM (R 4.1.0)
 ##  fs                   * 1.5.0     2020-07-31 [1] RSPM (R 4.1.0)
@@ -503,6 +556,7 @@ dataset.</p>
 ##  jquerylib              0.1.4     2021-04-26 [1] RSPM (R 4.1.0)
 ##  jsonlite               1.7.2     2020-12-09 [1] RSPM (R 4.1.0)
 ##  knitr                  1.36      2021-09-29 [1] RSPM (R 4.1.0)
+##  labeling               0.4.2     2020-10-20 [1] RSPM (R 4.1.0)
 ##  lattice                0.20-44   2021-05-02 [2] CRAN (R 4.1.1)
 ##  lifecycle              1.0.1     2021-09-24 [1] RSPM (R 4.1.0)
 ##  listenv                0.8.0     2019-12-05 [1] RSPM (R 4.1.0)
@@ -531,7 +585,7 @@ dataset.</p>
 ##  sass                   0.4.0     2021-05-12 [1] RSPM (R 4.1.0)
 ##  scales               * 1.1.1     2020-05-11 [1] RSPM (R 4.1.0)
 ##  sessioninfo            1.1.1     2018-11-05 [1] RSPM (R 4.1.0)
-##  stringi                1.7.5     2021-10-04 [1] RSPM (R 4.1.0)
+##  stringi              * 1.7.5     2021-10-04 [1] RSPM (R 4.1.0)
 ##  stringr              * 1.4.0     2019-02-10 [1] RSPM (R 4.1.0)
 ##  tibble               * 3.1.5     2021-09-30 [1] RSPM (R 4.1.0)
 ##  tidyquant            * 1.0.3     2021-03-05 [1] RSPM (R 4.1.0)
@@ -551,7 +605,7 @@ dataset.</p>
 ## 
 ## [1] /usr/local/lib/R/site-library
 ## [2] /usr/local/lib/R/library</code></pre>
-<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">width =</span> 80L)</span></code></pre></div>
 </div>
 </div>
 
