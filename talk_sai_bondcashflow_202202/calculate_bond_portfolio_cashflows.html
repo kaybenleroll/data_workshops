@@ -217,20 +217,24 @@
       <li><a href="#load-data"><span class="toc-section-number">1</span> Load Data</a>
       <ul>
       <li><a href="#load-portfolio-data"><span class="toc-section-number">1.1</span> Load Portfolio Data</a></li>
-      <li><a href="#retrieve-frech-fama-breakpoints"><span class="toc-section-number">1.2</span> Retrieve Frech-Fama Breakpoints</a></li>
-      <li><a href="#futures-expiration-dates"><span class="toc-section-number">1.3</span> Futures Expiration Dates</a></li>
+      <li><a href="#load-market-capitalisation-data"><span class="toc-section-number">1.2</span> Load Market Capitalisation Data</a></li>
+      <li><a href="#load-company-information"><span class="toc-section-number">1.3</span> Load Company Information</a></li>
+      <li><a href="#retrieve-frech-fama-breakpoints"><span class="toc-section-number">1.4</span> Retrieve Frech-Fama Breakpoints</a></li>
+      <li><a href="#futures-expiration-dates"><span class="toc-section-number">1.5</span> Futures Expiration Dates</a></li>
+      <li><a href="#process-bond-and-company-data"><span class="toc-section-number">1.6</span> Process Bond and Company Data</a></li>
       </ul></li>
       <li><a href="#construct-cashflow-data"><span class="toc-section-number">2</span> Construct Cashflow Data</a>
       <ul>
-      <li><a href="#aggregate-weekly-cashflows"><span class="toc-section-number">2.1</span> Aggregate Weekly Cashflows</a></li>
-      <li><a href="#calculate-futures-delivery-expirations"><span class="toc-section-number">2.2</span> Calculate Futures Delivery Expirations</a></li>
+      <li><a href="#create-helper-functions"><span class="toc-section-number">2.1</span> Create Helper Functions</a></li>
+      <li><a href="#calculate-and-aggregate-cashflows"><span class="toc-section-number">2.2</span> Calculate and Aggregate Cashflows</a></li>
+      <li><a href="#calculate-futures-delivery-expirations"><span class="toc-section-number">2.3</span> Calculate Futures Delivery Expirations</a></li>
       </ul></li>
       <li><a href="#r-environment"><span class="toc-section-number">3</span> R Environment</a></li>
       </ul>
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney</p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 13, 2022</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 17, 2022</p>
           </div>
    </div>
      
@@ -259,192 +263,395 @@ need to properly account for cashflows.</p>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;data/sample_bond_portfolio.csv&quot;</span>,</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> portfolio_cols</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">file      =</span> <span class="st">&quot;data/sample_bond_portfolio.csv&quot;</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">na        =</span> <span class="fu">c</span>(<span class="st">&quot;N/A&quot;</span>),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">col_types =</span> portfolio_cols</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">ticker_symbol =</span> <span class="fu">str_replace</span>(issuer, <span class="st">&quot;^(</span><span class="sc">\\</span><span class="st">S+) .*&quot;</span>, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">1&quot;</span>)    </span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>first_portfolio_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 250
-## Columns: 7
+## Columns: 8
 ## $ issuer        [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;ATRI 5.125 07/19/2022&quot;, &quot;CSTR 9.875 05/31/2021&quot;, &quot;INN 9…
 ## $ currency      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, …
 ## $ position      [3m[38;5;246m&lt;int&gt;[39m[23m 308, 201, 138, 215, 236, 155, 223, 193, 130, 215, 159, 2…
 ## $ price         [3m[38;5;246m&lt;dbl&gt;[39m[23m 102.41, 99.89, 93.11, 98.45, 107.66, 91.87, 100.63, 108.…
 ## $ coupon        [3m[38;5;246m&lt;dbl&gt;[39m[23m 5.125, 9.875, 9.250, 9.750, 6.125, 6.750, 6.000, 7.250, …
 ## $ issued_date   [3m[38;5;246m&lt;date&gt;[39m[23m 2015-07-18, 2016-05-30, 2015-12-12, 2015-02-13, 2014-06…
-## $ maturity_date [3m[38;5;246m&lt;date&gt;[39m[23m 2022-07-19, 2021-05-31, 2021-12-13, 2021-02-14, 2022-06…</code></pre>
+## $ maturity_date [3m[38;5;246m&lt;date&gt;[39m[23m 2022-07-19, 2021-05-31, 2021-12-13, 2021-02-14, 2022-06…
+## $ ticker_symbol [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;ATRI&quot;, &quot;CSTR&quot;, &quot;INN&quot;, &quot;KRBF&quot;, &quot;CIVI&quot;, &quot;SSD&quot;, &quot;GEN&quot;, &quot;EB…</code></pre>
 </div>
-<div id="retrieve-frech-fama-breakpoints" class="section level2" number="1.2">
-<h2><span class="header-section-number">1.2</span> Retrieve Frech-Fama Breakpoints</h2>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span>(<span class="fu">file_exists</span>(<span class="st">&quot;data/ME_Breakpoints_CSV.zip&quot;</span>)) {</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  me_breakpoint_url <span class="ot">&lt;-</span> <span class="st">&quot;http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/ME_Breakpoints_CSV.zip&quot;</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">curl_download</span>(me_breakpoint_url, <span class="at">destfile =</span> <span class="st">&quot;data/ME_Breakpoints_CSV.zip&quot;</span>)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<div id="load-market-capitalisation-data" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Load Market Capitalisation Data</h2>
+<p>We will want to segment our bond portfolio by market capitalisation and so
+we load up the market cap data. It is provided by SEC CIK number, so we will
+need to link by this.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>mktcap_cols <span class="ot">&lt;-</span> <span class="fu">cols</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">cik_number =</span> <span class="fu">col_character</span>(),</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">year       =</span> <span class="fu">col_number</span>(),</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">mktcap     =</span> <span class="fu">col_double</span>()</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>mktcap_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">&quot;data/company_mktcap.csv&quot;</span>,</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> mktcap_cols</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>mktcap_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 5,802
+## Columns: 3
+## $ year       [3m[38;5;246m&lt;dbl&gt;[39m[23m 2018, 2018, 2018, 2018, 2018, 2018, 2018, 2018, 2018, 2018,…
+## $ cik_number [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;0000878334&quot;, &quot;0001081862&quot;, &quot;0000868822&quot;, &quot;0000749098&quot;, &quot;00…
+## $ mktcap     [3m[38;5;246m&lt;dbl&gt;[39m[23m 3162687931, 16810662751, 8001655, 15196648088, 35505321530,…</code></pre>
+</div>
+<div id="load-company-information" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Load Company Information</h2>
+<p>We now load the various data we have on each individual company to help with
+the analysis of the portfolio.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>company_cols <span class="ot">&lt;-</span> <span class="fu">cols</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">cik_number    =</span> <span class="fu">col_character</span>(),</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">company_name  =</span> <span class="fu">col_character</span>(),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">main_exchange =</span> <span class="fu">col_character</span>(),</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">country_code  =</span> <span class="fu">col_character</span>(),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">ticker_symbol =</span> <span class="fu">col_character</span>(),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">gics_code     =</span> <span class="fu">col_character</span>()</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>company_info_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;data/company_information.csv&quot;</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">na        =</span> <span class="fu">c</span>(<span class="st">&quot;N/A&quot;</span>),</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> company_cols</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>company_info_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 5,792
+## Columns: 6
+## $ cik_number    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;0000104169&quot;, &quot;0001018724&quot;, &quot;0000320193&quot;, &quot;0000064803&quot;, …
+## $ company_name  [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;WALMART INC.&quot;, &quot;AMAZON.COM, INC.&quot;, &quot;APPLE INC.&quot;, &quot;CVS H…
+## $ main_exchange [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;New York Stock Exchange (NYSE)&quot;, &quot;NASDAQ National Marke…
+## $ country_code  [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;U…
+## $ ticker_symbol [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;WMT&quot;, &quot;AMZN&quot;, &quot;AAPL&quot;, &quot;CVS&quot;, &quot;MCK&quot;, &quot;ABC&quot;, &quot;COST&quot;, &quot;XOM…
+## $ gics_code     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;30101040&quot;, &quot;25502020&quot;, &quot;45202030&quot;, &quot;35102015&quot;, &quot;3510201…</code></pre>
+<p>The sector information is provided in this data via the GICS code, so we need
+to load the GICS information which is availabe via the <code>GICS</code> package.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(standards)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>gics_tbl <span class="ot">&lt;-</span> standards <span class="sc">%&gt;%</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_code                  =</span> <span class="st">`</span><span class="at">subindustry id</span><span class="st">`</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_sector_code           =</span> <span class="st">`</span><span class="at">sector id</span><span class="st">`</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_sector_name           =</span> <span class="st">`</span><span class="at">sector name</span><span class="st">`</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_industrygroup_code    =</span> <span class="st">`</span><span class="at">industry group id</span><span class="st">`</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_industrygroup_name    =</span> <span class="st">`</span><span class="at">industry group name</span><span class="st">`</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_industry_code         =</span> <span class="st">`</span><span class="at">industry id</span><span class="st">`</span>,</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_industry_name         =</span> <span class="st">`</span><span class="at">industry name</span><span class="st">`</span>,</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_subindustrygroup_code =</span> <span class="st">`</span><span class="at">subindustry id</span><span class="st">`</span>,</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">gics_subindustrygroup_name =</span> <span class="st">`</span><span class="at">subindustry name</span><span class="st">`</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">everything</span>(), as.character)</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>gics_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 157
+## Columns: 9
+## $ gics_code                  [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;10101010&quot;, &quot;10101020&quot;, &quot;10102010&quot;, &quot;101020…
+## $ gics_sector_code           [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;10&quot;, &quot;10&quot;, &quot;10&quot;, &quot;10&quot;, &quot;10&quot;, &quot;10&quot;, &quot;10&quot;, &quot;…
+## $ gics_sector_name           [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;Energy&quot;, &quot;Energy&quot;, &quot;Energy&quot;, &quot;Energy&quot;, &quot;En…
+## $ gics_industrygroup_code    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;1010&quot;, &quot;1010&quot;, &quot;1010&quot;, &quot;1010&quot;, &quot;1010&quot;, &quot;10…
+## $ gics_industrygroup_name    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;Energy&quot;, &quot;Energy&quot;, &quot;Energy&quot;, &quot;Energy&quot;, &quot;En…
+## $ gics_industry_code         [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;101010&quot;, &quot;101010&quot;, &quot;101020&quot;, &quot;101020&quot;, &quot;10…
+## $ gics_industry_name         [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;Energy Equipment &amp; Services&quot;, &quot;Energy Equi…
+## $ gics_subindustrygroup_code [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;10101010&quot;, &quot;10101020&quot;, &quot;10102010&quot;, &quot;101020…
+## $ gics_subindustrygroup_name [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;Oil &amp; Gas Drilling&quot;, &quot;Oil &amp; Gas Equipment …</code></pre>
+</div>
+<div id="retrieve-frech-fama-breakpoints" class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Retrieve Frech-Fama Breakpoints</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span>(<span class="fu">file_exists</span>(<span class="st">&quot;data/ME_Breakpoints_CSV.zip&quot;</span>)) {</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  me_breakpoint_url <span class="ot">&lt;-</span> <span class="st">&quot;http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/ME_Breakpoints_CSV.zip&quot;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">curl_download</span>(me_breakpoint_url, <span class="at">destfile =</span> <span class="st">&quot;data/ME_Breakpoints_CSV.zip&quot;</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
 <p>We now need to process this breakpoint data.</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">read_lines</span>(<span class="st">&quot;data/ME_Breakpoints_CSV.zip&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="st">&quot;id&quot;</span>, <span class="at">value =</span> <span class="st">&quot;line_str&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">char_count =</span> <span class="fu">map_int</span>(line_str, nchar), <span class="at">.after =</span> id) <span class="sc">%&gt;%</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(char_count <span class="sc">==</span> <span class="dv">232</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(line_str) <span class="sc">%&gt;%</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">write_lines</span>(<span class="st">&quot;data/breakpoints_parsed.csv&quot;</span>)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>csv_colnames <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;datestr&quot;</span>, <span class="st">&quot;data_count&quot;</span>,</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;ME00&quot;</span>, <span class="st">&quot;ME05&quot;</span>, <span class="st">&quot;ME10&quot;</span>, <span class="st">&quot;ME15&quot;</span>, <span class="st">&quot;ME20&quot;</span>,</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;ME25&quot;</span>, <span class="st">&quot;ME30&quot;</span>, <span class="st">&quot;ME35&quot;</span>, <span class="st">&quot;ME40&quot;</span>, <span class="st">&quot;ME45&quot;</span>,</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;ME50&quot;</span>, <span class="st">&quot;ME55&quot;</span>, <span class="st">&quot;ME60&quot;</span>, <span class="st">&quot;ME65&quot;</span>, <span class="st">&quot;ME70&quot;</span>,</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;ME75&quot;</span>, <span class="st">&quot;ME80&quot;</span>, <span class="st">&quot;ME85&quot;</span>, <span class="st">&quot;ME90&quot;</span>, <span class="st">&quot;ME95&quot;</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>csv_cols <span class="ot">&lt;-</span> <span class="fu">cols</span>(</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">datestr    =</span> <span class="fu">col_character</span>(),</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">data_count =</span> <span class="fu">col_integer</span>()</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>me_breakpoint_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;data/breakpoints_parsed.csv&quot;</span>,</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_names =</span> csv_colnames,</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> csv_cols</span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">read_lines</span>(<span class="st">&quot;data/ME_Breakpoints_CSV.zip&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="st">&quot;id&quot;</span>, <span class="at">value =</span> <span class="st">&quot;line_str&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">char_count =</span> <span class="fu">map_int</span>(line_str, nchar), <span class="at">.after =</span> id) <span class="sc">%&gt;%</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(char_count <span class="sc">==</span> <span class="dv">232</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(line_str) <span class="sc">%&gt;%</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">write_lines</span>(<span class="st">&quot;data/breakpoints_parsed.csv&quot;</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>csv_colnames <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;datestr&quot;</span>, <span class="st">&quot;data_count&quot;</span>,</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ME00&quot;</span>, <span class="st">&quot;ME05&quot;</span>, <span class="st">&quot;ME10&quot;</span>, <span class="st">&quot;ME15&quot;</span>, <span class="st">&quot;ME20&quot;</span>,</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ME25&quot;</span>, <span class="st">&quot;ME30&quot;</span>, <span class="st">&quot;ME35&quot;</span>, <span class="st">&quot;ME40&quot;</span>, <span class="st">&quot;ME45&quot;</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ME50&quot;</span>, <span class="st">&quot;ME55&quot;</span>, <span class="st">&quot;ME60&quot;</span>, <span class="st">&quot;ME65&quot;</span>, <span class="st">&quot;ME70&quot;</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ME75&quot;</span>, <span class="st">&quot;ME80&quot;</span>, <span class="st">&quot;ME85&quot;</span>, <span class="st">&quot;ME90&quot;</span>, <span class="st">&quot;ME95&quot;</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>csv_cols <span class="ot">&lt;-</span> <span class="fu">cols</span>(</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">datestr    =</span> <span class="fu">col_character</span>(),</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">data_count =</span> <span class="fu">col_integer</span>()</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>me_breakpoint_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;data/breakpoints_parsed.csv&quot;</span>,</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_names =</span> csv_colnames,</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> csv_cols</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>me_breakpoint_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 1,152
+## Columns: 22
+## $ datestr    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;192512&quot;, &quot;192601&quot;, &quot;192602&quot;, &quot;192603&quot;, &quot;192604&quot;, &quot;192605&quot;,…
+## $ data_count [3m[38;5;246m&lt;int&gt;[39m[23m 487, 491, 499, 503, 505, 509, 510, 506, 517, 514, 521, 520,…
+## $ ME00       [3m[38;5;246m&lt;dbl&gt;[39m[23m 1.40, 1.38, 1.29, 1.12, 1.31, 1.14, 1.08, 1.08, 1.07, 1.06,…
+## $ ME05       [3m[38;5;246m&lt;dbl&gt;[39m[23m 2.38, 2.54, 2.34, 2.05, 2.35, 2.25, 2.20, 2.04, 2.35, 2.29,…
+## $ ME10       [3m[38;5;246m&lt;dbl&gt;[39m[23m 3.37, 3.76, 3.57, 3.08, 3.32, 3.15, 3.44, 3.15, 3.34, 3.12,…
+## $ ME15       [3m[38;5;246m&lt;dbl&gt;[39m[23m 4.95, 4.84, 4.69, 4.15, 4.37, 4.20, 4.33, 4.25, 4.27, 4.23,…
+## $ ME20       [3m[38;5;246m&lt;dbl&gt;[39m[23m 5.95, 5.94, 5.61, 5.01, 5.03, 5.10, 5.20, 5.28, 5.38, 5.18,…
+## $ ME25       [3m[38;5;246m&lt;dbl&gt;[39m[23m 7.40, 7.47, 7.15, 6.01, 6.63, 6.56, 6.87, 6.90, 6.81, 6.64,…
+## $ ME30       [3m[38;5;246m&lt;dbl&gt;[39m[23m 8.89, 9.28, 8.45, 7.39, 8.13, 7.96, 8.25, 8.52, 8.78, 8.75,…
+## $ ME35       [3m[38;5;246m&lt;dbl&gt;[39m[23m 10.81, 10.94, 10.53, 9.00, 9.60, 9.68, 9.79, 10.07, 10.31, …
+## $ ME40       [3m[38;5;246m&lt;dbl&gt;[39m[23m 13.01, 12.71, 12.15, 10.68, 11.66, 11.55, 12.00, 12.04, 12.…
+## $ ME45       [3m[38;5;246m&lt;dbl&gt;[39m[23m 15.61, 15.90, 14.62, 13.20, 13.75, 13.27, 13.60, 13.80, 14.…
+## $ ME50       [3m[38;5;246m&lt;dbl&gt;[39m[23m 18.55, 17.75, 17.03, 15.65, 15.81, 15.62, 15.50, 16.12, 16.…
+## $ ME55       [3m[38;5;246m&lt;dbl&gt;[39m[23m 22.88, 23.45, 21.18, 19.04, 19.17, 18.87, 19.50, 19.67, 20.…
+## $ ME60       [3m[38;5;246m&lt;dbl&gt;[39m[23m 29.92, 30.40, 27.62, 24.80, 25.60, 25.65, 26.52, 27.10, 26.…
+## $ ME65       [3m[38;5;246m&lt;dbl&gt;[39m[23m 38.41, 39.00, 36.55, 31.90, 33.10, 33.77, 34.67, 34.88, 34.…
+## $ ME70       [3m[38;5;246m&lt;dbl&gt;[39m[23m 49.93, 50.85, 46.49, 44.40, 45.00, 45.60, 47.32, 49.09, 47.…
+## $ ME75       [3m[38;5;246m&lt;dbl&gt;[39m[23m 65.75, 66.82, 61.43, 58.24, 57.73, 57.81, 59.40, 65.49, 60.…
+## $ ME80       [3m[38;5;246m&lt;dbl&gt;[39m[23m 92.72, 94.69, 87.51, 81.92, 83.63, 85.27, 84.30, 88.43, 87.…
+## $ ME85       [3m[38;5;246m&lt;dbl&gt;[39m[23m 142.48, 139.18, 138.04, 130.12, 133.50, 125.90, 135.34, 136…
+## $ ME90       [3m[38;5;246m&lt;dbl&gt;[39m[23m 238.78, 235.20, 223.02, 205.20, 211.20, 209.25, 219.45, 225…
+## $ ME95       [3m[38;5;246m&lt;dbl&gt;[39m[23m 1319.00, 1331.71, 1366.39, 1322.46, 1350.21, 1382.58, 1510.…</code></pre>
 </div>
-<div id="futures-expiration-dates" class="section level2" number="1.3">
-<h2><span class="header-section-number">1.3</span> Futures Expiration Dates</h2>
+<div id="futures-expiration-dates" class="section level2" number="1.5">
+<h2><span class="header-section-number">1.5</span> Futures Expiration Dates</h2>
 <p>We also want to load the expiration dates for futures to assist the hedging of
 currency risks.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>expiration_date_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;data/expiration_date.csv&quot;</span>,</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_type =</span> <span class="fu">cols</span>(<span class="at">expiration_date =</span> <span class="fu">col_date</span>())</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>expiration_date_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>expiration_date_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;data/expiration_date.csv&quot;</span>,</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> <span class="fu">cols</span>(<span class="at">expiration_date =</span> <span class="fu">col_date</span>())</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>expiration_date_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 7
 ## Columns: 1
 ## $ expiration_date [3m[38;5;246m&lt;date&gt;[39m[23m 2019-01-18, 2019-02-15, 2019-03-15, 2019-04-19, 2019-…</code></pre>
 </div>
+<div id="process-bond-and-company-data" class="section level2" number="1.6">
+<h2><span class="header-section-number">1.6</span> Process Bond and Company Data</h2>
+<p>We start by using the French and Fama breakpoints to categorise the size of
+the companies we have data for into distinct groupings.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>mktcap_breaks_tbl <span class="ot">&lt;-</span> me_breakpoint_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(datestr <span class="sc">==</span> <span class="st">&quot;201812&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(datestr, ME20, ME40, ME60, ME80) <span class="sc">%&gt;%</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span>datestr,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_to  =</span> <span class="st">&quot;label&quot;</span>,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_to =</span> <span class="st">&quot;breakpoint&quot;</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>mktcap_lookup_tbl <span class="ot">&lt;-</span> mktcap_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    cik_number, mktcap,</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">mktcap_qn =</span> <span class="fu">cut</span>(</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>      mktcap,</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>      <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">0</span>, mktcap_breaks_tbl<span class="sc">$</span>breakpoint <span class="sc">*</span> <span class="fl">1e6</span>, <span class="cn">Inf</span>),</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>      <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">&quot;QN1&quot;</span>, <span class="st">&quot;QN2&quot;</span>, <span class="st">&quot;QN3&quot;</span>, <span class="st">&quot;QN4&quot;</span>, <span class="st">&quot;QN5&quot;</span>)</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>mktcap_lookup_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 5,802
+## Columns: 3
+## $ cik_number [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;0000878334&quot;, &quot;0001081862&quot;, &quot;0000868822&quot;, &quot;0000749098&quot;, &quot;00…
+## $ mktcap     [3m[38;5;246m&lt;dbl&gt;[39m[23m 3162687931, 16810662751, 8001655, 15196648088, 35505321530,…
+## $ mktcap_qn  [3m[38;5;246m&lt;fct&gt;[39m[23m QN3, QN5, QN1, QN4, QN5, QN4, QN5, QN4, QN2, QN3, QN1, QN4,…</code></pre>
+<p>We then construct a lookup table with all the company information we need to
+segment our bond portfolio. The data comes in a number of pieces and we join
+the data together by whatever common keys we have.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>company_lookup_tbl <span class="ot">&lt;-</span> company_info_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(gics_tbl, <span class="at">by =</span> <span class="st">&quot;gics_code&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(mktcap_lookup_tbl, <span class="at">by =</span> <span class="st">&quot;cik_number&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    ticker_symbol, company_name, main_exchange, country_code,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">currency =</span> <span class="fu">str_c</span>(country_code, <span class="st">&quot;D&quot;</span>),</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    cik_number, gics_sector_name, gics_industrygroup_name, mktcap, mktcap_qn</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>company_lookup_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 5,792
+## Columns: 10
+## $ ticker_symbol           [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;WMT&quot;, &quot;AMZN&quot;, &quot;AAPL&quot;, &quot;CVS&quot;, &quot;MCK&quot;, &quot;ABC&quot;, &quot;C…
+## $ company_name            [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;WALMART INC.&quot;, &quot;AMAZON.COM, INC.&quot;, &quot;APPLE INC…
+## $ main_exchange           [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;New York Stock Exchange (NYSE)&quot;, &quot;NASDAQ Nati…
+## $ country_code            [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;, &quot;US&quot;…
+## $ currency                [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD…
+## $ cik_number              [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;0000104169&quot;, &quot;0001018724&quot;, &quot;0000320193&quot;, &quot;000…
+## $ gics_sector_name        [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;Consumer Staples&quot;, &quot;Consumer Discretionary&quot;, …
+## $ gics_industrygroup_name [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;Food &amp; Staples Retailing&quot;, &quot;Retailing&quot;, &quot;Tech…
+## $ mktcap                  [3m[38;5;246m&lt;dbl&gt;[39m[23m 2.784111e+11, 7.344162e+11, 1.090308e+12, 6.67…
+## $ mktcap_qn               [3m[38;5;246m&lt;fct&gt;[39m[23m QN5, QN5, QN5, QN5, QN5, QN5, QN5, QN5, QN5, Q…</code></pre>
+</div>
 </div>
 <div id="construct-cashflow-data" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Construct Cashflow Data</h1>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>create_coupon_payment_dates <span class="ot">&lt;-</span> <span class="cf">function</span>(init_date, final_date) {</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  max_year <span class="ot">&lt;-</span> <span class="fu">difftime</span>(final_date, init_date, <span class="at">units =</span> <span class="st">&quot;days&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.numeric</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">divide_by</span>(<span class="dv">183</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ceiling</span>()</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  coupon_date_tbl <span class="ot">&lt;-</span> (init_date <span class="sc">%m+%</span> <span class="fu">months</span>(<span class="dv">6</span> <span class="sc">*</span> <span class="dv">1</span><span class="sc">:</span>max_year)) <span class="sc">%&gt;%</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;cashflow_date&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(cashflow_date <span class="sc">&lt;=</span> final_date)</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(coupon_date_tbl)</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>calculate_cashflow_data <span class="ot">&lt;-</span> <span class="cf">function</span>(init_date, final_date, position, coupon,</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">contract_size =</span> <span class="dv">1000</span>) {</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  par_value      <span class="ot">&lt;-</span> position  <span class="sc">*</span> contract_size</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  coupon_payment <span class="ot">&lt;-</span> par_value <span class="sc">*</span> coupon <span class="sc">*</span> <span class="fl">0.01</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  coupon_data_tbl <span class="ot">&lt;-</span> <span class="fu">create_coupon_payment_dates</span>(init_date, final_date) <span class="sc">%&gt;%</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">cashflow_amt =</span> coupon_payment</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  final_tbl <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">cashflow_date =</span> final_date,</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">cashflow_amt  =</span> par_value</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  cashflow_tbl <span class="ot">&lt;-</span> <span class="fu">list</span>(coupon_data_tbl, final_tbl) <span class="sc">%&gt;%</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bind_rows</span>()</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(cashflow_tbl)</span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>calculate_portfolio_cashflow_data <span class="ot">&lt;-</span> <span class="cf">function</span>(portfolio_tbl, current_date,</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">id_cols =</span> <span class="fu">c</span>(<span class="st">&quot;issuer&quot;</span>, <span class="st">&quot;currency&quot;</span>)) {</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  cashflow_tbl <span class="ot">&lt;-</span> first_portfolio_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">cash_data =</span> <span class="fu">pmap</span>(</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">list</span>(</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">init_date  =</span> issued_date,</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">final_date =</span> maturity_date,</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">position   =</span> position,</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">coupon     =</span> coupon</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>          ),</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>        calculate_cashflow_data,</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>        <span class="at">contract_size =</span> <span class="dv">1000</span></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="fu">any_of</span>(id_cols), cash_data) <span class="sc">%&gt;%</span></span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">unnest</span>(cash_data) <span class="sc">%&gt;%</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(cashflow_date <span class="sc">&gt;=</span> current_date) <span class="sc">%&gt;%</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(cashflow_date)</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(cashflow_tbl)</span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>bond_cashflow_tbl <span class="ot">&lt;-</span> bond_portfolio_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">calculate_portfolio_cashflow_data</span>(</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">current_date =</span> <span class="fu">as.Date</span>(<span class="st">&quot;2019-01-01&quot;</span>)</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>bond_cashflow_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<p>To build out the cashflow calculation, we need to use a number of utility
+and helper functions to do this.</p>
+<div id="create-helper-functions" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Create Helper Functions</h2>
+<p>To start, we need a function that determines each of the coupon dates for a
+bond - which is just a sequence of dates six months apart from the date of
+issue of a bond till the bond matures and pas back the par value of the bond.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>create_coupon_payment_dates <span class="ot">&lt;-</span> <span class="cf">function</span>(init_date, final_date) {</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  max_year <span class="ot">&lt;-</span> <span class="fu">difftime</span>(final_date, init_date, <span class="at">units =</span> <span class="st">&quot;days&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.numeric</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">divide_by</span>(<span class="dv">183</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ceiling</span>()</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  coupon_date_tbl <span class="ot">&lt;-</span> (init_date <span class="sc">%m+%</span> <span class="fu">months</span>(<span class="dv">6</span> <span class="sc">*</span> <span class="dv">1</span><span class="sc">:</span>max_year)) <span class="sc">%&gt;%</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;cashflow_date&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(cashflow_date <span class="sc">&lt;=</span> final_date)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(coupon_date_tbl)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>We also need a function that uses the above function to create the coupon dates
+for the bond and then calculates the coupon payment based on the number of
+owned bonds, the coupon rate and the contract size (typically $1,000 of the
+currency).</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>calculate_cashflow_data <span class="ot">&lt;-</span> <span class="cf">function</span>(init_date, final_date, position, coupon,</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">contract_size =</span> <span class="dv">1000</span>) {</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  par_value      <span class="ot">&lt;-</span> position  <span class="sc">*</span> contract_size</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  coupon_payment <span class="ot">&lt;-</span> par_value <span class="sc">*</span> coupon <span class="sc">*</span> <span class="fl">0.01</span> <span class="sc">*</span> <span class="fl">0.5</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  coupon_data_tbl <span class="ot">&lt;-</span> <span class="fu">create_coupon_payment_dates</span>(init_date, final_date) <span class="sc">%&gt;%</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">cashflow_amt =</span> coupon_payment</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  final_tbl <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">cashflow_date =</span> final_date,</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">cashflow_amt  =</span> par_value</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  cashflow_tbl <span class="ot">&lt;-</span> <span class="fu">list</span>(coupon_data_tbl, final_tbl) <span class="sc">%&gt;%</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">bind_rows</span>()</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(cashflow_tbl)</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>We now combine all the above functions that we can use along with a table
+of the bond positions that comprise the portfolio and produce cashflows.</p>
+<p>We then rearrange the cashflows by date and we now have a function that
+takes a portfolio table as an input, along with a ‘start date’, and it
+produces a sequence of cashflows from that portfolio.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>calculate_portfolio_cashflow_data <span class="ot">&lt;-</span> <span class="cf">function</span>(portfolio_tbl, current_date,</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                                              <span class="at">id_cols =</span> <span class="fu">c</span>(<span class="st">&quot;issuer&quot;</span>)) {</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  cashflow_tbl <span class="ot">&lt;-</span> first_portfolio_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">cash_data =</span> <span class="fu">pmap</span>(</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">list</span>(</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">init_date  =</span> issued_date,</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">final_date =</span> maturity_date,</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">position   =</span> position,</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">coupon     =</span> coupon</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>          ),</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>        calculate_cashflow_data,</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>        <span class="at">contract_size =</span> <span class="dv">1000</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="fu">any_of</span>(id_cols), cash_data) <span class="sc">%&gt;%</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">unnest</span>(cash_data) <span class="sc">%&gt;%</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(cashflow_date <span class="sc">&gt;=</span> current_date) <span class="sc">%&gt;%</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(cashflow_date)</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(cashflow_tbl)</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+</div>
+<div id="calculate-and-aggregate-cashflows" class="section level2" number="2.2">
+<h2><span class="header-section-number">2.2</span> Calculate and Aggregate Cashflows</h2>
+<p>We now use this function to produce the cashflows based on our portfolio.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>bond_cashflow_tbl <span class="ot">&lt;-</span> bond_portfolio_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">calculate_portfolio_cashflow_data</span>(</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">current_date =</span> <span class="fu">as.Date</span>(<span class="st">&quot;2019-01-01&quot;</span>),</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols =</span> <span class="fu">c</span>(<span class="st">&quot;issuer&quot;</span>, <span class="st">&quot;ticker_symbol&quot;</span>, <span class="st">&quot;currency&quot;</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>bond_cashflow_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 1,841
-## Columns: 4
+## Columns: 5
 ## $ issuer        [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;ACB 9.5 01/02/2023&quot;, &quot;WKG 5.125 07/04/2020&quot;, &quot;PEBK 10 0…
+## $ ticker_symbol [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;ACB&quot;, &quot;WKG&quot;, &quot;PEBK&quot;, &quot;VZ&quot;, &quot;AGNC&quot;, &quot;SRGZ&quot;, &quot;SW&quot;, &quot;IMV&quot;,…
 ## $ currency      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;CAD&quot;, &quot;CAD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;CAD&quot;, &quot;CAD&quot;, …
 ## $ cashflow_date [3m[38;5;246m&lt;date&gt;[39m[23m 2019-01-01, 2019-01-03, 2019-01-04, 2019-01-09, 2019-01…
-## $ cashflow_amt  [3m[38;5;246m&lt;dbl&gt;[39m[23m 17765.00, 15733.75, 18500.00, 13343.75, 10185.00, 16282.…</code></pre>
-<div id="aggregate-weekly-cashflows" class="section level2" number="2.1">
-<h2><span class="header-section-number">2.1</span> Aggregate Weekly Cashflows</h2>
+## $ cashflow_amt  [3m[38;5;246m&lt;dbl&gt;[39m[23m 8882.500, 7866.875, 9250.000, 6671.875, 5092.500, 8141.2…</code></pre>
 <p>We now want to aggregate all these cashflows on a weekly basis to help assess
 the FX risk due to holding bonds in both currencies.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="ot">&lt;-</span> bond_cashflow_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">agg_date =</span> <span class="fu">map</span>(cashflow_date, <span class="sc">~</span> friday_dates[friday_dates <span class="sc">&gt;=</span> .x][<span class="dv">1</span>]) <span class="sc">%&gt;%</span> <span class="fu">reduce</span>(c)) <span class="sc">%&gt;%</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(currency, agg_date) <span class="sc">%&gt;%</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>,</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">agg_cashflow =</span> <span class="fu">sum</span>(cashflow_amt)</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(agg_date, currency)</span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 177
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>friday_dates <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">&quot;2019-01-01&quot;</span>), <span class="fu">as.Date</span>(<span class="st">&quot;2022-01-01&quot;</span>), <span class="at">by =</span> <span class="st">&quot;day&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;date&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">day_of_week =</span> <span class="fu">format</span>(date, <span class="st">&quot;%a&quot;</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(day_of_week <span class="sc">==</span> <span class="st">&quot;Fri&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(date)</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="ot">&lt;-</span> bond_cashflow_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">agg_date =</span> <span class="fu">map</span>(cashflow_date, <span class="sc">~</span> friday_dates[friday_dates <span class="sc">&gt;=</span> .x][<span class="dv">1</span>]) <span class="sc">%&gt;%</span> <span class="fu">reduce</span>(c)) <span class="sc">%&gt;%</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(currency, agg_date) <span class="sc">%&gt;%</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>,</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">agg_cashflow =</span> <span class="fu">sum</span>(cashflow_amt)</span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(agg_date, currency)</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 258
 ## Columns: 3
 ## $ currency     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;CAD&quot;, &quot;USD&quot;, &quot;CAD&quot;, &quot;USD&quot;, &quot;CAD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;…
 ## $ agg_date     [3m[38;5;246m&lt;date&gt;[39m[23m 2019-01-04, 2019-01-04, 2019-01-11, 2019-01-11, 2019-01-…
-## $ agg_cashflow [3m[38;5;246m&lt;dbl&gt;[39m[23m 33498.75, 18500.00, 30486.25, 39811.25, 18615.00, 73360.0…</code></pre>
+## $ agg_cashflow [3m[38;5;246m&lt;dbl&gt;[39m[23m 16749.38, 9250.00, 15243.13, 19905.62, 9307.50, 36680.00,…</code></pre>
 </div>
-<div id="calculate-futures-delivery-expirations" class="section level2" number="2.2">
-<h2><span class="header-section-number">2.2</span> Calculate Futures Delivery Expirations</h2>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>expry_dates <span class="ot">&lt;-</span> expiration_date_tbl <span class="sc">%&gt;%</span> <span class="fu">pull</span>(expiration_date)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>futures_exposures_tbl <span class="ot">&lt;-</span> bond_cashflow_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">exposure_date =</span> <span class="fu">map</span>(cashflow_date, <span class="sc">~</span> expry_dates[expry_dates <span class="sc">&gt;=</span> .x][<span class="dv">1</span>]) <span class="sc">%&gt;%</span> <span class="fu">reduce</span>(c)</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(exposure_date, currency) <span class="sc">%&gt;%</span></span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">total_exposure =</span> <span class="fu">cumsum</span>(cashflow_amt) <span class="sc">%&gt;%</span> <span class="fu">round</span>(<span class="dv">2</span>)</span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
-<pre><code>## Rows: 177
+<div id="calculate-futures-delivery-expirations" class="section level2" number="2.3">
+<h2><span class="header-section-number">2.3</span> Calculate Futures Delivery Expirations</h2>
+<p>We now want to repeat this exercise, aggregating by FX futures delivery dates
+to allow the asset manager to reduce the cost of hedging the FX risk by using
+futures rather than dealing with forwards.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>expry_dates <span class="ot">&lt;-</span> expiration_date_tbl <span class="sc">%&gt;%</span> <span class="fu">pull</span>(expiration_date)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>futures_exposures_tbl <span class="ot">&lt;-</span> bond_cashflow_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">exposure_date =</span> <span class="fu">map</span>(cashflow_date, <span class="sc">~</span> expry_dates[expry_dates <span class="sc">&gt;=</span> .x][<span class="dv">1</span>]) <span class="sc">%&gt;%</span> <span class="fu">reduce</span>(c)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(exposure_date, currency) <span class="sc">%&gt;%</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">total_exposure =</span> <span class="fu">cumsum</span>(cashflow_amt) <span class="sc">%&gt;%</span> <span class="fu">round</span>(<span class="dv">2</span>)</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 258
 ## Columns: 3
 ## $ currency     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;CAD&quot;, &quot;USD&quot;, &quot;CAD&quot;, &quot;USD&quot;, &quot;CAD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;USD&quot;, &quot;…
 ## $ agg_date     [3m[38;5;246m&lt;date&gt;[39m[23m 2019-01-04, 2019-01-04, 2019-01-11, 2019-01-11, 2019-01-…
-## $ agg_cashflow [3m[38;5;246m&lt;dbl&gt;[39m[23m 33498.75, 18500.00, 30486.25, 39811.25, 18615.00, 73360.0…</code></pre>
+## $ agg_cashflow [3m[38;5;246m&lt;dbl&gt;[39m[23m 16749.38, 9250.00, 15243.13, 19905.62, 9307.50, 36680.00,…</code></pre>
 <p>We now show this table using the <code>DT</code> package</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="sc">%&gt;%</span> <span class="fu">datatable</span>()</span></code></pre></div>
-<div id="htmlwidget-2e17466358a46d139971" style="width:100%;height:auto;" class="datatables html-widget"></div>
-<script type="application/json" data-for="htmlwidget-2e17466358a46d139971">{"x":{"filter":"none","vertical":false,"data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149","150","151","152","153","154","155","156","157","158","159","160","161","162","163","164","165","166","167","168","169","170","171","172","173","174","175","176","177"],["CAD","USD","CAD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","CAD","CAD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","CAD","USD"],["2019-01-04","2019-01-04","2019-01-11","2019-01-11","2019-01-18","2019-01-18","2019-01-25","2019-02-01","2019-02-08","2019-02-15","2019-02-15","2019-02-22","2019-03-01","2019-03-08","2019-03-08","2019-03-15","2019-03-15","2019-03-22","2019-03-22","2019-03-29","2019-03-29","2019-04-05","2019-04-05","2019-04-12","2019-04-12","2019-04-19","2019-04-19","2019-04-26","2019-04-26","2019-05-03","2019-05-03","2019-05-10","2019-05-10","2019-05-17","2019-05-17","2019-05-24","2019-05-24","2019-05-31","2019-06-07","2019-06-07","2019-06-14","2019-06-21","2019-06-21","2019-06-28","2019-06-28","2019-07-05","2019-07-05","2019-07-12","2019-07-12","2019-07-19","2019-07-19","2019-07-26","2019-08-02","2019-08-09","2019-08-09","2019-08-16","2019-08-16","2019-08-23","2019-08-30","2019-09-06","2019-09-06","2019-09-13","2019-09-13","2019-09-20","2019-09-27","2019-09-27","2019-10-04","2019-10-04","2019-10-11","2019-10-11","2019-10-18","2019-10-18","2019-10-25","2019-10-25","2019-11-01","2019-11-01","2019-11-08","2019-11-08","2019-11-15","2019-11-15","2019-11-22","2019-11-22","2019-11-29","2019-12-06","2019-12-06","2019-12-13","2019-12-20","2019-12-20","2019-12-27","2020-01-03","2020-01-10","2020-01-10","2020-01-17","2020-01-17","2020-01-24","2020-01-31","2020-02-07","2020-02-14","2020-02-14","2020-02-21","2020-02-28","2020-03-06","2020-03-06","2020-03-13","2020-03-13","2020-03-20","2020-03-27","2020-03-27","2020-04-03","2020-04-03","2020-04-10","2020-04-17","2020-04-17","2020-04-24","2020-04-24","2020-05-01","2020-05-01","2020-05-08","2020-05-08","2020-05-15","2020-05-15","2020-05-22","2020-05-22","2020-05-29","2020-06-05","2020-06-05","2020-06-12","2020-06-19","2020-06-19","2020-06-26","2020-07-03","2020-07-03","2020-07-10","2020-07-10","2020-07-17","2020-07-17","2020-07-24","2020-07-31","2020-08-07","2020-08-14","2020-08-14","2020-08-21","2020-08-28","2020-09-04","2020-09-11","2020-09-11","2020-09-18","2020-09-18","2020-09-25","2020-09-25","2020-10-02","2020-10-02","2020-10-09","2020-10-16","2020-10-16","2020-10-23","2020-10-23","2020-10-30","2020-10-30","2020-11-06","2020-11-06","2020-11-13","2020-11-13","2020-11-20","2020-11-20","2020-11-27","2020-11-27","2020-12-04","2020-12-04","2020-12-11","2020-12-18","2020-12-18","2020-12-25","2021-01-01","2021-01-01",null,null],[33498.75,18500,30486.25,39811.25,18615,73360,138165,142968.75,169250,33427.5,156230,197812.5,163480,9180,144435,69623.75,163823.75,15600,154220,14957.5,142520,26615,57728.75,31212.5,67492.5,20812.5,110933.75,27091.25,128610,32987.5,246803.75,9943.75,77552.5,12521.25,237747.5,32256.25,187690,161545,12025,63552.5,90403.75,11970,81692.5,13160,75827.5,43563.75,18500,30486.25,39811.25,18615,73360,160118.75,162320,14490,148446.25,18937.5,203958.75,149285,98723.75,9180,139060,69623.75,175381.25,146716.25,30557.5,159037.5,26615,87586.25,31212.5,50392.5,20812.5,128033.75,27091.25,96045,9030,177131.25,23957.5,148905,22465,180547.5,32256.25,192176.25,167416.25,12025,128402.5,103281.25,11970,81692.5,75827.5,56723.75,18006.25,58311.25,31095,224575,343110,103161.25,176987.5,33427.5,361380,604992.5,119986.25,9180,941080,69623.75,508381.25,521716.25,30557.5,159037.5,179615,87586.25,204392.5,246025,277598.75,194400,556480,164721.25,764131.25,23957.5,496905,22465,344547.5,32256.25,387176.25,993416.25,12025,269805,544878.75,11970,585692.5,47495,56723.75,28332.5,325006.25,217028.75,246095,205575,719561.25,103161.25,644987.5,33427.5,481861.25,364475,102766.25,698258.75,42798.75,87591.25,523005,594610,15600,904402.5,221185,478318.75,43931.25,28045,254611.25,12825,321121.25,177030,505472.5,23957.5,1023895,9943.75,161082.5,24083.75,307837.5,20693.75,748852.5,12025,315098.75,302435,11970,207871.25,14490,40990,283337.5,5573005,38257216.25]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>currency<\/th>\n      <th>agg_date<\/th>\n      <th>agg_cashflow<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":3},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>aggregate_cashflows_tbl <span class="sc">%&gt;%</span> <span class="fu">datatable</span>()</span></code></pre></div>
+<div id="htmlwidget-01f665b989270420b066" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-01f665b989270420b066">{"x":{"filter":"none","vertical":false,"data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149","150","151","152","153","154","155","156","157","158","159","160","161","162","163","164","165","166","167","168","169","170","171","172","173","174","175","176","177","178","179","180","181","182","183","184","185","186","187","188","189","190","191","192","193","194","195","196","197","198","199","200","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","244","245","246","247","248","249","250","251","252","253","254","255","256","257","258"],["CAD","USD","CAD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","CAD","CAD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","CAD","USD","USD","USD","USD","CAD","USD","USD","USD","USD","CAD","USD","CAD","USD","CAD","USD","USD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","CAD","USD","USD","CAD","USD","CAD","USD","CAD","USD"],["2019-01-04","2019-01-04","2019-01-11","2019-01-11","2019-01-18","2019-01-18","2019-01-25","2019-02-01","2019-02-08","2019-02-15","2019-02-15","2019-02-22","2019-03-01","2019-03-08","2019-03-08","2019-03-15","2019-03-15","2019-03-22","2019-03-22","2019-03-29","2019-03-29","2019-04-05","2019-04-05","2019-04-12","2019-04-12","2019-04-19","2019-04-19","2019-04-26","2019-04-26","2019-05-03","2019-05-03","2019-05-10","2019-05-10","2019-05-17","2019-05-17","2019-05-24","2019-05-24","2019-05-31","2019-06-07","2019-06-07","2019-06-14","2019-06-21","2019-06-21","2019-06-28","2019-06-28","2019-07-05","2019-07-05","2019-07-12","2019-07-12","2019-07-19","2019-07-19","2019-07-26","2019-08-02","2019-08-09","2019-08-09","2019-08-16","2019-08-16","2019-08-23","2019-08-30","2019-09-06","2019-09-06","2019-09-13","2019-09-13","2019-09-20","2019-09-27","2019-09-27","2019-10-04","2019-10-04","2019-10-11","2019-10-11","2019-10-18","2019-10-18","2019-10-25","2019-10-25","2019-11-01","2019-11-01","2019-11-08","2019-11-08","2019-11-15","2019-11-15","2019-11-22","2019-11-22","2019-11-29","2019-12-06","2019-12-06","2019-12-13","2019-12-20","2019-12-20","2019-12-27","2020-01-03","2020-01-10","2020-01-10","2020-01-17","2020-01-17","2020-01-24","2020-01-31","2020-02-07","2020-02-14","2020-02-14","2020-02-21","2020-02-28","2020-03-06","2020-03-06","2020-03-13","2020-03-13","2020-03-20","2020-03-27","2020-03-27","2020-04-03","2020-04-03","2020-04-10","2020-04-17","2020-04-17","2020-04-24","2020-04-24","2020-05-01","2020-05-01","2020-05-08","2020-05-08","2020-05-15","2020-05-15","2020-05-22","2020-05-22","2020-05-29","2020-06-05","2020-06-05","2020-06-12","2020-06-19","2020-06-19","2020-06-26","2020-07-03","2020-07-03","2020-07-10","2020-07-10","2020-07-17","2020-07-17","2020-07-24","2020-07-31","2020-08-07","2020-08-14","2020-08-14","2020-08-21","2020-08-28","2020-09-04","2020-09-11","2020-09-11","2020-09-18","2020-09-18","2020-09-25","2020-09-25","2020-10-02","2020-10-02","2020-10-09","2020-10-16","2020-10-16","2020-10-23","2020-10-23","2020-10-30","2020-10-30","2020-11-06","2020-11-06","2020-11-13","2020-11-13","2020-11-20","2020-11-20","2020-11-27","2020-11-27","2020-12-04","2020-12-04","2020-12-11","2020-12-18","2020-12-18","2020-12-25","2021-01-01","2021-01-01","2021-01-08","2021-01-15","2021-01-15","2021-01-22","2021-01-29","2021-02-05","2021-02-12","2021-02-12","2021-02-19","2021-02-26","2021-03-05","2021-03-05","2021-03-12","2021-03-12","2021-03-19","2021-03-26","2021-03-26","2021-04-02","2021-04-02","2021-04-09","2021-04-09","2021-04-16","2021-04-16","2021-04-23","2021-04-23","2021-04-30","2021-05-07","2021-05-07","2021-05-14","2021-05-14","2021-05-21","2021-05-21","2021-05-28","2021-05-28","2021-06-04","2021-06-04","2021-06-11","2021-06-18","2021-06-18","2021-06-25","2021-07-02","2021-07-02","2021-07-09","2021-07-16","2021-07-16","2021-07-23","2021-07-30","2021-08-06","2021-08-13","2021-08-13","2021-08-20","2021-08-27","2021-09-03","2021-09-10","2021-09-10","2021-09-17","2021-09-17","2021-09-24","2021-09-24","2021-10-01","2021-10-08","2021-10-15","2021-10-15","2021-10-22","2021-10-22","2021-10-29","2021-11-05","2021-11-05","2021-11-12","2021-11-12","2021-11-19","2021-11-19","2021-11-26","2021-11-26","2021-12-03","2021-12-03","2021-12-10","2021-12-17","2021-12-17","2021-12-31","2021-12-31",null,null],[16749.375,9250,15243.125,19905.625,9307.5,36680,69082.5,71484.375,84625,16713.75,78115,98906.25,81740,4590,72217.5,34811.875,81911.875,7800,77110,7478.75,71260,13307.5,28864.375,15606.25,33746.25,10406.25,55466.875,13545.625,64305,16493.75,123401.875,4971.875,38776.25,6260.625,118873.75,16128.125,93845,80772.5,6012.5,31776.25,45201.875,5985,40846.25,6580,37913.75,21781.875,9250,15243.125,19905.625,9307.5,36680,80059.375,81160,7245,74223.125,9468.75,101979.375,74642.5,49361.875,4590,69530,34811.875,87690.625,73358.125,15278.75,79518.75,13307.5,43793.125,15606.25,25196.25,10406.25,64016.875,13545.625,48022.5,4515,88565.625,11978.75,74452.5,11232.5,90273.75,16128.125,96088.125,83708.125,6012.5,64201.25,51640.625,5985,40846.25,37913.75,28361.875,9003.125,29155.625,15547.5,195787.5,276055,51580.625,88493.75,16713.75,263190,507496.25,59993.125,4590,865040,34811.875,420690.625,448358.125,15278.75,79518.75,166307.5,43793.125,179196.25,220012.5,233799.375,187200,488240,153860.625,675565.625,11978.75,422452.5,11232.5,254273.75,16128.125,291088.125,909708.125,6012.5,216902.5,481939.375,5985,544846.25,23747.5,28361.875,14166.25,316003.125,196014.375,230547.5,176787.5,661780.625,51580.625,556493.75,16713.75,388930.625,280237.5,51383.125,645129.375,21399.375,43795.625,505002.5,518305,7800,816701.25,207092.5,435159.375,21965.625,14022.5,219805.625,6412.5,280060.625,172515,436236.25,11978.75,945947.5,4971.875,80541.25,12041.875,232918.75,10346.875,692426.25,6012.5,249549.375,262217.5,5985,180935.625,7245,20495,252668.75,9250,15547.5,237025,33483.125,463781.875,289248.75,16713.75,503355.625,490714.375,214983.75,4590,414074.375,160809.375,54396.875,52221.25,7800,55774.375,6613.75,34868.125,143000,231965.625,14022.5,208596.25,6412.5,25180.625,242551.25,11978.75,238978.75,11232.5,306541.25,164781.25,249388.75,10346.875,423605.625,6012.5,502472.5,293198.75,5985,20775.625,259245,20495,22760,9250,15547.5,203038.75,48280.625,405810,253090,292713.75,595191.875,451161.25,481353.125,16441.875,8525,35451.875,8284.375,287456.875,7800,546721.25,30118.75,17790,14022.5,7188.75,234412.5,203924.375,241957.5,11978.75,45966.25,4971.875,57803.125,5781.25,293831.875,10346.875,248727.5,191012.5,38680,11993.75,5985,166681.875,133612.5,379760,3400166.875,23195499.375]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>currency<\/th>\n      <th>agg_date<\/th>\n      <th>agg_cashflow<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":3},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 <div id="r-environment" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> R Environment</h1>
-<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>sessioninfo<span class="sc">::</span><span class="fu">session_info</span>()</span></code></pre></div>
 <pre><code>## ─ Session info ───────────────────────────────────────────────────────────────
 ##  setting  value                       
 ##  version  R version 4.1.1 (2021-08-10)
@@ -455,91 +662,92 @@ the FX risk due to holding bonds in both currencies.</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2022-01-13                  
+##  date     2022-01-17                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
-##  package     * version date       lib source        
-##  assertthat    0.2.1   2019-03-21 [1] RSPM (R 4.1.0)
-##  backports     1.3.0   2021-10-27 [1] RSPM (R 4.1.0)
-##  bit           4.0.4   2020-08-04 [1] RSPM (R 4.1.0)
-##  bit64         4.0.5   2020-08-30 [1] RSPM (R 4.1.0)
-##  bookdown      0.24    2021-09-02 [1] RSPM (R 4.1.0)
-##  broom         0.7.9   2021-07-27 [1] RSPM (R 4.1.0)
-##  bslib         0.3.1   2021-10-06 [1] RSPM (R 4.1.0)
-##  cachem        1.0.6   2021-08-19 [1] RSPM (R 4.1.0)
-##  cellranger    1.1.0   2016-07-27 [1] RSPM (R 4.1.0)
-##  cli           3.1.0   2021-10-27 [1] RSPM (R 4.1.0)
-##  codetools     0.2-18  2020-11-04 [2] CRAN (R 4.1.1)
-##  colorspace    2.0-2   2021-06-24 [1] RSPM (R 4.1.0)
-##  conflicted  * 1.0.4   2019-06-21 [1] RSPM (R 4.1.0)
-##  cowplot     * 1.1.1   2020-12-30 [1] RSPM (R 4.1.0)
-##  crayon        1.4.1   2021-02-08 [1] RSPM (R 4.1.0)
-##  crosstalk     1.1.1   2021-01-12 [1] RSPM (R 4.1.0)
-##  curl        * 4.3.2   2021-06-23 [1] RSPM (R 4.1.0)
-##  DBI           1.1.1   2021-01-15 [1] RSPM (R 4.1.0)
-##  dbplyr        2.1.1   2021-04-06 [1] RSPM (R 4.1.0)
-##  digest        0.6.28  2021-09-23 [1] RSPM (R 4.1.0)
-##  dplyr       * 1.0.7   2021-06-18 [1] RSPM (R 4.1.0)
-##  DT          * 0.19    2021-09-02 [1] RSPM (R 4.1.0)
-##  ellipsis      0.3.2   2021-04-29 [1] RSPM (R 4.1.0)
-##  evaluate      0.14    2019-05-28 [1] RSPM (R 4.1.0)
-##  fansi         0.5.0   2021-05-25 [1] RSPM (R 4.1.0)
-##  fastmap       1.1.0   2021-01-25 [1] RSPM (R 4.1.0)
-##  forcats     * 0.5.1   2021-01-27 [1] RSPM (R 4.1.0)
-##  fs          * 1.5.0   2020-07-31 [1] RSPM (R 4.1.0)
-##  furrr       * 0.2.3   2021-06-25 [1] RSPM (R 4.1.0)
-##  future      * 1.22.1  2021-08-25 [1] RSPM (R 4.1.0)
-##  generics      0.1.1   2021-10-25 [1] RSPM (R 4.1.0)
-##  ggplot2     * 3.3.5   2021-06-25 [1] RSPM (R 4.1.0)
-##  globals       0.14.0  2020-11-22 [1] RSPM (R 4.1.0)
-##  glue        * 1.4.2   2020-08-27 [1] RSPM (R 4.1.0)
-##  gtable        0.3.0   2019-03-25 [1] RSPM (R 4.1.0)
-##  haven         2.4.3   2021-08-04 [1] RSPM (R 4.1.0)
-##  hms           1.1.1   2021-09-26 [1] RSPM (R 4.1.0)
-##  htmltools     0.5.2   2021-08-25 [1] RSPM (R 4.1.0)
-##  htmlwidgets   1.5.4   2021-09-08 [1] RSPM (R 4.1.0)
-##  httr          1.4.2   2020-07-20 [1] RSPM (R 4.1.0)
-##  jquerylib     0.1.4   2021-04-26 [1] RSPM (R 4.1.0)
-##  jsonlite      1.7.2   2020-12-09 [1] RSPM (R 4.1.0)
-##  knitr         1.36    2021-09-29 [1] RSPM (R 4.1.0)
-##  lifecycle     1.0.1   2021-09-24 [1] RSPM (R 4.1.0)
-##  listenv       0.8.0   2019-12-05 [1] RSPM (R 4.1.0)
-##  lubridate   * 1.8.0   2021-10-07 [1] RSPM (R 4.1.0)
-##  magrittr    * 2.0.1   2020-11-17 [1] RSPM (R 4.1.0)
-##  modelr        0.1.8   2020-05-19 [1] RSPM (R 4.1.0)
-##  munsell       0.5.0   2018-06-12 [1] RSPM (R 4.1.0)
-##  parallelly    1.28.1  2021-09-09 [1] RSPM (R 4.1.0)
-##  pillar        1.6.4   2021-10-18 [1] RSPM (R 4.1.0)
-##  pkgconfig     2.0.3   2019-09-22 [1] RSPM (R 4.1.0)
-##  purrr       * 0.3.4   2020-04-17 [1] RSPM (R 4.1.0)
-##  R6            2.5.1   2021-08-19 [1] RSPM (R 4.1.0)
-##  Rcpp          1.0.7   2021-07-07 [1] RSPM (R 4.1.0)
-##  readr       * 2.0.2   2021-09-27 [1] RSPM (R 4.1.0)
-##  readxl        1.3.1   2019-03-13 [1] RSPM (R 4.1.0)
-##  reprex        2.0.1   2021-08-05 [1] RSPM (R 4.1.0)
-##  rlang       * 0.4.12  2021-10-18 [1] RSPM (R 4.1.0)
-##  rmarkdown     2.11    2021-09-14 [1] RSPM (R 4.1.0)
-##  rmdformats    1.0.3   2021-10-06 [1] RSPM (R 4.1.0)
-##  rsconnect     0.8.24  2021-08-05 [1] RSPM (R 4.1.0)
-##  rstudioapi    0.13    2020-11-12 [1] RSPM (R 4.1.0)
-##  rvest         1.0.2   2021-10-16 [1] RSPM (R 4.1.0)
-##  sass          0.4.0   2021-05-12 [1] RSPM (R 4.1.0)
-##  scales      * 1.1.1   2020-05-11 [1] RSPM (R 4.1.0)
-##  sessioninfo   1.1.1   2018-11-05 [1] RSPM (R 4.1.0)
-##  stringi       1.7.5   2021-10-04 [1] RSPM (R 4.1.0)
-##  stringr     * 1.4.0   2019-02-10 [1] RSPM (R 4.1.0)
-##  tibble      * 3.1.5   2021-09-30 [1] RSPM (R 4.1.0)
-##  tidyr       * 1.1.4   2021-09-27 [1] RSPM (R 4.1.0)
-##  tidyselect    1.1.1   2021-04-30 [1] RSPM (R 4.1.0)
-##  tidyverse   * 1.3.1   2021-04-15 [1] RSPM (R 4.1.0)
-##  tzdb          0.2.0   2021-10-27 [1] RSPM (R 4.1.0)
-##  utf8          1.2.2   2021-07-24 [1] RSPM (R 4.1.0)
-##  vctrs         0.3.8   2021-04-29 [1] RSPM (R 4.1.0)
-##  vroom         1.5.5   2021-09-14 [1] RSPM (R 4.1.0)
-##  withr         2.4.2   2021-04-18 [1] RSPM (R 4.1.0)
-##  xfun          0.27    2021-10-18 [1] RSPM (R 4.1.0)
-##  xml2          1.3.2   2020-04-23 [1] RSPM (R 4.1.0)
-##  yaml          2.2.1   2020-02-01 [1] RSPM (R 4.1.0)
+##  package     * version date       lib source                        
+##  assertthat    0.2.1   2019-03-21 [1] RSPM (R 4.1.0)                
+##  backports     1.3.0   2021-10-27 [1] RSPM (R 4.1.0)                
+##  bit           4.0.4   2020-08-04 [1] RSPM (R 4.1.0)                
+##  bit64         4.0.5   2020-08-30 [1] RSPM (R 4.1.0)                
+##  bookdown      0.24    2021-09-02 [1] RSPM (R 4.1.0)                
+##  broom         0.7.9   2021-07-27 [1] RSPM (R 4.1.0)                
+##  bslib         0.3.1   2021-10-06 [1] RSPM (R 4.1.0)                
+##  cachem        1.0.6   2021-08-19 [1] RSPM (R 4.1.0)                
+##  cellranger    1.1.0   2016-07-27 [1] RSPM (R 4.1.0)                
+##  cli           3.1.0   2021-10-27 [1] RSPM (R 4.1.0)                
+##  codetools     0.2-18  2020-11-04 [2] CRAN (R 4.1.1)                
+##  colorspace    2.0-2   2021-06-24 [1] RSPM (R 4.1.0)                
+##  conflicted  * 1.0.4   2019-06-21 [1] RSPM (R 4.1.0)                
+##  cowplot     * 1.1.1   2020-12-30 [1] RSPM (R 4.1.0)                
+##  crayon        1.4.1   2021-02-08 [1] RSPM (R 4.1.0)                
+##  crosstalk     1.1.1   2021-01-12 [1] RSPM (R 4.1.0)                
+##  curl        * 4.3.2   2021-06-23 [1] RSPM (R 4.1.0)                
+##  data.table    1.14.2  2021-09-27 [1] RSPM (R 4.1.0)                
+##  DBI           1.1.1   2021-01-15 [1] RSPM (R 4.1.0)                
+##  dbplyr        2.1.1   2021-04-06 [1] RSPM (R 4.1.0)                
+##  digest        0.6.28  2021-09-23 [1] RSPM (R 4.1.0)                
+##  dplyr       * 1.0.7   2021-06-18 [1] RSPM (R 4.1.0)                
+##  DT          * 0.19    2021-09-02 [1] RSPM (R 4.1.0)                
+##  ellipsis      0.3.2   2021-04-29 [1] RSPM (R 4.1.0)                
+##  evaluate      0.14    2019-05-28 [1] RSPM (R 4.1.0)                
+##  fansi         0.5.0   2021-05-25 [1] RSPM (R 4.1.0)                
+##  fastmap       1.1.0   2021-01-25 [1] RSPM (R 4.1.0)                
+##  forcats     * 0.5.1   2021-01-27 [1] RSPM (R 4.1.0)                
+##  fs          * 1.5.0   2020-07-31 [1] RSPM (R 4.1.0)                
+##  furrr       * 0.2.3   2021-06-25 [1] RSPM (R 4.1.0)                
+##  future      * 1.22.1  2021-08-25 [1] RSPM (R 4.1.0)                
+##  generics      0.1.1   2021-10-25 [1] RSPM (R 4.1.0)                
+##  ggplot2     * 3.3.5   2021-06-25 [1] RSPM (R 4.1.0)                
+##  GICS        * 0.0.1.0 2022-01-17 [1] Github (bautheac/GICS@0c2b0e4)
+##  globals       0.14.0  2020-11-22 [1] RSPM (R 4.1.0)                
+##  glue        * 1.4.2   2020-08-27 [1] RSPM (R 4.1.0)                
+##  gtable        0.3.0   2019-03-25 [1] RSPM (R 4.1.0)                
+##  haven         2.4.3   2021-08-04 [1] RSPM (R 4.1.0)                
+##  hms           1.1.1   2021-09-26 [1] RSPM (R 4.1.0)                
+##  htmltools     0.5.2   2021-08-25 [1] RSPM (R 4.1.0)                
+##  htmlwidgets   1.5.4   2021-09-08 [1] RSPM (R 4.1.0)                
+##  httr          1.4.2   2020-07-20 [1] RSPM (R 4.1.0)                
+##  jquerylib     0.1.4   2021-04-26 [1] RSPM (R 4.1.0)                
+##  jsonlite      1.7.2   2020-12-09 [1] RSPM (R 4.1.0)                
+##  knitr         1.36    2021-09-29 [1] RSPM (R 4.1.0)                
+##  lifecycle     1.0.1   2021-09-24 [1] RSPM (R 4.1.0)                
+##  listenv       0.8.0   2019-12-05 [1] RSPM (R 4.1.0)                
+##  lubridate   * 1.8.0   2021-10-07 [1] RSPM (R 4.1.0)                
+##  magrittr    * 2.0.1   2020-11-17 [1] RSPM (R 4.1.0)                
+##  modelr        0.1.8   2020-05-19 [1] RSPM (R 4.1.0)                
+##  munsell       0.5.0   2018-06-12 [1] RSPM (R 4.1.0)                
+##  parallelly    1.28.1  2021-09-09 [1] RSPM (R 4.1.0)                
+##  pillar        1.6.4   2021-10-18 [1] RSPM (R 4.1.0)                
+##  pkgconfig     2.0.3   2019-09-22 [1] RSPM (R 4.1.0)                
+##  purrr       * 0.3.4   2020-04-17 [1] RSPM (R 4.1.0)                
+##  R6            2.5.1   2021-08-19 [1] RSPM (R 4.1.0)                
+##  Rcpp          1.0.7   2021-07-07 [1] RSPM (R 4.1.0)                
+##  readr       * 2.0.2   2021-09-27 [1] RSPM (R 4.1.0)                
+##  readxl        1.3.1   2019-03-13 [1] RSPM (R 4.1.0)                
+##  reprex        2.0.1   2021-08-05 [1] RSPM (R 4.1.0)                
+##  rlang       * 0.4.12  2021-10-18 [1] RSPM (R 4.1.0)                
+##  rmarkdown     2.11    2021-09-14 [1] RSPM (R 4.1.0)                
+##  rmdformats    1.0.3   2021-10-06 [1] RSPM (R 4.1.0)                
+##  rstudioapi    0.13    2020-11-12 [1] RSPM (R 4.1.0)                
+##  rvest         1.0.2   2021-10-16 [1] RSPM (R 4.1.0)                
+##  sass          0.4.0   2021-05-12 [1] RSPM (R 4.1.0)                
+##  scales      * 1.1.1   2020-05-11 [1] RSPM (R 4.1.0)                
+##  sessioninfo   1.1.1   2018-11-05 [1] RSPM (R 4.1.0)                
+##  stringi       1.7.5   2021-10-04 [1] RSPM (R 4.1.0)                
+##  stringr     * 1.4.0   2019-02-10 [1] RSPM (R 4.1.0)                
+##  tibble      * 3.1.5   2021-09-30 [1] RSPM (R 4.1.0)                
+##  tidyr       * 1.1.4   2021-09-27 [1] RSPM (R 4.1.0)                
+##  tidyselect    1.1.1   2021-04-30 [1] RSPM (R 4.1.0)                
+##  tidyverse   * 1.3.1   2021-04-15 [1] RSPM (R 4.1.0)                
+##  tzdb          0.2.0   2021-10-27 [1] RSPM (R 4.1.0)                
+##  utf8          1.2.2   2021-07-24 [1] RSPM (R 4.1.0)                
+##  vctrs         0.3.8   2021-04-29 [1] RSPM (R 4.1.0)                
+##  vroom         1.5.5   2021-09-14 [1] RSPM (R 4.1.0)                
+##  withr         2.4.2   2021-04-18 [1] RSPM (R 4.1.0)                
+##  xfun          0.27    2021-10-18 [1] RSPM (R 4.1.0)                
+##  xml2          1.3.2   2020-04-23 [1] RSPM (R 4.1.0)                
+##  yaml          2.2.1   2020-02-01 [1] RSPM (R 4.1.0)                
 ## 
 ## [1] /usr/local/lib/R/site-library
 ## [2] /usr/local/lib/R/library</code></pre>

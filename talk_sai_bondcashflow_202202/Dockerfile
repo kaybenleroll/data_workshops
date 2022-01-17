@@ -41,6 +41,9 @@ RUN git clone https://github.com/lindenb/makefile2graph.git \
   && make \
   && make install
 
+RUN Rscript /tmp/docker_install_sys_rpkgs.R
+
+
 WORKDIR /home/rstudio
 
 RUN 7z x /tmp/conffiles.7z     \
