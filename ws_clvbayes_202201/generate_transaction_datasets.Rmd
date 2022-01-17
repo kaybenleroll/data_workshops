@@ -36,6 +36,7 @@ library(purrr)
 library(furrr)
 library(glue)
 library(tidyquant)
+library(stringi)
 
 
 source("lib_utils.R")
@@ -220,6 +221,7 @@ synthdata_shortframe_transactions_tbl %>% write_rds("data/synthdata_shortframe_t
 ```
 
 
+
 # Generate Long Time-frame 50K Synthetic Cohort Data
 
 We now repeat the data synthesis but for a much longer period of time, so
@@ -278,6 +280,55 @@ synthdata_longframe_simparams_tbl    %>% write_rds("data/synthdata_longframe_sim
 synthdata_longframe_transactions_tbl %>% write_rds("data/synthdata_longframe_transactions_tbl.rds")
 ```
 
+
+
+# Generate Non-Lifetime Transaction Data
+
+To help getting started with the frequency model, we also produce a separate
+dataset where all customers are 'alive' on the system at the initial date and
+count the number of transactions made during a single year.
+
+```{r generate_singleyear_synth_cohort, echo=TRUE}
+n_customers = 50000
+
+synthdata_singleyear_cohort_tbl <- tibble(
+  customer_id = stri_rand_strings(
+    n = n_customers,
+    length = 10,
+    pattern = "[A-Z0-9]"
+    ),
+  cohort_qtr     = "2019 Q1",
+  cohort_ym      = "2019 01",
+  first_tnx_date = as.Date("2019-01-01")
+  )
+
+synthdata_singleyear_simparams_tbl <- synthdata_singleyear_cohort_tbl %>%
+  generate_pnbd_customer_simulation_params(
+    params_lst = pnbd_params_lst
+    ) %>%
+  transmute(
+    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_tau = 53,
+    customer_lambda, customer_nu, customer_p
+    )
+
+synthdata_singleyear_transactions_tbl <- synthdata_singleyear_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data(
+    final_tnx_date = as.Date("2019-12-31")
+    )
+
+synthdata_singleyear_transactions_tbl %>% glimpse()
+```
+
+
+## Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_singleyear_synth_data_disk, echo=TRUE}
+synthdata_singleyear_cohort_tbl       %>% write_rds("data/synthdata_singleyear_cohort_tbl.rds")
+synthdata_singleyear_simparams_tbl    %>% write_rds("data/synthdata_singleyear_simparams_tbl.rds")
+synthdata_singleyear_transactions_tbl %>% write_rds("data/synthdata_singleyear_transactions_tbl.rds")
+```
 
 
 

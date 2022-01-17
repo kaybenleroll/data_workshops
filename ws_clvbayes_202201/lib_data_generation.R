@@ -77,16 +77,15 @@ generate_pnbd_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_
 
   if(tnx_window < 0) warning("Invalid tnx_window value: should not be negative")
 
-  sim_count <- round(10 * (tnx_window * tnx_rate), 0) %>% max(10)
-
-  event_times <- rexp(sim_count, rate = tnx_rate)
-
-  tnx_intervals     <- cumsum(event_times)
-  use_tnx_intervals <- tnx_intervals[tnx_intervals < tnx_window]
-
   first_tnx_dttm <- as.POSIXct(first_date) + runif(1, min = 0, max = 24 * 60 * 60 - 1)
 
-  event_dates <- first_tnx_dttm + (use_tnx_intervals * (7 * 24 * 60 * 60))
+  tnx_intervals <- calculate_event_times(
+    rate       = tnx_rate,
+    total_time = tnx_window,
+    block_size = 100
+  )
+
+  event_dates <- first_tnx_dttm + (tnx_intervals * (7 * 24 * 60 * 60))
 
   tnx_amounts <- rgamma(1 + length(event_dates), shape = mx_p, rate = mx_nu)
 
@@ -155,4 +154,25 @@ calculate_medical_test_probability <- function(prevalence = 0.01, false_pos = 0.
   cond_prob <- t1 / (t1 + t2)
 
   return(cond_prob)
+}
+
+
+calculate_event_times <- function(rate, total_time, block_size = 100) {
+  sample_vec <- c()
+
+  sample_complete <- FALSE
+
+  while(!sample_complete) {
+    block_sample <- rexp(block_size, rate = rate)
+
+    sample_vec <- c(sample_vec, block_sample)
+
+    cuml_value <- cumsum(sample_vec)
+
+    sample_complete <- any(cuml_value > total_time)
+  }
+
+  event_times <- sample_vec[cumsum(sample_vec) < total_time]
+
+  return(event_times)
 }

@@ -81,13 +81,13 @@ a more traditional P/NBD model.
 We first want to load some synthetic transaction data.
 
 ```{r load_synth_transaction_data, echo=TRUE}
-customer_cohort_tbl <- read_rds("data/synthdata_longframe_cohort_tbl.rds")
+customer_cohort_tbl <- read_rds("data/synthdata_singleyear_cohort_tbl.rds")
 customer_cohort_tbl %>% glimpse()
 
-customer_simparams_tbl <- read_rds("data/synthdata_longframe_simparams_tbl.rds")
+customer_simparams_tbl <- read_rds("data/synthdata_singleyear_simparams_tbl.rds")
 customer_simparams_tbl %>% glimpse()
 
-customer_transactions_tbl <- read_rds("data/synthdata_longframe_transactions_tbl.rds")
+customer_transactions_tbl <- read_rds("data/synthdata_singleyear_transactions_tbl.rds")
 customer_transactions_tbl %>% glimpse()
 ```
 
@@ -103,9 +103,11 @@ customer_summarystats_tbl <- customer_transactions_tbl %>%
     tnx_count    = n(),
     first_tnx_ts = min(tnx_timestamp),
     last_tnx_ts  = max(tnx_timestamp),
+    all_weeks    = 52,
     tnx_weeks    = difftime(last_tnx_ts, first_tnx_ts, units = "weeks") %>% as.numeric(),
     btyd_count   = tnx_count - 1,
-    tnx_freq     = btyd_count / tnx_weeks
+    obs_freq     = btyd_count / tnx_weeks,
+    emp_freq     = btyd_count / all_weeks
     )
 
 customer_summarystats_tbl %>% glimpse()
@@ -179,7 +181,7 @@ fit_data_tbl <- customer_summarystats_tbl %>%
     )
 
 freqmodel_flat_brmfit <- brm(
-  formula = btyd_count ~ 0 + offset(log(tnx_weeks)) + customer_id,
+  formula = btyd_count | rate(all_weeks) ~ 0 + customer_id,
   data    = fit_data_tbl,
   family  = poisson(),
   prior   = c(
@@ -206,10 +208,13 @@ freqmodel_flat_postcheck_tbl <- freqmodel_flat_brmfit %>%
     values_to    = "post_freqmean"
     ) %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(.draw, customer_id, customer_lambda, post_freqmean) %>%
+  select(.draw, customer_id, customer_lambda, post_freqmean)
+
+
+freqmodel_flat_postcheck_qvals_tbl <- freqmodel_flat_postcheck_tbl %>%
   calculate_distribution_qvals(post_freqmean, customer_lambda, customer_id)
 
-freqmodel_flat_postcheck_tbl %>% glimpse()
+freqmodel_flat_postcheck_qvals_tbl %>% glimpse()
 ```
 
 

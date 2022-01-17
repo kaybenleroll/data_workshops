@@ -46,8 +46,9 @@ initial_tnx_frequency_models.html: exploring_retail_data.html \
   generate_transaction_datasets.html
 
 
-mrproper: clean-cache clean-data clean-html
+mrproper: clean-cache clean-data clean-html clean-models
 	rm -fv data/*.xlsx
+	rm -fv *.dot
 
 clean-data:
 	rm -fv data/*.rds
@@ -59,6 +60,9 @@ clean-html:
 clean-cache:
 	rm -rfv *_cache
 	rm -rfv *_files
+
+clean-models:
+	rm -fv stan_models/*
 
 
 ### Docker targets
