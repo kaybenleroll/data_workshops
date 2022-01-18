@@ -6,7 +6,7 @@ old_workbooks/*.Rmd
 *_cache
 *_files
 
-temp.R
+temp*.R
 *.rds
 
 ORIG_*

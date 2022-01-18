@@ -102,6 +102,13 @@ customer_cohort_data_tbl <- customer_cohort_data_tbl %>%
 customer_cohort_data_tbl %>% glimpse()
 ```
 
+We also need to set dataset sizes for each of our generated datasets.
+
+```{r set_n_customers, echo=TRUE}
+n_customers <- 50000
+```
+
+
 
 # Run Data Generation for Basic Model
 
@@ -169,8 +176,6 @@ We use a short time frame from the data, spanning two years, and construct all
 customers and transactions within that timeframe.
 
 ```{r generate_shortframe_synthetic_cohort, echo=TRUE}
-n_customers = 50000
-
 synthdata_shortframe_cohort_tbl <- generate_customer_cohort_data(
     n_customers = n_customers,
     first_date  = as.Date("2017-01-01"),
@@ -229,8 +234,6 @@ that the censoring effects of the observation time are less apparent in the
 dataset.
 
 ```{r generate_longframe_synth_cohort, echo=TRUE}
-n_customers = 50000
-
 synthdata_longframe_cohort_tbl <- generate_customer_cohort_data(
     n_customers = n_customers,
     first_date  = as.Date("2011-01-01"),
@@ -289,8 +292,6 @@ dataset where all customers are 'alive' on the system at the initial date and
 count the number of transactions made during a single year.
 
 ```{r generate_singleyear_synth_cohort, echo=TRUE}
-n_customers = 50000
-
 synthdata_singleyear_cohort_tbl <- tibble(
   customer_id = stri_rand_strings(
     n = n_customers,
