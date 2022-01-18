@@ -53,7 +53,8 @@ generate_pnbd_customer_transaction_data <- function(sim_params_tbl, final_tnx_da
           tnx_rate   = customer_lambda,
           mx_nu      = customer_nu,
           mx_p       = customer_p,
-          first_date = first_tnx_date
+          first_date = first_tnx_date,
+          customer_id = customer_id
           ),
         generate_pnbd_individual_transactions,
         final_date = final_tnx_date
@@ -69,7 +70,7 @@ generate_pnbd_customer_transaction_data <- function(sim_params_tbl, final_tnx_da
 
 
 generate_pnbd_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_p,
-                                                  first_date, final_date = final_date) {
+                                                  first_date, customer_id = customer_id, final_date = final_date) {
 
   obs_weeks <- difftime(final_date, first_date, units = "weeks") %>% as.numeric()
 
@@ -82,10 +83,10 @@ generate_pnbd_individual_transactions <- function(lifetime, tnx_rate, mx_nu, mx_
   tnx_intervals <- calculate_event_times(
     rate       = tnx_rate,
     total_time = tnx_window,
-    block_size = 100
+    block_size = 1000
   )
 
-  event_dates <- first_tnx_dttm + (tnx_intervals * (7 * 24 * 60 * 60))
+  event_dates <- first_tnx_dttm + (cumsum(tnx_intervals) * (7 * 24 * 60 * 60))
 
   tnx_amounts <- rgamma(1 + length(event_dates), shape = mx_p, rate = mx_nu)
 

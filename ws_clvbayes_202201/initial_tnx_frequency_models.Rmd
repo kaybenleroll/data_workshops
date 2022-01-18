@@ -103,9 +103,10 @@ customer_summarystats_tbl <- customer_transactions_tbl %>%
     tnx_count    = n(),
     first_tnx_ts = min(tnx_timestamp),
     last_tnx_ts  = max(tnx_timestamp),
+    btyd_count   = tnx_count - 1,
     all_weeks    = 52,
     tnx_weeks    = difftime(last_tnx_ts, first_tnx_ts, units = "weeks") %>% as.numeric(),
-    btyd_count   = tnx_count - 1,
+    tnx_weeks    = if_else(btyd_count > 0, tnx_weeks, 52),    
     obs_freq     = btyd_count / tnx_weeks,
     emp_freq     = btyd_count / all_weeks
     )
@@ -142,7 +143,8 @@ the data first, and rather than constructing different samples each time we
 instead construct sets of `customer_id` to draw upon, then using those list
 of values when we want to take a subset.
 
-We do this by randomly shuffling the data
+We do this by randomly shuffling the data and then selecting the top $n$ values
+of `customer_id`.
 
 ```{r construct_data_subset_ids, echo=TRUE}
 shuffle_tbl <- customer_summarystats_tbl %>%
@@ -165,60 +167,39 @@ month) so this value determines our initial prior distribution for the
 transaction frequency.
 
 For our initial fit, we use only 1,000 eligible customers to reduce computation
-time.
+time and construct a dataset used to fit these models.
 
-
-## Fit brms Model
-
-To start with we fit our model using `brms` as this provides a large amount
-of infrastructure and additional functionality that may be of use.
-
-```{r fit_flat_brms_frequency_model, echo=TRUE}
-fit_data_tbl <- customer_summarystats_tbl %>%
+```{r construct_fit_1000_data, echo=TRUE}
+fit_1000_data_tbl <- customer_summarystats_tbl %>%
   filter(
-    customer_id %in% id_1000,
-    btyd_count > 0
+    customer_id %in% id_1000
     )
 
-freqmodel_flat_brmfit <- brm(
-  formula = btyd_count | rate(all_weeks) ~ 0 + customer_id,
-  data    = fit_data_tbl,
-  family  = poisson(),
-  prior   = c(
-    set_prior("gamma(1, 4)", class = "b", lb = 0)
-    ),
-  warmup   = 500,
-  iter     = 1000,
-  chains   = 4,
-  seed     = 421
-  )
+fit_1000_data_tbl %>% glimpse()
 ```
 
+We do the same for the 10k customers.
 
-Now that we have fit the model we want to see how well our posterior
-distribution is covering the 'correct' values.
+```{r construct_fit_10000_data, echo=TRUE}
+fit_10000_data_tbl <- customer_summarystats_tbl %>%
+  filter(
+    customer_id %in% id_10000
+    )
 
-```{r construct_flat_freq_model_check, echo=TRUE}
-freqmodel_flat_postcheck_tbl <- freqmodel_flat_brmfit %>%
-  tidy_draws() %>%
-  pivot_longer(
-    !c(.chain, .iteration, .draw),
-    names_prefix = "b_customer_id",
-    names_to     = "customer_id",
-    values_to    = "post_freqmean"
-    ) %>%
-  inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(.draw, customer_id, customer_lambda, post_freqmean)
-
-
-freqmodel_flat_postcheck_qvals_tbl <- freqmodel_flat_postcheck_tbl %>%
-  calculate_distribution_qvals(post_freqmean, customer_lambda, customer_id)
-
-freqmodel_flat_postcheck_qvals_tbl %>% glimpse()
+fit_10000_data_tbl %>% glimpse()
 ```
 
 
 ## Fit Stan Model
+
+We start by fitting our first Stan model, fitting a Poisson rate for each
+individual customer.
+
+```{r display_freqmodel_flat_stancode, echo=FALSE}
+read_lines("stan_code/freqmodel_flat.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
 
 ```{r compile_freqmodel_flat_stanmodel, echo=TRUE}
 freqmodel_flat_stanmodel <- cmdstan_model(
@@ -229,26 +210,27 @@ freqmodel_flat_stanmodel <- cmdstan_model(
   )
 ```
 
+We then use this compiled model with our data to produce a fit of the data.
 
 ```{r fit_freqmodel_flat_stanmodel, echo=TRUE}
-stan_data_lst <- fit_data_tbl %>%
-  select(customer_id, btyd_count, tnx_weeks) %>%
+stan_data_lst <- fit_1000_data_tbl %>%
+  select(customer_id, btyd_count, tnx_weeks = all_weeks) %>%
   compose_data(
     r     =  1,
     alpha =  4
     )
 
 freqmodel_flat_stanfit <- freqmodel_flat_stanmodel$sample(
-  data            =                stan_data_lst,
-  chains          =                            4,
-  iter_warmup     =                         1000,
-  iter_sampling   =                         1000,
-  seed            =                          421,
-  output_dir      =                "stan_models",
-  output_basename =             "freqmodel_flat"
+  data            =    stan_data_lst,
+  chains          =                4,
+  iter_warmup     =              500,
+  iter_sampling   =              500,
+  seed            =              421,
+  output_dir      =    "stan_models",
+  output_basename = "freqmodel_flat"
   )
 
-freqmodel_flat_stanfit$cmdstan_summary()
+freqmodel_flat_stanfit$summary()
 ```
 
 We first want to check the HMC diagnostics.
@@ -256,6 +238,221 @@ We first want to check the HMC diagnostics.
 ```{r calculate_freqmodel_flat_hmc_diagnostics, echo=TRUE}
 freqmodel_flat_stanfit$cmdstan_diagnose()
 ```
+
+
+## Check Model Fit
+
+We now need to check the parameters of this fit against the data to see how
+effective our model is at capturing the data. In this case we have the benefit
+of knowing the 'true' data, and so we compare our model output against the
+input parameters.
+
+```{r construct_freqmodel_flat_validation, echo=TRUE}
+freqmodel_flat_validation_tbl <- freqmodel_flat_stanfit %>%
+  recover_types(fit_1000_data_tbl) %>%
+  spread_draws(lambda[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(customer_id, lambda, customer_lambda)
+
+freqmodel_flat_validation_tbl %>% glimpse()
+```
+
+Having constructed the validation data we now want to check the quantile of
+each 'true' value in the posterior distribution for the parameter. If our
+model is valid, this distribution will be uniform on $[0, 1]$.
+
+```{r calculate_freqmodel_flat_qvalues, echo=TRUE}
+plotvalid_tbl <- freqmodel_flat_validation_tbl %>%
+  calculate_distribution_qvals(lambda, customer_lambda)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+
+ggplot(plotvalid_tbl) +
+  geom_point(aes(x = q_val, y = customer_lambda)) +
+  labs(
+    x = "Quantile",
+    y = "Customer Lambda",
+    title = "Scatterplot of q-Value against Lambda"
+    )
+```
+
+
+
+## Fit Larger Model
+
+We now repeat this model with a larger dataset.
+
+```{r fit_10k_freqmodel_flat_stanmodel, echo=TRUE}
+stan_data_lst <- fit_10000_data_tbl %>%
+  select(customer_id, btyd_count, tnx_weeks = all_weeks) %>%
+  compose_data(
+    r     =  1,
+    alpha =  4
+    )
+
+freqmodel_flat_10k_stanfit <- freqmodel_flat_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                  422,
+  output_dir      =        "stan_models",
+  output_basename = "freqmodel_flat_10k"
+  )
+
+freqmodel_flat_10k_stanfit$summary()
+```
+
+We first want to check the HMC diagnostics.
+
+```{r calculate_freqmodel_flat_10k_hmc_diagnostics, echo=TRUE}
+freqmodel_flat_10k_stanfit$cmdstan_diagnose()
+```
+
+
+## Check Larger Model Fit
+
+We now repeat the validation exercise once more, extracting the posterior
+customer $\lambda$ values and comparing them to our input values.
+
+```{r construct_freqmodel_flat_10k_validation, echo=TRUE}
+freqmodel_flat_10k_validation_tbl <- freqmodel_flat_10k_stanfit %>%
+  recover_types(fit_10000_data_tbl) %>%
+  spread_draws(lambda[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(customer_id, lambda, customer_lambda)
+
+freqmodel_flat_10k_validation_tbl %>% glimpse()
+```
+
+We also construct validation plots for this.
+
+```{r calculate_freqmodel_flat_10k_qvalues, echo=TRUE}
+plotvalid_tbl <- freqmodel_flat_10k_validation_tbl %>%
+  calculate_distribution_qvals(lambda, customer_lambda)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+
+ggplot(plotvalid_tbl) +
+  geom_point(aes(x = q_val, y = customer_lambda), alpha = 0.2) +
+  labs(
+    x = "Quantile",
+    y = "Customer Lambda",
+    title = "Scatterplot of q-Value against Lambda"
+    )
+```
+
+
+## Construct Observed-Time Frequency Model
+
+We now want to update our approach to use the observed duration of the
+transactions rather than using a constant time period of 52 weeks.
+
+```{r fit_observed_freqmodel_flat_stanmodel, echo=TRUE}
+stan_data_lst <- fit_1000_data_tbl %>%
+  transmute(customer_id, btyd_count, tnx_weeks) %>%
+  compose_data(
+    r     =  1,
+    alpha =  4
+    )
+
+freqmodel_flat_obs_stanfit <- freqmodel_flat_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                  423,
+  output_dir      =        "stan_models",
+  output_basename = "freqmodel_flat_obs"
+  )
+
+freqmodel_flat_obs_stanfit$summary()
+```
+
+
+
+
+
+# Construct Hierarchical Frequency Model
+
+We now need to
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Fit brms Model
+
+To start with we fit our model using `brms` as this provides a large amount
+of infrastructure and additional functionality that may be of use.
+
+```{r fit_flat_brms_frequency_model, echo=TRUE}
+# freqmodel_flat_brmfit <- brm(
+#   formula = btyd_count ~ offset(log(all_weeks)) + customer_id,
+#   data    = fit_1000_data_tbl,
+#   family  = poisson(),
+#   prior   = c(
+#     set_prior("normal(-1.96, 1.25)", class = "b", lb = 0)
+#     ),
+#   warmup   = 500,
+#   iter     = 1000,
+#   chains   = 4,
+#   seed     = 421
+#   )
+```
+
+
+Now that we have fit the model we want to see how well our posterior
+distribution is covering the 'correct' values.
+
+```{r construct_flat_freq_model_check, echo=TRUE}
+# freqmodel_flat_postcheck_tbl <- freqmodel_flat_brmfit %>%
+#   tidy_draws() %>%
+#   pivot_longer(
+#     !c(.chain, .iteration, .draw),
+#     names_prefix = "b_customer_id",
+#     names_to     = "customer_id",
+#     values_to    = "post_freqmean"
+#     ) %>%
+#   inner_join(customer_simparams_tbl, by = "customer_id") %>%
+#   select(.draw, customer_id, customer_lambda, post_freqmean)
+# 
+# 
+# freqmodel_flat_postcheck_qvals_tbl <- freqmodel_flat_postcheck_tbl %>%
+#   calculate_distribution_qvals(post_freqmean, customer_lambda, customer_id)
+# 
+# freqmodel_flat_postcheck_qvals_tbl %>% glimpse()
+```
+
 
 
 
