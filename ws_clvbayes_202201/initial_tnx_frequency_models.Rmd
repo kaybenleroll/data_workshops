@@ -253,7 +253,7 @@ freqmodel_flat_validation_tbl <- freqmodel_flat_stanfit %>%
   spread_draws(lambda[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(customer_id, lambda, customer_lambda)
+  select(customer_id, post_lambda = lambda, customer_lambda)
 
 freqmodel_flat_validation_tbl %>% glimpse()
 ```
@@ -264,7 +264,7 @@ model is valid, this distribution will be uniform on $[0, 1]$.
 
 ```{r calculate_freqmodel_flat_qvalues, echo=TRUE}
 plotvalid_tbl <- freqmodel_flat_validation_tbl %>%
-  calculate_distribution_qvals(lambda, customer_lambda)
+  calculate_distribution_qvals(post_lambda, customer_lambda)
 
 ggplot(plotvalid_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
@@ -329,7 +329,7 @@ freqmodel_flat_10k_validation_tbl <- freqmodel_flat_10k_stanfit %>%
   spread_draws(lambda[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(customer_id, lambda, customer_lambda)
+  select(customer_id, post_lambda = lambda, customer_lambda)
 
 freqmodel_flat_10k_validation_tbl %>% glimpse()
 ```
@@ -338,7 +338,7 @@ We also construct validation plots for this.
 
 ```{r calculate_freqmodel_flat_10k_qvalues, echo=TRUE}
 plotvalid_tbl <- freqmodel_flat_10k_validation_tbl %>%
-  calculate_distribution_qvals(lambda, customer_lambda)
+  calculate_distribution_qvals(post_lambda, customer_lambda)
 
 ggplot(plotvalid_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
@@ -384,6 +384,103 @@ freqmodel_flat_obs_stanfit <- freqmodel_flat_stanmodel$sample(
 
 freqmodel_flat_obs_stanfit$summary()
 ```
+
+Now that we have fit our models, we repeat our validation model much like we
+did the last time. We expect this model to deviate from our first model however
+as we have a less-reliable estimate of the observation time for each
+customer - as it is now calculated as ending at the last observation.
+
+```{r calculate_validation_observed_data, echo=TRUE}
+freqmodel_flat_obs_validation_tbl <- freqmodel_flat_obs_stanfit %>%
+  recover_types(fit_1000_data_tbl) %>%
+  spread_draws(lambda[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(customer_id, post_lambda = lambda, customer_lambda)
+
+freqmodel_flat_obs_validation_tbl %>% glimpse()
+```
+
+
+We also construct validation plots for this.
+
+```{r calculate_freqmodel_flat_obs_qvalues, echo=TRUE}
+plotvalid_tbl <- freqmodel_flat_obs_validation_tbl %>%
+  calculate_distribution_qvals(post_lambda, customer_lambda)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+
+ggplot(plotvalid_tbl) +
+  geom_point(aes(x = q_val, y = customer_lambda), alpha = 0.2) +
+  labs(
+    x = "Quantile",
+    y = "Customer Lambda",
+    title = "Scatterplot of q-Value against Lambda"
+    )
+```
+
+
+## Construct Posterior Distribution Comparisons
+
+We now combine the outputted posterior distributions and compare them together.
+
+```{r combine_flat_posterior_distribs, echo=TRUE}
+comparison_distrib_tbl <- list(
+    `Fixed Time`    = freqmodel_flat_validation_tbl,
+    `Observed Time` = freqmodel_flat_obs_validation_tbl
+    ) %>%
+  bind_rows(.id = "label")
+
+comparison_distrib_tbl %>% glimpse()
+```
+
+Now that we have this data we can construct a number of visualisations to
+help us compare these two distributions on a per-customer basis.
+
+```{r plot_distribution_posterior_lambda, echo=TRUE}
+comparison_summary_tbl <- comparison_distrib_tbl %>%
+  group_by(label, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    labels = c("q10", "q25", "q50", "q75", "q90", "mean", "customer_lambda"),
+    vals   = c(quantile(post_lambda, probs = c(0.1, 0.25, 0.50, 0.75, 0.90)),
+               mean(post_lambda),
+               unique(customer_lambda))
+    ) %>%
+  pivot_wider(
+    names_from  = labels,
+    values_from = vals
+    )
+
+plot_tbl <- comparison_summary_tbl %>%
+  group_nest(customer_id) %>%
+  slice_sample(n = 30) %>%
+  unnest(data)
+
+ggplot(plot_tbl) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = q10, ymax = q90, colour = label),
+    position = position_dodge(width = 0.75), width = 0, size = 1) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = q25, ymax = q75, colour = label),
+    position = position_dodge(width = 0.75), width = 0, size = 2) +
+  geom_point(aes(x = customer_id, y = customer_lambda)) +
+  labs(
+    x = "Customer ID",
+    y = "Frequency Rate",
+    colour = "Distribution"
+    ) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+```
+
 
 
 
