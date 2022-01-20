@@ -357,13 +357,165 @@ P(A = \text{infected} \, | \, B = \text{positive})
 
 
 
-## Effect of Prevalance
+# Effect of Prevalance
 
 Before we move on from this, we want to investigate the impact of the
 prevalence of the disease on the efficacy of the test.
 
+We do this by fixing our probabilities for both false positive and false
+negatives and then vary the prior probability (which is the prevalence in
+the overall population)
+
+To do this, we calculate the analytical posterior probability using a function,
+as this should speed things up considerably.
+
+```{r calculate_analytic_posterior_probability, echo=TRUE}
+calculate_analytic_posterior_probability <- function(
+  prevalence, false_positive = 0.05, false_negative = 0.05) {
+
+  t1 = (1 - false_positive) * prevalence
+  t2 = (false_negative) * (1 - prevalence)
+  
+  posterior_prob = t1 / (t1 + t2)
+
+  return(posterior_prob)
+}
+```
+
+We quickly check this function using our existing parameters.
+
+```{r check_calculate_analytic_posterior_probability, echo=TRUE}
+calculate_analytic_posterior_probability(
+  prevalence     = 0.01,
+  false_positive = 0.05,
+  false_negative = 0.05
+  )
+```
+
+This matches what we had done before, so it seems to work. Let's also check
+what the calculated probability is if there are no false negatives.
+
+```{r check_zero_falseneg_posterior_probability, echo=TRUE}
+calculate_analytic_posterior_probability(
+  prevalence     = 0.01,
+  false_positive = 0.05,
+  false_negative = 0.00
+  )
+```
+
+We now want to see how this posterior probability
+
+```{r show_prevalence_effect_posterior, echo=TRUE}
+prevalence_vec <- seq(0, 1, by = 0.01)
+
+pop_prev_tbl <- tibble(prevalence = prevalence_vec) %>%
+  mutate(
+    posterior_prob = map_dbl(
+      prevalence, calculate_analytic_posterior_probability,
+      false_positive = 0.05,
+      false_negative = 0.05
+      )
+    )
+
+ggplot(pop_prev_tbl) +
+  geom_line(aes(x = prevalence, y = posterior_prob)) +
+  labs(
+    x = "Population Prevalence",
+    y = "Posterior Probability",
+    title = "Effect of Prevalence on Positive Test Being True"
+    )
+```
+
+We now repeat this calculation to check for the effect of false positives on
+this posterior probability.
+
+```{r check_posterior_probability_false_positive, echo=TRUE}
+pop_prev_tbl <- expand_grid(
+    prevalence = prevalence_vec,
+    false_pos  = c(0.001, 0.01, 0.05, 0.10, 0.25)
+    ) %>%
+  mutate(
+    posterior_prob = map2_dbl(
+      prevalence, false_pos,
+      calculate_analytic_posterior_probability,
+      false_negative = 0.05
+      )
+    )
+
+ggplot(pop_prev_tbl %>% mutate(false_pos = false_pos %>% as.character())) +
+  geom_line(aes(x = prevalence, y = posterior_prob, colour = false_pos)) +
+  labs(
+    x = "Population Prevalence",
+    y = "Posterior Probability",
+    colour = "FPR",
+    title = "Effect of Prevalence on Positive Test Being True"
+    )
+```
 
 
+
+
+```{r check_posterior_probability_false_negative, echo=TRUE}
+pop_prev_tbl <- expand_grid(
+    prevalence = prevalence_vec,
+    false_neg  = c(0.001, 0.01, 0.05, 0.10, 0.25)
+    ) %>%
+  mutate(
+    posterior_prob = map2_dbl(
+      prevalence, false_neg,
+      calculate_analytic_posterior_probability,
+      false_positive = 0.05
+      )
+    )
+
+ggplot(pop_prev_tbl %>% mutate(false_neg = false_neg %>% as.character())) +
+  geom_line(aes(x = prevalence, y = posterior_prob, colour = false_neg)) +
+  labs(
+    x = "Population Prevalence",
+    y = "Posterior Probability",
+    colour = "FNR",
+    title = "Effect of Prevalence on Positive Test Being True"
+    )
+```
+
+Finally, we want to see the two-way effect of different positive rates at
+different levels of prevalence.
+
+```{r calculate_posterior_probability_data, echo=TRUE}
+prob_vals <- c(0.001, 0.01, 0.05, 0.10, 0.25, 0.50, 0.80, 0.99)
+
+postprob_data_tbl <- expand_grid(
+    prevalence = prob_vals,
+    false_pos  = prob_vals,
+    false_neg  = prob_vals
+    ) %>%
+  mutate(
+    posterior_prob = pmap_dbl(
+      list(
+        prevalence = prevalence,
+        false_positive = false_pos,
+        false_negative = false_neg
+        ),
+      calculate_analytic_posterior_probability
+      ),
+    
+    prevalence_label = sprintf("Prevalence = %6.3f", prevalence)
+    )
+
+ggplot(postprob_data_tbl %>% mutate(across(c(false_pos, false_neg), ~ sprintf("%6.3f", .x)))) +
+  geom_tile(aes(x = false_pos, y = false_neg, fill = posterior_prob)) +
+  facet_wrap(vars(prevalence_label)) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  labs(
+    x = "False Positive Rate",
+    y = "False Negative Rate",
+    fill = "Prob",
+    title = "Facetted Tile Plot of Effect of Inputs on Positive Test Result Probabilities"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5)
+    )
+```
 
 
 
