@@ -831,7 +831,7 @@ coverage_stats_tbl %>%
 
 
 
-
+```
 # Construct Hierarchical Frequency Model
 
 In our previous model, we had to set our hierarchical prior as an input to the
@@ -840,29 +840,12 @@ model, but what if we instead allowed these parameters to be set by the data?
 This approach is called a *hierarchical* model, as there is a hierarchy of
 parameters.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Fit brms Model
 
 To start with we fit our model using `brms` as this provides a large amount
 of infrastructure and additional functionality that may be of use.
 
-```{r fit_flat_brms_frequency_model, echo=TRUE}
+#```{r fit_flat_brms_frequency_model, echo=TRUE}
 # freqmodel_flat_brmfit <- brm(
 #   formula = btyd_count ~ offset(log(all_weeks)) + customer_id,
 #   data    = fit_1000_data_tbl,
@@ -875,13 +858,13 @@ of infrastructure and additional functionality that may be of use.
 #   chains   = 4,
 #   seed     = 421
 #   )
-```
+#```
 
 
 Now that we have fit the model we want to see how well our posterior
 distribution is covering the 'correct' values.
 
-```{r construct_flat_freq_model_check, echo=TRUE}
+#```{r construct_flat_freq_model_check, echo=TRUE}
 # freqmodel_flat_postcheck_tbl <- freqmodel_flat_brmfit %>%
 #   tidy_draws() %>%
 #   pivot_longer(
@@ -898,8 +881,8 @@ distribution is covering the 'correct' values.
 #   calculate_distribution_qvals(post_freqmean, customer_lambda, customer_id)
 # 
 # freqmodel_flat_postcheck_qvals_tbl %>% glimpse()
+#```
 ```
-
 
 
 

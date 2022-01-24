@@ -113,7 +113,7 @@ probabilities for all the possible values in phase space.
 
 ## Medical Tests
 
-We use tests for COVID-19 as a way to illustrate these concepts, and use these
+We use tests for a virus as a way to illustrate these concepts, and use these
 ideas to show broad-stroke differences between the various tests.
 
 First, we need to determine our naming:
@@ -249,7 +249,7 @@ to illustrate these ideas via computation and simulation.
 
 We start with simulating medical tests, using some input values.
 
-For the following work, we assume the prevalence of COVID-19 is 1\% of the
+For the following work, we assume the prevalence of the virus is 1\% of the
 population.
 
 
@@ -262,8 +262,8 @@ for presence (a TRUE value means the test detected the virus).
 As discussed previously, while related, these two variables are separate, an
 uninfected person could test positive and vice versa.
 
-So, a person takes a COVID-19 test and tests positive - what is the probability
-that the patient is infected? How do we go about calculating this?
+So, a person takes a test and tests positive - what is the probability that the
+patient is infected? How do we go about calculating this?
 
 In mathematical notation, we want to calculate
 
@@ -284,7 +284,8 @@ $$
 P(B = \text{negative test} \, | \, A = \text{not infected}).
 $$
 
-For PCR tests, we typically have a 5\% rate for both.
+Let us suppose that a gold-standard medical test typically has a 5\% rate for
+both.
 
 Finally, we also need to know the prevalence of the disease in the population,
 the unconditional probability of a patient having the disease.
