@@ -236,6 +236,10 @@ Thus, we combine a prior distribution over $\theta$ with a likelihood model for
 the data $D$ to calculate the posterior distribution for $\theta$.
 
 
+This means that performing Bayesian analysis in the real-world needs a way to
+perform those integrations. In this workshop series we use Stan to sample from
+these posteriors.
+
 
 
 # Illustrating the Concepts
