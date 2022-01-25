@@ -1,0 +1,146 @@
+---
+title: "Data Science Soup to Nuts: Retrieving Retail Data"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: ""
+output:
+  rmdformats::readthedown:
+    fig_caption: yes
+    theme: cerulean
+    toc_depth: 3
+    use_bookdown: yes
+
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(readxl)
+library(scales)
+library(cowplot)
+library(curl)
+library(glue)
+library(fs)
+
+
+source("lib_utils.R")
+
+resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+
+---
+
+
+All code and data for this workshop is available at the following URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+Code is available in the `ws_soupnuts_202101/` directory.
+
+
+# Retrieve Dataset
+
+We now want to retrieve the dataset used for this project, which is available
+at the UCI Machine Learning Repository.
+
+```{r retrieve_online_retail_data, echo=TRUE}
+data_url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/00502/online_retail_II.xlsx"
+
+xlsx_datafile     <- "data/online_retail_II.xlsx"
+
+if(!file_exists(xlsx_datafile)) {
+  curl_download(
+    data_url,
+    destfile = xlsx_datafile,
+    quiet    = FALSE,
+    mode     = "wb"
+    )
+} else {
+  message(glue("Datafile {xlsx_datafile} found. Skipping download."))
+}
+```
+
+Now that we have downloaded the XLSX file, we want to read in the data and
+parse it.
+
+
+## Parse the Data
+
+
+```{r load_parse_data, echo=TRUE}
+retrieve_datafile <- "data/retail_data_tbl.rds"
+
+create_excel_datetime <- function(x)
+  (x * (60 * 60 * 24)) %>% as.POSIXct(origin = "1899-12-30", tz = "GMT")
+
+data_cols <- cols(
+  .default      = col_character(),
+  Quantity      = col_number(),
+  InvoiceDate   = col_number(),
+  Price         = col_number()
+)
+
+retail_data_tbl <- excel_sheets(xlsx_datafile) %>%
+  enframe(name = NULL, value = "excel_sheet") %>%
+  mutate(
+    data = map(excel_sheet, read_excel,
+               path      = xlsx_datafile,
+               col_types = "text")
+    ) %>%
+  unnest(data) %>%
+  format_csv() %>%
+  read_csv(col_types = data_cols) %>%
+  mutate(
+    InvoiceDate = create_excel_datetime(InvoiceDate)
+    )
+
+retail_data_tbl %>% glimpse()
+```
+
+
+Finally, we output this data to the disk.
+
+```{r write_data_to_disk, echo=TRUE}
+retail_data_tbl %>% write_rds("data/retail_data_raw_tbl.rds")
+```
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```

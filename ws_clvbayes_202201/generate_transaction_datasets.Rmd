@@ -1,0 +1,342 @@
+---
+title: "Generate Synthetic Customer Transaction Datasets"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(tidyquant)
+library(stringi)
+
+
+source("lib_utils.R")
+source("lib_data_generation.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "tidyquant")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+In this workbook we use some initial inputs to generate synthetic data to help
+us explore various customer CLV  models.
+
+
+# Load Input Data
+
+As a means of simplifying the process of generating synthetic data, and 
+because we are not attempting to model the arrival of new customers, we will
+use some summary data on the first transaction data of each customer as an
+input to this process.
+
+```{r load_customer_input_data, echo=TRUE}
+customer_cohort_data_tbl <- read_rds("data/customer_cohort_tbl.rds")
+
+customer_cohort_data_tbl %>% glimpse()
+```
+
+For the purposes of this work, we can treat the quarterly times as categorical
+and so we convert these values to character strings.
+
+```{r convert_cohort_qtr_values, echo=TRUE}
+customer_cohort_data_tbl <- customer_cohort_data_tbl %>%
+  transmute(
+    customer_id,
+    cohort_qtr = cohort_qtr %>% as.character(),
+    cohort_ym,
+    first_tnx_date
+    )
+
+customer_cohort_data_tbl %>% glimpse()
+```
+
+We also need to set dataset sizes for each of our generated datasets.
+
+```{r set_n_customers, echo=TRUE}
+n_customers <- 50000
+```
+
+
+
+# Run Data Generation for Basic Model
+
+We now want to set up the various parameters required for the data generation.
+
+```{r setup_synthesis_parameters, echo=TRUE}
+pnbd_params_lst <- list(
+  mu_shape     =   1,
+  mu_rate      =  10,
+
+  lambda_shape =   1,
+  lambda_rate  =   3,
+
+  mx_p         = 100,
+  mx_q         =   1,
+  mx_g         =   1
+  )
+
+
+final_date_observed <- customer_cohort_data_tbl %>%
+  pull(first_tnx_date) %>%
+  max()
+```
+
+
+Now that we have set our 'hyper-parameters' set for the data generation we
+produce individual parameters for each of the customers.
+
+```{r calculate_basicmodel_customer_sim_params, echo=TRUE}
+synthdata_basic_simparams_tbl <- customer_cohort_data_tbl %>%
+  generate_pnbd_customer_simulation_params(
+    params_lst     = pnbd_params_lst
+    )
+
+synthdata_basic_simparams_tbl %>% glimpse()
+
+synthdata_basic_transactions_tbl <- synthdata_basic_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data(
+    final_tnx_date = as.Date("2011-12-09")
+    ) %>%
+  generate_transaction_metadata()
+
+synthdata_basic_transactions_tbl %>% glimpse()
+```
+
+
+### Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_basic_data_disk, echo=TRUE}
+synthdata_basic_simparams_tbl    %>% write_rds("data/synthdata_basic_simparams_tbl.rds")
+synthdata_basic_transactions_tbl %>% write_rds("data/synthdata_basic_transactions_tbl.rds")
+```
+
+
+
+# Generate Short Timeframe 50K Synthetic Cohort Data
+
+We now repeat this exercise, but rather than using the new customer data from
+the transaction dataset, we also create a synthetic set of 'new customers' and
+generate a transaction dataset based on that.
+
+We use a short time frame from the data, spanning two years, and construct all
+customers and transactions within that timeframe.
+
+```{r generate_shortframe_synthetic_cohort, echo=TRUE}
+synthdata_shortframe_cohort_tbl <- generate_customer_cohort_data(
+    n_customers = n_customers,
+    first_date  = as.Date("2017-01-01"),
+    last_date   = as.Date("2019-12-31")
+    )
+
+synthdata_shortframe_cohort_tbl %>% glimpse()
+```
+
+
+
+```{r calculate_shortframe_synth_customer_data, echo=TRUE}
+pnbd_params_lst <- list(
+  mu_shape     =   1,
+  mu_rate      =  10,
+
+  lambda_shape =   1,
+  lambda_rate  =   3,
+
+  mx_p         = 100,
+  mx_q         =   1,
+  mx_g         =   1
+  )
+
+synthdata_shortframe_simparams_tbl <- synthdata_shortframe_cohort_tbl %>%
+  generate_pnbd_customer_simulation_params(
+    params_lst     = pnbd_params_lst
+    )
+
+synthdata_shortframe_transactions_tbl <- synthdata_shortframe_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data(
+    final_tnx_date = as.Date("2020-01-01")
+    ) %>%
+  generate_transaction_metadata()
+
+synthdata_shortframe_transactions_tbl %>% glimpse()
+```
+
+
+## Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_synth_50k_data_disk, echo=TRUE}
+synthdata_shortframe_cohort_tbl       %>% write_rds("data/synthdata_shortframe_cohort_tbl.rds")
+synthdata_shortframe_simparams_tbl    %>% write_rds("data/synthdata_shortframe_simparams_tbl.rds")
+synthdata_shortframe_transactions_tbl %>% write_rds("data/synthdata_shortframe_transactions_tbl.rds")
+```
+
+
+
+# Generate Long Time-frame 50K Synthetic Cohort Data
+
+We now repeat the data synthesis but for a much longer period of time, so
+that the censoring effects of the observation time are less apparent in the
+dataset.
+
+```{r generate_longframe_synth_cohort, echo=TRUE}
+synthdata_longframe_cohort_tbl <- generate_customer_cohort_data(
+    n_customers = n_customers,
+    first_date  = as.Date("2011-01-01"),
+    last_date   = as.Date("2019-12-31")
+    )
+
+synthdata_longframe_cohort_tbl %>% glimpse()
+```
+
+
+
+```{r calculate_longframe_synth_customer_data, echo=TRUE}
+pnbd_params_lst <- list(
+  mu_shape     =   1,
+  mu_rate      =  10,
+
+  lambda_shape =   1,
+  lambda_rate  =   3,
+
+  mx_p         = 100,
+  mx_q         =   1,
+  mx_g         =   1
+  )
+
+synthdata_longframe_simparams_tbl <- synthdata_longframe_cohort_tbl %>%
+  generate_pnbd_customer_simulation_params(
+    params_lst     = pnbd_params_lst
+    )
+
+synthdata_longframe_transactions_tbl <- synthdata_longframe_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data(
+    final_tnx_date = as.Date("2020-01-01")
+    ) %>%
+  generate_transaction_metadata()
+
+synthdata_longframe_transactions_tbl %>% glimpse()
+```
+
+
+## Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_longframe_synth_data_disk, echo=TRUE}
+synthdata_longframe_cohort_tbl       %>% write_rds("data/synthdata_longframe_cohort_tbl.rds")
+synthdata_longframe_simparams_tbl    %>% write_rds("data/synthdata_longframe_simparams_tbl.rds")
+synthdata_longframe_transactions_tbl %>% write_rds("data/synthdata_longframe_transactions_tbl.rds")
+```
+
+
+
+# Generate Non-Lifetime Transaction Data
+
+To help getting started with the frequency model, we also produce a separate
+dataset where all customers are 'alive' on the system at the initial date and
+count the number of transactions made during a single year.
+
+```{r generate_singleyear_synth_cohort, echo=TRUE}
+synthdata_singleyear_cohort_tbl <- tibble(
+  customer_id = stri_rand_strings(
+    n = n_customers,
+    length = 10,
+    pattern = "[A-Z0-9]"
+    ),
+  cohort_qtr     = "2019 Q1",
+  cohort_ym      = "2019 01",
+  first_tnx_date = as.Date("2019-01-01")
+  )
+
+synthdata_singleyear_simparams_tbl <- synthdata_singleyear_cohort_tbl %>%
+  generate_pnbd_customer_simulation_params(
+    params_lst = pnbd_params_lst
+    ) %>%
+  transmute(
+    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_tau = 53,
+    customer_lambda, customer_nu, customer_p
+    )
+
+synthdata_singleyear_transactions_tbl <- synthdata_singleyear_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data(
+    final_tnx_date = as.Date("2019-12-31")
+    )
+
+synthdata_singleyear_transactions_tbl %>% glimpse()
+```
+
+
+## Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_singleyear_synth_data_disk, echo=TRUE}
+synthdata_singleyear_cohort_tbl       %>% write_rds("data/synthdata_singleyear_cohort_tbl.rds")
+synthdata_singleyear_simparams_tbl    %>% write_rds("data/synthdata_singleyear_simparams_tbl.rds")
+synthdata_singleyear_transactions_tbl %>% write_rds("data/synthdata_singleyear_transactions_tbl.rds")
+```
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
