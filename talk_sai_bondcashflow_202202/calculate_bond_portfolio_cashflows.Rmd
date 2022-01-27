@@ -70,6 +70,12 @@ set.seed(42)
 plan(multisession)
 ```
 
+The code for this workbook is available on my GitHub account at the URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+The materials are in the directory `talk_sai_bondcashflow_202202`.
+
 
 # Load Data
 
@@ -478,7 +484,8 @@ calculate_cashflow_duration <- function(data_tbl, duration_date) {
 ```
 
 
-We start by calculating the overall duration of the portfolio, divided by
+We start by calculating the overall duration of the portfolio, split by
+currency.
 
 ```{r calculate_total_portfolio_duration, echo=TRUE}
 bond_cashflow_tbl %>%
@@ -489,7 +496,53 @@ bond_cashflow_tbl %>%
       duration_date = as.Date("2019-01-01")
       )
     ) %>%
-  select(currency, segment_duration)
+  transmute(currency, duration = round(segment_duration, 3)) %>%
+  datatable()
+```
+
+We also want to be able to divide the portfolio by other factors, and so we
+want to join that data onto the cashflow data.
+
+```{r append_company_data, echo=TRUE}
+cashflow_full_tbl <- bond_cashflow_tbl %>%
+  left_join(company_lookup_tbl, by = c("ticker_symbol", "currency"))
+
+cashflow_full_tbl %>% filter(are_na(gics_sector_name))
+
+cashflow_full_tbl %>% glimpse()
+```
+
+We can now calculate the portfolio durations by the various factors we may want
+such as GICS Sector or market cap quintile.
+
+```{r plot_sector_segmented_durations, echo=TRUE}
+cashflow_full_tbl %>%
+  group_nest(currency, gics_sector_name) %>%
+  mutate(
+    segment_duration = map_dbl(
+      data, calculate_cashflow_duration,
+      duration_date = as.Date("2019-01-01")
+      )
+    ) %>%
+  arrange(gics_sector_name, currency) %>%
+  transmute(gics_sector_name, currency, duration = round(segment_duration, 3)) %>%
+  datatable()
+```
+
+And something similar gives us a segmentation by Market Cap.
+
+```{r plot_mktcap_segmented_durations, echo=TRUE}
+cashflow_full_tbl %>%
+  group_nest(currency, mktcap_qn) %>%
+  mutate(
+    segment_duration = map_dbl(
+      data, calculate_cashflow_duration,
+      duration_date = as.Date("2019-01-01")
+      )
+    ) %>%
+  arrange(mktcap_qn, currency) %>%
+  transmute(mktcap_qn, currency, duration = round(segment_duration, 3)) %>%
+  datatable()
 ```
 
 
