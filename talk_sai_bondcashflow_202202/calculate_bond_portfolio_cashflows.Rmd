@@ -1,0 +1,553 @@
+---
+title: "Calculate Bond Portfolio Cashflows"
+author: "Mick Cooney"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(fs)
+library(stringr)
+library(glue)
+library(purrr)
+library(furrr)
+library(DT)
+library(lubridate)
+library(curl)
+library(GICS)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "DT")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+The code for this workbook is available on my GitHub account at the URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+The materials are in the directory `talk_sai_bondcashflow_202202`.
+
+
+# Load Data
+
+We first want to load our datasets and prepare them for some simple association
+rules mining.
+
+## Load Portfolio Data
+
+We load a first example of our portfolio, containing the basic information we
+need to properly account for cashflows.
+
+```{r load_input_data, echo=TRUE}
+portfolio_cols <- cols(
+  issuer        = col_character(),
+  currency      = col_character(),
+  coupon        = col_number(),
+  issued_date   = col_date(format = "%Y-%m-%d"),
+  maturity_date = col_date(format = "%Y-%m-%d"),
+  price         = col_number(),
+  position      = col_integer()
+  )
+
+first_portfolio_tbl <- read_csv(
+    file      = "data/sample_bond_portfolio.csv",
+    na        = c("N/A"),
+    col_types = portfolio_cols
+    ) %>%
+  mutate(
+    ticker_symbol = str_replace(issuer, "^(\\S+) .*", "\\1")    
+    )
+
+first_portfolio_tbl %>% glimpse()
+```
+
+
+## Load Market Capitalisation Data
+
+We will want to segment our bond portfolio by market capitalisation and so
+we load up the market cap data. It is provided by SEC CIK number, so we will
+need to link by this.
+
+```{r load_mktcap_data, echo=TRUE}
+mktcap_cols <- cols(
+  cik_number = col_character(),
+  year       = col_number(),
+  mktcap     = col_double()
+  )
+
+mktcap_tbl <- read_csv(
+  file = "data/company_mktcap.csv",
+  col_types = mktcap_cols
+  )
+
+mktcap_tbl %>% glimpse()
+```
+
+
+
+## Load Company Information
+
+We now load the various data we have on each individual company to help with
+the analysis of the portfolio.
+
+```{r load_company_data, echo=TRUE}
+company_cols <- cols(
+  cik_number    = col_character(),
+  company_name  = col_character(),
+  main_exchange = col_character(),
+  country_code  = col_character(),
+  ticker_symbol = col_character(),
+  gics_code     = col_character()
+  )
+
+company_info_tbl <- read_csv(
+  file      = "data/company_information.csv",
+  na        = c("N/A"),
+  col_types = company_cols
+  )
+
+company_info_tbl %>% glimpse()
+```
+
+The sector information is provided in this data via the GICS code, so we need
+to load the GICS information which is availabe via the `GICS` package.
+
+```{r load_gics_sector_data, echo=TRUE}
+data(standards)
+
+gics_tbl <- standards %>%
+  as_tibble() %>%
+  transmute(
+    gics_code                  = `subindustry id`,
+    gics_sector_code           = `sector id`,
+    gics_sector_name           = `sector name`,
+    gics_industrygroup_code    = `industry group id`,
+    gics_industrygroup_name    = `industry group name`,
+    gics_industry_code         = `industry id`,
+    gics_industry_name         = `industry name`,
+    gics_subindustrygroup_code = `subindustry id`,
+    gics_subindustrygroup_name = `subindustry name`
+    ) %>%
+  mutate(
+    across(everything(), as.character)
+    )
+
+gics_tbl %>% glimpse()
+```
+
+
+## Retrieve Frech-Fama Breakpoints
+
+```{r download_ff_me_breakpoints, echo=TRUE}
+if(file_exists("data/ME_Breakpoints_CSV.zip")) {
+  me_breakpoint_url <- "http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/ME_Breakpoints_CSV.zip"
+  
+  curl_download(me_breakpoint_url, destfile = "data/ME_Breakpoints_CSV.zip")
+}
+```
+
+We now need to process this breakpoint data.
+
+```{r process_ff_breakpoint_data, echo=TRUE}
+read_lines("data/ME_Breakpoints_CSV.zip") %>%
+  enframe(name = "id", value = "line_str") %>%
+  mutate(char_count = map_int(line_str, nchar), .after = id) %>%
+  filter(char_count == 232) %>%
+  pull(line_str) %>%
+  write_lines("data/breakpoints_parsed.csv")
+
+csv_colnames <- c(
+  "datestr", "data_count",
+  "ME00", "ME05", "ME10", "ME15", "ME20",
+  "ME25", "ME30", "ME35", "ME40", "ME45",
+  "ME50", "ME55", "ME60", "ME65", "ME70",
+  "ME75", "ME80", "ME85", "ME90", "ME95"
+  )
+
+csv_cols <- cols(
+  datestr    = col_character(),
+  data_count = col_integer()
+  )
+
+
+me_breakpoint_tbl <- read_csv(
+  file      = "data/breakpoints_parsed.csv",
+  col_names = csv_colnames,
+  col_types = csv_cols
+  )
+
+me_breakpoint_tbl %>% glimpse()
+```
+
+
+## Futures Expiration Dates
+
+We also want to load the expiration dates for futures to assist the hedging of
+currency risks.
+
+```{r load_futures_expiration_date, echo=TRUE}
+expiration_date_tbl <- read_csv(
+  file      = "data/expiration_date.csv",
+  col_types = cols(expiration_date = col_date())
+  )
+
+expiration_date_tbl %>% glimpse()
+```
+
+
+## Process Bond and Company Data
+
+We start by using the French and Fama breakpoints to categorise the size of
+the companies we have data for into distinct groupings.
+
+```{r construct_mktcap_lookup_tbl, echo=TRUE}
+mktcap_breaks_tbl <- me_breakpoint_tbl %>%
+  filter(datestr == "201812") %>%
+  select(datestr, ME20, ME40, ME60, ME80) %>%
+  pivot_longer(
+    !datestr,
+    names_to  = "label",
+    values_to = "breakpoint"
+    )
+
+mktcap_lookup_tbl <- mktcap_tbl %>%
+  transmute(
+    cik_number, mktcap,
+    mktcap_qn = cut(
+      mktcap,
+      breaks = c(0, mktcap_breaks_tbl$breakpoint * 1e6, Inf),
+      labels = c("QN1", "QN2", "QN3", "QN4", "QN5")
+      )
+    )
+
+mktcap_lookup_tbl %>% glimpse()
+```
+
+We then construct a lookup table with all the company information we need to
+segment our bond portfolio. The data comes in a number of pieces and we join
+the data together by whatever common keys we have.
+
+```{r append_gics_sector_data, echo=TRUE}
+company_lookup_tbl <- company_info_tbl %>%
+  left_join(gics_tbl, by = "gics_code") %>%
+  left_join(mktcap_lookup_tbl, by = "cik_number") %>%
+  transmute(
+    ticker_symbol, company_name, main_exchange, country_code,
+    currency = str_c(country_code, "D"),
+    cik_number, gics_sector_name, gics_industrygroup_name, mktcap, mktcap_qn
+    )
+
+company_lookup_tbl %>% glimpse()
+```
+
+
+
+
+# Construct Cashflow Data
+
+To build out the cashflow calculation, we need to use a number of utility
+and helper functions to do this.
+
+## Create Helper Functions
+
+To start, we need a function that determines each of the coupon dates for a
+bond - which is just a sequence of dates six months apart from the date of
+issue of a bond till the bond matures and pas back the par value of the bond.
+
+```{r create_coupon_payment_dates, echo=TRUE}
+create_coupon_payment_dates <- function(init_date, final_date) {
+  max_year <- difftime(final_date, init_date, units = "days") %>%
+    as.numeric() %>%
+    divide_by(183) %>%
+    ceiling()
+
+  coupon_date_tbl <- (init_date %m+% months(6 * 1:max_year)) %>%
+    enframe(name = NULL, value = "cashflow_date") %>%
+    filter(cashflow_date <= final_date)
+  
+  return(coupon_date_tbl)
+}
+```
+
+We also need a function that uses the above function to create the coupon dates
+for the bond and then calculates the coupon payment based on the number of
+owned bonds, the coupon rate and the contract size (typically $1,000 of the
+currency).
+
+
+```{r calculate_cashflow_data, echo=TRUE}
+calculate_cashflow_data <- function(init_date, final_date, position, coupon,
+                                    contract_size = 1000) {
+  
+  par_value      <- position  * contract_size
+  coupon_payment <- par_value * coupon * 0.01 * 0.5
+  
+  coupon_data_tbl <- create_coupon_payment_dates(init_date, final_date) %>%
+    mutate(
+      cashflow_amt = coupon_payment
+      )
+  
+  final_tbl <- tibble(
+    cashflow_date = final_date,
+    cashflow_amt  = par_value
+    )
+  
+  cashflow_tbl <- list(coupon_data_tbl, final_tbl) %>%
+    bind_rows()
+  
+  return(cashflow_tbl)
+}
+```
+
+We now combine all the above functions that we can use along with a table
+of the bond positions that comprise the portfolio and produce cashflows.
+
+We then rearrange the cashflows by date and we now have a function that
+takes a portfolio table as an input, along with a 'start date', and it
+produces a sequence of cashflows from that portfolio.
+
+```{r calculate_portfolio_cashflow_data, echo=TRUE}
+calculate_portfolio_cashflow_data <- function(portfolio_tbl, current_date,
+                                              id_cols = c("issuer")) {
+  cashflow_tbl <- first_portfolio_tbl %>%
+    mutate(
+      cash_data = pmap(
+        list(
+          init_date  = issued_date,
+          final_date = maturity_date,
+          position   = position,
+          coupon     = coupon
+          ),
+        calculate_cashflow_data,
+        contract_size = 1000
+        )
+      ) %>%
+    select(any_of(id_cols), cash_data) %>%
+    unnest(cash_data) %>%
+    filter(cashflow_date >= current_date) %>%
+    arrange(cashflow_date)
+  
+  return(cashflow_tbl)
+}
+```
+
+
+
+## Calculate and Aggregate Cashflows
+
+We now use this function to produce the cashflows based on our portfolio.
+
+```{r calculate_portfolio_cashflows, echo=TRUE}
+bond_cashflow_tbl <- bond_portfolio_tbl %>%
+  calculate_portfolio_cashflow_data(
+    current_date = as.Date("2019-01-01"),
+    id_cols = c("issuer", "ticker_symbol", "currency")
+    )
+
+bond_cashflow_tbl %>% glimpse()
+```
+
+
+We now want to aggregate all these cashflows on a weekly basis to help assess
+the FX risk due to holding bonds in both currencies.
+
+
+
+```{r calculate_weekly_aggregated_cashflows, echo=TRUE}
+friday_dates <- seq(as.Date("2019-01-01"), as.Date("2022-01-01"), by = "day") %>%
+  enframe(name = NULL, value = "date") %>%
+  mutate(
+    day_of_week = format(date, "%a")
+    ) %>%
+  filter(day_of_week == "Fri") %>%
+  pull(date)
+
+
+aggregate_cashflows_tbl <- bond_cashflow_tbl %>%
+  mutate(
+    agg_date = map(cashflow_date, ~ friday_dates[friday_dates >= .x][1]) %>% reduce(c)) %>%
+  group_by(currency, agg_date) %>%
+  summarise(
+    .groups = "drop",
+    
+    agg_cashflow = sum(cashflow_amt)
+    ) %>%
+  arrange(agg_date, currency)
+
+aggregate_cashflows_tbl %>% glimpse()
+```
+
+
+## Calculate Futures Delivery Expirations
+
+We now want to repeat this exercise, aggregating by FX futures delivery dates
+to allow the asset manager to reduce the cost of hedging the FX risk by using
+futures rather than dealing with forwards.
+
+```{r calculate_futures_expiration_cashflows, echo=TRUE}
+expry_dates <- expiration_date_tbl %>% pull(expiration_date)
+
+futures_exposures_tbl <- bond_cashflow_tbl %>%
+  mutate(
+    exposure_date = map(cashflow_date, ~ expry_dates[expry_dates >= .x][1]) %>% reduce(c)
+    ) %>%
+  group_by(exposure_date, currency) %>%
+  mutate(
+    total_exposure = cumsum(cashflow_amt) %>% round(2)
+    ) %>%
+  ungroup()
+
+
+aggregate_cashflows_tbl %>% glimpse()
+```
+
+We now show this table using the `DT` package
+
+```{r display_aggregate_cashflow, echo=TRUE}
+aggregate_cashflows_tbl %>% datatable()
+```
+
+
+## Calculate Portfolio Duration
+
+We want to calculate a quantity known as the Macauley Duration - a way to
+estimate the interest rate risk in the portfolio. This duration is a commonly
+calculated quantity, and is useful for risk management of the portfolio.
+
+```{r calculate_cashflow_duration, echo=TRUE}
+calculate_cashflow_duration <- function(data_tbl, duration_date) {
+  cashflow_duration <- data_tbl %>%
+    filter(cashflow_date > duration_date) %>%
+    mutate(
+      time_diff = difftime(cashflow_date, duration_date, units = "days") %>%
+        divide_by(365.25) %>%
+        as.numeric()
+      ) %>%
+    summarise(
+      .groups = "drop",
+      
+      cashflow_duration = sum(time_diff * cashflow_amt) / sum(cashflow_amt)
+      ) %>%
+    pull(cashflow_duration)
+
+  return(cashflow_duration)
+}
+```
+
+
+We start by calculating the overall duration of the portfolio, split by
+currency.
+
+```{r calculate_total_portfolio_duration, echo=TRUE}
+bond_cashflow_tbl %>%
+  group_nest(currency) %>%
+  mutate(
+    segment_duration = map_dbl(
+      data, calculate_cashflow_duration,
+      duration_date = as.Date("2019-01-01")
+      )
+    ) %>%
+  transmute(currency, duration = round(segment_duration, 3)) %>%
+  datatable()
+```
+
+We also want to be able to divide the portfolio by other factors, and so we
+want to join that data onto the cashflow data.
+
+```{r append_company_data, echo=TRUE}
+cashflow_full_tbl <- bond_cashflow_tbl %>%
+  left_join(company_lookup_tbl, by = c("ticker_symbol", "currency"))
+
+cashflow_full_tbl %>% filter(are_na(gics_sector_name))
+
+cashflow_full_tbl %>% glimpse()
+```
+
+We can now calculate the portfolio durations by the various factors we may want
+such as GICS Sector or market cap quintile.
+
+```{r plot_sector_segmented_durations, echo=TRUE}
+cashflow_full_tbl %>%
+  group_nest(currency, gics_sector_name) %>%
+  mutate(
+    segment_duration = map_dbl(
+      data, calculate_cashflow_duration,
+      duration_date = as.Date("2019-01-01")
+      )
+    ) %>%
+  arrange(gics_sector_name, currency) %>%
+  transmute(gics_sector_name, currency, duration = round(segment_duration, 3)) %>%
+  datatable()
+```
+
+And something similar gives us a segmentation by Market Cap.
+
+```{r plot_mktcap_segmented_durations, echo=TRUE}
+cashflow_full_tbl %>%
+  group_nest(currency, mktcap_qn) %>%
+  mutate(
+    segment_duration = map_dbl(
+      data, calculate_cashflow_duration,
+      duration_date = as.Date("2019-01-01")
+      )
+    ) %>%
+  arrange(mktcap_qn, currency) %>%
+  transmute(mktcap_qn, currency, duration = round(segment_duration, 3)) %>%
+  datatable()
+```
+
+
+# R Environment
+ 
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
