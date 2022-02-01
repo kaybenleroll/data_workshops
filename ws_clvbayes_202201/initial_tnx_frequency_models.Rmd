@@ -91,25 +91,19 @@ customer_transactions_tbl <- read_rds("data/synthdata_singleyear_transactions_tb
 customer_transactions_tbl %>% glimpse()
 ```
 
+We also want to set up a number of parameters for use in this workbook
+
+```{r setup_workbook_parameters, echo=TRUE}
+stan_modeldir <- "stan_models"
+stan_codedir  <-   "stan_code"
+```
+
 
 ## Construct Frequency Data
 
 ```{r construct_frequency_modelling_data, echo=TRUE}
 customer_summarystats_tbl <- customer_transactions_tbl %>%
-  group_by(customer_id) %>%
-  summarise(
-    .groups = "drop",
-    
-    tnx_count    = n(),
-    first_tnx_ts = min(tnx_timestamp),
-    last_tnx_ts  = max(tnx_timestamp),
-    btyd_count   = tnx_count - 1,
-    all_weeks    = 52,
-    tnx_weeks    = difftime(last_tnx_ts, first_tnx_ts, units = "weeks") %>% as.numeric(),
-    tnx_weeks    = if_else(btyd_count > 0, tnx_weeks, 52),    
-    obs_freq     = btyd_count / tnx_weeks,
-    emp_freq     = btyd_count / all_weeks
-    )
+  calculate_transaction_summary_stats()
 
 customer_summarystats_tbl %>% glimpse()
 ```
@@ -158,6 +152,233 @@ id_10000 <- shuffle_tbl %>% head(10000) %>% pull(customer_id) %>% sort()
 We now have a list of `customer_id` values we use to subset the data.
 
 
+# Use of Conjugate Priors
+
+Some combinations of likelihood model and prior distribution combine in a
+convenient way.
+
+In particular, if this combination integrates to a posterior distribution that
+has the same distribution family as the prior, the prior is said to be a
+*conjugate prior* for that likelihood.
+
+The major benefit of this situation is that the integration step can be skipped
+entirely: the result is that the parameters of conjugate prior are combined
+with summary statistics of the observed data to get our posterior distribution.
+
+Most commonly-used likelihood models have conjugate priors, and the Poisson
+distribution has the Gamma as a conjugate prior.
+
+In particular, suppose we have a Gamma distribution prior on $\lambda$:
+
+$$
+\lambda_{prior} \sim \Gamma(r, \alpha)
+$$
+and we observe $x$ events over a period $n$, our posterior distribution for
+$\lambda$ is now.
+
+$$
+\lambda_{post} \sim \Gamma(r + x, \alpha + n)
+$$
+
+## Statistical Inference on Frequency Rates
+
+Suppose we have new customer join our website and observe a number of
+transactions from that customer over the following year. For now, we ignore
+churn and assume the customer was an active customer for that whole year.
+
+How do we combine our prior knowledge and observed transactions to perform
+inference on that customers transaction rate?
+
+From the above section, we see that calculating the posterior distribution
+for $\lambda$ is simple, so we now investigate the consequences of this by
+looking at how different sets of observations and priors combine.
+
+
+## Initial Examples
+
+In terms of our prior distribution, we set our prior based on average
+expectations of the population of interest. Suppose the average customer
+transacts on our site once a month, or once every four weeks.
+
+Since we are using weekly time periods as our reference point, this means that
+if we were calculating a point estimate it would be 0.25.
+
+For the purposes of Bayesian analysis though, this is insufficient - we need a
+distribution for $\lambda$ that captures our prior knowledge.
+
+Narrowing down to a Gamma distribution, the mean for our Gamma is
+
+$$
+\bar{x} = \frac{r}{\alpha}.
+$$
+
+So now we look at a few different parameter combinations with this mean.
+
+```{r construct_gamma_densities, echo=TRUE}
+x_vals <- seq(0.01, 1, by = 0.001)
+
+y1_vals <- dgamma(x_vals, shape =  0.1, rate =  0.4)
+y2_vals <- dgamma(x_vals, shape =  1.0, rate =  4.0)
+y3_vals <- dgamma(x_vals, shape =  2.0, rate =  8.0)
+y4_vals <- dgamma(x_vals, shape = 10.0, rate = 40.0)
+
+plot_tbl <- tibble(
+    x  =  x_vals,
+    `Gamma(0.5, 0.8)` = y1_vals,
+    `Gamma(1, 4)`     = y2_vals,
+    `Gamma(2, 8)`     = y3_vals,
+    `Gamma(5, 25)`    = y4_vals
+    ) %>%
+  pivot_longer(
+    !x,
+    names_to  = "label",
+    values_to = "dens"
+    )
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = x, y = dens, colour = label)) +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Comparison Density Plot for Gamma"
+    )
+```
+
+So we now look at the effect of priors when combined with observed data.
+
+Suppose over the period of a year a customer transacts 13 times in the year -
+this is fully consistent with the prior mean.
+
+```{r gamma_1_4_prior_post_comparison, echo=TRUE}
+x_vals <- seq(0.01, 1, by = 0.001)
+prior_1_4_dens <- dgamma(x_vals, shape = 1, rate = 4)
+post_1_4_dens  <- dgamma(x_vals, shape = 1 + 13, rate = 4 + 52)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = prior_1_4_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_1_4_dens),  colour = "red") +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Prior and Posterior Comparison with Gamma(1, 4) Prior"
+    )
+```
+
+We now construct a similar comparison with a stronger prior on $\lambda$.
+
+```{r gamma_5_20_prior_post_comparison, echo=TRUE}
+x_vals <- seq(0.01, 1, by = 0.001)
+prior_5_20_dens <- dgamma(x_vals, shape = 5, rate = 20)
+post_5_20_dens  <- dgamma(x_vals, shape = 5 + 13, rate = 20 + 52)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = prior_5_20_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_5_20_dens),  colour = "red") +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Prior and Posterior Comparison with Gamma(5, 20) Prior"
+    )
+```
+
+It might be more useful to compare the two posteriors directly - both are based
+on the same observed data.
+
+```{r plot_posterior_distribution_comparison, echo=TRUE}
+ggplot() +
+  geom_line(aes(x = x_vals, y = post_1_4_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_5_20_dens), colour = "red") +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Comparison of Posterior Densities Based on 14 Observed Events"
+    )
+```
+
+
+## Prior and Data Mismatch
+
+It is worth exploring how the prior and data interact when the disagree.
+
+We use a few Gamma priors with a mean value of 0.5 and the same data (13 events
+in 52 weeks) and see what the effect is.
+
+```{r gamma_1_2_prior_post_comparison, echo=TRUE}
+x_vals <- seq(0.01, 1, by = 0.001)
+prior_1_2_dens <- dgamma(x_vals, shape = 1, rate = 2)
+post_1_2_dens  <- dgamma(x_vals, shape = 1 + 13, rate = 2 + 52)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = prior_1_4_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_1_4_dens),  colour = "red") +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Prior and Posterior Comparison with Gamma(1, 2) Prior"
+    )
+```
+
+
+We try a tighter prior around the value (though the weighting is still in
+favour of the data)
+
+
+```{r gamma_5_10_prior_post_comparison, echo=TRUE}
+x_vals <- seq(0.01, 1, by = 0.001)
+prior_5_10_dens <- dgamma(x_vals, shape = 5, rate = 10)
+post_5_10_dens  <- dgamma(x_vals, shape = 5 + 13, rate = 10 + 52)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = prior_5_10_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_5_10_dens),  colour = "red") +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Prior and Posterior Comparison with Gamma(5, 10) Prior"
+    )
+```
+
+We also want to try this with a prior that is "stronger" than the data.
+
+
+```{r gamma_50_100_prior_post_comparison, echo=TRUE}
+x_vals <- seq(0.01, 1, by = 0.001)
+
+prior_50_100_dens <- dgamma(x_vals, shape = 50, rate = 100)
+post_50_100_dens  <- dgamma(x_vals, shape = 50 + 13, rate = 100 + 52)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = prior_50_100_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_50_100_dens),  colour = "red") +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Prior and Posterior Comparison with Gamma(50, 100) Prior"
+    )
+```
+
+
+We finally want to check what happens with a very weak prior in the wrong
+location.
+
+```{r gamma_1_1_prior_post_comparison, echo=TRUE}
+x_vals <- seq(0.01, 1, by = 0.001)
+
+prior_1_1_dens <- dgamma(x_vals, shape = 1, rate = 1)
+post_1_1_dens  <- dgamma(x_vals, shape = 1 + 13, rate = 1 + 52)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = prior_1_1_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_1_1_dens),  colour = "red") +
+  labs(
+    x = "Value",
+    y = "Density",
+    title = "Prior and Posterior Comparison with Gamma(1, 1) Prior"
+    )
+```
+
+
+
 # Construct Flat Frequency Model
 
 For first frequency model we fit each customer's transaction frequency
@@ -204,15 +425,17 @@ We now compile this model using `CmdStanR`.
 ```{r compile_freqmodel_flat_stanmodel, echo=TRUE}
 freqmodel_flat_stanmodel <- cmdstan_model(
   "stan_code/freqmodel_flat.stan",
-  include_paths = "stan_code/",
+  include_paths = stan_codedir,
   pedantic      =  TRUE,
-  dir           = "stan_models/"
+  dir           = stan_codedir
   )
 ```
 
 We then use this compiled model with our data to produce a fit of the data.
 
 ```{r fit_freqmodel_flat_stanmodel, echo=TRUE}
+stan_modelname <- "freqmodel_flat"
+
 stan_data_lst <- fit_1000_data_tbl %>%
   select(customer_id, btyd_count, tnx_weeks = all_weeks) %>%
   compose_data()
@@ -223,8 +446,8 @@ freqmodel_flat_stanfit <- freqmodel_flat_stanmodel$sample(
   iter_warmup     =                  500,
   iter_sampling   =                  500,
   seed            =                  421,
-  output_dir      =        "stan_models",
-  output_basename =     "freqmodel_flat"
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
   )
 
 freqmodel_flat_stanfit$summary()
@@ -288,6 +511,8 @@ ggplot(plotvalid_tbl) +
 We now repeat this model with a larger dataset.
 
 ```{r fit_10k_freqmodel_flat_stanmodel, echo=TRUE}
+stan_modelname <- "freqmodel_flat_10k"
+
 stan_data_lst <- fit_10000_data_tbl %>%
   select(customer_id, btyd_count, tnx_weeks = all_weeks) %>%
   compose_data()
@@ -298,8 +523,8 @@ freqmodel_flat_10k_stanfit <- freqmodel_flat_stanmodel$sample(
   iter_warmup     =                  500,
   iter_sampling   =                  500,
   seed            =                  422,
-  output_dir      =        "stan_models",
-  output_basename = "freqmodel_flat_10k"
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
   )
 
 freqmodel_flat_10k_stanfit$summary()
@@ -359,6 +584,8 @@ We now want to update our approach to use the observed duration of the
 transactions rather than using a constant time period of 52 weeks.
 
 ```{r fit_observed_freqmodel_flat_stanmodel, echo=TRUE}
+stan_modelname <- "freqmodel_flat_obs"
+
 stan_data_lst <- fit_1000_data_tbl %>%
   transmute(customer_id, btyd_count, tnx_weeks) %>%
   compose_data()
@@ -369,8 +596,8 @@ freqmodel_flat_obs_stanfit <- freqmodel_flat_stanmodel$sample(
   iter_warmup     =                  500,
   iter_sampling   =                  500,
   seed            =                  423,
-  output_dir      =        "stan_models",
-  output_basename = "freqmodel_flat_obs"
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
   )
 
 freqmodel_flat_obs_stanfit$summary()
@@ -561,6 +788,89 @@ We will leave repeating the above analysis for the larger datasets as an
 exercise.
 
 
+# Validating the Flat Model
+
+We now turn our attention to validating our model fit.
+
+For the purposes of this work, we work on the dataset of 10,000 customers over
+a subset of the time, then use the model to predict the transaction count for
+the remained of the time period. This should help us validate the quality of
+our model.
+
+For the purposes of this work, we fit our model on the data from the first
+nine months of the year.
+
+```{r construct_10k_data_subset, echo=TRUE}
+break_date <- as.Date("2019-09-30")
+full_weeks <- difftime(break_date, as.Date("2019-01-01"), units = "weeks") %>% as.numeric()
+
+training_tbl <- customer_transactions_tbl %>%
+  filter(
+    customer_id %in% id_10000,
+    tnx_timestamp <= break_date
+    )
+
+training_tbl %>% glimpse()
+
+test_tbl <- customer_transactions_tbl %>%
+  filter(
+    customer_id %in% id_10000,
+    tnx_timestamp > break_date
+    )
+
+test_tbl %>% glimpse()
+```
+
+
+We need to reconstruct the summary statistics
+
+```{r constructing_model_fit, echo=TRUE}
+training_stats_tbl <- training_tbl %>% calculate_transaction_summary_stats()
+training_stats_tbl %>% glimpse()
+
+test_stats_tbl <- test_tbl %>% calculate_transaction_summary_stats()
+test_stats_tbl %>% glimpse()
+```
+
+Now that we have set up our datasets we fit our model on the first nine months
+of the year.
+
+```{r fit_flat_model_subset, echo=TRUE}
+stan_modelname <- "freqmodel_flat_subset"
+
+stan_data_lst <- training_stats_tbl %>%
+  transmute(customer_id, btyd_count, tnx_weeks = full_weeks) %>%
+  compose_data()
+
+freqmodel_flat_subset_stanfit <- freqmodel_flat_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                  424,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+freqmodel_flat_subset_stanfit$summary()
+```
+
+We use our fitted model to predict the transaction frequency for each customer,
+then use this to predict a range of transaction counts for each customer in the
+subsequent three months, finally comparing it to the observed counts.
+
+```{r extract_transaction_frequency_estimates, echo=TRUE}
+freqmodel_flat_subset_predict_tbl <- freqmodel_flat_subset_stanfit %>%
+  recover_types(training_tbl) %>%
+  spread_draws(lambda[customer_id]) %>%
+  ungroup()
+
+freqmodel_flat_subset_predict_tbl %>% glimpse()
+```
+
+
+
+
 
 # Adding Priors to the Model
 
@@ -636,9 +946,9 @@ We now compile this model using `CmdStanR`.
 ```{r compile_freqmodel_prior_stanmodel, echo=TRUE, results="hide"}
 freqmodel_prior_stanmodel <- cmdstan_model(
   "stan_code/freqmodel_prior.stan",
-  include_paths = "stan_code/",
-  pedantic      =  TRUE,
-  dir           = "stan_models/"
+  include_paths = stan_codedir,
+  pedantic      = TRUE,
+  dir           = stan_modeldir
   )
 ```
 
@@ -646,6 +956,8 @@ Having compiled the Stan model, we now fit it with our data.
 
 
 ```{r fit_freqmodel_prior_stanmodel, echo=TRUE}
+stan_modelname <- "freqmodel_prior"
+
 stan_data_lst <- fit_1000_data_tbl %>%
   transmute(customer_id, btyd_count, tnx_weeks) %>%
   compose_data(
@@ -658,9 +970,9 @@ freqmodel_prior_stanfit <- freqmodel_prior_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  424,
-  output_dir      =        "stan_models",
-  output_basename =    "freqmodel_prior"
+  seed            =                  425,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
   )
 
 freqmodel_prior_stanfit$summary()
@@ -789,7 +1101,6 @@ ggplot(plotdata_tbl %>% mutate(customer_id = str_trunc(customer_id, width = 7)))
     axis.text.x = element_text(angle = 90, vjust = 0.5, size = 6),
     legend.position = "bottom"
     )
-
 ```
 
 And we also want to compare the two distributions for the posterior coverage.
@@ -822,67 +1133,6 @@ coverage_stats_tbl %>%
 
 
 
-
-
-
-
-
-
-
-
-
-```
-# Construct Hierarchical Frequency Model
-
-In our previous model, we had to set our hierarchical prior as an input to the
-model, but what if we instead allowed these parameters to be set by the data?
-
-This approach is called a *hierarchical* model, as there is a hierarchy of
-parameters.
-
-# Fit brms Model
-
-To start with we fit our model using `brms` as this provides a large amount
-of infrastructure and additional functionality that may be of use.
-
-#```{r fit_flat_brms_frequency_model, echo=TRUE}
-# freqmodel_flat_brmfit <- brm(
-#   formula = btyd_count ~ offset(log(all_weeks)) + customer_id,
-#   data    = fit_1000_data_tbl,
-#   family  = poisson(),
-#   prior   = c(
-#     set_prior("normal(-1.96, 1.25)", class = "b", lb = 0)
-#     ),
-#   warmup   = 500,
-#   iter     = 1000,
-#   chains   = 4,
-#   seed     = 421
-#   )
-#```
-
-
-Now that we have fit the model we want to see how well our posterior
-distribution is covering the 'correct' values.
-
-#```{r construct_flat_freq_model_check, echo=TRUE}
-# freqmodel_flat_postcheck_tbl <- freqmodel_flat_brmfit %>%
-#   tidy_draws() %>%
-#   pivot_longer(
-#     !c(.chain, .iteration, .draw),
-#     names_prefix = "b_customer_id",
-#     names_to     = "customer_id",
-#     values_to    = "post_freqmean"
-#     ) %>%
-#   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-#   select(.draw, customer_id, customer_lambda, post_freqmean)
-# 
-# 
-# freqmodel_flat_postcheck_qvals_tbl <- freqmodel_flat_postcheck_tbl %>%
-#   calculate_distribution_qvals(post_freqmean, customer_lambda, customer_id)
-# 
-# freqmodel_flat_postcheck_qvals_tbl %>% glimpse()
-#```
-```
 
 
 
