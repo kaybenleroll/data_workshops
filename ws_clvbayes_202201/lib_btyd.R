@@ -15,3 +15,4 @@ calculate_transaction_cbs_data <- function(tnx_data_tbl, last_date) {
 
   return(cbs_data_tbl)
 }
+

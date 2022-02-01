@@ -77,3 +77,24 @@ calculate_medical_summary_stats <- function(population_tbl) {
 
   return(summstat_lst)
 }
+
+
+calculate_transaction_summary_stats <- function(data_tbl) {
+  tnx_stats_tbl <- data_tbl %>%
+  group_by(customer_id) %>%
+    summarise(
+      .groups = "drop",
+
+      tnx_count    = n(),
+      first_tnx_ts = min(tnx_timestamp),
+      last_tnx_ts  = max(tnx_timestamp),
+      btyd_count   = tnx_count - 1,
+      all_weeks    = 52,
+      tnx_weeks    = difftime(last_tnx_ts, first_tnx_ts, units = "weeks") %>% as.numeric(),
+      tnx_weeks    = if_else(btyd_count > 0, tnx_weeks, 52),
+      obs_freq     = btyd_count / tnx_weeks,
+      emp_freq     = btyd_count / all_weeks
+    )
+
+  return(tnx_stats_tbl)
+}
