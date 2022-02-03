@@ -53,6 +53,7 @@ knitr::opts_chunk$set(
   cache      = FALSE,
   warning    = FALSE,
   message    = FALSE,
+#  collapse   =  TRUE,
   fig.height =     8,
   fig.width  =    11
   )
@@ -98,16 +99,17 @@ portfolio_cols <- cols(
   position      = col_integer()
   )
 
-first_portfolio_tbl <- read_csv(
+bond_portfolio_tbl <- read_csv(
     file      = "data/sample_bond_portfolio.csv",
     na        = c("N/A"),
     col_types = portfolio_cols
     ) %>%
   mutate(
-    ticker_symbol = str_replace(issuer, "^(\\S+) .*", "\\1")    
+    ticker_symbol = str_replace(issuer, "^(\\S+) .*", "\\1"),
+    mkt_value     = position * price * 0.01 * 1000
     )
 
-first_portfolio_tbl %>% glimpse()
+bond_portfolio_tbl %>% glimpse()
 ```
 
 
@@ -291,6 +293,55 @@ company_lookup_tbl %>% glimpse()
 
 
 
+# Calculate Aggregate Positions
+
+We want to be able to divide the portfolio by other factors, and so we join
+that data onto the both the main portfolio data and the cashflow data.
+
+
+```{r append_company_data_portfolio, echo=TRUE}
+portfolio_full_tbl <- bond_portfolio_tbl %>%
+  left_join(company_lookup_tbl, by = c("ticker_symbol", "currency"))
+
+portfolio_full_tbl %>% filter(are_na(gics_sector_name))
+portfolio_full_tbl %>% glimpse()
+```
+
+We can now calculate some summarised aggregates of our portfolio, such as the
+total value of the portfolio by segment.
+
+```{r display_portfolio_segments_sector, echo=TRUE}
+portfolio_full_tbl %>% 
+  count(currency, gics_sector_name, wt = mkt_value, name = "total_value") %>%
+  mutate(total_value = round(total_value, 2)) %>%
+  pivot_wider(
+    id_cols     = "gics_sector_name",
+    names_from  = currency,
+    values_from = total_value,
+    values_fill = 0
+    ) %>%
+  arrange(gics_sector_name) %>%
+  datatable()
+```
+
+We now want to show the market value of the segmented portfolio by market cap
+quintile.
+
+```{r display_portfolio_segments_mktcap, echo=TRUE}
+portfolio_full_tbl %>% 
+  count(currency, mktcap_qn, wt = mkt_value, name = "total_value") %>%
+  mutate(total_value = round(total_value, 2)) %>%
+  pivot_wider(
+    id_cols     = "mktcap_qn",
+    names_from  = currency,
+    values_from = total_value,
+    values_fill = 0
+    ) %>%
+  arrange(mktcap_qn) %>%
+  datatable()
+```
+
+
 
 # Construct Cashflow Data
 
@@ -358,7 +409,7 @@ produces a sequence of cashflows from that portfolio.
 ```{r calculate_portfolio_cashflow_data, echo=TRUE}
 calculate_portfolio_cashflow_data <- function(portfolio_tbl, current_date,
                                               id_cols = c("issuer")) {
-  cashflow_tbl <- first_portfolio_tbl %>%
+  cashflow_tbl <- portfolio_tbl %>%
     mutate(
       cash_data = pmap(
         list(
@@ -390,12 +441,24 @@ We now use this function to produce the cashflows based on our portfolio.
 bond_cashflow_tbl <- bond_portfolio_tbl %>%
   calculate_portfolio_cashflow_data(
     current_date = as.Date("2019-01-01"),
-    id_cols = c("issuer", "ticker_symbol", "currency")
+    id_cols = c("issuer", "ticker_symbol", "currency", "mkt_value")
     )
 
 bond_cashflow_tbl %>% glimpse()
 ```
 
+As before, we append this portfolio data to the cashflow data.
+
+```{r append_company_data_cashflow, echo=TRUE}
+cashflow_full_tbl <- bond_cashflow_tbl %>%
+  left_join(company_lookup_tbl, by = c("ticker_symbol", "currency"))
+
+cashflow_full_tbl %>% filter(are_na(gics_sector_name))
+cashflow_full_tbl %>% glimpse()
+```
+
+
+We can now use this data to calculate cashflow-based measures.
 
 We now want to aggregate all these cashflows on a weekly basis to help assess
 the FX risk due to holding bonds in both currencies.
@@ -427,6 +490,34 @@ aggregate_cashflows_tbl %>% glimpse()
 ```
 
 
+## Visualise Monthly Cashflow Data
+
+An important part of this work is to construct helpful visualisations of the
+data to help check for mistakes.
+
+We aggregate our data by currency and month and then plot them.
+
+```{r plot_monthly_currency_cashflows, echo=TRUE}
+plot_tbl <- bond_cashflow_tbl %>%
+  mutate(
+    cashflow_month = zoo::as.yearmon(cashflow_date)
+    ) %>%
+  count(currency, cashflow_month, wt = cashflow_amt, name = "cashflow_total")
+
+ggplot(plot_tbl) +
+  geom_line(aes(x = cashflow_month, y = cashflow_total)) +
+  expand_limits(y = 0) +
+  facet_wrap(vars(currency), nrow = 2, scales = "free_y") +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Cashflow Month",
+    y = "Cashflow Amount",
+    title = "Lineplot of Monthly Cashflows"
+    )
+```
+
+
+
 ## Calculate Futures Delivery Expirations
 
 We now want to repeat this exercise, aggregating by FX futures delivery dates
@@ -437,24 +528,76 @@ futures rather than dealing with forwards.
 expry_dates <- expiration_date_tbl %>% pull(expiration_date)
 
 futures_exposures_tbl <- bond_cashflow_tbl %>%
+  count(currency, cashflow_date, wt = cashflow_amt, name = "date_total") %>%
   mutate(
     exposure_date = map(cashflow_date, ~ expry_dates[expry_dates >= .x][1]) %>% reduce(c)
     ) %>%
-  group_by(exposure_date, currency) %>%
+  group_by(currency, exposure_date) %>%
   mutate(
-    total_exposure = cumsum(cashflow_amt) %>% round(2)
+    total_exposure = cumsum(date_total) %>% round(2)
     ) %>%
   ungroup()
 
-
-aggregate_cashflows_tbl %>% glimpse()
+futures_exposures_tbl %>% glimpse()
 ```
 
 We now show this table using the `DT` package
 
 ```{r display_aggregate_cashflow, echo=TRUE}
-aggregate_cashflows_tbl %>% datatable()
+futures_exposures_tbl %>%
+  pivot_wider(
+    id_cols     = c(currency, cashflow_date, exposure_date),
+    names_from  = currency,
+    values_from = total_exposure,
+    values_fill = 0
+    ) %>%
+  datatable()
 ```
+
+
+We also want to plot the cumulative currency exposures by delivery date and
+we represent the delivery dates by a vertical line.
+
+```{r visualise_cumulative_currency_exposures, echo=TRUE}
+ggplot(futures_exposures_tbl) +
+  geom_line(aes(x = cashflow_date, y = total_exposure)) +
+  geom_vline(aes(xintercept = exposure_date), colour = "red") +
+  facet_wrap(vars(currency), nrow = 2, scales = "free_y") +
+  scale_y_continuous(labels = label_comma(scale = 1e-6)) +
+  labs(
+    x = "Date",
+    y = "Total Exposure (millions)",
+    title = "Visualisation of FX Exposure Aggregated to Delivery Date"
+    )
+```
+
+The above exposure is a bit messy and so we take an alternative approach to
+this where we display the delivery dates as points rather than vertical lines.
+
+
+```{r visualise_cumulative_currency_exposures_points, echo=TRUE}
+exposure_data_tbl <- futures_exposures_tbl %>%
+  group_by(currency, exposure_date) %>%
+  summarise(
+    .groups = "drop",
+    
+    max_exposure = max(total_exposure)
+  )
+
+ggplot() +
+  geom_line(aes(x = cashflow_date, y = total_exposure), 
+            data = futures_exposures_tbl) +
+  geom_point(aes(x = exposure_date, y = max_exposure),
+             data = exposure_data_tbl, colour = "red") +
+  facet_wrap(vars(currency), nrow = 2, scales = "free_y") +
+  scale_y_continuous(labels = label_comma(scale = 1e-6)) +
+  labs(
+    x = "Date",
+    y = "Total Exposure (millions)",
+    title = "Visualisation of FX Exposure Aggregated to Delivery Date"
+    )
+```
+
 
 
 ## Calculate Portfolio Duration
@@ -500,17 +643,10 @@ bond_cashflow_tbl %>%
   datatable()
 ```
 
-We also want to be able to divide the portfolio by other factors, and so we
-want to join that data onto the cashflow data.
 
-```{r append_company_data, echo=TRUE}
-cashflow_full_tbl <- bond_cashflow_tbl %>%
-  left_join(company_lookup_tbl, by = c("ticker_symbol", "currency"))
 
-cashflow_full_tbl %>% filter(are_na(gics_sector_name))
 
-cashflow_full_tbl %>% glimpse()
-```
+### Calculate Duration by Portfolio Segment
 
 We can now calculate the portfolio durations by the various factors we may want
 such as GICS Sector or market cap quintile.
@@ -524,8 +660,14 @@ cashflow_full_tbl %>%
       duration_date = as.Date("2019-01-01")
       )
     ) %>%
-  arrange(gics_sector_name, currency) %>%
   transmute(gics_sector_name, currency, duration = round(segment_duration, 3)) %>%
+  pivot_wider(
+    id_cols     = c(gics_sector_name),
+    names_from  = currency,
+    values_from = duration,
+    values_fill = 0
+    ) %>%
+  arrange(gics_sector_name) %>%
   datatable()
 ```
 
@@ -540,8 +682,156 @@ cashflow_full_tbl %>%
       duration_date = as.Date("2019-01-01")
       )
     ) %>%
-  arrange(mktcap_qn, currency) %>%
   transmute(mktcap_qn, currency, duration = round(segment_duration, 3)) %>%
+  pivot_wider(
+    id_cols     = c(mktcap_qn),
+    names_from  = currency,
+    values_from = duration,
+    values_fill = 0
+    ) %>%
+  arrange(mktcap_qn) %>%
+  datatable()
+```
+
+
+## Calculate Yield to Maturity
+
+We can take a similar approach to calculating *yield-to-maturity*, the discount
+rate at which the net present value of the cashflows is zero.
+
+This quantity is usually available for each bond in the portfolio as part of
+the pricing, but we can also calculate it for any subset of our portfolio.
+
+
+```{r calculate_cashflow_yield_maturity, echo=TRUE}
+calculate_cashflow_yield_maturity <- function(cashflow_tbl, curr_cost,
+                                              curr_date) {
+
+  discount_tbl <- cashflow_tbl %>%
+    mutate(
+      tdiff = difftime(cashflow_date, curr_date, units = "days") %>%
+        as.numeric() %>%
+        divide_by(365.25)
+      )
+
+  calculate_npv <- function(int_rate) {
+    npv <- discount_tbl %>%
+      mutate(
+        discounted = cashflow_amt * exp(-int_rate * tdiff)
+      ) %>%
+      summarise(
+        disc_cashflow = sum(discounted)
+      ) %>%
+      pull(disc_cashflow) %>%
+      subtract(curr_cost)
+
+    return(npv)
+  }
+
+
+  optim_val <- optimise(function(x) abs(calculate_npv(x)), interval = c(0, 1))
+
+  return(optim_val$minimum)
+}
+```
+
+We now want to calculate the *yield to maturity* for each of the bonds.
+
+```{r calculate_bond_yield_maturity, echo=TRUE}
+bond_portfolio_ytm_tbl <- cashflow_full_tbl %>%
+  select(
+    issuer, ticker_symbol, currency, mkt_value, gics_sector_name, mktcap_qn,
+    cashflow_date, cashflow_amt
+    ) %>%
+  group_nest(
+    issuer, ticker_symbol, currency, mkt_value, gics_sector_name, mktcap_qn
+    ) %>%
+  mutate(
+    ytm = map2_dbl(
+      data, mkt_value,
+      calculate_cashflow_yield_maturity, 
+      curr_date = as.Date("2019-01-01")
+      )
+    ) %>%
+  select(
+    issuer, ticker_symbol, currency, mkt_value, gics_sector_name, mktcap_qn,
+    ytm
+    )
+
+bond_portfolio_ytm_tbl %>% glimpse()
+```
+
+Now that we have calculated the yield to maturity for each of the bonds in the
+portfolio we now want to visualise this data so we can get a sense of the
+dispersion.
+
+```{r plot_portfolio_sector_ytm, echo=TRUE}
+ggplot(bond_portfolio_ytm_tbl) +
+  geom_point(aes(x = gics_sector_name, y = ytm)) +
+  expand_limits(y = 0) +
+  labs(
+    x = "GICS Sector",
+    y = "Yield to Maturity",
+    title = "Yield to Maturity by Sector"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+We now want to calculate the segment yield to maturity on the book.
+
+```{r calculate_sector_segmented_ytm, echo=TRUE}
+sector_ytm_tbl <- cashflow_full_tbl %>%
+  nest(data = c(cashflow_date, cashflow_amt)) %>%
+  group_by(currency, gics_sector_name) %>%
+  mutate(segment_value = sum(mkt_value)) %>%
+  ungroup() %>%
+  unnest(data) %>%
+  group_nest(currency, gics_sector_name, segment_value) %>%
+  mutate(
+    ytm = map2_dbl(
+      data, segment_value,
+      calculate_cashflow_yield_maturity,
+      curr_date = as.Date("2019-01-01")
+      )
+    )
+
+sector_ytm_tbl %>%
+  mutate(ytm = round(ytm, 4)) %>%
+  pivot_wider(
+    id_cols     = gics_sector_name,
+    names_from  = currency,
+    values_from = ytm,
+    values_fill = 0
+    ) %>%
+  datatable()
+```
+
+Finally, we repeat the process with the market cap quintiles.
+
+```{r calculate_mktcap_segmented_ytm, echo=TRUE}
+mktcap_ytm_tbl <- cashflow_full_tbl %>%
+  nest(data = c(cashflow_date, cashflow_amt)) %>%
+  group_by(currency, mktcap_qn) %>%
+  mutate(segment_value = sum(mkt_value)) %>%
+  ungroup() %>%
+  unnest(data) %>%
+  group_nest(currency, mktcap_qn, segment_value) %>%
+  mutate(
+    ytm = map2_dbl(
+      data, segment_value,
+      calculate_cashflow_yield_maturity,
+      curr_date = as.Date("2019-01-01")
+      )
+    )
+
+mktcap_ytm_tbl %>%
+  mutate(ytm = round(ytm, 4)) %>%
+  pivot_wider(
+    id_cols     = mktcap_qn,
+    names_from  = currency,
+    values_from = ytm,
+    values_fill = 0
+    ) %>%
   datatable()
 ```
 
