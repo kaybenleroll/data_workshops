@@ -67,6 +67,11 @@ set.seed(42)
 plan(multisession)
 ```
 
+The code and materials this workshop is available on GitHub at this URL:
+
+https://github.com/kaybenleroll/data_workshops
+
+
 
 # Load Data
 
@@ -96,6 +101,7 @@ company_information_tbl %>% glimpse()
 
 # Construct Bond Portfolio
 
+We now want to construct the first bond portfolio for use in the workshop.
 
 ```{r construct_bond_portfolio, echo=TRUE}
 current_date  <- as.Date("2019-01-01")
@@ -131,34 +137,50 @@ generate_issued_date <- function(maturity_date, base_date, max_years = 5) {
 }
 
 
-bond_portfolio_tbl <- company_information_tbl %>%
-  slice_sample(n = nrow(.), replace = FALSE) %>%
-  head(250) %>%
-  mutate(
-    position      = rnbinom(n(), mu = 200, size = 25),
-    coupon        = sample(coupon_values, size = n(), replace = TRUE),
-    price         = rlnorm(
-      n(),
-      meanlog = log(100) - (0.5 * 0.05 * 0.05),
-      sdlog   = 0.05) %>% round(2),
-    maturity_date = generate_maturity_date(
-      n(),
-      min_maturity = 1,
-      max_maturity = 5,
-      base_date    = current_date),
-    issued_date   = generate_issued_date(
-      maturity_date,
-      base_date = current_date,
-      max_years = 5),
-    issuer = glue(
-      "{ticker_symbol} {coupon_label} {mat_date}",
-      coupon_label = round(coupon, 3) %>% str_replace("\\.0+$", ""),
-      mat_date     = format(maturity_date, "%m/%d/%Y")
-      ) %>% as.character(),
-    currency = str_c(country_code, "D", sep = "")
-    ) %>%
-  select(
-    issuer, currency, position, price, coupon, issued_date, maturity_date
+generate_bond_portfolio <- function(n_size, company_data_tbl, current_date,
+                                    position_rng,
+                                    coupon_values = seq(5, 10, by = 0.125)
+                                    ) {
+
+  sample_portfolio_tbl <- company_data_tbl %>%
+    slice_sample(n = nrow(.), replace = FALSE) %>%
+    head(n_size) %>%
+    mutate(
+      position      = position_rng(n()),
+      coupon        = sample(coupon_values, size = n(), replace = TRUE),
+      price         = rlnorm(
+        n(),
+        meanlog = log(100) - (0.5 * 0.05 * 0.05),
+        sdlog   = 0.05) %>% round(2),
+      maturity_date = generate_maturity_date(
+        n(),
+        min_maturity = 1,
+        max_maturity = 5,
+        base_date    = current_date),
+      issued_date   = generate_issued_date(
+        maturity_date,
+        base_date = current_date,
+        max_years = 5),
+      issuer = glue(
+        "{ticker_symbol} {coupon_label} {mat_date}",
+        coupon_label = round(coupon, 3) %>% str_replace("\\.0+$", ""),
+        mat_date     = format(maturity_date, "%m/%d/%Y")
+        ) %>% as.character(),
+      currency = str_c(country_code, "D", sep = "")
+      ) %>%
+    select(
+      issuer, currency, position, price, coupon, issued_date, maturity_date
+      )
+
+  return(sample_portfolio_tbl)    
+}
+
+bond_portfolio_tbl <- generate_bond_portfolio(
+    n_size           = 250,
+    company_data_tbl = company_information_tbl,
+    current_date     = current_date,
+    position_rng     = function(n_pos) rnbinom(n_pos, mu = 200, size = 25),
+    coupon_values    = seq(5, 10, by = 0.125)
     )
 
 bond_portfolio_tbl %>% write_csv("data/sample_bond_portfolio.csv")
@@ -166,7 +188,22 @@ bond_portfolio_tbl %>% write_csv("data/sample_bond_portfolio.csv")
 
 
 
+# Construct Alternative Bond Portfolio
 
+We now want to construct a completely different portfolio to illustrate the
+ability of the code to work on multiple inputs.
+
+```{r generate_alternative_portfolio, echo=TRUE}
+alt_portfolio_tbl <- generate_bond_portfolio(
+    n_size           = 500,
+    company_data_tbl = company_information_tbl,
+    current_date     = current_date,
+    coupon_values    = seq(5, 10, by = 0.125),
+    position_rng     = function(n) rnbinom(n, mu = 300, size = 25)
+    )
+
+alt_portfolio_tbl %>% write_csv("data/alt1_bond_portfolio.csv")
+```
 
 
 
