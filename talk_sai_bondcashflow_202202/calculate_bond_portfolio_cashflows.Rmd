@@ -660,8 +660,14 @@ cashflow_full_tbl %>%
       duration_date = as.Date("2019-01-01")
       )
     ) %>%
-  arrange(gics_sector_name, currency) %>%
   transmute(gics_sector_name, currency, duration = round(segment_duration, 3)) %>%
+  pivot_wider(
+    id_cols     = c(gics_sector_name),
+    names_from  = currency,
+    values_from = duration,
+    values_fill = 0
+    ) %>%
+  arrange(gics_sector_name) %>%
   datatable()
 ```
 
@@ -676,8 +682,14 @@ cashflow_full_tbl %>%
       duration_date = as.Date("2019-01-01")
       )
     ) %>%
-  arrange(mktcap_qn, currency) %>%
   transmute(mktcap_qn, currency, duration = round(segment_duration, 3)) %>%
+  pivot_wider(
+    id_cols     = c(mktcap_qn),
+    names_from  = currency,
+    values_from = duration,
+    values_fill = 0
+    ) %>%
+  arrange(mktcap_qn) %>%
   datatable()
 ```
 
