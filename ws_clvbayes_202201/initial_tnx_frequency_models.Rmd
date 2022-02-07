@@ -43,6 +43,7 @@ library(tidybayes)
 
 
 source("lib_utils.R")
+source("lib_btyd.R")
 
 conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
@@ -427,7 +428,7 @@ freqmodel_flat_stanmodel <- cmdstan_model(
   "stan_code/freqmodel_flat.stan",
   include_paths = stan_codedir,
   pedantic      =  TRUE,
-  dir           = stan_codedir
+  dir           = stan_modeldir
   )
 ```
 
@@ -473,7 +474,7 @@ freqmodel_flat_validation_tbl <- freqmodel_flat_stanfit %>%
   spread_draws(lambda[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(customer_id, post_lambda = lambda, customer_lambda)
+  select(customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda)
 
 freqmodel_flat_validation_tbl %>% glimpse()
 ```
@@ -548,7 +549,7 @@ freqmodel_flat_10k_validation_tbl <- freqmodel_flat_10k_stanfit %>%
   spread_draws(lambda[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(customer_id, post_lambda = lambda, customer_lambda)
+  select(customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda)
 
 freqmodel_flat_10k_validation_tbl %>% glimpse()
 ```
@@ -614,7 +615,7 @@ freqmodel_flat_obs_validation_tbl <- freqmodel_flat_obs_stanfit %>%
   spread_draws(lambda[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(customer_id, post_lambda = lambda, customer_lambda)
+  select(customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda)
 
 freqmodel_flat_obs_validation_tbl %>% glimpse()
 ```
@@ -788,87 +789,6 @@ We will leave repeating the above analysis for the larger datasets as an
 exercise.
 
 
-# Validating the Flat Model
-
-We now turn our attention to validating our model fit.
-
-For the purposes of this work, we work on the dataset of 10,000 customers over
-a subset of the time, then use the model to predict the transaction count for
-the remained of the time period. This should help us validate the quality of
-our model.
-
-For the purposes of this work, we fit our model on the data from the first
-nine months of the year.
-
-```{r construct_10k_data_subset, echo=TRUE}
-break_date <- as.Date("2019-09-30")
-full_weeks <- difftime(break_date, as.Date("2019-01-01"), units = "weeks") %>% as.numeric()
-
-training_tbl <- customer_transactions_tbl %>%
-  filter(
-    customer_id %in% id_10000,
-    tnx_timestamp <= break_date
-    )
-
-training_tbl %>% glimpse()
-
-test_tbl <- customer_transactions_tbl %>%
-  filter(
-    customer_id %in% id_10000,
-    tnx_timestamp > break_date
-    )
-
-test_tbl %>% glimpse()
-```
-
-
-We need to reconstruct the summary statistics
-
-```{r constructing_model_fit, echo=TRUE}
-training_stats_tbl <- training_tbl %>% calculate_transaction_summary_stats()
-training_stats_tbl %>% glimpse()
-
-test_stats_tbl <- test_tbl %>% calculate_transaction_summary_stats()
-test_stats_tbl %>% glimpse()
-```
-
-Now that we have set up our datasets we fit our model on the first nine months
-of the year.
-
-```{r fit_flat_model_subset, echo=TRUE}
-stan_modelname <- "freqmodel_flat_subset"
-
-stan_data_lst <- training_stats_tbl %>%
-  transmute(customer_id, btyd_count, tnx_weeks = full_weeks) %>%
-  compose_data()
-
-freqmodel_flat_subset_stanfit <- freqmodel_flat_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                  424,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
-  )
-
-freqmodel_flat_subset_stanfit$summary()
-```
-
-We use our fitted model to predict the transaction frequency for each customer,
-then use this to predict a range of transaction counts for each customer in the
-subsequent three months, finally comparing it to the observed counts.
-
-```{r extract_transaction_frequency_estimates, echo=TRUE}
-freqmodel_flat_subset_predict_tbl <- freqmodel_flat_subset_stanfit %>%
-  recover_types(training_tbl) %>%
-  spread_draws(lambda[customer_id]) %>%
-  ungroup()
-
-freqmodel_flat_subset_predict_tbl %>% glimpse()
-```
-
-
 
 
 
@@ -996,7 +916,7 @@ freqmodel_prior_validation_tbl <- freqmodel_prior_stanfit %>%
   spread_draws(lambda[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
-  select(customer_id, post_lambda = lambda, customer_lambda)
+  select(customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda)
 
 freqmodel_prior_validation_tbl %>% glimpse()
 ```
@@ -1132,7 +1052,523 @@ coverage_stats_tbl %>%
 ```
 
 
+## Fitting with an Alternative Prior 
 
+We fit the model again with a narrower prior on `lambda` to investigate the
+effect of this.
+
+
+```{r fit_freqmodel_prior_2_stanmodel, echo=TRUE}
+stan_modelname <- "freqmodel_prior_2"
+
+stan_data_lst <- fit_1000_data_tbl %>%
+  transmute(customer_id, btyd_count, tnx_weeks) %>%
+  compose_data(
+    r     =  1,
+    alpha =  4
+    )
+
+freqmodel_prior_2_stanfit <- freqmodel_prior_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                  425,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+freqmodel_prior_2_stanfit$summary()
+```
+
+Having fitted our model we now run our HMC diagnostics.
+
+```{r calculate_freqmodel_prior_2_hmc_diagnostics, echo=TRUE}
+freqmodel_prior_stanfit$cmdstan_diagnose()
+```
+
+
+We repeat our validation exercise from before, comparing the outputs of the
+posterior distribution for each `lambda` against the known true value.
+
+```{r construct_freqmodel_prior_2_validation, echo=TRUE}
+freqmodel_prior_2_validation_tbl <- freqmodel_prior_2_stanfit %>%
+  recover_types(fit_1000_data_tbl) %>%
+  spread_draws(lambda[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda)
+
+freqmodel_prior_2_validation_tbl %>% glimpse()
+```
+
+We now calculate the q-values of each parameter against the posterior
+distribution and plot a histogram of these q-values.
+
+```{r calculate_freqmodel_prior_2_qvalues, echo=TRUE}
+plotvalid_tbl <- freqmodel_prior_2_validation_tbl %>%
+  calculate_distribution_qvals(post_lambda, customer_lambda)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+```
+
+
+## Construct the Comparison Plot
+
+Once again we now construct the data to plot out the comparisons.
+
+```{r combine_posterior_distribs, echo=TRUE}
+comparison_distrib_tbl <- list(
+    `Flat`    = freqmodel_flat_obs_validation_tbl,
+    `Prior 1` = freqmodel_prior_validation_tbl,
+    `Prior 2` = freqmodel_prior_2_validation_tbl
+    ) %>%
+  bind_rows(.id = "label")
+
+comparison_distrib_tbl %>% glimpse()
+```
+
+We now can compare the outputs of the two posterior distributions based on
+using a uniform prior and Gamma prior.
+
+```{r construct_allmodel_comparison_summary_data, echo=TRUE}
+comparison_summary_tbl <- comparison_distrib_tbl %>%
+  group_by(label, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    labels = c("q10", "q25", "q50", "q75", "q90", "mean", "customer_lambda"),
+    vals   = c(quantile(post_lambda, probs = c(0.1, 0.25, 0.50, 0.75, 0.90)),
+               mean(post_lambda),
+               unique(customer_lambda))
+    ) %>%
+  pivot_wider(
+    names_from  = labels,
+    values_from = vals
+    )
+
+comparison_summary_tbl %>% glimpse()
+```
+
+Now that we have summary stats of the two distributions we segment our data
+into the different groups of known values for `lambda` and then plot the
+range of values for the different distributions.
+
+
+```{r construct_allmodel_segmented_comparison_summary, echo=TRUE}
+plotdata_tbl <- comparison_summary_tbl %>%
+  mutate(
+    lambda_segment = case_when(
+      (customer_lambda > 0.00 & customer_lambda <= 0.30) ~ "SEG1",
+      (customer_lambda > 0.30 & customer_lambda <= 0.60) ~ "SEG2",
+      (customer_lambda > 0.60 & customer_lambda <= 0.90) ~ "SEG3",
+      (customer_lambda > 0.90 & customer_lambda <= 1.20) ~ "SEG4",
+      (customer_lambda > 1.20)                           ~ "SEG5",
+      TRUE ~ "ERROR"
+      )
+    ) %>%
+  group_nest(lambda_segment) %>%
+  mutate(
+    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 10))
+    ) %>%
+  select(lambda_segment, sample_data) %>%
+  unnest(sample_data) %>%
+  unnest(data)
+
+
+ggplot(plotdata_tbl %>% mutate(customer_id = str_trunc(customer_id, width = 7))) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = q10, ymax = q90, colour = label),
+    position = position_dodge(width = 0.75), width = 0, size = 0.5) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = q25, ymax = q75, colour = label),
+    position = position_dodge(width = 0.75), width = 0, size = 1) +
+  geom_point(
+    aes(x = customer_id, y = customer_lambda)) +
+  facet_wrap(vars(lambda_segment), scales = "free") +
+  labs(
+    x = "Customer ID",
+    y = "Frequency Rate",
+    colour = "Distribution"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, size = 6),
+    legend.position = "bottom"
+    )
+```
+
+And we also want to compare the two distributions for the posterior coverage.
+
+```{r calculate_allmodel_coverage_ratios, echo=TRUE}
+coverage_stats_tbl <- comparison_summary_tbl %>%
+  mutate(
+    up_50 = customer_lambda > q75,
+    dn_50 = customer_lambda < q25,
+    up_80 = customer_lambda < q10,
+    dn_80 = customer_lambda > q90,
+    cover_50 = (!up_50 & !dn_50),
+    cover_80 = (!up_80 & !dn_80)
+    )
+
+coverage_stats_tbl %>%
+  group_by(label) %>%
+  summarise(
+    .groups = "drop",
+
+    prop_50 = sum(cover_50) / n(),
+    prop_80 = sum(cover_80) / n(),
+
+    prop_up50 = sum(up_50) / n(),
+    prop_dn50 = sum(dn_50) / n(),
+    prop_up80 = sum(up_80) / n(),
+    prop_dn80 = sum(dn_80) / n()
+    )
+```
+
+
+# Validating the Frequency Models
+
+We now turn our attention to validating our model fits.
+
+For the purposes of this work, we work on the dataset of 10,000 customers over
+a subset of the time, then use the model to predict the transaction count for
+the remainder of the time period. This should help us validate the quality of
+our model.
+
+For the purposes of this work, we fit our model on the data from the first
+nine months of the year.
+
+```{r construct_10k_data_subset, echo=TRUE}
+break_date <- as.Date("2019-09-30")
+full_weeks <- difftime(break_date, as.Date("2019-01-01"), units = "weeks") %>% as.numeric()
+
+training_tbl <- customer_transactions_tbl %>%
+  filter(
+    customer_id %in% id_10000,
+    tnx_timestamp <= break_date
+    )
+
+training_tbl %>% glimpse()
+
+test_tbl <- customer_transactions_tbl %>%
+  filter(
+    customer_id %in% id_10000,
+    tnx_timestamp > break_date
+    )
+
+test_tbl %>% glimpse()
+```
+
+
+We need to reconstruct the summary statistics
+
+```{r constructing_model_fit, echo=TRUE}
+training_stats_tbl <- training_tbl %>%
+  calculate_transaction_summary_stats() %>%
+  transmute(
+    customer_id, tnx_weeks = full_weeks, btyd_count
+    )
+
+training_stats_tbl %>% glimpse()
+
+test_stats_tbl <- test_tbl %>% calculate_transaction_summary_stats()
+test_stats_tbl %>% glimpse()
+```
+
+
+## Validating the Flat Model Fit
+
+Now that we have set up our datasets we fit our model on the first nine months
+of the year.
+
+This is the exact same model as before, so we do not need to recompile the
+Stan model, we just fit it with the subsetted data.
+
+```{r fit_flat_model_subset, echo=TRUE}
+stan_modelname <- "freqmodel_flat_subset"
+
+stan_data_lst <- training_stats_tbl %>%
+  compose_data()
+
+freqmodel_flat_subset_stanfit <- freqmodel_flat_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                  424,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+freqmodel_flat_subset_stanfit$summary()
+```
+
+We use our fitted model to predict the transaction frequency for each customer,
+then use this to predict a range of transaction counts for each customer in the
+subsequent three months, finally comparing it to the observed counts.
+
+```{r extract_transaction_frequency_estimates, echo=TRUE}
+tnx_window <- difftime(as.Date("2019-12-31"), as.Date("2019-10-01"), units = "weeks") %>%
+  as.numeric()
+
+freqmodel_flat_subset_predict_tbl <- freqmodel_flat_subset_stanfit %>%
+  recover_types(training_stats_tbl) %>%
+  spread_draws(lambda[customer_id]) %>%
+  ungroup() %>%
+  mutate(
+    pred_count = rpois(n(), lambda = lambda * tnx_window)
+    )
+
+freqmodel_flat_subset_predict_tbl %>% glimpse()
+```
+
+As we did before, we now combine these predicted transaction counts with what
+was observed the dataset and we see if the q-values give us a uniform
+distribution across customers.
+
+```{r plot_customer_tnx_count_validation, echo=TRUE}
+freqmodel_flat_predict_valid_tbl <- freqmodel_flat_subset_predict_tbl %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  left_join(test_stats_tbl, by = "customer_id") %>%
+  select(customer_id, draw_id = .draw, customer_lambda, lambda, pred_count, obs_count = btyd_count) %>%
+  replace_na(list(obs_count = 0))
+
+freqmodel_flat_predict_valid_tbl %>% glimpse()
+```
+
+We now use this data to construct a histogram of the q-vals and compare that
+with what we would expect from a uniform distribution.
+
+We first start by comparing the posterior distribution of `lambda` with the
+known underlying value we used to generate the data.
+
+```{r plot_freqmodel_flat_lambda_validation, echo=TRUE}
+plotvalid_tbl <- freqmodel_flat_predict_valid_tbl %>%
+  calculate_distribution_qvals(lambda, customer_lambda, customer_id)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for Simulated Transaction Frequencies"
+    )
+```
+
+We can also repeat this analysis for the observed transaction counts.
+
+```{r plot_freqmodel_flat_count_validation, echo=TRUE}
+plotvalid_tbl <- freqmodel_flat_predict_valid_tbl %>%
+  calculate_distribution_qvals(pred_count, obs_count, customer_id, customer_lambda)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for Simulated Transaction Counts"
+    )
+```
+
+
+As this work will be repeated for multiple models, we wrap all the above logic
+into a function `validate_frequency_model` to perform the various steps
+required to construct the validation data, and we need some tables of data
+set up as well.
+
+
+```{r construct_validation_input_datasets, echo=TRUE}
+customer_lambda_tbl <- customer_simparams_tbl %>% 
+  select(customer_id, customer_lambda)
+
+obs_data_tbl <- test_stats_tbl %>%
+  select(customer_id, obs_count = tnx_count)
+
+input_validation_tbl <- training_stats_tbl %>%
+  inner_join(customer_lambda_tbl, by = "customer_id") %>%
+  left_join(obs_data_tbl, by = "customer_id") %>%
+  replace_na(
+    list(obs_count = 0)
+    ) %>%
+  transmute(
+    customer_id     = customer_id,
+    customer_lambda = customer_lambda,
+    tnx_window      = tnx_window,
+    obs_count       = obs_count
+    )
+
+input_validation_tbl %>% glimpse()
+```
+
+
+
+
+## Validating Out-of-Sample Frequency Models
+
+As we will be repeating the above logic for each of the models constructed, we
+write a function called `validate_frequency_model` to construct this data and
+allow us to compare multiple models at once.
+
+We now need to refit these models with our 'training' data like we did before
+with our `flat` model in the previous section.
+
+### Gamma(0.25, 1) Prior
+
+We refit our models with a Gamma prior with fixed parameters, first fitting
+with a $\Gamma(0.25, 1)$ prior.
+
+```{r fit_freqmodel_prior_subset, echo=TRUE}
+stan_modelname <- "freqmodel_prior_subset"
+
+stan_data_lst <- training_stats_tbl %>%
+  compose_data(
+    r     =  0.25,
+    alpha =     1
+    )
+
+freqmodel_prior_subset_stanfit <- freqmodel_prior_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                  424,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+freqmodel_prior_subset_stanfit$summary()
+```
+
+Having fit with this data, we need to check the HMC diagnostics.
+
+```{r check_freqmodel_prior_subset_diagnostics, echo=TRUE}
+freqmodel_prior_subset_stanfit$cmdstan_diagnose()
+```
+
+### Gamma(1, 4) Prior
+
+We also refit the model with the less diffused $\Gamma(1, 4)$ prior.
+
+
+```{r fit_freqmodel_prior_2_subset, echo=TRUE}
+stan_modelname <- "freqmodel_prior_2_subset"
+
+stan_data_lst <- training_stats_tbl %>%
+  compose_data(
+    r     =  1,
+    alpha =  4
+    )
+
+freqmodel_prior_2_subset_stanfit <- freqmodel_prior_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                  424,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+freqmodel_prior_2_subset_stanfit$summary()
+```
+
+And as before we check the HMC diagnostics.
+
+```{r check_freqmodel_prior_2_subset_diagnostics, echo=TRUE}
+freqmodel_prior_2_subset_stanfit$cmdstan_diagnose()
+```
+
+
+
+### Construct Model Comparison Plots
+
+We now use each of these fitted models to construct a comparison dataset,
+comparing both the known `lambda` value and observed transaction count against
+the posterior distributions for both those values.
+
+```{r construct_fit_comparison_data, echo=TRUE}
+fit_comparison_tbl <- list(
+    `Flat Prior`     = freqmodel_flat_subset_stanfit,
+    `Gamma(0.25, 1)` = freqmodel_prior_subset_stanfit,
+    `Gamma(1, 4)`    = freqmodel_prior_2_subset_stanfit
+    ) %>%
+  enframe(name = "model_label", value = "stanfit") %>%
+  mutate(
+    valid_data = map(
+      stanfit, validate_frequency_model,
+      input_data_tbl = input_validation_tbl
+      )
+    )
+
+fit_comparison_tbl %>% glimpse()  
+```
+
+
+We now now use these datasets and our other validation routines to check the
+`q-vals` for both `lambda` and transaction count.
+
+```{r construct_comparison_dataset_unnested, echo=TRUE}
+validation_data_tbl <- fit_comparison_tbl %>%
+  select(model_label, valid_data) %>%
+  unnest(valid_data)
+
+validation_data_tbl %>% glimpse()
+```
+
+First we plot the comparison histograms for `lambda`:
+
+```{r construct_lambda_comparison_histograms, echo=TRUE}
+valid_lambda_tbl <- validation_data_tbl %>%
+  calculate_distribution_qvals(post_lambda, customer_lambda, model_label, customer_id)
+
+ggplot(valid_lambda_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = 200), colour = "red") +
+  facet_wrap(vars(model_label), ncol = 1) +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Comparison Histogram of q-vals for Lambda"
+  )
+```
+
+```{r construct_count_comparison_histograms, echo=TRUE}
+valid_count_tbl <- validation_data_tbl %>%
+  calculate_distribution_qvals(pred_count, obs_count, model_label, customer_id)
+
+ggplot(valid_count_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = 200), colour = "red") +
+  facet_wrap(vars(model_label), ncol = 1) +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Comparison Histogram of q-vals for Count"
+  )
+```
+
+
+# Write Data to Disk
+
+We now want to write a number of these values to disk
+
+```{r write_to_disk, echo=TRUE}
+id_1000  %>% write_rds("data/id_1000.rds")
+id_5000  %>% write_rds("data/id_5000.rds")
+id_10000 %>% write_rds("data/id_10000.rds")
+
+customer_summarystats_tbl %>% write_rds("data/synthdata_singleyear_summarystats_tbl.rds")
+comparison_distrib_tbl    %>% write_rds("data/synthdata_singleyear_comparison_distrib_tbl.rds")
+```
 
 
 
