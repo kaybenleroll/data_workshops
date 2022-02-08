@@ -1310,6 +1310,13 @@ freqmodel_flat_subset_stanfit <- freqmodel_flat_stanmodel$sample(
 freqmodel_flat_subset_stanfit$summary()
 ```
 
+We need to check the HMC diagnostics for this fit.
+
+```{r check_freqmodel_flat_subset_diagnostics, echo=TRUE}
+freqmodel_flat_subset_stanfit$cmdstan_diagnose()
+```
+
+
 We use our fitted model to predict the transaction frequency for each customer,
 then use this to predict a range of transaction counts for each customer in the
 subsequent three months, finally comparing it to the observed counts.
@@ -1567,7 +1574,7 @@ id_5000  %>% write_rds("data/id_5000.rds")
 id_10000 %>% write_rds("data/id_10000.rds")
 
 customer_summarystats_tbl %>% write_rds("data/synthdata_singleyear_summarystats_tbl.rds")
-comparison_distrib_tbl    %>% write_rds("data/synthdata_singleyear_comparison_distrib_tbl.rds")
+validation_data_tbl       %>% write_rds("data/synthdata_singleyear_subset_comparison_distrib_tbl.rds")
 ```
 
 
