@@ -306,6 +306,7 @@ in 52 weeks) and see what the effect is.
 
 ```{r gamma_1_2_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
+
 prior_1_2_dens <- dgamma(x_vals, shape = 1, rate = 2)
 post_1_2_dens  <- dgamma(x_vals, shape = 1 + 13, rate = 2 + 52)
 
@@ -326,6 +327,7 @@ favour of the data)
 
 ```{r gamma_5_10_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
+
 prior_5_10_dens <- dgamma(x_vals, shape = 5, rate = 10)
 post_5_10_dens  <- dgamma(x_vals, shape = 5 + 13, rate = 10 + 52)
 
@@ -393,9 +395,7 @@ time and construct a dataset used to fit these models.
 
 ```{r construct_fit_1000_data, echo=TRUE}
 fit_1000_data_tbl <- customer_summarystats_tbl %>%
-  filter(
-    customer_id %in% id_1000
-    )
+  filter(customer_id %in% id_1000)
 
 fit_1000_data_tbl %>% glimpse()
 ```
@@ -404,9 +404,7 @@ We do the same for the 10k customers.
 
 ```{r construct_fit_10000_data, echo=TRUE}
 fit_10000_data_tbl <- customer_summarystats_tbl %>%
-  filter(
-    customer_id %in% id_10000
-    )
+  filter(customer_id %in% id_10000)
 
 fit_10000_data_tbl %>% glimpse()
 ```
@@ -426,9 +424,9 @@ We now compile this model using `CmdStanR`.
 ```{r compile_freqmodel_flat_stanmodel, echo=TRUE}
 freqmodel_flat_stanmodel <- cmdstan_model(
   "stan_code/freqmodel_flat.stan",
-  include_paths = stan_codedir,
-  pedantic      =  TRUE,
-  dir           = stan_modeldir
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
   )
 ```
 
@@ -446,7 +444,7 @@ freqmodel_flat_stanfit <- freqmodel_flat_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  421,
+  seed            =                 4201,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -523,7 +521,7 @@ freqmodel_flat_10k_stanfit <- freqmodel_flat_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  422,
+  seed            =                 4202,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -596,7 +594,7 @@ freqmodel_flat_obs_stanfit <- freqmodel_flat_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  423,
+  seed            =                 4203,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -866,9 +864,9 @@ We now compile this model using `CmdStanR`.
 ```{r compile_freqmodel_prior_stanmodel, echo=TRUE, results="hide"}
 freqmodel_prior_stanmodel <- cmdstan_model(
   "stan_code/freqmodel_prior.stan",
-  include_paths = stan_codedir,
-  pedantic      = TRUE,
-  dir           = stan_modeldir
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
   )
 ```
 
@@ -890,7 +888,7 @@ freqmodel_prior_stanfit <- freqmodel_prior_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  425,
+  seed            =                 4204,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -1073,7 +1071,7 @@ freqmodel_prior_2_stanfit <- freqmodel_prior_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  425,
+  seed            =                 4205,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -1084,7 +1082,7 @@ freqmodel_prior_2_stanfit$summary()
 Having fitted our model we now run our HMC diagnostics.
 
 ```{r calculate_freqmodel_prior_2_hmc_diagnostics, echo=TRUE}
-freqmodel_prior_stanfit$cmdstan_diagnose()
+freqmodel_prior_2_stanfit$cmdstan_diagnose()
 ```
 
 
@@ -1233,6 +1231,190 @@ coverage_stats_tbl %>%
 ```
 
 
+
+# Construct Hierarchical Frequency Model
+
+In our previous models we fixed the parameters for our Gamma hyper-distribution
+and passed those values in as 'data' to the model.
+
+While this worked from a fitting perspective, it has the problem that it
+required a strong knowledge of what those parameters should be, whereas a more
+Bayesian approach would instead be to capture this uncertainty by putting
+distributions around those parameters.
+
+This issue leads to another concern when dealing with fitting probability
+distributions: the parameters are often co-dependent. This is because, unlike
+some of the more common distributions, many distributions are not naturally
+parametrised by location parameters.
+
+Instead, we often try to fit distributions using location and dispersion, and
+then convert these back to the standard parametrisation.
+
+For the Gamma distribution, we can fit a location parameter $\mu$ and the
+co-efficient of variation $c_v$ (the standard-deviation divided by the mean).
+These then convert to the shape parameter $r$ and rate parameter $\alpha$ using
+the following relationship:
+
+\begin{eqnarray*}
+r      &=& \frac{1}{c_v^2}      \\
+\alpha &=& \frac{1}{\mu c_v^2}
+\end{eqnarray*}
+
+
+We do this in Stan by using the `transformed parameters` block to convert
+$(\mu, c_v)$ into $(r, \alpha)$, so we can use those fitting the models.
+
+
+```{r display_freqmodel_hier_stancode, echo=FALSE}
+read_lines("stan_code/freqmodel_hier.stan") %>% cat(sep = "\n")
+```
+
+We now need to think about the parameters for the hierarchical priors, so once
+again we try something like we had before.
+
+```{r investigate_hierarchical_mu_prior, echo=TRUE}
+x_vals <- seq(0, 1.5, by = 0.01)
+y_vals <- dgamma(x_vals, shape = 1, rate = 3)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = y_vals)) +
+  labs(
+    x = "mu",
+    y = "Density",
+    title = "Distribution for Prior on mu"
+    )
+```
+
+This gives us a good spread of values and so should work fine.
+
+We do a similar task for the spread of values of the co-efficient of variation,
+which we will estimate to be around 1.
+
+```{r investigate_hierarchical_cv_prior, echo=TRUE}
+x_vals <- seq(0, 3, by = 0.01)
+y_vals <- dgamma(x_vals, shape = 2, rate = 2)
+
+ggplot() +
+  geom_line(aes(x = x_vals, y = y_vals)) +
+  labs(
+    x = "Coefficient of Variation",
+    y = "Density",
+    title = "Distribution for Prior on c_v"
+    )
+```
+
+
+
+## Compile and Fit First Hierarchical Model
+
+We first need to compile this fitted model.
+
+```{r compile_freqmodel_hier_stanmodel, echo=TRUE}
+freqmodel_hier_stanmodel <- cmdstan_model(
+  "stan_code/freqmodel_hier.stan",
+  include_paths = stan_codedir,
+  pedantic      =  TRUE,
+  dir           = stan_modeldir
+  )
+```
+
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_freqmodel_hier_stanmodel, echo=TRUE}
+stan_modelname <- "freqmodel_hier"
+
+stan_data_lst <- fit_1000_data_tbl %>%
+  transmute(customer_id, btyd_count, tnx_weeks) %>%
+  compose_data(
+    mu_p1 = 1,
+    mu_p2 = 3,
+    
+    cov_p1 = 2,
+    cov_p2 = 2
+    )
+
+freqmodel_hier_stanfit <- freqmodel_hier_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                 4206,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+freqmodel_hier_stanfit$summary()
+```
+
+We also want to check the various HMC diagnostics.
+
+```{r check_freqmodel_hier_diagnostics, echo=TRUE}
+freqmodel_hier_stanfit$cmdstan_diagnose()
+```
+
+The HMC diagnostics seem to check out, so before we look at individual values
+for `lambda` we want to check the posterior distributions for the hierarchical
+priors.
+
+```{r plot_posterior_hierarchical_params, echo=TRUE}
+posterior_params_tbl <- freqmodel_hier_stanfit %>%
+  tidy_draws() %>%
+  select(.draw, hier_mu, hier_cov, r, alpha) %>%
+  pivot_longer(
+    cols      = !.draw,
+    names_to  = "parameter",
+    values_to = "value"
+    )
+
+ggplot(posterior_params_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(parameter), ncol = 2, scales = "free_x") +
+  labs(
+    x = "Parameter Value",
+    y = "Count",
+    title = "Histograms of the Hierarchical Posteriors"
+    )
+```
+
+
+
+## Perform Basic Model Validation
+
+As before, we perform some cursory model validation based on some of the data
+we have.
+
+```{r construct_freqmodel_hier_validation, echo=TRUE}
+freqmodel_hier_validation_tbl <- freqmodel_hier_stanfit %>%
+  recover_types(fit_1000_data_tbl) %>%
+  spread_draws(lambda[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda)
+
+freqmodel_hier_validation_tbl %>% glimpse()
+```
+
+We now calculate the q-values of each parameter against the posterior
+distribution and plot a histogram of these q-values.
+
+```{r calculate_freqmodel_hier_qvalues, echo=TRUE}
+plotvalid_tbl <- freqmodel_hier_validation_tbl %>%
+  calculate_distribution_qvals(post_lambda, customer_lambda)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+```
+
+
+
+
 # Validating the Frequency Models
 
 We now turn our attention to validating our model fits.
@@ -1302,7 +1484,7 @@ freqmodel_flat_subset_stanfit <- freqmodel_flat_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  424,
+  seed            =                 4207,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -1447,7 +1629,7 @@ freqmodel_prior_subset_stanfit <- freqmodel_prior_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  424,
+  seed            =                 4208,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -1465,7 +1647,6 @@ freqmodel_prior_subset_stanfit$cmdstan_diagnose()
 
 We also refit the model with the less diffused $\Gamma(1, 4)$ prior.
 
-
 ```{r fit_freqmodel_prior_2_subset, echo=TRUE}
 stan_modelname <- "freqmodel_prior_2_subset"
 
@@ -1480,7 +1661,7 @@ freqmodel_prior_2_subset_stanfit <- freqmodel_prior_stanmodel$sample(
   chains          =                    4,
   iter_warmup     =                  500,
   iter_sampling   =                  500,
-  seed            =                  424,
+  seed            =                 4209,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -1496,6 +1677,45 @@ freqmodel_prior_2_subset_stanfit$cmdstan_diagnose()
 
 
 
+### Hierarchical Model
+
+Finally, we fit the hierarchical model so the parameters for the Gamma prior
+is also inferred from the data.
+
+```{r fit_freqmodel_hier_subset, echo=TRUE}
+stan_modelname <- "freqmodel_hier_subset"
+
+stan_data_lst <- training_stats_tbl %>%
+  compose_data(
+    mu_p1   = 1,
+    mu_p2   = 3,
+
+    cov_p1  = 2,
+    cov_p2  = 2
+    )
+
+freqmodel_hier_subset_stanfit <- freqmodel_hier_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                 4210,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+freqmodel_hier_subset_stanfit$summary()
+```
+
+And as before we check the HMC diagnostics.
+
+```{r check_freqmodel_hier_subset_diagnostics, echo=TRUE}
+freqmodel_hier_subset_stanfit$cmdstan_diagnose()
+```
+
+
+
+
 ### Construct Model Comparison Plots
 
 We now use each of these fitted models to construct a comparison dataset,
@@ -1506,7 +1726,8 @@ the posterior distributions for both those values.
 fit_comparison_tbl <- list(
     `Flat Prior`     = freqmodel_flat_subset_stanfit,
     `Gamma(0.25, 1)` = freqmodel_prior_subset_stanfit,
-    `Gamma(1, 4)`    = freqmodel_prior_2_subset_stanfit
+    `Gamma(1, 4)`    = freqmodel_prior_2_subset_stanfit,
+    `Hierarchical`   = freqmodel_hier_subset_stanfit
     ) %>%
   enframe(name = "model_label", value = "stanfit") %>%
   mutate(
@@ -1562,6 +1783,14 @@ ggplot(valid_count_tbl) +
     title = "Comparison Histogram of q-vals for Count"
   )
 ```
+
+
+
+
+
+
+
+
 
 
 # Write Data to Disk
