@@ -1,0 +1,169 @@
+---
+title: "Building Customer Lifetime Models"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+source("lib_utils.R")
+source("lib_btyd.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width        = 80L,
+  warn         = 1,
+  brms.backend = "cmdstanr",
+  mc.cores     = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+In this workbook we investigate different ways to model the lifetime of
+individual customers, with a view to expanding this approach with our
+frequency into a more traditional P/NBD model.
+
+
+# Load and Configure Datasets
+
+We first want to load some synthetic transaction data with a fixed transaction
+frequency which allowed for a varying lifetime.
+
+
+```{r load_synth_transaction_data, echo=TRUE}
+customer_cohort_tbl <- read_rds("data/synthdata_lifetime_cohort_tbl.rds")
+customer_cohort_tbl %>% glimpse()
+
+customer_simparams_tbl <- read_rds("data/synthdata_lifetime_simparams_tbl.rds")
+customer_simparams_tbl %>% glimpse()
+
+customer_transactions_tbl <- read_rds("data/synthdata_lifetime_transactions_tbl.rds")
+customer_transactions_tbl %>% glimpse()
+```
+
+We also want to set up a number of parameters for use in this workbook
+
+```{r setup_workbook_parameters, echo=TRUE}
+stan_modeldir <- "stan_models"
+stan_codedir  <-   "stan_code"
+```
+
+
+## Calculate Summary Statistics
+
+We also want to calculate the summary statistics for each of these customers
+based on an observation date of Jan 1 2020.
+
+
+```{r construct_frequency_modelling_data, echo=TRUE}
+customer_summarystats_tbl <- customer_transactions_tbl %>%
+  calculate_transaction_cbs_data(
+    last_date = as.Date("2020-01-01")
+    )
+
+customer_summarystats_tbl %>% glimpse()
+```
+
+
+## Load Subsets Values
+
+```{r construct_data_subset_ids, echo=TRUE}
+id_1000  <- read_rds("data/id_1000.rds")
+id_5000  <- read_rds("data/id_5000.rds")
+id_10000 <- read_rds("data/id_10000.rds")
+```
+
+
+As always, we want to visualise this data as much as we can to get a feel for
+it, so we construct a plot of each customer.
+
+```{r construct_sample_transaction_visualisations, echo=TRUE}
+tnx_plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id, .key = "tnx_data") %>%
+  filter(map_int(tnx_data, nrow) > 1) %>%
+  slice_sample(n = 50) %>%
+  unnest(tnx_data)
+
+ggplot(tnx_plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Date",
+    y = "Customer ID",
+    title = "Visualisation of Transactions for Sample of Customers"
+    ) +
+  theme(
+    axis.text.y = element_text(size = 8)
+    )
+```
+
+
+
+# Construct Flat Lifetime Model
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```

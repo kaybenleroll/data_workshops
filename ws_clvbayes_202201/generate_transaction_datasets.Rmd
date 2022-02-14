@@ -116,11 +116,11 @@ We now want to set up the various parameters required for the data generation.
 
 ```{r setup_synthesis_parameters, echo=TRUE}
 pnbd_params_lst <- list(
-  mu_shape     =   1,
-  mu_rate      =  10,
+  mu_shape     =   2,
+  mu_rate      =  20,
 
   lambda_shape =   1,
-  lambda_rate  =   3,
+  lambda_rate  =   4,
 
   mx_p         = 100,
   mx_q         =   1,
@@ -189,11 +189,11 @@ synthdata_shortframe_cohort_tbl %>% glimpse()
 
 ```{r calculate_shortframe_synth_customer_data, echo=TRUE}
 pnbd_params_lst <- list(
-  mu_shape     =   1,
-  mu_rate      =  10,
+  mu_shape     =   2,
+  mu_rate      =  20,
 
   lambda_shape =   1,
-  lambda_rate  =   3,
+  lambda_rate  =   4,
 
   mx_p         = 100,
   mx_q         =   1,
@@ -247,11 +247,11 @@ synthdata_longframe_cohort_tbl %>% glimpse()
 
 ```{r calculate_longframe_synth_customer_data, echo=TRUE}
 pnbd_params_lst <- list(
-  mu_shape     =   1,
-  mu_rate      =  10,
+  mu_shape     =   2,
+  mu_rate      =  20,
 
   lambda_shape =   1,
-  lambda_rate  =   3,
+  lambda_rate  =   4,
 
   mx_p         = 100,
   mx_q         =   1,
@@ -292,6 +292,18 @@ dataset where all customers are 'alive' on the system at the initial date and
 count the number of transactions made during a single year.
 
 ```{r generate_singleyear_synth_cohort, echo=TRUE}
+pnbd_params_lst <- list(
+  mu_shape     =   2,
+  mu_rate      =  20,
+
+  lambda_shape =   1,
+  lambda_rate  =   4,
+
+  mx_p         = 100,
+  mx_q         =   1,
+  mx_g         =   1
+  )
+
 synthdata_singleyear_cohort_tbl <- tibble(
   customer_id = stri_rand_strings(
     n = n_customers,
@@ -330,6 +342,60 @@ synthdata_singleyear_cohort_tbl       %>% write_rds("data/synthdata_singleyear_c
 synthdata_singleyear_simparams_tbl    %>% write_rds("data/synthdata_singleyear_simparams_tbl.rds")
 synthdata_singleyear_transactions_tbl %>% write_rds("data/synthdata_singleyear_transactions_tbl.rds")
 ```
+
+
+# Generate Fixed-Frequency Lifetime Transaction Data
+
+To perform inference on the lifetime of the customer.
+
+```{r generate_lifetime_synth_cohort, echo=TRUE}
+pnbd_params_lst <- list(
+  mu_shape     =   2,
+  mu_rate      =  20,
+
+  lambda_shape =   1,
+  lambda_rate  =   4,
+
+  mx_p         = 100,
+  mx_q         =   1,
+  mx_g         =   1
+  )
+
+synthdata_lifetime_cohort_tbl <- generate_customer_cohort_data(
+    n_customers = n_customers,
+    first_date  = as.Date("2011-01-01"),
+    last_date   = as.Date("2019-12-31")
+    )
+
+synthdata_lifetime_simparams_tbl <- synthdata_lifetime_cohort_tbl %>%
+  generate_pnbd_customer_simulation_params(
+    params_lst = pnbd_params_lst
+    ) %>%
+  transmute(
+    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_tau,
+    customer_lambda = 0.1, customer_nu, customer_p
+    )
+
+synthdata_lifetime_transactions_tbl <- synthdata_lifetime_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data(
+    final_tnx_date = as.Date("2019-12-31")
+    )
+
+synthdata_lifetime_transactions_tbl %>% glimpse()
+```
+
+
+## Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_lifetime_synth_data_disk, echo=TRUE}
+synthdata_lifetime_cohort_tbl       %>% write_rds("data/synthdata_lifetime_cohort_tbl.rds")
+synthdata_lifetime_simparams_tbl    %>% write_rds("data/synthdata_lifetime_simparams_tbl.rds")
+synthdata_lifetime_transactions_tbl %>% write_rds("data/synthdata_lifetime_transactions_tbl.rds")
+```
+
+
 
 
 
