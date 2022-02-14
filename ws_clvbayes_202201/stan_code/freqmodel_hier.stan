@@ -3,11 +3,14 @@ data {
 
   int<lower=0> btyd_count[n];   // observed number of transactions
   vector<lower=0>[n] tnx_weeks; // observed time-period of transactions
+
+  real<lower=0> mu_p1, mu_p2;
+  real<lower=0> cov_p1, cov_p2;
 }
 
 parameters {
-  real hier_mu;
-  real hier_cov;
+  real<lower=0> hier_mu;
+  real<lower=0> hier_cov;
 
   vector<lower=0>[n] lambda;
 }
@@ -22,8 +25,8 @@ transformed parameters {
 
 
 model {
-  hier_mu  ~ gamma( 1,  4);
-  hier_cov ~ gamma(10, 10);
+  hier_mu  ~ gamma(mu_p1,  mu_p1);
+  hier_cov ~ gamma(cov_p1, cov_p2);
 
   lambda ~ gamma(r, alpha);
 
