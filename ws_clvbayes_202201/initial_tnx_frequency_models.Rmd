@@ -225,10 +225,10 @@ y4_vals <- dgamma(x_vals, shape = 10.0, rate = 40.0)
 
 plot_tbl <- tibble(
     x  =  x_vals,
-    `Gamma(0.5, 0.8)` = y1_vals,
+    `Gamma(0.1, 0.4)` = y1_vals,
     `Gamma(1, 4)`     = y2_vals,
     `Gamma(2, 8)`     = y3_vals,
-    `Gamma(5, 25)`    = y4_vals
+    `Gamma(10, 40)`   = y4_vals
     ) %>%
   pivot_longer(
     !x,
@@ -445,6 +445,7 @@ freqmodel_flat_stanfit <- freqmodel_flat_stanmodel$sample(
   iter_warmup     =                  500,
   iter_sampling   =                  500,
   seed            =                 4201,
+  save_warmup     =                 TRUE,
   output_dir      =        stan_modeldir,
   output_basename =       stan_modelname
   )
@@ -457,6 +458,79 @@ We first want to check the HMC diagnostics.
 ```{r calculate_freqmodel_flat_hmc_diagnostics, echo=TRUE}
 freqmodel_flat_stanfit$cmdstan_diagnose()
 ```
+
+
+### Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_lambda_traceplots_warmup, echo=TRUE}
+parameter_subset <- c(
+  "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]", "lambda[5]", "lambda[6]"
+  )
+
+freqmodel_flat_stanfit$draws(inc_warmup = TRUE) %>%
+  mcmc_trace(
+    pars     = parameter_subset,
+    n_warmup = 500
+    )
+```
+
+
+As the warmup is skewing the y-axis somewhat, we repeat this process without
+the warmup.
+
+```{r plot_lambda_traceplots_nowarmup, echo=TRUE}
+parameter_subset <- c(
+  "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]", "lambda[5]", "lambda[6]"
+  )
+
+freqmodel_flat_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(
+    pars     = parameter_subset
+    ) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_freqmodel_flat_parameter_rhat, echo=TRUE}
+freqmodel_flat_stanfit %>%
+  rhat() %>%
+  mcmc_rhat()
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_freqmodel_flat_parameter_neffratio, echo=TRUE}
+freqmodel_flat_stanfit %>%
+  neff_ratio() %>%
+  mcmc_neff()
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_freqmodel_flat_parameter_acf, echo=TRUE}
+freqmodel_flat_stanfit$draws() %>%
+  mcmc_acf(pars = parameter_subset)
+```
+
+In practice we do not always require a comprehensive exploration of the
+diagnostics, but it is good practice to run through the various visualisations
+when we fit a model to ensure our sample is valid.
+
 
 
 ## Check Model Fit
@@ -1429,7 +1503,8 @@ nine months of the year.
 
 ```{r construct_10k_data_subset, echo=TRUE}
 break_date <- as.Date("2019-09-30")
-full_weeks <- difftime(break_date, as.Date("2019-01-01"), units = "weeks") %>% as.numeric()
+full_weeks <- difftime(break_date, as.Date("2019-01-01"), units = "weeks") %>%
+  as.numeric()
 
 training_tbl <- customer_transactions_tbl %>%
   filter(
@@ -1787,21 +1862,11 @@ ggplot(valid_count_tbl) +
 
 
 
-
-
-
-
-
-
 # Write Data to Disk
 
 We now want to write a number of these values to disk
 
 ```{r write_to_disk, echo=TRUE}
-id_1000  %>% write_rds("data/id_1000.rds")
-id_5000  %>% write_rds("data/id_5000.rds")
-id_10000 %>% write_rds("data/id_10000.rds")
-
 customer_summarystats_tbl %>% write_rds("data/synthdata_singleyear_summarystats_tbl.rds")
 validation_data_tbl       %>% write_rds("data/synthdata_singleyear_subset_comparison_distrib_tbl.rds")
 ```
