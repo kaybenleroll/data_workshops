@@ -1401,11 +1401,11 @@ stan_modelname <- "freqmodel_hier"
 stan_data_lst <- fit_1000_data_tbl %>%
   transmute(customer_id, btyd_count, tnx_weeks) %>%
   compose_data(
-    mu_p1 = 1,
-    mu_p2 = 3,
+    mean_p1 = 1,
+    mean_p2 = 3,
     
-    cov_p1 = 2,
-    cov_p2 = 2
+    cov_p1  = 2,
+    cov_p2  = 2
     )
 
 freqmodel_hier_stanfit <- freqmodel_hier_stanmodel$sample(
@@ -1762,11 +1762,11 @@ stan_modelname <- "freqmodel_hier_subset"
 
 stan_data_lst <- training_stats_tbl %>%
   compose_data(
-    mu_p1   = 1,
-    mu_p2   = 3,
+    mean_p1   = 1,
+    mean_p2   = 3,
 
-    cov_p1  = 2,
-    cov_p2  = 2
+    cov_p1    = 2,
+    cov_p2    = 2
     )
 
 freqmodel_hier_subset_stanfit <- freqmodel_hier_stanmodel$sample(

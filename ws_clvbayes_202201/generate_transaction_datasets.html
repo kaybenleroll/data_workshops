@@ -232,7 +232,7 @@
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: February 14, 2022</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: February 17, 2022</p>
           </div>
    </div>
      
@@ -536,8 +536,8 @@ count the number of transactions made during a single year.</p>
 <span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">params_lst =</span> pnbd_params_lst</span>
 <span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
 <span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
-<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_tau,</span>
-<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">customer_lambda =</span> <span class="fl">0.1</span>, customer_nu, customer_p</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_mu,</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    customer_tau, <span class="at">customer_lambda =</span> <span class="fl">0.1</span>, customer_nu, customer_p</span>
 <span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>synthdata_lifetime_transactions_tbl <span class="ot">&lt;-</span> synthdata_lifetime_simparams_tbl <span class="sc">%&gt;%</span></span>
@@ -575,7 +575,7 @@ count the number of transactions made during a single year.</p>
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2022-02-14                  
+##  date     2022-02-17                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 ##  package              * version   date       lib source                             
@@ -607,6 +607,7 @@ count the number of transactions made during a single year.</p>
 ##  crayon                 1.4.1     2021-02-08 [1] RSPM (R 4.1.0)                     
 ##  crosstalk              1.1.1     2021-01-12 [1] RSPM (R 4.1.0)                     
 ##  curl                   4.3.2     2021-06-23 [1] RSPM (R 4.1.0)                     
+##  data.table             1.14.2    2021-09-27 [1] RSPM (R 4.1.0)                     
 ##  DBI                    1.1.1     2021-01-15 [1] RSPM (R 4.1.0)                     
 ##  dbplyr                 2.1.1     2021-04-06 [1] RSPM (R 4.1.0)                     
 ##  digest                 0.6.28    2021-09-23 [1] RSPM (R 4.1.0)                     
@@ -635,6 +636,7 @@ count the number of transactions made during a single year.</p>
 ##  gtable                 0.3.0     2019-03-25 [1] RSPM (R 4.1.0)                     
 ##  gtools                 3.9.2     2021-06-06 [1] RSPM (R 4.1.0)                     
 ##  haven                  2.4.3     2021-08-04 [1] RSPM (R 4.1.0)                     
+##  highr                  0.9       2021-04-16 [1] RSPM (R 4.1.0)                     
 ##  hms                    1.1.1     2021-09-26 [1] RSPM (R 4.1.0)                     
 ##  htmltools              0.5.2     2021-08-25 [1] RSPM (R 4.1.0)                     
 ##  htmlwidgets            1.5.4     2021-09-08 [1] RSPM (R 4.1.0)                     

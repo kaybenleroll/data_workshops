@@ -120,24 +120,6 @@ customer_summarystats_tbl %>% glimpse()
 
 
 
-
-
-## Load Subsets Values
-
-As we did before, we have a subset of customer IDs to be used when taking
-subsets of the data.
-
-```{r construct_data_subset_ids, echo=TRUE}
-shuffle_tbl <- customer_summarystats_tbl %>%
-  slice_sample(n = nrow(.), replace = FALSE)
-
-id_1000  <- shuffle_tbl %>% head(1000)  %>% pull(customer_id) %>% sort()
-id_5000  <- shuffle_tbl %>% head(5000)  %>% pull(customer_id) %>% sort()
-id_10000 <- shuffle_tbl %>% head(10000) %>% pull(customer_id) %>% sort()
-```
-
-
-
 ## Visualise the Transaction Data
 
 As always, we want to visualise this data as much as we can to get a feel for
@@ -205,55 +187,84 @@ model.
 
 ## Construct the Model Data
 
+We take a analagous approach for our lifetime model as we did for the
+frequency model. We takea subset of the data and use the rest of the data to
+validate the model.
 
-We first calculate the summary statistics from the data.
+```{r construct_10k_data_subset, echo=TRUE}
+break_date <- as.Date("2018-01-01")
+full_weeks <- difftime(break_date, as.Date("2018-01-01"), units = "weeks") %>%
+  as.numeric()
 
-```{r calculate_customer_cbs_data, echo=TRUE}
-customer_lifetime_stats_tbl <- customer_transactions_tbl %>%
+training_tbl <- customer_transactions_tbl %>%
+  filter(
+    tnx_timestamp <= break_date
+    ) %>%
+  group_nest(customer_id, .key = "tnx_data") %>%
+  slice_sample(n = 10000) %>%
+  unnest(tnx_data)
+
+training_tbl %>% glimpse()
+
+test_tbl <- customer_transactions_tbl %>%
+  semi_join(training_tbl, by = "customer_id") %>%
+  filter(
+    tnx_timestamp > break_date
+    )
+
+test_tbl %>% glimpse()
+```
+
+
+We need to reconstruct the summary statistics
+
+```{r constructing_model_fit, echo=TRUE}
+training_stats_tbl <- training_tbl %>%
   calculate_transaction_cbs_data(
-    last_date = as.Date("2020-01-01")
+    last_date = break_date
     ) %>%
   mutate(
     min_lifetime = t_x,
     max_lifetime = pmin(t_x + 100, T_cal)
     )
 
-customer_lifetime_stats_tbl %>% glimpse()
+training_stats_tbl %>% glimpse()
 ```
 
-For our initial fit, we use only 1,000 eligible customers to reduce computation
-time and construct a dataset used to fit these models.
-
-```{r construct_fit_1000_data, echo=TRUE}
-fit_1000_data_tbl <- customer_lifetime_stats_tbl %>%
-  filter(customer_id %in% id_1000)
-
-fit_1000_data_tbl %>% glimpse()
-```
-
-We do the same for the 10k customers.
-
-```{r construct_fit_10000_data, echo=TRUE}
-fit_10000_data_tbl <- customer_lifetime_stats_tbl %>%
-  filter(customer_id %in% id_10000)
-
-fit_10000_data_tbl %>% glimpse()
-```
+For model validation purposes, we just need to check for the presence of not
+of customer transactions in the `test` set.
 
 
 
-
-# Construct Flat Lifetime Model
+# Construct Initial Lifetime Models
 
 We now turn our attention to fitting our model to get estimates of the
 lifetime of the customer.
 
+There is one important distinction between our lifetime model and the
+frequency model: we do not have direct observations of the lifetime of the
+customer.
+
+Instead, what we have an exact observation of each customer's minimum possible
+value for the lifetime: the time between the very first transaction that
+customer made and the most recently observed transaction.
+
+We know that the customer's lifetime is *at least* this number.
 
 
 
-```{r compile_lifetimemodel_flat_stanmodel, echo=TRUE}
-lifetimemodel_flat_stanmodel <- cmdstan_model(
-  "stan_code/lifetimemodel_flat.stan",
+
+
+
+
+## Fit Flat Model
+
+We start with a simple flat model without any priors like we did for the
+frequency models.
+
+```{r compile_ltmodel_flat_stanmodel, echo=TRUE, results="hide"}
+ltmodel_flat_stanmodel <- cmdstan_model(
+  "stan_code/ltmodel_flat.stan",
   include_paths =   stan_codedir,
   pedantic      =           TRUE,
   dir           =  stan_modeldir
@@ -262,14 +273,14 @@ lifetimemodel_flat_stanmodel <- cmdstan_model(
 
 We then use this compiled model with our data to produce a fit of the data.
 
-```{r fit_lifetimemodel_flat_stanmodel, echo=TRUE}
-stan_modelname <- "lifetimemodel_flat"
+```{r fit_ltmodel_flat_stanmodel, echo=TRUE}
+stan_modelname <- "ltmodel_flat"
 
-stan_data_lst <- fit_1000_data_tbl %>%
+stan_data_lst <- training_stats_tbl %>%
   select(customer_id, min_lifetime, max_lifetime) %>%
   compose_data()
 
-lifetimemodel_flat_stanfit <- lifetimemodel_flat_stanmodel$sample(
+ltmodel_flat_stanfit <- ltmodel_flat_stanmodel$sample(
   data            =        stan_data_lst,
   chains          =                    4,
   iter_warmup     =                  500,
@@ -279,8 +290,290 @@ lifetimemodel_flat_stanfit <- lifetimemodel_flat_stanmodel$sample(
   output_basename =       stan_modelname
   )
 
-lifetimemodel_flat_stanfit$summary()
+ltmodel_flat_stanfit$summary()
 ```
+
+We know this model has not fit properly, but we check the HMC diagnostics
+anyway.
+
+```{r calculate_ltmodel_flat_hmc_diagnostics, echo=TRUE}
+ltmodel_flat_stanfit$cmdstan_diagnose()
+```
+
+As we see, this model is not sampling properly at all, but part of the problem
+is that we have an implicit uniform prior on $\mu$ - which does not match our
+knowledge.
+
+
+## Fit Fixed-Prior Minimum Time Model
+
+We add a Gamma prior to this model that we set via passing data into the
+sampler. As we also have less confidence in our maximum lifetime observation
+we also try fitting our model with just the minimum observed lietime per
+customer
+
+```{r compile_ltmodel_mintime_stanmodel, echo=TRUE, results="hide"}
+ltmodel_mintime_stanmodel <- cmdstan_model(
+  "stan_code/ltmodel_mintime.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_ltmodel_mintime_stanmodel, echo=TRUE}
+stan_modelname <- "ltmodel_mintime"
+
+stan_data_lst <- training_stats_tbl %>%
+  select(customer_id, min_lifetime, max_lifetime) %>%
+  compose_data(
+    s     = 1,
+    beta = 10
+    )
+
+ltmodel_mintime_stanfit <- ltmodel_mintime_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                 4201,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+ltmodel_mintime_stanfit$summary()
+```
+
+It appears that this fit is much less problematic, so we check the HMC
+diagnostics.
+
+```{r calculate_ltmodel_mintime_hmc_diagnostics, echo=TRUE}
+ltmodel_mintime_stanfit$cmdstan_diagnose()
+```
+
+### Investigate Posterior Distribution of Customer Lifetime
+
+We now want to visualise the posterior distribution of the expected lifetime
+of the customer.
+
+```{r construct_posterior_expected_lifetime_validation, echo=TRUE}
+ltmodel_mintime_validation_tbl <- ltmodel_mintime_stanfit %>%
+  recover_types(training_stats_tbl) %>%
+  spread_draws(mu[customer_id], tau[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(
+    customer_id, draw_id = .draw, post_mu = mu, post_tau_mean = tau,
+    customer_mu, customer_tau
+    )
+
+ltmodel_mintime_validation_tbl %>% glimpse()
+```
+
+We now use our existing routine to compare the posterior values for `mu` with
+the predetermined value.
+
+```{r calculate_ltmodel_mintime_qvalues, echo=TRUE}
+plotvalid_tbl <- ltmodel_mintime_validation_tbl %>%
+  calculate_distribution_qvals(post_mu, customer_mu)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+
+ggplot(plotvalid_tbl) +
+  geom_point(aes(x = q_val, y = customer_mu)) +
+  labs(
+    x = "Quantile",
+    y = "Customer Mu",
+    title = "Scatterplot of q-Value against Mu"
+    )
+```
+
+
+## Fit Fixed-Prior Min/Max Time Model
+
+We now want to see the effect, if any, of including the maximum time in the
+model.
+
+```{r compile_ltmodel_minmax_stanmodel, echo=TRUE, results="hide"}
+ltmodel_minmax_stanmodel <- cmdstan_model(
+  "stan_code/ltmodel_minmax.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+With this new model we use the same data again to fit our new model.
+
+
+```{r fit_ltmodel_minmax_stanmodel, echo=TRUE}
+stan_modelname <- "ltmodel_minmax"
+
+stan_data_lst <- training_stats_tbl %>%
+  select(customer_id, min_lifetime, max_lifetime) %>%
+  compose_data(
+    s     = 1,
+    beta = 10
+    )
+
+ltmodel_minmax_stanfit <- ltmodel_minmax_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                 4201,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+ltmodel_minmax_stanfit$summary()
+```
+
+As before, we need to check the HMC diagnostics.
+
+```{r calculate_ltmodel_minmax_hmc_diagnostics, echo=TRUE}
+ltmodel_minmax_stanfit$cmdstan_diagnose()
+```
+
+
+### Plot Customer Lifetime Diagnostic Plots
+
+We now want to visualise the posterior distribution of the expected lifetime
+of the customer.
+
+```{r construct_posterior_expected_lifetime_validation_minmax, echo=TRUE}
+ltmodel_minmax_validation_tbl <- ltmodel_minmax_stanfit %>%
+  recover_types(training_stats_tbl) %>%
+  spread_draws(mu[customer_id], tau[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(
+    customer_id, draw_id = .draw, post_mu = mu, post_tau_mean = tau,
+    customer_mu, customer_tau
+    )
+
+ltmodel_minmax_validation_tbl %>% glimpse()
+```
+
+We now use our existing routine to compare the posterior values for `mu` with
+the predetermined value.
+
+```{r calculate_ltmodel_minmax_qvalues, echo=TRUE}
+plotvalid_tbl <- ltmodel_minmax_validation_tbl %>%
+  calculate_distribution_qvals(post_mu, customer_mu)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+
+ggplot(plotvalid_tbl) +
+  geom_point(aes(x = q_val, y = customer_mu)) +
+  labs(
+    x = "Quantile",
+    y = "Customer Mu",
+    title = "Scatterplot of q-Value against Mu"
+    )
+```
+
+
+
+## Fit Tighter Fixed-Prior Min/Max Time Model
+
+We now fit the same model but with a tighter prior around $\mu$.
+
+```{r fit_ltmodel_tightprior_stanmodel, echo=TRUE}
+stan_modelname <- "ltmodel_minmax"
+
+stan_data_lst <- training_stats_tbl %>%
+  select(customer_id, min_lifetime, max_lifetime) %>%
+  compose_data(
+    s     = 5,
+    beta = 50
+    )
+
+ltmodel_tightprior_stanfit <- ltmodel_minmax_stanmodel$sample(
+  data            =        stan_data_lst,
+  chains          =                    4,
+  iter_warmup     =                  500,
+  iter_sampling   =                  500,
+  seed            =                 4201,
+  output_dir      =        stan_modeldir,
+  output_basename =       stan_modelname
+  )
+
+ltmodel_tightprior_stanfit$summary()
+```
+
+As before, we need to check the HMC diagnostics.
+
+```{r calculate_ltmodel_tightprior_hmc_diagnostics, echo=TRUE}
+ltmodel_tightprior_stanfit$cmdstan_diagnose()
+```
+
+
+
+### Plot Customer Lifetime Diagnostic Plots
+
+Once again we construct validation plots for our data - comparing the
+posterior distributions against the known customer value.
+
+```{r construct_posterior_expected_lifetime_validation_tightprior, echo=TRUE}
+ltmodel_tightprior_validation_tbl <- ltmodel_tightprior_stanfit %>%
+  recover_types(training_stats_tbl) %>%
+  spread_draws(mu[customer_id], tau[customer_id]) %>%
+  ungroup() %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(
+    customer_id, draw_id = .draw, post_mu = mu, post_tau_mean = tau,
+    customer_mu, customer_tau
+    )
+
+ltmodel_tightprior_validation_tbl %>% glimpse()
+```
+
+We now use our existing routine to compare the posterior values for `mu` with
+the predetermined value.
+
+```{r calculate_ltmodel_tightprior_qvalues, echo=TRUE}
+plotvalid_tbl <- ltmodel_tightprior_validation_tbl %>%
+  calculate_distribution_qvals(post_mu, customer_mu)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+
+ggplot(plotvalid_tbl) +
+  geom_point(aes(x = q_val, y = customer_mu)) +
+  labs(
+    x = "Quantile",
+    y = "Customer Mu",
+    title = "Scatterplot of q-Value against Mu"
+    )
+```
+
+
+
+
+
 
 
 
