@@ -25,8 +25,8 @@ transformed parameters {
 
 
 model {
-  hier_mu  ~ gamma(mean_p1, mean_p1);
-  hier_cov ~ gamma(cov_p1,  cov_p2);
+  hier_mean ~ gamma(mean_p1, mean_p1);
+  hier_cov  ~ gamma(cov_p1,  cov_p2);
 
   lambda ~ gamma(r, alpha);
 

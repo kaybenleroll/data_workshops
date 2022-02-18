@@ -252,7 +252,8 @@ this is fully consistent with the prior mean.
 
 ```{r gamma_1_4_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
-prior_1_4_dens <- dgamma(x_vals, shape = 1, rate = 4)
+
+prior_1_4_dens <- dgamma(x_vals, shape = 1,      rate = 4)
 post_1_4_dens  <- dgamma(x_vals, shape = 1 + 13, rate = 4 + 52)
 
 ggplot() +
@@ -269,7 +270,8 @@ We now construct a similar comparison with a stronger prior on $\lambda$.
 
 ```{r gamma_5_20_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
-prior_5_20_dens <- dgamma(x_vals, shape = 5, rate = 20)
+
+prior_5_20_dens <- dgamma(x_vals, shape = 5,      rate = 20)
 post_5_20_dens  <- dgamma(x_vals, shape = 5 + 13, rate = 20 + 52)
 
 ggplot() +
@@ -287,12 +289,12 @@ on the same observed data.
 
 ```{r plot_posterior_distribution_comparison, echo=TRUE}
 ggplot() +
-  geom_line(aes(x = x_vals, y = post_1_4_dens), colour = "black") +
+  geom_line(aes(x = x_vals, y = post_1_4_dens),  colour = "black") +
   geom_line(aes(x = x_vals, y = post_5_20_dens), colour = "red") +
   labs(
     x = "Value",
     y = "Density",
-    title = "Comparison of Posterior Densities Based on 14 Observed Events"
+    title = "Comparison of Posterior Densities Based on 13 Observed Events"
     )
 ```
 
@@ -307,7 +309,7 @@ in 52 weeks) and see what the effect is.
 ```{r gamma_1_2_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
 
-prior_1_2_dens <- dgamma(x_vals, shape = 1, rate = 2)
+prior_1_2_dens <- dgamma(x_vals, shape = 1,      rate = 2)
 post_1_2_dens  <- dgamma(x_vals, shape = 1 + 13, rate = 2 + 52)
 
 ggplot() +
@@ -328,7 +330,7 @@ favour of the data)
 ```{r gamma_5_10_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
 
-prior_5_10_dens <- dgamma(x_vals, shape = 5, rate = 10)
+prior_5_10_dens <- dgamma(x_vals, shape = 5,      rate = 10)
 post_5_10_dens  <- dgamma(x_vals, shape = 5 + 13, rate = 10 + 52)
 
 ggplot() +
@@ -347,7 +349,7 @@ We also want to try this with a prior that is "stronger" than the data.
 ```{r gamma_50_100_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
 
-prior_50_100_dens <- dgamma(x_vals, shape = 50, rate = 100)
+prior_50_100_dens <- dgamma(x_vals, shape = 50,      rate = 100)
 post_50_100_dens  <- dgamma(x_vals, shape = 50 + 13, rate = 100 + 52)
 
 ggplot() +
@@ -367,7 +369,7 @@ location.
 ```{r gamma_1_1_prior_post_comparison, echo=TRUE}
 x_vals <- seq(0.01, 1, by = 0.001)
 
-prior_1_1_dens <- dgamma(x_vals, shape = 1, rate = 1)
+prior_1_1_dens <- dgamma(x_vals, shape = 1,      rate = 1)
 post_1_1_dens  <- dgamma(x_vals, shape = 1 + 13, rate = 1 + 52)
 
 ggplot() +
@@ -1434,7 +1436,7 @@ priors.
 ```{r plot_posterior_hierarchical_params, echo=TRUE}
 posterior_params_tbl <- freqmodel_hier_stanfit %>%
   tidy_draws() %>%
-  select(.draw, hier_mu, hier_cov, r, alpha) %>%
+  select(.draw, hier_mean, hier_cov, r, alpha) %>%
   pivot_longer(
     cols      = !.draw,
     names_to  = "parameter",
