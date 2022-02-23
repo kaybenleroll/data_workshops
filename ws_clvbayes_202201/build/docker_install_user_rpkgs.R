@@ -22,5 +22,8 @@ cmdstan_flags <- list(
 
 install_cmdstan(
   cores       = parallel::detectCores(),
-  cpp_options = cmdstan_flags
+  cpp_options = cmdstan_flags,
+  quiet       = FALSE,
+  overwrite   = FALSE,
+  version     = "2.29.0"
 )

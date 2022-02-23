@@ -44,6 +44,7 @@ generate_transaction_datasets.html: exploring_retail_data.html
 
 initial_tnx_frequency_models.html: exploring_retail_data.html \
   generate_transaction_datasets.html
+initial_lifetime_models.html: initial_tnx_frequency_models.html
 
 
 mrproper: clean-cache clean-data clean-html clean-models

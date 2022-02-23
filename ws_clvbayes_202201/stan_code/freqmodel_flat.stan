@@ -1,8 +1,8 @@
 data {
-  int<lower=1> n;               // count of observations
+  int<lower=1> n;                   // count of observations
 
-  int<lower=0> btyd_count[n];   // observed number of transactions
-  vector<lower=0>[n] tnx_weeks; // observed time-period of transactions
+  array[n] int<lower=0> btyd_count; // observed number of transactions
+  vector<lower=0>[n]    tnx_weeks;  // observed time-period of transactions
 }
 
 parameters {

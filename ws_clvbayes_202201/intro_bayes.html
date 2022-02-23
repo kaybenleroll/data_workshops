@@ -225,7 +225,7 @@
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: January 20, 2022</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: February 23, 2022</p>
           </div>
    </div>
      
@@ -265,7 +265,7 @@ probabilities for all the possible values in phase space.</p>
 </div>
 <div id="medical-tests" class="section level2" number="1.2">
 <h2><span class="header-section-number">1.2</span> Medical Tests</h2>
-<p>We use tests for COVID-19 as a way to illustrate these concepts, and use these
+<p>We use tests for a virus as a way to illustrate these concepts, and use these
 ideas to show broad-stroke differences between the various tests.</p>
 <p>First, we need to determine our naming:</p>
 <ul>
@@ -354,6 +354,9 @@ p(\theta \, | \, D) = \int p(\theta) \, p(D \, | \, \theta)
 </ul>
 <p>Thus, we combine a prior distribution over <span class="math inline">\(\theta\)</span> with a likelihood model for
 the data <span class="math inline">\(D\)</span> to calculate the posterior distribution for <span class="math inline">\(\theta\)</span>.</p>
+<p>This means that performing Bayesian analysis in the real-world needs a way to
+perform those integrations. In this workshop series we use Stan to sample from
+these posteriors.</p>
 </div>
 </div>
 <div id="illustrating-the-concepts" class="section level1" number="2">
@@ -361,7 +364,7 @@ the data <span class="math inline">\(D\)</span> to calculate the posterior distr
 <p>The above section focused mostly on conceptual ideas, and it is often useful
 to illustrate these ideas via computation and simulation.</p>
 <p>We start with simulating medical tests, using some input values.</p>
-<p>For the following work, we assume the prevalence of COVID-19 is 1% of the
+<p>For the following work, we assume the prevalence of the virus is 1% of the
 population.</p>
 <div id="construct-first-simulations" class="section level2" number="2.1">
 <h2><span class="header-section-number">2.1</span> Construct First Simulations</h2>
@@ -370,8 +373,8 @@ the patient (presence denotes infection), and <span class="math inline">\(B\)</s
 for presence (a TRUE value means the test detected the virus).</p>
 <p>As discussed previously, while related, these two variables are separate, an
 uninfected person could test positive and vice versa.</p>
-<p>So, a person takes a COVID-19 test and tests positive - what is the probability
-that the patient is infected? How do we go about calculating this?</p>
+<p>So, a person takes a test and tests positive - what is the probability that the
+patient is infected? How do we go about calculating this?</p>
 <p>In mathematical notation, we want to calculate</p>
 <p><span class="math display">\[
 P(A = \text{infected} \, | B = \text{positive test})
@@ -385,7 +388,8 @@ P(B = \text{positive test} \, | \, A = \text{infected})
 <p><span class="math display">\[
 P(B = \text{negative test} \, | \, A = \text{not infected}).
 \]</span></p>
-<p>For PCR tests, we typically have a 5% rate for both.</p>
+<p>Let us suppose that a gold-standard medical test typically has a 5% rate for
+both.</p>
 <p>Finally, we also need to know the prevalence of the disease in the population,
 the unconditional probability of a patient having the disease.</p>
 <p>Let us assume this prevalence is 1%.</p>
@@ -600,12 +604,12 @@ different levels of prevalence.</p>
 ##  version  R version 4.1.1 (2021-08-10)
 ##  os       Ubuntu 20.04.3 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       RStudio                     
+##  ui       X11                         
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2022-01-20                  
+##  date     2022-02-23                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────
 ##  package        * version   date       lib source                             
@@ -615,12 +619,10 @@ different levels of prevalence.</p>
 ##  backports        1.3.0     2021-10-27 [1] RSPM (R 4.1.0)                     
 ##  base64enc        0.1-3     2015-07-28 [1] RSPM (R 4.1.0)                     
 ##  bayesplot      * 1.8.1     2021-06-14 [1] RSPM (R 4.1.0)                     
-##  bit              4.0.4     2020-08-04 [1] RSPM (R 4.1.0)                     
-##  bit64            4.0.5     2020-08-30 [1] RSPM (R 4.1.0)                     
 ##  bookdown         0.24      2021-09-02 [1] RSPM (R 4.1.0)                     
 ##  boot             1.3-28    2021-05-03 [2] CRAN (R 4.1.1)                     
 ##  bridgesampling   1.1-2     2021-04-16 [1] RSPM (R 4.1.0)                     
-##  brms           * 2.16.1    2022-01-18 [1] Github (paul-buerkner/brms@6fa5c02)
+##  brms           * 2.16.1    2022-02-23 [1] Github (paul-buerkner/brms@6fa5c02)
 ##  Brobdingnag      1.2-6     2018-08-13 [1] RSPM (R 4.1.0)                     
 ##  broom            0.7.9     2021-07-27 [1] RSPM (R 4.1.0)                     
 ##  bslib            0.3.1     2021-10-06 [1] RSPM (R 4.1.0)                     
@@ -629,7 +631,7 @@ different levels of prevalence.</p>
 ##  cellranger       1.1.0     2016-07-27 [1] RSPM (R 4.1.0)                     
 ##  checkmate        2.0.0     2020-02-06 [1] RSPM (R 4.1.0)                     
 ##  cli              3.1.0     2021-10-27 [1] RSPM (R 4.1.0)                     
-##  cmdstanr       * 0.4.0     2022-01-18 [1] Github (stan-dev/cmdstanr@3233585) 
+##  cmdstanr       * 0.4.0     2022-02-23 [1] Github (stan-dev/cmdstanr@3233585) 
 ##  coda             0.19-4    2020-09-30 [1] RSPM (R 4.1.0)                     
 ##  codetools        0.2-18    2020-11-04 [2] CRAN (R 4.1.1)                     
 ##  colorspace       2.0-2     2021-06-24 [1] RSPM (R 4.1.0)                     
@@ -639,10 +641,8 @@ different levels of prevalence.</p>
 ##  crayon           1.4.1     2021-02-08 [1] RSPM (R 4.1.0)                     
 ##  crosstalk        1.1.1     2021-01-12 [1] RSPM (R 4.1.0)                     
 ##  curl             4.3.2     2021-06-23 [1] RSPM (R 4.1.0)                     
-##  data.table       1.14.2    2021-09-27 [1] RSPM (R 4.1.0)                     
 ##  DBI              1.1.1     2021-01-15 [1] RSPM (R 4.1.0)                     
 ##  dbplyr           2.1.1     2021-04-06 [1] RSPM (R 4.1.0)                     
-##  diffobj          0.3.5     2021-10-05 [1] RSPM (R 4.1.0)                     
 ##  digest           0.6.28    2021-09-23 [1] RSPM (R 4.1.0)                     
 ##  directlabels   * 2021.1.13 2021-01-16 [1] RSPM (R 4.1.0)                     
 ##  distributional   0.2.2     2021-02-02 [1] RSPM (R 4.1.0)                     
@@ -737,7 +737,7 @@ different levels of prevalence.</p>
 ##  shinyjs          2.0.0     2020-09-09 [1] RSPM (R 4.1.0)                     
 ##  shinystan        2.5.0     2018-05-01 [1] RSPM (R 4.1.0)                     
 ##  shinythemes      1.2.0     2021-01-25 [1] RSPM (R 4.1.0)                     
-##  StanHeaders      2.26.6    2022-01-18 [1] local                              
+##  StanHeaders      2.26.6    2022-02-23 [1] local                              
 ##  stringi          1.7.5     2021-10-04 [1] RSPM (R 4.1.0)                     
 ##  stringr        * 1.4.0     2019-02-10 [1] RSPM (R 4.1.0)                     
 ##  svUnit           1.0.6     2021-04-19 [1] RSPM (R 4.1.0)                     
@@ -752,7 +752,6 @@ different levels of prevalence.</p>
 ##  utf8             1.2.2     2021-07-24 [1] RSPM (R 4.1.0)                     
 ##  V8               3.4.2     2021-05-01 [1] RSPM (R 4.1.0)                     
 ##  vctrs            0.3.8     2021-04-29 [1] RSPM (R 4.1.0)                     
-##  vroom            1.5.5     2021-09-14 [1] RSPM (R 4.1.0)                     
 ##  withr            2.4.2     2021-04-18 [1] RSPM (R 4.1.0)                     
 ##  xfun             0.27      2021-10-18 [1] RSPM (R 4.1.0)                     
 ##  xml2             1.3.2     2020-04-23 [1] RSPM (R 4.1.0)                     
