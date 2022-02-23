@@ -281,13 +281,13 @@ stan_data_lst <- training_stats_tbl %>%
   compose_data()
 
 ltmodel_flat_stanfit <- ltmodel_flat_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4201,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                 stan_data_lst,
+  chains          =                             4,
+  iter_warmup     =                           500,
+  iter_sampling   =                           500,
+  seed            =                          4201,
+  output_dir      =                 stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 ltmodel_flat_stanfit$summary()
@@ -334,13 +334,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 ltmodel_mintime_stanfit <- ltmodel_mintime_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4202,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                 stan_data_lst,
+  chains          =                             4,
+  iter_warmup     =                           500,
+  iter_sampling   =                           500,
+  seed            =                          4202,
+  output_dir      =                 stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 ltmodel_mintime_stanfit$summary()
@@ -426,13 +426,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 ltmodel_minmax_stanfit <- ltmodel_minmax_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4203,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                 stan_data_lst,
+  chains          =                             4,
+  iter_warmup     =                           500,
+  iter_sampling   =                           500,
+  seed            =                          4203,
+  output_dir      =                 stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 ltmodel_minmax_stanfit$summary()
@@ -506,13 +506,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 ltmodel_tightprior_stanfit <- ltmodel_minmax_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4204,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                 stan_data_lst,
+  chains          =                             4,
+  iter_warmup     =                           500,
+  iter_sampling   =                           500,
+  seed            =                          4204,
+  output_dir      =                 stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 ltmodel_tightprior_stanfit$summary()
@@ -589,7 +589,7 @@ read_lines("stan_code/ltmodel_hier.stan") %>% cat(sep = "\n")
 
 We first need to compile this fitted model.
 
-```{r compile_ltmodel_hier_stanmodel, echo=TRUE}
+```{r compile_ltmodel_hier_stanmodel, echo=TRUE, results="hide"}
 ltmodel_hier_stanmodel <- cmdstan_model(
   "stan_code/ltmodel_hier.stan",
   include_paths = stan_codedir,
@@ -612,13 +612,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 ltmodel_hier_stanfit <- ltmodel_hier_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4205,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                 stan_data_lst,
+  chains          =                             4,
+  iter_warmup     =                           500,
+  iter_sampling   =                           500,
+  seed            =                          4205,
+  output_dir      =                 stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 ltmodel_hier_stanfit$summary()
@@ -635,7 +635,7 @@ ltmodel_hier_stanfit$cmdstan_diagnose()
 ## Compile and Fit One-Parameter Hierarchical Model
 
 
-```{r compile_ltmodel_hier_one_stanmodel, echo=TRUE}
+```{r compile_ltmodel_hier_one_stanmodel, echo=TRUE, results="hide"}
 ltmodel_hier_one_stanmodel <- cmdstan_model(
   "stan_code/ltmodel_hier_one.stan",
   include_paths = stan_codedir,
@@ -657,13 +657,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 ltmodel_hier_one_stanfit <- ltmodel_hier_one_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4205,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                 stan_data_lst,
+  chains          =                             4,
+  iter_warmup     =                           500,
+  iter_sampling   =                           500,
+  seed            =                          4205,
+  output_dir      =                 stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 ltmodel_hier_one_stanfit$summary()

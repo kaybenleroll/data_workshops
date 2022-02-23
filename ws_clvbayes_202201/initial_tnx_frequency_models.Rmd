@@ -423,7 +423,7 @@ read_lines("stan_code/freqmodel_flat.stan") %>% cat(sep = "\n")
 
 We now compile this model using `CmdStanR`.
 
-```{r compile_freqmodel_flat_stanmodel, echo=TRUE}
+```{r compile_freqmodel_flat_stanmodel, echo=TRUE, results="hide"}
 freqmodel_flat_stanmodel <- cmdstan_model(
   "stan_code/freqmodel_flat.stan",
   include_paths =   stan_codedir,
@@ -442,14 +442,14 @@ stan_data_lst <- fit_1000_data_tbl %>%
   compose_data()
 
 freqmodel_flat_stanfit <- freqmodel_flat_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4201,
-  save_warmup     =                 TRUE,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_flat_stanfit$summary()
@@ -593,13 +593,13 @@ stan_data_lst <- fit_10000_data_tbl %>%
   compose_data()
 
 freqmodel_flat_10k_stanfit <- freqmodel_flat_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4202,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4202,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_flat_10k_stanfit$summary()
@@ -666,13 +666,13 @@ stan_data_lst <- fit_1000_data_tbl %>%
   compose_data()
 
 freqmodel_flat_obs_stanfit <- freqmodel_flat_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4203,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4203,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_flat_obs_stanfit$summary()
@@ -960,13 +960,13 @@ stan_data_lst <- fit_1000_data_tbl %>%
     )
 
 freqmodel_prior_stanfit <- freqmodel_prior_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4204,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4204,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_prior_stanfit$summary()
@@ -1143,13 +1143,13 @@ stan_data_lst <- fit_1000_data_tbl %>%
     )
 
 freqmodel_prior_2_stanfit <- freqmodel_prior_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4205,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4205,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_prior_2_stanfit$summary()
@@ -1340,6 +1340,14 @@ r      &=& \frac{1}{c_v^2}      \\
 We do this in Stan by using the `transformed parameters` block to convert
 $(\mu, c_v)$ into $(r, \alpha)$, so we can use those fitting the models.
 
+Alternatively, we could parameterise the Gamma with the mean $\mu$ and the 
+shape parameter $r$, calculating the rate parameter $\alpha$ as
+
+$$
+\alpha = \frac{r}{\mu}
+$$
+
+
 
 ```{r display_freqmodel_hier_stancode, echo=FALSE}
 read_lines("stan_code/freqmodel_hier.stan") %>% cat(sep = "\n")
@@ -1385,7 +1393,7 @@ ggplot() +
 
 We first need to compile this fitted model.
 
-```{r compile_freqmodel_hier_stanmodel, echo=TRUE}
+```{r compile_freqmodel_hier_stanmodel, echo=TRUE, results="hide"}
 freqmodel_hier_stanmodel <- cmdstan_model(
   "stan_code/freqmodel_hier.stan",
   include_paths = stan_codedir,
@@ -1411,13 +1419,13 @@ stan_data_lst <- fit_1000_data_tbl %>%
     )
 
 freqmodel_hier_stanfit <- freqmodel_hier_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4206,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4206,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_hier_stanfit$summary()
@@ -1557,13 +1565,13 @@ stan_data_lst <- training_stats_tbl %>%
   compose_data()
 
 freqmodel_flat_subset_stanfit <- freqmodel_flat_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4207,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4207,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_flat_subset_stanfit$summary()
@@ -1702,13 +1710,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 freqmodel_prior_subset_stanfit <- freqmodel_prior_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4208,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4208,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_prior_subset_stanfit$summary()
@@ -1734,13 +1742,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 freqmodel_prior_2_subset_stanfit <- freqmodel_prior_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4209,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4209,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_prior_2_subset_stanfit$summary()
@@ -1772,13 +1780,13 @@ stan_data_lst <- training_stats_tbl %>%
     )
 
 freqmodel_hier_subset_stanfit <- freqmodel_hier_stanmodel$sample(
-  data            =        stan_data_lst,
-  chains          =                    4,
-  iter_warmup     =                  500,
-  iter_sampling   =                  500,
-  seed            =                 4210,
-  output_dir      =        stan_modeldir,
-  output_basename =       stan_modelname
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4210,
+  output_dir      =                stan_modeldir,
+  output_basename = str_c("fit_", stan_modelname)
   )
 
 freqmodel_hier_subset_stanfit$summary()
