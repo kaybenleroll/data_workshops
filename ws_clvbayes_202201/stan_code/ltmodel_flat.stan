@@ -3,6 +3,7 @@ data {
 
   vector<lower=0>[n] min_lifetime; // minimum observed lifetime for customer
   vector<lower=0>[n] max_lifetime; // maximum observed lifetime for customer
+  vector<lower=0>[n] obs_time;     // observation time since customer 'birth'
 }
 
 parameters {
@@ -14,3 +15,6 @@ model {
   target += exponential_lcdf (max_lifetime | mu);
 }
 
+generated quantities {
+#include lifetime_genquan.stan
+}

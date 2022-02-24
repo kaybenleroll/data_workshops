@@ -277,7 +277,7 @@ We then use this compiled model with our data to produce a fit of the data.
 stan_modelname <- "ltmodel_flat"
 
 stan_data_lst <- training_stats_tbl %>%
-  select(customer_id, min_lifetime, max_lifetime) %>%
+  select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
   compose_data()
 
 ltmodel_flat_stanfit <- ltmodel_flat_stanmodel$sample(
@@ -327,7 +327,7 @@ We then use this compiled model with our data to produce a fit of the data.
 stan_modelname <- "ltmodel_mintime"
 
 stan_data_lst <- training_stats_tbl %>%
-  select(customer_id, min_lifetime, max_lifetime) %>%
+  select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
   compose_data(
     s     = 1,
     beta = 10
@@ -419,7 +419,7 @@ With this new model we use the same data again to fit our new model.
 stan_modelname <- "ltmodel_minmax"
 
 stan_data_lst <- training_stats_tbl %>%
-  select(customer_id, min_lifetime, max_lifetime) %>%
+  select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
   compose_data(
     s     = 1,
     beta = 10
@@ -499,7 +499,7 @@ We now fit the same model but with a tighter prior around $\mu$.
 stan_modelname <- "ltmodel_minmax"
 
 stan_data_lst <- training_stats_tbl %>%
-  select(customer_id, min_lifetime, max_lifetime) %>%
+  select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
   compose_data(
     s     = 5,
     beta = 50
@@ -602,7 +602,7 @@ ltmodel_hier_stanmodel <- cmdstan_model(
 stan_modelname <- "ltmodel_hier"
 
 stan_data_lst <- training_stats_tbl %>%
-  select(customer_id, min_lifetime, max_lifetime) %>%
+  select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
   compose_data(
     mean_p1 =  5,
     mean_p2 = 50,
@@ -648,7 +648,7 @@ ltmodel_hier_one_stanmodel <- cmdstan_model(
 stan_modelname <- "ltmodel_hier_one"
 
 stan_data_lst <- training_stats_tbl %>%
-  select(customer_id, min_lifetime, max_lifetime) %>%
+  select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
   compose_data(
     mean_p1 =  2,
     mean_p2 = 20,

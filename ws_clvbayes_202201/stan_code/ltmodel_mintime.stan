@@ -1,7 +1,8 @@
 data {
-  int<lower=1> n;               // count of observations
+  int<lower=1> n;                      // count of observations
 
   vector<lower=0>[n] min_lifetime; // minimum observed lifetime for customer
+  vector<lower=0>[n] obs_time;     // observation time since customer 'birth'
 
   real s;
   real beta;
@@ -18,7 +19,5 @@ model {
 }
 
 generated quantities {
-  vector<lower=0>[n] tau;
-
-  tau = 1 ./ mu;
+#include lifetime_genquan.stan
 }
