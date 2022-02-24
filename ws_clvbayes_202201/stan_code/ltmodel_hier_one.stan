@@ -3,6 +3,7 @@ data {
 
   vector<lower=0>[n] min_lifetime; // minimum observed lifetime for customer
   vector<lower=0>[n] max_lifetime; // maximum observed lifetime for customer
+  vector<lower=0>[n] obs_time;     // observation time since customer 'birth'
 
   real<lower=0> mean_p1, mean_p2;
   real<lower=0> s;
@@ -28,7 +29,5 @@ model {
 }
 
 generated quantities {
-  vector<lower=0>[n] tau;
-
-  tau = 1 ./ mu;
+#include lifetime_genquan.stan
 }
