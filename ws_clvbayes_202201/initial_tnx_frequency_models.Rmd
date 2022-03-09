@@ -434,8 +434,9 @@ freqmodel_flat_stanmodel <- cmdstan_model(
 
 We then use this compiled model with our data to produce a fit of the data.
 
-```{r fit_freqmodel_flat_stanmodel, echo=TRUE}
+```{r fit_freqmodel_flat_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_flat"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- fit_1000_data_tbl %>%
   select(customer_id, btyd_count, tnx_weeks = all_weeks) %>%
@@ -449,7 +450,7 @@ freqmodel_flat_stanfit <- freqmodel_flat_stanmodel$sample(
   seed            =                         4201,
   save_warmup     =                         TRUE,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix,
   )
 
 freqmodel_flat_stanfit$summary()
@@ -476,7 +477,8 @@ freqmodel_flat_stanfit$draws(inc_warmup = TRUE) %>%
   mcmc_trace(
     pars     = parameter_subset,
     n_warmup = 500
-    )
+    ) +
+  ggtitle("Full Traceplots of Some Lambda Values")
 ```
 
 
@@ -507,7 +509,8 @@ of the chains.
 ```{r plot_freqmodel_flat_parameter_rhat, echo=TRUE}
 freqmodel_flat_stanfit %>%
   rhat() %>%
-  mcmc_rhat()
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
 ```
 
 Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
@@ -518,7 +521,8 @@ view.
 ```{r plot_freqmodel_flat_parameter_neffratio, echo=TRUE}
 freqmodel_flat_stanfit %>%
   neff_ratio() %>%
-  mcmc_neff()
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
 ```
 
 Finally, we also want to look at autocorrelation in the chains for each
@@ -526,7 +530,8 @@ parameter.
 
 ```{r plot_freqmodel_flat_parameter_acf, echo=TRUE}
 freqmodel_flat_stanfit$draws() %>%
-  mcmc_acf(pars = parameter_subset)
+  mcmc_acf(pars = parameter_subset) +
+    ggtitle("Autocorrelation Plot of Sample Lambda Values")
 ```
 
 In practice we do not always require a comprehensive exploration of the
@@ -585,8 +590,9 @@ ggplot(plotvalid_tbl) +
 
 We now repeat this model with a larger dataset.
 
-```{r fit_10k_freqmodel_flat_stanmodel, echo=TRUE}
+```{r fit_10k_freqmodel_flat_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_flat_10k"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- fit_10000_data_tbl %>%
   select(customer_id, btyd_count, tnx_weeks = all_weeks) %>%
@@ -599,7 +605,7 @@ freqmodel_flat_10k_stanfit <- freqmodel_flat_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4202,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_flat_10k_stanfit$summary()
@@ -658,8 +664,9 @@ ggplot(plotvalid_tbl) +
 We now want to update our approach to use the observed duration of the
 transactions rather than using a constant time period of 52 weeks.
 
-```{r fit_observed_freqmodel_flat_stanmodel, echo=TRUE}
+```{r fit_observed_freqmodel_flat_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_flat_obs"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- fit_1000_data_tbl %>%
   transmute(customer_id, btyd_count, tnx_weeks) %>%
@@ -672,7 +679,7 @@ freqmodel_flat_obs_stanfit <- freqmodel_flat_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4203,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_flat_obs_stanfit$summary()
@@ -949,8 +956,9 @@ freqmodel_prior_stanmodel <- cmdstan_model(
 Having compiled the Stan model, we now fit it with our data.
 
 
-```{r fit_freqmodel_prior_stanmodel, echo=TRUE}
+```{r fit_freqmodel_prior_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_prior"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- fit_1000_data_tbl %>%
   transmute(customer_id, btyd_count, tnx_weeks) %>%
@@ -966,7 +974,7 @@ freqmodel_prior_stanfit <- freqmodel_prior_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4204,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_prior_stanfit$summary()
@@ -1132,8 +1140,9 @@ We fit the model again with a narrower prior on `lambda` to investigate the
 effect of this.
 
 
-```{r fit_freqmodel_prior_2_stanmodel, echo=TRUE}
+```{r fit_freqmodel_prior_2_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_prior_2"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- fit_1000_data_tbl %>%
   transmute(customer_id, btyd_count, tnx_weeks) %>%
@@ -1149,7 +1158,7 @@ freqmodel_prior_2_stanfit <- freqmodel_prior_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4205,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_prior_2_stanfit$summary()
@@ -1405,8 +1414,9 @@ freqmodel_hier_stanmodel <- cmdstan_model(
 
 We then use this compiled model with our data to produce a fit of the data.
 
-```{r fit_freqmodel_hier_stanmodel, echo=TRUE}
+```{r fit_freqmodel_hier_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_hier"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- fit_1000_data_tbl %>%
   transmute(customer_id, btyd_count, tnx_weeks) %>%
@@ -1425,7 +1435,7 @@ freqmodel_hier_stanfit <- freqmodel_hier_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4206,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_hier_stanfit$summary()
@@ -1558,8 +1568,9 @@ of the year.
 This is the exact same model as before, so we do not need to recompile the
 Stan model, we just fit it with the subsetted data.
 
-```{r fit_flat_model_subset, echo=TRUE}
+```{r fit_flat_model_subset, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_flat_subset"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   compose_data()
@@ -1571,7 +1582,7 @@ freqmodel_flat_subset_stanfit <- freqmodel_flat_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4207,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_flat_subset_stanfit$summary()
@@ -1700,8 +1711,9 @@ with our `flat` model in the previous section.
 We refit our models with a Gamma prior with fixed parameters, first fitting
 with a $\Gamma(0.25, 1)$ prior.
 
-```{r fit_freqmodel_prior_subset, echo=TRUE}
+```{r fit_freqmodel_prior_subset, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_prior_subset"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   compose_data(
@@ -1716,7 +1728,7 @@ freqmodel_prior_subset_stanfit <- freqmodel_prior_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4208,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_prior_subset_stanfit$summary()
@@ -1732,8 +1744,9 @@ freqmodel_prior_subset_stanfit$cmdstan_diagnose()
 
 We also refit the model with the less diffused $\Gamma(1, 4)$ prior.
 
-```{r fit_freqmodel_prior_2_subset, echo=TRUE}
+```{r fit_freqmodel_prior_2_subset, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_prior_2_subset"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   compose_data(
@@ -1748,7 +1761,7 @@ freqmodel_prior_2_subset_stanfit <- freqmodel_prior_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4209,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_prior_2_subset_stanfit$summary()
@@ -1767,8 +1780,9 @@ freqmodel_prior_2_subset_stanfit$cmdstan_diagnose()
 Finally, we fit the hierarchical model so the parameters for the Gamma prior
 is also inferred from the data.
 
-```{r fit_freqmodel_hier_subset, echo=TRUE}
+```{r fit_freqmodel_hier_subset, echo=TRUE, cache=TRUE}
 stan_modelname <- "freqmodel_hier_subset"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   compose_data(
@@ -1786,7 +1800,7 @@ freqmodel_hier_subset_stanfit <- freqmodel_hier_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4210,
   output_dir      =                stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =               stanfit_prefix
   )
 
 freqmodel_hier_subset_stanfit$summary()
