@@ -232,7 +232,7 @@
     </div>
     <div id="postamble" data-toggle="wy-nav-shift" class="status">
                   <p class="author"><span class="glyphicon glyphicon-user"></span> Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
-                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: February 14, 2022</p>
+                        <p class="date"><span class="glyphicon glyphicon-calendar"></span> Last updated: February 23, 2022</p>
           </div>
    </div>
      
@@ -255,11 +255,11 @@ input to this process.</p>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>customer_cohort_data_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 5
-## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, …
-## $ cohort_qtr      [3m[38;5;246m&lt;yearqtr&gt;[39m[23m 2010 Q1, 2010 Q4, 2010 Q3, 2010 Q2, 2011 Q1, 2010 …
-## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;,…
-## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-…
-## $ total_tnx_count [3m[38;5;246m&lt;int&gt;[39m[23m 3, 8, 5, 3, 1, 1, 9, 2, 1, 2, 6, 2, 5, 10, 6, 4, 10, 2…</code></pre>
+## $ customer_id     &lt;chr&gt; &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, …
+## $ cohort_qtr      &lt;yearqtr&gt; 2010 Q1, 2010 Q4, 2010 Q3, 2010 Q2, 2011 Q1, 2010 …
+## $ cohort_ym       &lt;chr&gt; &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;,…
+## $ first_tnx_date  &lt;date&gt; 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-…
+## $ total_tnx_count &lt;int&gt; 3, 8, 5, 3, 1, 1, 9, 2, 1, 2, 6, 2, 5, 10, 6, 4, 10, 2…</code></pre>
 <p>For the purposes of this work, we can treat the quarterly times as categorical
 and so we convert these values to character strings.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>customer_cohort_data_tbl <span class="ot">&lt;-</span> customer_cohort_data_tbl <span class="sc">%&gt;%</span></span>
@@ -273,10 +273,10 @@ and so we convert these values to character strings.</p>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>customer_cohort_data_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 4
-## $ customer_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, &quot;…
-## $ cohort_qtr     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 Q1&quot;, &quot;2010 Q4&quot;, &quot;2010 Q3&quot;, &quot;2010 Q2&quot;, &quot;2011 Q1&quot;, …
-## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;, …
-## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-0…</code></pre>
+## $ customer_id    &lt;chr&gt; &quot;12346&quot;, &quot;12347&quot;, &quot;12348&quot;, &quot;12349&quot;, &quot;12350&quot;, &quot;12351&quot;, &quot;…
+## $ cohort_qtr     &lt;chr&gt; &quot;2010 Q1&quot;, &quot;2010 Q4&quot;, &quot;2010 Q3&quot;, &quot;2010 Q2&quot;, &quot;2011 Q1&quot;, …
+## $ cohort_ym      &lt;chr&gt; &quot;2010 03&quot;, &quot;2010 10&quot;, &quot;2010 09&quot;, &quot;2010 04&quot;, &quot;2011 02&quot;, …
+## $ first_tnx_date &lt;date&gt; 2010-03-02, 2010-10-31, 2010-09-27, 2010-04-29, 2011-0…</code></pre>
 <p>We also need to set dataset sizes for each of our generated datasets.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>n_customers <span class="ot">&lt;-</span> <span class="dv">50000</span></span></code></pre></div>
 </div>
@@ -309,15 +309,15 @@ produce individual parameters for each of the customers.</p>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>synthdata_basic_simparams_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 5,852
 ## Columns: 9
-## $ customer_id     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;12490&quot;, &quot;12533&quot;, &quot;12682&quot;, &quot;12758&quot;, &quot;12836&quot;, &quot;12913&quot;, …
-## $ cohort_qtr      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;,…
-## $ cohort_ym       [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;,…
-## $ first_tnx_date  [3m[38;5;246m&lt;date&gt;[39m[23m 2009-12-01, 2009-12-01, 2009-12-01, 2009-12-01, 2009-…
-## $ customer_mu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.182447805, 0.044405491, 0.077960991, 0.022609124, 0.…
-## $ customer_tau    [3m[38;5;246m&lt;dbl&gt;[39m[23m 1.3965535, 3.2993246, 1.5253401, 52.7946844, 8.1746956…
-## $ customer_lambda [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.062054306, 0.166644516, 0.084899079, 0.308712369, 0.…
-## $ customer_nu     [3m[38;5;246m&lt;dbl&gt;[39m[23m 0.21563619, 0.33765912, 2.66559747, 1.11051323, 1.3575…
-## $ customer_p      [3m[38;5;246m&lt;dbl&gt;[39m[23m 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
+## $ customer_id     &lt;chr&gt; &quot;12490&quot;, &quot;12533&quot;, &quot;12682&quot;, &quot;12758&quot;, &quot;12836&quot;, &quot;12913&quot;, …
+## $ cohort_qtr      &lt;chr&gt; &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;, &quot;2009 Q4&quot;,…
+## $ cohort_ym       &lt;chr&gt; &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;, &quot;2009 12&quot;,…
+## $ first_tnx_date  &lt;date&gt; 2009-12-01, 2009-12-01, 2009-12-01, 2009-12-01, 2009-…
+## $ customer_mu     &lt;dbl&gt; 0.182447805, 0.044405491, 0.077960991, 0.022609124, 0.…
+## $ customer_tau    &lt;dbl&gt; 1.3965535, 3.2993246, 1.5253401, 52.7946844, 8.1746956…
+## $ customer_lambda &lt;dbl&gt; 0.062054306, 0.166644516, 0.084899079, 0.308712369, 0.…
+## $ customer_nu     &lt;dbl&gt; 0.21563619, 0.33765912, 2.66559747, 1.11051323, 1.3575…
+## $ customer_p      &lt;dbl&gt; 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,…</code></pre>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>synthdata_basic_transactions_tbl <span class="ot">&lt;-</span> synthdata_basic_simparams_tbl <span class="sc">%&gt;%</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate_pnbd_customer_transaction_data</span>(</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">final_tnx_date =</span> <span class="fu">as.Date</span>(<span class="st">&quot;2011-12-09&quot;</span>)</span>
@@ -327,10 +327,10 @@ produce individual parameters for each of the customers.</p>
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>synthdata_basic_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 26,888
 ## Columns: 4
-## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;13748&quot;, &quot;13758&quot;, &quot;17191&quot;, &quot;17742&quot;, &quot;13526&quot;, &quot;15005&quot;, &quot;1…
-## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2009-12-01 00:40:25, 2009-12-01 00:44:29, 2009-12-01 00…
-## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;T20091201-0001&quot;, &quot;T20091201-0002&quot;, &quot;T20091201-0003&quot;, &quot;T…
-## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 25.91, 53.53, 787.20, 72445.64, 3679.07, 2810.92, 5731.3…</code></pre>
+## $ customer_id   &lt;chr&gt; &quot;13748&quot;, &quot;13758&quot;, &quot;17191&quot;, &quot;17742&quot;, &quot;13526&quot;, &quot;15005&quot;, &quot;1…
+## $ tnx_timestamp &lt;dttm&gt; 2009-12-01 00:40:25, 2009-12-01 00:44:29, 2009-12-01 00…
+## $ invoice_id    &lt;chr&gt; &quot;T20091201-0001&quot;, &quot;T20091201-0002&quot;, &quot;T20091201-0003&quot;, &quot;T…
+## $ tnx_amount    &lt;dbl&gt; 25.91, 53.53, 787.20, 72445.64, 3679.07, 2810.92, 5731.3…</code></pre>
 <div id="write-data-to-disk" class="section level3" number="2.0.1">
 <h3><span class="header-section-number">2.0.1</span> Write Data to Disk</h3>
 <p>We now write this data to disk.</p>
@@ -354,10 +354,10 @@ customers and transactions within that timeframe.</p>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>synthdata_shortframe_cohort_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 50,000
 ## Columns: 4
-## $ customer_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201701_0001&quot;, &quot;C201701_0002&quot;, &quot;C201701_0003&quot;, &quot;C20170…
-## $ cohort_qtr     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, …
-## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, …
-## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2017-01-01, 2017-01-01, 2017-01-01, 2017-01-01, 2017-0…</code></pre>
+## $ customer_id    &lt;chr&gt; &quot;C201701_0001&quot;, &quot;C201701_0002&quot;, &quot;C201701_0003&quot;, &quot;C20170…
+## $ cohort_qtr     &lt;chr&gt; &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, &quot;2017 Q1&quot;, …
+## $ cohort_ym      &lt;chr&gt; &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, &quot;2017 01&quot;, …
+## $ first_tnx_date &lt;date&gt; 2017-01-01, 2017-01-01, 2017-01-01, 2017-01-01, 2017-0…</code></pre>
 <div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>pnbd_params_lst <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_shape     =</span>   <span class="dv">2</span>,</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_rate      =</span>  <span class="dv">20</span>,</span>
@@ -384,10 +384,10 @@ customers and transactions within that timeframe.</p>
 <span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>synthdata_shortframe_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 231,252
 ## Columns: 4
-## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201701_0042&quot;, &quot;C201701_0025&quot;, &quot;C201701_0030&quot;, &quot;C201701…
-## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2017-01-01 00:44:05, 2017-01-01 01:21:01, 2017-01-01 01…
-## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;T20170101-0001&quot;, &quot;T20170101-0002&quot;, &quot;T20170101-0003&quot;, &quot;T…
-## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 1008.81, 47.42, 77.52, 30.37, 25.93, 157.32, 197.12, 113…</code></pre>
+## $ customer_id   &lt;chr&gt; &quot;C201701_0042&quot;, &quot;C201701_0025&quot;, &quot;C201701_0030&quot;, &quot;C201701…
+## $ tnx_timestamp &lt;dttm&gt; 2017-01-01 00:44:05, 2017-01-01 01:21:01, 2017-01-01 01…
+## $ invoice_id    &lt;chr&gt; &quot;T20170101-0001&quot;, &quot;T20170101-0002&quot;, &quot;T20170101-0003&quot;, &quot;T…
+## $ tnx_amount    &lt;dbl&gt; 1008.81, 47.42, 77.52, 30.37, 25.93, 157.32, 197.12, 113…</code></pre>
 <div id="write-data-to-disk-1" class="section level2" number="3.1">
 <h2><span class="header-section-number">3.1</span> Write Data to Disk</h2>
 <p>We now write this data to disk.</p>
@@ -410,10 +410,10 @@ dataset.</p>
 <span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>synthdata_longframe_cohort_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 50,000
 ## Columns: 4
-## $ customer_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C20110…
-## $ cohort_qtr     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, …
-## $ cohort_ym      [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, …
-## $ first_tnx_date [3m[38;5;246m&lt;date&gt;[39m[23m 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-0…</code></pre>
+## $ customer_id    &lt;chr&gt; &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0003&quot;, &quot;C20110…
+## $ cohort_qtr     &lt;chr&gt; &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, …
+## $ cohort_ym      &lt;chr&gt; &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, …
+## $ first_tnx_date &lt;date&gt; 2011-01-01, 2011-01-01, 2011-01-01, 2011-01-01, 2011-0…</code></pre>
 <div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>pnbd_params_lst <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_shape     =</span>   <span class="dv">2</span>,</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu_rate      =</span>  <span class="dv">20</span>,</span>
@@ -440,10 +440,10 @@ dataset.</p>
 <span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>synthdata_longframe_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 269,702
 ## Columns: 4
-## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0002&quot;, &quot;C201101_0018&quot;, &quot;C201101_0001&quot;, &quot;C201101…
-## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2011-01-01 00:20:28, 2011-01-01 00:43:10, 2011-01-01 02…
-## $ invoice_id    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;T20110101-0001&quot;, &quot;T20110101-0002&quot;, &quot;T20110101-0003&quot;, &quot;T…
-## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 547.93, 90.67, 57.90, 143.08, 113.37, 22.20, 574.21, 112…</code></pre>
+## $ customer_id   &lt;chr&gt; &quot;C201101_0002&quot;, &quot;C201101_0018&quot;, &quot;C201101_0001&quot;, &quot;C201101…
+## $ tnx_timestamp &lt;dttm&gt; 2011-01-01 00:20:28, 2011-01-01 00:43:10, 2011-01-01 02…
+## $ invoice_id    &lt;chr&gt; &quot;T20110101-0001&quot;, &quot;T20110101-0002&quot;, &quot;T20110101-0003&quot;, &quot;T…
+## $ tnx_amount    &lt;dbl&gt; 547.93, 90.67, 57.90, 143.08, 113.37, 22.20, 574.21, 112…</code></pre>
 <div id="write-data-to-disk-2" class="section level2" number="4.1">
 <h2><span class="header-section-number">4.1</span> Write Data to Disk</h2>
 <p>We now write this data to disk.</p>
@@ -497,11 +497,11 @@ count the number of transactions made during a single year.</p>
 <span id="cb22-38"><a href="#cb22-38" aria-hidden="true" tabindex="-1"></a>synthdata_singleyear_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 698,567
 ## Columns: 5
-## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;0010G0VY0J&quot;, &quot;0010G0VY0J&quot;, &quot;0010G0VY0J&quot;, &quot;0010G0VY0J&quot;, …
-## $ cohort_qtr    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;…
-## $ cohort_ym     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;…
-## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2019-01-01 23:31:04, 2019-01-05 10:22:11, 2019-01-09 22…
-## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 76.52, 85.76, 72.59, 69.78, 73.71, 83.74, 228.39, 222.85…</code></pre>
+## $ customer_id   &lt;chr&gt; &quot;0010G0VY0J&quot;, &quot;0010G0VY0J&quot;, &quot;0010G0VY0J&quot;, &quot;0010G0VY0J&quot;, …
+## $ cohort_qtr    &lt;chr&gt; &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;2019 Q1&quot;, &quot;…
+## $ cohort_ym     &lt;chr&gt; &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;2019 01&quot;, &quot;…
+## $ tnx_timestamp &lt;dttm&gt; 2019-01-01 23:31:04, 2019-01-05 10:22:11, 2019-01-09 22…
+## $ tnx_amount    &lt;dbl&gt; 76.52, 85.76, 72.59, 69.78, 73.71, 83.74, 228.39, 222.85…</code></pre>
 <div id="write-data-to-disk-3" class="section level2" number="5.1">
 <h2><span class="header-section-number">5.1</span> Write Data to Disk</h2>
 <p>We now write this data to disk.</p>
@@ -536,8 +536,8 @@ count the number of transactions made during a single year.</p>
 <span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">params_lst =</span> pnbd_params_lst</span>
 <span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
 <span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">transmute</span>(</span>
-<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_tau,</span>
-<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">customer_lambda =</span> <span class="fl">0.1</span>, customer_nu, customer_p</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_mu,</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    customer_tau, <span class="at">customer_lambda =</span> <span class="fl">0.1</span>, customer_nu, customer_p</span>
 <span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>synthdata_lifetime_transactions_tbl <span class="ot">&lt;-</span> synthdata_lifetime_simparams_tbl <span class="sc">%&gt;%</span></span>
@@ -548,11 +548,11 @@ count the number of transactions made during a single year.</p>
 <span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>synthdata_lifetime_transactions_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code></pre></div>
 <pre><code>## Rows: 135,337
 ## Columns: 5
-## $ customer_id   [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0002&quot;, &quot;C201101…
-## $ cohort_qtr    [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;…
-## $ cohort_ym     [3m[38;5;246m&lt;chr&gt;[39m[23m &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;…
-## $ tnx_timestamp [3m[38;5;246m&lt;dttm&gt;[39m[23m 2011-01-01 14:14:36, 2011-01-01 06:38:12, 2011-01-23 19…
-## $ tnx_amount    [3m[38;5;246m&lt;dbl&gt;[39m[23m 100.25, 52.76, 52.22, 80.54, 315.04, 289.44, 290.18, 309…</code></pre>
+## $ customer_id   &lt;chr&gt; &quot;C201101_0001&quot;, &quot;C201101_0002&quot;, &quot;C201101_0002&quot;, &quot;C201101…
+## $ cohort_qtr    &lt;chr&gt; &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;2011 Q1&quot;, &quot;…
+## $ cohort_ym     &lt;chr&gt; &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;2011 01&quot;, &quot;…
+## $ tnx_timestamp &lt;dttm&gt; 2011-01-01 14:14:36, 2011-01-01 06:38:12, 2011-01-23 19…
+## $ tnx_amount    &lt;dbl&gt; 100.25, 52.76, 52.22, 80.54, 315.04, 289.44, 290.18, 309…</code></pre>
 <div id="write-data-to-disk-4" class="section level2" number="6.1">
 <h2><span class="header-section-number">6.1</span> Write Data to Disk</h2>
 <p>We now write this data to disk.</p>
@@ -570,165 +570,99 @@ count the number of transactions made during a single year.</p>
 ##  version  R version 4.1.1 (2021-08-10)
 ##  os       Ubuntu 20.04.3 LTS          
 ##  system   x86_64, linux-gnu           
-##  ui       RStudio                     
+##  ui       X11                         
 ##  language (EN)                        
 ##  collate  en_US.UTF-8                 
 ##  ctype    en_US.UTF-8                 
 ##  tz       Etc/UTC                     
-##  date     2022-02-14                  
+##  date     2022-02-23                  
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
-##  package              * version   date       lib source                             
-##  abind                  1.4-5     2016-07-21 [1] RSPM (R 4.1.0)                     
-##  arrayhelpers           1.1-0     2020-02-04 [1] RSPM (R 4.1.0)                     
-##  assertthat             0.2.1     2019-03-21 [1] RSPM (R 4.1.0)                     
-##  backports              1.3.0     2021-10-27 [1] RSPM (R 4.1.0)                     
-##  base64enc              0.1-3     2015-07-28 [1] RSPM (R 4.1.0)                     
-##  bayesplot            * 1.8.1     2021-06-14 [1] RSPM (R 4.1.0)                     
-##  bookdown               0.24      2021-09-02 [1] RSPM (R 4.1.0)                     
-##  boot                   1.3-28    2021-05-03 [2] CRAN (R 4.1.1)                     
-##  bridgesampling         1.1-2     2021-04-16 [1] RSPM (R 4.1.0)                     
-##  brms                 * 2.16.1    2022-01-24 [1] Github (paul-buerkner/brms@6fa5c02)
-##  Brobdingnag            1.2-6     2018-08-13 [1] RSPM (R 4.1.0)                     
-##  broom                  0.7.9     2021-07-27 [1] RSPM (R 4.1.0)                     
-##  bslib                  0.3.1     2021-10-06 [1] RSPM (R 4.1.0)                     
-##  cachem                 1.0.6     2021-08-19 [1] RSPM (R 4.1.0)                     
-##  callr                  3.7.0     2021-04-20 [1] RSPM (R 4.1.0)                     
-##  cellranger             1.1.0     2016-07-27 [1] RSPM (R 4.1.0)                     
-##  checkmate              2.0.0     2020-02-06 [1] RSPM (R 4.1.0)                     
-##  cli                    3.1.0     2021-10-27 [1] RSPM (R 4.1.0)                     
-##  cmdstanr             * 0.4.0     2022-01-24 [1] Github (stan-dev/cmdstanr@3233585) 
-##  coda                   0.19-4    2020-09-30 [1] RSPM (R 4.1.0)                     
-##  codetools              0.2-18    2020-11-04 [2] CRAN (R 4.1.1)                     
-##  colorspace             2.0-2     2021-06-24 [1] RSPM (R 4.1.0)                     
-##  colourpicker           1.1.1     2021-10-04 [1] RSPM (R 4.1.0)                     
-##  conflicted           * 1.0.4     2019-06-21 [1] RSPM (R 4.1.0)                     
-##  cowplot              * 1.1.1     2020-12-30 [1] RSPM (R 4.1.0)                     
-##  crayon                 1.4.1     2021-02-08 [1] RSPM (R 4.1.0)                     
-##  crosstalk              1.1.1     2021-01-12 [1] RSPM (R 4.1.0)                     
-##  curl                   4.3.2     2021-06-23 [1] RSPM (R 4.1.0)                     
-##  DBI                    1.1.1     2021-01-15 [1] RSPM (R 4.1.0)                     
-##  dbplyr                 2.1.1     2021-04-06 [1] RSPM (R 4.1.0)                     
-##  digest                 0.6.28    2021-09-23 [1] RSPM (R 4.1.0)                     
-##  directlabels         * 2021.1.13 2021-01-16 [1] RSPM (R 4.1.0)                     
-##  distributional         0.2.2     2021-02-02 [1] RSPM (R 4.1.0)                     
-##  dplyr                * 1.0.7     2021-06-18 [1] RSPM (R 4.1.0)                     
-##  DT                     0.19      2021-09-02 [1] RSPM (R 4.1.0)                     
-##  dygraphs               1.1.1.6   2018-07-11 [1] RSPM (R 4.1.0)                     
-##  ellipsis               0.3.2     2021-04-29 [1] RSPM (R 4.1.0)                     
-##  evaluate               0.14      2019-05-28 [1] RSPM (R 4.1.0)                     
-##  fansi                  0.5.0     2021-05-25 [1] RSPM (R 4.1.0)                     
-##  farver                 2.1.0     2021-02-28 [1] RSPM (R 4.1.0)                     
-##  fastmap                1.1.0     2021-01-25 [1] RSPM (R 4.1.0)                     
-##  forcats              * 0.5.1     2021-01-27 [1] RSPM (R 4.1.0)                     
-##  fs                   * 1.5.0     2020-07-31 [1] RSPM (R 4.1.0)                     
-##  furrr                * 0.2.3     2021-06-25 [1] RSPM (R 4.1.0)                     
-##  future               * 1.22.1    2021-08-25 [1] RSPM (R 4.1.0)                     
-##  gamm4                  0.2-6     2020-04-03 [1] RSPM (R 4.1.0)                     
-##  generics               0.1.1     2021-10-25 [1] RSPM (R 4.1.0)                     
-##  ggdist                 3.0.0     2021-07-19 [1] RSPM (R 4.1.0)                     
-##  ggplot2              * 3.3.5     2021-06-25 [1] RSPM (R 4.1.0)                     
-##  ggridges               0.5.3     2021-01-08 [1] RSPM (R 4.1.0)                     
-##  globals                0.14.0    2020-11-22 [1] RSPM (R 4.1.0)                     
-##  glue                 * 1.4.2     2020-08-27 [1] RSPM (R 4.1.0)                     
-##  gridExtra              2.3       2017-09-09 [1] RSPM (R 4.1.0)                     
-##  gtable                 0.3.0     2019-03-25 [1] RSPM (R 4.1.0)                     
-##  gtools                 3.9.2     2021-06-06 [1] RSPM (R 4.1.0)                     
-##  haven                  2.4.3     2021-08-04 [1] RSPM (R 4.1.0)                     
-##  hms                    1.1.1     2021-09-26 [1] RSPM (R 4.1.0)                     
-##  htmltools              0.5.2     2021-08-25 [1] RSPM (R 4.1.0)                     
-##  htmlwidgets            1.5.4     2021-09-08 [1] RSPM (R 4.1.0)                     
-##  httpuv                 1.6.3     2021-09-09 [1] RSPM (R 4.1.0)                     
-##  httr                   1.4.2     2020-07-20 [1] RSPM (R 4.1.0)                     
-##  igraph                 1.2.7     2021-10-15 [1] RSPM (R 4.1.0)                     
-##  inline                 0.3.19    2021-05-31 [1] RSPM (R 4.1.0)                     
-##  jquerylib              0.1.4     2021-04-26 [1] RSPM (R 4.1.0)                     
-##  jsonlite               1.7.2     2020-12-09 [1] RSPM (R 4.1.0)                     
-##  knitr                  1.36      2021-09-29 [1] RSPM (R 4.1.0)                     
-##  labeling               0.4.2     2020-10-20 [1] RSPM (R 4.1.0)                     
-##  later                  1.3.0     2021-08-18 [1] RSPM (R 4.1.0)                     
-##  lattice                0.20-44   2021-05-02 [2] CRAN (R 4.1.1)                     
-##  lifecycle              1.0.1     2021-09-24 [1] RSPM (R 4.1.0)                     
-##  listenv                0.8.0     2019-12-05 [1] RSPM (R 4.1.0)                     
-##  lme4                   1.1-27.1  2021-06-22 [1] RSPM (R 4.1.0)                     
-##  loo                    2.4.1     2020-12-09 [1] RSPM (R 4.1.0)                     
-##  lubridate            * 1.8.0     2021-10-07 [1] RSPM (R 4.1.0)                     
-##  magrittr             * 2.0.1     2020-11-17 [1] RSPM (R 4.1.0)                     
-##  markdown               1.1       2019-08-07 [1] RSPM (R 4.1.0)                     
-##  MASS                   7.3-54    2021-05-03 [2] CRAN (R 4.1.1)                     
-##  Matrix                 1.3-4     2021-06-01 [2] CRAN (R 4.1.1)                     
-##  matrixStats            0.61.0    2021-09-17 [1] RSPM (R 4.1.0)                     
-##  mgcv                   1.8-36    2021-06-01 [2] CRAN (R 4.1.1)                     
-##  mime                   0.12      2021-09-28 [1] RSPM (R 4.1.0)                     
-##  miniUI                 0.1.1.1   2018-05-18 [1] RSPM (R 4.1.0)                     
-##  minqa                  1.2.4     2014-10-09 [1] RSPM (R 4.1.0)                     
-##  modelr                 0.1.8     2020-05-19 [1] RSPM (R 4.1.0)                     
-##  munsell                0.5.0     2018-06-12 [1] RSPM (R 4.1.0)                     
-##  mvtnorm                1.1-3     2021-10-08 [1] RSPM (R 4.1.0)                     
-##  nlme                   3.1-152   2021-02-04 [2] CRAN (R 4.1.1)                     
-##  nloptr                 1.2.2.2   2020-07-02 [1] RSPM (R 4.1.0)                     
-##  parallelly             1.28.1    2021-09-09 [1] RSPM (R 4.1.0)                     
-##  PerformanceAnalytics * 2.0.4     2020-02-06 [1] RSPM (R 4.1.0)                     
-##  pillar                 1.6.4     2021-10-18 [1] RSPM (R 4.1.0)                     
-##  pkgbuild               1.2.0     2020-12-15 [1] RSPM (R 4.1.0)                     
-##  pkgconfig              2.0.3     2019-09-22 [1] RSPM (R 4.1.0)                     
-##  plyr                   1.8.6     2020-03-03 [1] RSPM (R 4.1.0)                     
-##  posterior            * 1.1.0     2021-09-09 [1] RSPM (R 4.1.0)                     
-##  prettyunits            1.1.1     2020-01-24 [1] RSPM (R 4.1.0)                     
-##  processx               3.5.2     2021-04-30 [1] RSPM (R 4.1.0)                     
-##  projpred               2.0.2     2020-10-28 [1] RSPM (R 4.1.0)                     
-##  promises               1.2.0.1   2021-02-11 [1] RSPM (R 4.1.0)                     
-##  ps                     1.6.0     2021-02-28 [1] RSPM (R 4.1.0)                     
-##  purrr                * 0.3.4     2020-04-17 [1] RSPM (R 4.1.0)                     
-##  quadprog               1.5-8     2019-11-20 [1] RSPM (R 4.1.0)                     
-##  Quandl                 2.11.0    2021-08-11 [1] RSPM (R 4.1.0)                     
-##  quantmod             * 0.4.18    2020-12-09 [1] RSPM (R 4.1.0)                     
-##  R6                     2.5.1     2021-08-19 [1] RSPM (R 4.1.0)                     
-##  Rcpp                 * 1.0.7     2021-07-07 [1] RSPM (R 4.1.0)                     
-##  RcppParallel           5.1.4     2021-05-04 [1] RSPM (R 4.1.0)                     
-##  readr                * 2.0.2     2021-09-27 [1] RSPM (R 4.1.0)                     
-##  readxl                 1.3.1     2019-03-13 [1] RSPM (R 4.1.0)                     
-##  reprex                 2.0.1     2021-08-05 [1] RSPM (R 4.1.0)                     
-##  reshape2               1.4.4     2020-04-09 [1] RSPM (R 4.1.0)                     
-##  rlang                * 0.4.12    2021-10-18 [1] RSPM (R 4.1.0)                     
-##  rmarkdown              2.11      2021-09-14 [1] RSPM (R 4.1.0)                     
-##  rmdformats             1.0.3     2021-10-06 [1] RSPM (R 4.1.0)                     
-##  rsconnect              0.8.24    2021-08-05 [1] RSPM (R 4.1.0)                     
-##  rstan                  2.21.2    2020-07-27 [1] RSPM (R 4.1.0)                     
-##  rstantools             2.1.1     2020-07-06 [1] RSPM (R 4.1.0)                     
-##  rstudioapi             0.13      2020-11-12 [1] RSPM (R 4.1.0)                     
-##  rvest                  1.0.2     2021-10-16 [1] RSPM (R 4.1.0)                     
-##  sass                   0.4.0     2021-05-12 [1] RSPM (R 4.1.0)                     
-##  scales               * 1.1.1     2020-05-11 [1] RSPM (R 4.1.0)                     
-##  sessioninfo            1.1.1     2018-11-05 [1] RSPM (R 4.1.0)                     
-##  shiny                  1.7.1     2021-10-02 [1] RSPM (R 4.1.0)                     
-##  shinyjs                2.0.0     2020-09-09 [1] RSPM (R 4.1.0)                     
-##  shinystan              2.5.0     2018-05-01 [1] RSPM (R 4.1.0)                     
-##  shinythemes            1.2.0     2021-01-25 [1] RSPM (R 4.1.0)                     
-##  StanHeaders            2.26.6    2022-01-24 [1] local                              
-##  stringi              * 1.7.5     2021-10-04 [1] RSPM (R 4.1.0)                     
-##  stringr              * 1.4.0     2019-02-10 [1] RSPM (R 4.1.0)                     
-##  svUnit                 1.0.6     2021-04-19 [1] RSPM (R 4.1.0)                     
-##  tensorA                0.36.2    2020-11-19 [1] RSPM (R 4.1.0)                     
-##  threejs                0.3.3     2020-01-21 [1] RSPM (R 4.1.0)                     
-##  tibble               * 3.1.5     2021-09-30 [1] RSPM (R 4.1.0)                     
-##  tidybayes            * 3.0.1     2021-08-22 [1] RSPM (R 4.1.0)                     
-##  tidyquant            * 1.0.3     2021-03-05 [1] RSPM (R 4.1.0)                     
-##  tidyr                * 1.1.4     2021-09-27 [1] RSPM (R 4.1.0)                     
-##  tidyselect             1.1.1     2021-04-30 [1] RSPM (R 4.1.0)                     
-##  tidyverse            * 1.3.1     2021-04-15 [1] RSPM (R 4.1.0)                     
-##  TTR                  * 0.24.2    2020-09-01 [1] RSPM (R 4.1.0)                     
-##  tzdb                   0.2.0     2021-10-27 [1] RSPM (R 4.1.0)                     
-##  utf8                   1.2.2     2021-07-24 [1] RSPM (R 4.1.0)                     
-##  V8                     3.4.2     2021-05-01 [1] RSPM (R 4.1.0)                     
-##  vctrs                  0.3.8     2021-04-29 [1] RSPM (R 4.1.0)                     
-##  withr                  2.4.2     2021-04-18 [1] RSPM (R 4.1.0)                     
-##  xfun                   0.27      2021-10-18 [1] RSPM (R 4.1.0)                     
-##  xml2                   1.3.2     2020-04-23 [1] RSPM (R 4.1.0)                     
-##  xtable                 1.8-4     2019-04-21 [1] RSPM (R 4.1.0)                     
-##  xts                  * 0.12.1    2020-09-09 [1] RSPM (R 4.1.0)                     
-##  yaml                   2.2.1     2020-02-01 [1] RSPM (R 4.1.0)                     
-##  zoo                  * 1.8-9     2021-03-09 [1] RSPM (R 4.1.0)                     
+##  package              * version   date       lib source        
+##  assertthat             0.2.1     2019-03-21 [1] RSPM (R 4.1.0)
+##  backports              1.3.0     2021-10-27 [1] RSPM (R 4.1.0)
+##  bookdown               0.24      2021-09-02 [1] RSPM (R 4.1.0)
+##  broom                  0.7.9     2021-07-27 [1] RSPM (R 4.1.0)
+##  bslib                  0.3.1     2021-10-06 [1] RSPM (R 4.1.0)
+##  cachem                 1.0.6     2021-08-19 [1] RSPM (R 4.1.0)
+##  cellranger             1.1.0     2016-07-27 [1] RSPM (R 4.1.0)
+##  cli                    3.1.0     2021-10-27 [1] RSPM (R 4.1.0)
+##  codetools              0.2-18    2020-11-04 [2] CRAN (R 4.1.1)
+##  colorspace             2.0-2     2021-06-24 [1] RSPM (R 4.1.0)
+##  conflicted           * 1.0.4     2019-06-21 [1] RSPM (R 4.1.0)
+##  cowplot              * 1.1.1     2020-12-30 [1] RSPM (R 4.1.0)
+##  crayon                 1.4.1     2021-02-08 [1] RSPM (R 4.1.0)
+##  curl                   4.3.2     2021-06-23 [1] RSPM (R 4.1.0)
+##  DBI                    1.1.1     2021-01-15 [1] RSPM (R 4.1.0)
+##  dbplyr                 2.1.1     2021-04-06 [1] RSPM (R 4.1.0)
+##  digest                 0.6.28    2021-09-23 [1] RSPM (R 4.1.0)
+##  directlabels         * 2021.1.13 2021-01-16 [1] RSPM (R 4.1.0)
+##  dplyr                * 1.0.7     2021-06-18 [1] RSPM (R 4.1.0)
+##  ellipsis               0.3.2     2021-04-29 [1] RSPM (R 4.1.0)
+##  evaluate               0.14      2019-05-28 [1] RSPM (R 4.1.0)
+##  fansi                  0.5.0     2021-05-25 [1] RSPM (R 4.1.0)
+##  fastmap                1.1.0     2021-01-25 [1] RSPM (R 4.1.0)
+##  forcats              * 0.5.1     2021-01-27 [1] RSPM (R 4.1.0)
+##  fs                   * 1.5.0     2020-07-31 [1] RSPM (R 4.1.0)
+##  furrr                * 0.2.3     2021-06-25 [1] RSPM (R 4.1.0)
+##  future               * 1.22.1    2021-08-25 [1] RSPM (R 4.1.0)
+##  generics               0.1.1     2021-10-25 [1] RSPM (R 4.1.0)
+##  ggplot2              * 3.3.5     2021-06-25 [1] RSPM (R 4.1.0)
+##  globals                0.14.0    2020-11-22 [1] RSPM (R 4.1.0)
+##  glue                 * 1.4.2     2020-08-27 [1] RSPM (R 4.1.0)
+##  gtable                 0.3.0     2019-03-25 [1] RSPM (R 4.1.0)
+##  haven                  2.4.3     2021-08-04 [1] RSPM (R 4.1.0)
+##  hms                    1.1.1     2021-09-26 [1] RSPM (R 4.1.0)
+##  htmltools              0.5.2     2021-08-25 [1] RSPM (R 4.1.0)
+##  httr                   1.4.2     2020-07-20 [1] RSPM (R 4.1.0)
+##  jquerylib              0.1.4     2021-04-26 [1] RSPM (R 4.1.0)
+##  jsonlite               1.7.2     2020-12-09 [1] RSPM (R 4.1.0)
+##  knitr                  1.36      2021-09-29 [1] RSPM (R 4.1.0)
+##  lattice                0.20-44   2021-05-02 [2] CRAN (R 4.1.1)
+##  lifecycle              1.0.1     2021-09-24 [1] RSPM (R 4.1.0)
+##  listenv                0.8.0     2019-12-05 [1] RSPM (R 4.1.0)
+##  lubridate            * 1.8.0     2021-10-07 [1] RSPM (R 4.1.0)
+##  magrittr             * 2.0.1     2020-11-17 [1] RSPM (R 4.1.0)
+##  modelr                 0.1.8     2020-05-19 [1] RSPM (R 4.1.0)
+##  munsell                0.5.0     2018-06-12 [1] RSPM (R 4.1.0)
+##  parallelly             1.28.1    2021-09-09 [1] RSPM (R 4.1.0)
+##  PerformanceAnalytics * 2.0.4     2020-02-06 [1] RSPM (R 4.1.0)
+##  pillar                 1.6.4     2021-10-18 [1] RSPM (R 4.1.0)
+##  pkgconfig              2.0.3     2019-09-22 [1] RSPM (R 4.1.0)
+##  purrr                * 0.3.4     2020-04-17 [1] RSPM (R 4.1.0)
+##  quadprog               1.5-8     2019-11-20 [1] RSPM (R 4.1.0)
+##  Quandl                 2.11.0    2021-08-11 [1] RSPM (R 4.1.0)
+##  quantmod             * 0.4.18    2020-12-09 [1] RSPM (R 4.1.0)
+##  R6                     2.5.1     2021-08-19 [1] RSPM (R 4.1.0)
+##  Rcpp                   1.0.7     2021-07-07 [1] RSPM (R 4.1.0)
+##  readr                * 2.0.2     2021-09-27 [1] RSPM (R 4.1.0)
+##  readxl                 1.3.1     2019-03-13 [1] RSPM (R 4.1.0)
+##  reprex                 2.0.1     2021-08-05 [1] RSPM (R 4.1.0)
+##  rlang                * 0.4.12    2021-10-18 [1] RSPM (R 4.1.0)
+##  rmarkdown              2.11      2021-09-14 [1] RSPM (R 4.1.0)
+##  rmdformats             1.0.3     2021-10-06 [1] RSPM (R 4.1.0)
+##  rstudioapi             0.13      2020-11-12 [1] RSPM (R 4.1.0)
+##  rvest                  1.0.2     2021-10-16 [1] RSPM (R 4.1.0)
+##  sass                   0.4.0     2021-05-12 [1] RSPM (R 4.1.0)
+##  scales               * 1.1.1     2020-05-11 [1] RSPM (R 4.1.0)
+##  sessioninfo            1.1.1     2018-11-05 [1] RSPM (R 4.1.0)
+##  stringi              * 1.7.5     2021-10-04 [1] RSPM (R 4.1.0)
+##  stringr              * 1.4.0     2019-02-10 [1] RSPM (R 4.1.0)
+##  tibble               * 3.1.5     2021-09-30 [1] RSPM (R 4.1.0)
+##  tidyquant            * 1.0.3     2021-03-05 [1] RSPM (R 4.1.0)
+##  tidyr                * 1.1.4     2021-09-27 [1] RSPM (R 4.1.0)
+##  tidyselect             1.1.1     2021-04-30 [1] RSPM (R 4.1.0)
+##  tidyverse            * 1.3.1     2021-04-15 [1] RSPM (R 4.1.0)
+##  TTR                  * 0.24.2    2020-09-01 [1] RSPM (R 4.1.0)
+##  tzdb                   0.2.0     2021-10-27 [1] RSPM (R 4.1.0)
+##  utf8                   1.2.2     2021-07-24 [1] RSPM (R 4.1.0)
+##  vctrs                  0.3.8     2021-04-29 [1] RSPM (R 4.1.0)
+##  withr                  2.4.2     2021-04-18 [1] RSPM (R 4.1.0)
+##  xfun                   0.27      2021-10-18 [1] RSPM (R 4.1.0)
+##  xml2                   1.3.2     2020-04-23 [1] RSPM (R 4.1.0)
+##  xts                  * 0.12.1    2020-09-09 [1] RSPM (R 4.1.0)
+##  yaml                   2.2.1     2020-02-01 [1] RSPM (R 4.1.0)
+##  zoo                  * 1.8-9     2021-03-09 [1] RSPM (R 4.1.0)
 ## 
 ## [1] /usr/local/lib/R/site-library
 ## [2] /usr/local/lib/R/library</code></pre>

@@ -372,8 +372,8 @@ synthdata_lifetime_simparams_tbl <- synthdata_lifetime_cohort_tbl %>%
     params_lst = pnbd_params_lst
     ) %>%
   transmute(
-    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_tau,
-    customer_lambda = 0.1, customer_nu, customer_p
+    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_mu,
+    customer_tau, customer_lambda = 0.1, customer_nu, customer_p
     )
 
 synthdata_lifetime_transactions_tbl <- synthdata_lifetime_simparams_tbl %>%
