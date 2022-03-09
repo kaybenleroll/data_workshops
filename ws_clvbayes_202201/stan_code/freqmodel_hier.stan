@@ -33,3 +33,10 @@ model {
   target += poisson_lpmf(btyd_count | lambda .* tnx_weeks);
 }
 
+generated quantities {
+  vector[n] log_lik;
+
+  for (i in 1:n) {
+    log_lik[i] = poisson_lpmf(btyd_count[i] | lambda[i] * tnx_weeks[i]);
+  }
+}

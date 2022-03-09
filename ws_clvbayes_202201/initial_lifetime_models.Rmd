@@ -253,10 +253,6 @@ We know that the customer's lifetime is *at least* this number.
 
 
 
-
-
-
-
 ## Fit Flat Model
 
 We start with a simple flat model without any priors like we did for the
@@ -273,8 +269,9 @@ ltmodel_flat_stanmodel <- cmdstan_model(
 
 We then use this compiled model with our data to produce a fit of the data.
 
-```{r fit_ltmodel_flat_stanmodel, echo=TRUE}
+```{r fit_ltmodel_flat_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "ltmodel_flat"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
@@ -287,7 +284,7 @@ ltmodel_flat_stanfit <- ltmodel_flat_stanmodel$sample(
   iter_sampling   =                           500,
   seed            =                          4201,
   output_dir      =                 stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =                stanfit_prefix
   )
 
 ltmodel_flat_stanfit$summary()
@@ -323,8 +320,9 @@ ltmodel_mintime_stanmodel <- cmdstan_model(
 
 We then use this compiled model with our data to produce a fit of the data.
 
-```{r fit_ltmodel_mintime_stanmodel, echo=TRUE}
+```{r fit_ltmodel_mintime_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "ltmodel_mintime"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
@@ -340,7 +338,7 @@ ltmodel_mintime_stanfit <- ltmodel_mintime_stanmodel$sample(
   iter_sampling   =                           500,
   seed            =                          4202,
   output_dir      =                 stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =                stanfit_prefix
   )
 
 ltmodel_mintime_stanfit$summary()
@@ -415,8 +413,9 @@ ltmodel_minmax_stanmodel <- cmdstan_model(
 With this new model we use the same data again to fit our new model.
 
 
-```{r fit_ltmodel_minmax_stanmodel, echo=TRUE}
+```{r fit_ltmodel_minmax_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "ltmodel_minmax"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
@@ -432,7 +431,7 @@ ltmodel_minmax_stanfit <- ltmodel_minmax_stanmodel$sample(
   iter_sampling   =                           500,
   seed            =                          4203,
   output_dir      =                 stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =                stanfit_prefix
   )
 
 ltmodel_minmax_stanfit$summary()
@@ -495,8 +494,9 @@ ggplot(plotvalid_tbl) +
 
 We now fit the same model but with a tighter prior around $\mu$.
 
-```{r fit_ltmodel_tightprior_stanmodel, echo=TRUE}
+```{r fit_ltmodel_tightprior_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "ltmodel_minmax"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
@@ -512,7 +512,7 @@ ltmodel_tightprior_stanfit <- ltmodel_minmax_stanmodel$sample(
   iter_sampling   =                           500,
   seed            =                          4204,
   output_dir      =                 stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =                stanfit_prefix
   )
 
 ltmodel_tightprior_stanfit$summary()
@@ -598,8 +598,9 @@ ltmodel_hier_stanmodel <- cmdstan_model(
   )
 ```
 
-```{r fit_ltmodel_hier_stanmodel, echo=TRUE}
+```{r fit_ltmodel_hier_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "ltmodel_hier"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
@@ -618,7 +619,7 @@ ltmodel_hier_stanfit <- ltmodel_hier_stanmodel$sample(
   iter_sampling   =                           500,
   seed            =                          4205,
   output_dir      =                 stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =                stanfit_prefix
   )
 
 ltmodel_hier_stanfit$summary()
@@ -644,8 +645,9 @@ ltmodel_hier_one_stanmodel <- cmdstan_model(
   )
 ```
 
-```{r fit_ltmodel_hier_one_stanmodel, echo=TRUE}
+```{r fit_ltmodel_hier_one_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "ltmodel_hier_one"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- training_stats_tbl %>%
   select(customer_id, obs_time = T_cal, min_lifetime, max_lifetime) %>%
@@ -663,7 +665,7 @@ ltmodel_hier_one_stanfit <- ltmodel_hier_one_stanmodel$sample(
   iter_sampling   =                           500,
   seed            =                          4205,
   output_dir      =                 stan_modeldir,
-  output_basename = str_c("fit_", stan_modelname)
+  output_basename =                stanfit_prefix
   )
 
 ltmodel_hier_one_stanfit$summary()
