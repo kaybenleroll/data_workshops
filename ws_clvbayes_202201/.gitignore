@@ -10,3 +10,5 @@ temp*.R
 *.rds
 
 ORIG_*
+
+.vscode/*
