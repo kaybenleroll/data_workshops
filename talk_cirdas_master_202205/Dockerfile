@@ -8,5 +8,8 @@ RUN apt-get update \
     conflicted \
     cowplot \
     knitr \
+    markdown \
     revealjs \
+    rmarkdown \
+    rsample \
     snakecase
