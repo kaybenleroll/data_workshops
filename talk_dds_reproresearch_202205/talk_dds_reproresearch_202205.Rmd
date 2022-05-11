@@ -401,7 +401,7 @@ Issues
 
 APIs (Yahoo! Finance)
 
-\\
+\
 
 Large datafiles
 
@@ -431,7 +431,9 @@ TJLUYOM
 
 ![](img/lebowski_flea.jpg)
 
+---
 
+![](img/maude_lebowski.png)
 
 
 
