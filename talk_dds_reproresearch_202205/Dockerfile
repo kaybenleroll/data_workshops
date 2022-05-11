@@ -1,4 +1,4 @@
-FROM rocker/verse:4.1.2
+FROM rocker/verse:4.1.3
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -12,3 +12,4 @@ RUN apt-get update \
     revealjs \
     rmarkdown \
     snakecase
+
