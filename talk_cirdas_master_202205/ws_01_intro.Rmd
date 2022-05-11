@@ -1,6 +1,6 @@
 ---
-title: "Introduction"
-subtitle: "Demystifying Data"
+title: "Demystifying Data"
+subtitle: "01 - Introduction"
 author: "Mick Cooney <mcooney@describedata.com>"
 date: "2022-05-12"
 output:
@@ -79,6 +79,11 @@ Nerd
 
 ## The Big Short
 
+![](img/the_big_short.png)
+
+---
+
+
 \
 
 
@@ -109,12 +114,11 @@ Uncertainty
 
 \
 
-Culture
+Simplicity
 
 \
 
-Simplicity
-
+Culture
 
 
 ## Uncertainty
@@ -167,6 +171,10 @@ Scorer of Great Goals
 
 # Summary
 
+
+---
+
+Culture
 
 ---
 
