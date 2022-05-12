@@ -92,6 +92,13 @@ customer_transactions_tbl <- read_rds("data/synthdata_singleyear_transactions_tb
 customer_transactions_tbl %>% glimpse()
 ```
 
+Our transaction data is our main input data for this work, so we will show the
+first few rows of this.
+
+```{r show_transaction_data, echo=TRUE}
+customer_transactions_tbl %>% arrange(tnx_timestamp) %>% head(10)
+```
+
 We also want to set up a number of parameters for use in this workbook
 
 ```{r setup_workbook_parameters, echo=TRUE}
@@ -508,7 +515,7 @@ of the chains.
 
 ```{r plot_freqmodel_flat_parameter_rhat, echo=TRUE}
 freqmodel_flat_stanfit %>%
-  rhat() %>%
+  rhat(pars = "lambda") %>%
   mcmc_rhat() +
     ggtitle("Plot of Parameter R-hat Values")
 ```
@@ -520,7 +527,7 @@ view.
 
 ```{r plot_freqmodel_flat_parameter_neffratio, echo=TRUE}
 freqmodel_flat_stanfit %>%
-  neff_ratio() %>%
+  neff_ratio(pars = "lambda") %>%
   mcmc_neff() +
     ggtitle("Plot of Parameter Effective Sample Sizes")
 ```
