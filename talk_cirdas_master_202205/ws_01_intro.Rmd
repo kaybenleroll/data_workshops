@@ -168,6 +168,31 @@ vs
 Scorer of Great Goals
 
 
+# Why Bother?
+
+---
+
+Great Question!
+
+---
+
+![](img/data_new_oil.png)
+
+---
+
+Jack of all trades and master of none...
+
+---
+
+... is oftentimes better than master of one
+
+---
+
+Data is the new oil. It's valuable, but if unrefined it cannot really be
+used. It has to be changed into gas, plastic, chemicals, etc to create a
+valuable entity that drives profitable activity; so data must be broken down,
+analyzed for it to have value.
+
 
 # Summary
 
