@@ -805,7 +805,7 @@ plotdata_tbl <- comparison_summary_tbl %>%
     ) %>%
   group_nest(lambda_segment) %>%
   mutate(
-    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 15))
+    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 10))
     ) %>%
   select(lambda_segment, sample_data) %>%
   unnest(sample_data) %>%
@@ -1084,7 +1084,7 @@ plotdata_tbl <- comparison_summary_tbl %>%
     ) %>%
   group_nest(lambda_segment) %>%
   mutate(
-    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 15))
+    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 10))
     ) %>%
   select(lambda_segment, sample_data) %>%
   unnest(sample_data) %>%
