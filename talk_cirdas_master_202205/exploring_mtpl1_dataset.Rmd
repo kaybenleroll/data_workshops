@@ -1,0 +1,1125 @@
+---
+title: "Exploring the MTPL1 Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    fig_caption: yes
+    toc_depth: 3
+    use_bookdown: yes
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(tidy       = FALSE,
+                      cache      = FALSE,
+                      warning    = FALSE,
+                      message    = FALSE,
+                      fig.height =     8,
+                      fig.width  =    11
+                     )
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(glue)
+library(purrr)
+library(vctrs)
+library(fs)
+library(forcats)
+library(snakecase)
+library(stringi)
+library(lubridate)
+library(rsample)
+library(sf)
+library(evir)
+
+
+source("custom_functions.R")
+
+resolve_conflicts(c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2"))
+
+
+options(width = 80L,
+        warn  = 1,
+        mc.cores = parallel::detectCores()
+        )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+```{r custom_functions, echo=FALSE}
+### Checks if variable is a date/time
+is_date <- function(x)
+  x %>% inherits(c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
+
+
+### Returns the category of data type passed to it
+categorise_datatype <- function(x) {
+  if (all(are_na(x))) return("na")
+
+  if (is_date(x))                          "datetime"
+  else if (!is_null(attributes(x)) ||
+           all(is_character(x)))          "discrete"
+  else if (all(is_logical(x)))            "logical"
+  else                                    "continuous"
+}
+
+
+### create_coltype_list() splits columns into various types
+create_coltype_list <- function(data_tbl) {
+  coltypes  <- data_tbl %>% map_chr(categorise_datatype)
+  cat_types <- coltypes %>% unique() %>% sort()
+
+  split_lst <- cat_types %>% map(~ coltypes[coltypes %in% .x] %>% names())
+
+  names(split_lst) <- coltypes %>% unique() %>% sort()
+
+  coltype_lst <- list(
+    split   = split_lst,
+    columns = coltypes
+  )
+
+  return(coltype_lst)
+}
+
+```
+
+
+This workbook was created using the "dataexpks" template:
+
+https://github.com/DublinLearningGroup/dataexpks
+
+
+
+# Introduction
+
+This workbook performs the basic data exploration of the dataset.
+
+```{r set_exploration_params, echo=TRUE}
+level_exclusion_threshold <- 100
+
+cat_level_count <- 40
+hist_bins_count <- 50
+```
+
+
+# Load Data
+
+First we load the dataset.
+
+```{r load_dataset, echo=TRUE}
+modeldata_tbl <- read_rds("data/modelling1_data_tbl.rds")
+
+rawdata_tbl <- modeldata_tbl %>% select(-sev_data)
+
+rawdata_tbl %>% glimpse()
+```
+
+
+
+## Perform Quick Data Cleaning
+
+
+```{r perform_simple_datatype_transforms, echo=TRUE}
+cleaned_names <- rawdata_tbl %>% names()
+
+data_tbl <- rawdata_tbl %>% set_colnames(cleaned_names)
+
+data_tbl %>% glimpse()
+```
+
+
+
+```{r, echo=FALSE}
+#knitr::knit_exit()
+```
+
+
+## Create Derived Variables
+
+We now create derived features useful for modelling. These values are
+new variables calculated from existing variables in the data.
+
+```{r construct_derived_values, echo=FALSE}
+data_tbl <- data_tbl
+
+data_tbl %>% glimpse()
+```
+
+
+
+
+
+## Check Missing Values
+
+Before we do anything with the data, we first check for missing values
+in the dataset. In some cases, missing data is coded by a special
+character rather than as a blank, so we first correct for this.
+
+```{r replace_missing_character, echo=TRUE}
+### _TEMPLATE_
+### ADD CODE TO CORRECT FOR DATA ENCODING HERE
+```
+
+With missing data properly encoded, we now visualise the missing data in a
+number of different ways.
+
+### Univariate Missing Data
+
+We first examine a simple univariate count of all the missing data:
+
+```{r missing_data_univariate_count, echo=TRUE}
+row_count <- data_tbl %>% nrow()
+
+missing_univariate_tbl <- data_tbl %>%
+  summarise_all(list(~sum(are_na(.)))) %>%
+  gather("variable", "missing_count") %>%
+  mutate(missing_prop = missing_count / row_count)
+
+ggplot(missing_univariate_tbl) +
+  geom_bar(aes(x = fct_reorder(variable, -missing_prop),
+               weight = missing_prop)) +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+We remove all variables where all of the entries are missing
+
+```{r remove_entirely_missing_vars, echo=TRUE}
+remove_vars <- missing_univariate_tbl %>%
+  filter(missing_count == row_count) %>%
+  pull(variable)
+
+lessmiss_data_tbl <- data_tbl %>%
+  select(-one_of(remove_vars))
+```
+
+With these columns removed, we repeat the exercise.
+
+```{r missing_data_univariate_count_redux, echo=TRUE}
+missing_univariate_tbl <- lessmiss_data_tbl %>%
+  summarise_all(list(~sum(are_na(.)))) %>%
+  gather("variable", "missing_count") %>%
+  mutate(missing_prop = missing_count / row_count)
+
+ggplot(missing_univariate_tbl) +
+  geom_bar(aes(x = fct_reorder(variable, -missing_prop),
+               weight = missing_prop)) +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+To reduce the scale of this plot, we look at the top twenty missing data
+counts.
+
+```{r missing_data_univariate_top10_count, echo=TRUE}
+missing_univariate_top_tbl <- missing_univariate_tbl %>%
+  arrange(desc(missing_count)) %>%
+  top_n(n = 50, wt = missing_count)
+
+ggplot(missing_univariate_top_tbl) +
+  geom_bar(aes(x = fct_reorder(variable, -missing_prop),
+               weight = missing_prop)) +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+
+### Multivariate Missing Data
+
+It is useful to get an idea of what combinations of variables tend to have
+variables with missing values simultaneously, so to construct a visualisation
+for this we create a count of all the times given combinations of variables
+have missing values, producing a heat map for these combination counts.
+
+```{r missing_data_matrix, echo=TRUE}
+row_count <- rawdata_tbl %>% nrow()
+
+count_nas <- ~ .x %>% are_na() %>% vec_cast(integer())
+
+missing_plot_tbl <- rawdata_tbl %>%
+  mutate_all(count_nas) %>%
+  mutate(label = pmap_chr(., str_c)) %>%
+  group_by(label) %>%
+  summarise_all(list(sum)) %>%
+  arrange(desc(label)) %>%
+  select(-label) %>%
+  mutate(label_count = pmap_int(., pmax)) %>%
+  gather("col", "count", -label_count) %>%
+  mutate(miss_prop   = count / row_count,
+         group_label = sprintf("%6.4f", round(label_count / row_count, 4))
+        )
+
+ggplot(missing_plot_tbl) +
+  geom_tile(aes(x = col, y = group_label, fill = miss_prop), height = 0.8) +
+  scale_fill_continuous() +
+  scale_x_discrete(position = "top") +
+  xlab("Variable") +
+  ylab("Missing Value Proportion") +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+This visualisation takes a little explaining.
+
+Each row represents a combination of variables with simultaneous missing
+values. For each row in the graphic, the coloured entries show which particular
+variables are missing in that combination. The proportion of rows with that
+combination is displayed in both the label for the row and the colouring for
+the cells in the row.
+
+## Inspect High-level-count Categorical Variables
+
+With the raw data loaded up we now remove obvious unique or near-unique
+variables that are not amenable to basic exploration and plotting.
+
+```{r find_highlevelcount_categorical_variables, echo=TRUE}
+coltype_lst <- create_coltype_list(data_tbl)
+
+count_levels <- ~ .x %>% unique() %>% length()
+
+catvar_valuecount_tbl <- data_tbl %>%
+  summarise_at(coltype_lst$split$discrete, count_levels) %>%
+  gather("var_name", "level_count") %>%
+  arrange(-level_count)
+
+print(catvar_valuecount_tbl)
+
+row_count <- nrow(data_tbl)
+
+cat(str_c("Dataset has ", row_count, " rows\n"))
+```
+
+Now that we a table of the counts of all the categorical variables we can
+automatically exclude unique variables from the exploration, as the level
+count will match the row count.
+
+```{r remove_id_variables, echo=TRUE}
+unique_vars <- catvar_valuecount_tbl %>%
+  filter(level_count == row_count) %>%
+  pull(var_name)
+
+print(unique_vars)
+
+explore_data_tbl <- data_tbl %>%
+  select(-one_of(unique_vars))
+```
+
+Having removed the unique identifier variables from the dataset, we
+may also wish to exclude categoricals with high level counts also, so
+we create a vector of those variable names.
+
+```{r collect_highcount_variables, echo=TRUE}
+highcount_vars <- catvar_valuecount_tbl %>%
+  filter(level_count >= level_exclusion_threshold,
+         level_count < row_count) %>%
+  pull(var_name)
+
+cat(str_c(highcount_vars, collapse = ", "))
+```
+
+We now can continue doing some basic exploration of the data. We may
+also choose to remove some extra columns from the dataset.
+
+```{r drop_variables, echo=TRUE}
+### You may want to comment out these next few lines to customise which
+### categoricals are kept in the exploration.
+drop_vars <- c(highcount_vars)
+
+if (length(drop_vars) > 0) {
+  explore_data_tbl <- explore_data_tbl %>%
+      select(-one_of(drop_vars))
+
+  cat(str_c(drop_vars, collapse = ", "))
+}
+```
+
+
+
+
+```{r, echo=FALSE}
+#knitr::knit_exit()
+```
+
+
+# Univariate Data Exploration
+
+Now that we have loaded the data we can prepare it for some basic data
+exploration. We first exclude the variables that are unique
+identifiers or similar, and tehen split the remaining variables out
+into various categories to help with the systematic data exploration.
+
+
+```{r separate_exploration_cols, echo=TRUE}
+coltype_lst <- create_coltype_list(explore_data_tbl)
+
+print(coltype_lst)
+```
+
+
+## Logical Variables
+
+Logical variables only take two values: TRUE or FALSE. It is useful to see
+missing data as well though, so we also plot the count of those.
+
+```{r create_univariate_logical_plots, echo=TRUE, warning=FALSE}
+logical_vars <- coltype_lst$split$logical %>% sort()
+
+for (plot_varname in logical_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
+
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_bar(aes(x = !! sym(plot_varname))) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c("Barplot of Counts for Variable: ", plot_varname,
+                  " (", na_count, " missing values)")) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Numeric Variables
+
+Numeric variables are usually continuous in nature, though we also have
+integer data.
+
+```{r create_univariate_numeric_plots, echo=TRUE, warning=FALSE}
+numeric_vars <- coltype_lst$split$continuous %>% sort()
+
+for (plot_varname in numeric_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  plot_var <- explore_data_tbl %>% pull(!! plot_varname)
+  na_count <- plot_var %>% are_na() %>% sum()
+
+  plot_var %>% summary %>% print
+
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)),
+                   bins = hist_bins_count) +
+    geom_vline(xintercept = mean(plot_var, na.rm = TRUE),
+               colour = "red",   size = 1.5) +
+    geom_vline(xintercept = median(plot_var, na.rm = TRUE),
+               colour = "green", size = 1.5) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c("Histogram Plot for Variable: ", plot_varname,
+                  " (", na_count, " missing values)"),
+            subtitle = "(red line is mean, green line is median)")
+
+  explore_std_plot <- explore_plot + scale_x_continuous(labels = label_comma())
+  explore_log_plot <- explore_plot + scale_x_log10     (labels = label_comma())
+
+  plot_grid(explore_std_plot,
+            explore_log_plot, nrow = 2) %>% print()
+}
+```
+
+## Categorical Variables
+
+Categorical variables only have values from a limited, and usually fixed,
+number of possible values
+
+```{r create_univariate_categorical_plots, echo=TRUE, warning=FALSE}
+categorical_vars <- coltype_lst$split$discrete %>% sort()
+
+for (plot_varname in categorical_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  na_count <- explore_data_tbl %>% pull(!! plot_varname) %>% are_na() %>% sum()
+
+  plot_tbl <- explore_data_tbl %>%
+    pull(!! plot_varname) %>%
+    fct_lump(n = cat_level_count) %>%
+    fct_count() %>%
+    mutate(f = fct_relabel(f, str_trunc, width = 15))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c("Barplot of Counts for Variable: ", plot_varname,
+                  " (", na_count, " missing values)")) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Date/Time Variables
+
+Date/Time variables represent calendar or time-based data should as time of the
+day, a date, or a timestamp.
+
+```{r create_univariate_datetime_plots, echo=TRUE, warning=FALSE}
+datetime_vars <- coltype_lst$split$datetime %>% sort()
+
+for (plot_varname in datetime_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  plot_var <- explore_data_tbl %>% pull(!! plot_varname)
+  na_count <- plot_var %>% are_na() %>% sum()
+
+  plot_var %>% summary() %>% print()
+
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)),
+                   bins = hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c("Barplot of Dates/Times in Variable: ", plot_varname,
+                  " (", na_count, " missing values)"))
+
+  plot(explore_plot)
+}
+```
+
+
+```{r, echo=FALSE}
+#knitr::knit_exit()
+```
+
+
+# Bivariate Data Exploration
+
+We now move on to looking at bivariate plots of the data set.
+
+## Facet Plots on Variables
+
+A natural way to explore relationships in data is to create univariate
+visualisations facetted by a categorical value.
+
+```{r bivariate_facet_data, echo=TRUE}
+facet_varname <- "region"
+
+facet_count_max <- 3
+```
+
+
+### Logical Variables
+
+For logical variables we facet on barplots of the levels, comparing TRUE,
+FALSE and missing data.
+
+```{r create_bivariate_logical_plots, echo=TRUE}
+logical_vars <- logical_vars[!logical_vars %in% facet_varname] %>% sort()
+
+
+for (plot_varname in logical_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = !! sym(plot_varname))) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c(facet_varname, "-Faceted Barplots for Variable: ",
+                  plot_varname)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+### Numeric Variables
+
+For numeric variables, we facet on histograms of the data.
+
+```{r create_bivariate_numeric_plots, echo=TRUE}
+for (plot_varname in numeric_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)),
+                   bins = hist_bins_count) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c(facet_varname, "-Faceted Histogram for Variable: ",
+                  plot_varname)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+  print(explore_plot + scale_x_continuous(labels = label_comma()))
+  print(explore_plot + scale_x_log10     (labels = label_comma()))
+}
+```
+
+### Categorical Variables
+
+We treat categorical variables like logical variables, faceting the barplots
+of the different levels of the data.
+
+```{r create_bivariate_categorical_plots, echo=TRUE}
+categorical_vars <- categorical_vars[!categorical_vars %in% facet_varname] %>% sort()
+
+for (plot_varname in categorical_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  plot_tbl <- data_tbl %>%
+    filter(!are_na(!! plot_varname)) %>%
+    mutate(
+      varname_trunc = fct_relabel(!! sym(plot_varname), str_trunc, width = 10)
+      )
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = varname_trunc)) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c(facet_varname, "-Faceted Histogram for Variable: ",
+                  plot_varname)) +
+    theme(axis.text.x = element_text(angle = 90))
+
+  plot(explore_plot)
+}
+```
+
+
+### Date/Time Variables
+
+Like the univariate plots, we facet on histograms of the years in the dates.
+
+```{r create_bivariate_datetime_plots, echo=TRUE}
+for (plot_varname in datetime_vars) {
+  cat("--\n")
+  cat(str_c(plot_varname, "\n"))
+
+  plot_tbl <- data_tbl %>% filter(!are_na(!! plot_varname))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = !! sym(plot_varname)),
+                   bins = hist_bins_count) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(str_c(facet_varname, "-Faceted Histogram for Variable: ",
+                  plot_varname))
+
+  plot(explore_plot)
+}
+```
+
+```{r free_memory_facetplot, echo=FALSE}
+rm(plot_var, plot_tbl)
+```
+
+
+```{r, echo=FALSE}
+#knitr::knit_exit()
+```
+
+
+# Frequency Exploration
+
+In this section you can add your own multivariate visualations such as
+boxplots and so on.
+
+
+## Explore Claim Rates
+
+The first parameter we wish to focus on is the *claim rate* - that is, the
+expected count of claims per year:
+
+\[
+\text{Claim Rate} = \frac{\text{Claim Count}}{\text{Time of Exposure}}
+\]
+
+
+We can calculate this on an aggregated basis having split the data down
+various dimensions. To reduce the amount of copy/paste of code, we construct
+a quick function to produce this.
+
+```{r construct_claimrate_calculator, echo=TRUE}
+calculate_claim_rate <- function(data_tbl, ...) {
+  group_vars <- enquos(...)
+  
+  claimrate_tbl <- data_tbl %>%
+    group_by(!!! group_vars) %>%
+    summarise(
+      .groups = "drop",
+      total_claimcount = sum(claim_count),
+      total_exposure   = sum(exposure),
+      claim_rate       = total_claimcount / total_exposure
+    )
+  
+  return(claimrate_tbl)
+}
+
+```
+
+
+### Calculate Basic Claim Rates
+
+First we look at the overall claim rate for the whole book of business:
+
+```{r overall_claim_rate, echo=TRUE}
+data_tbl %>% calculate_claim_rate()
+```
+
+We now want to start looking at the claim rate by different dimensions.
+
+```{r create_claim_rate_plots, echo=TRUE}
+construct_claimrate_data_plots <- function(label, varname, data_tbl) {
+  segdata_tbl <- data_tbl %>% calculate_claim_rate(!! sym(varname))
+  
+  segdata_plot <- ggplot(segdata_tbl) +
+    geom_col(aes(x = !! sym(varname), y = claim_rate, fill = total_exposure)) +
+    labs(x = label, y = "Claim Rate", fill = "Total Exposure") +
+    expand_limits(y = 0) +
+    scale_fill_continuous(labels = label_comma()) +
+    ggtitle(glue("Claim Rate by {label}"))
+
+  if(varname %in% c("region", "brand")) {
+    segdata_plot <- segdata_plot +
+      theme(axis.text.x = element_text(angle = 90))
+  }
+  
+  return_lst <- list(
+    data_tbl  = segdata_tbl,
+    data_plot = segdata_plot
+  )
+
+  return(return_lst)
+}
+
+
+vardata_tbl <- tribble(
+                 ~label,         ~varname,
+                "Power",          "power",
+              "Car Age",        "car_age",
+           "Driver Age",     "driver_age",
+                "Brand",          "brand",
+            "Fuel Type",            "gas",
+               "Region",         "region",
+     "Discrete Car Age",    "cat_car_age",
+  "Discrete Driver Age", "cat_driver_age",
+     "Discrete Density",    "cat_car_age"
+)
+
+
+claimrate_vardata_tbl <- vardata_tbl %>%
+  mutate(data = map2(label, varname,
+                     construct_claimrate_data_plots,
+                     data_tbl = data_tbl))
+```
+
+Having generated different summary tables and plots, we now want to inspect
+them. A few of them need some tweaking for appeal though.
+
+```{r plot_segmented_claim_rate, echo=TRUE}
+for(i in 1:nrow(claimrate_vardata_tbl)) {
+  claimrate_vardata_tbl %>% pull(data) %>% .[[i]] %>% .$data_plot %>% print()
+}
+```
+
+
+Our analysis above calculates a single claim rate for each of the data splits,
+giving us just a single estimate for the claim rate.
+
+This point estimate is useful, but it is better to get an idea of the possible
+range of values consistent with the data observed.
+
+We take two approaches to this problem: we use the bootstrap to get a
+distribution of bootstrap estimates for each claim rate, and we use Bayesian
+analysis to combine prior knowledge of insurance claim rates with the data
+to produce a posterior distribution of the claim rate.
+
+
+### Calculate Bootstrap Claim Rate Estimates
+
+As we will re-use the bootstrap a number of times in this project, I will
+first construct a bootstrap dataset that we can re-use whenever we need it.
+
+```{r construct_bootstrapped_dataset, echo=TRUE}
+bootstrap_index_tbl <- data_tbl %>%
+  bootstraps(times = 200)
+
+bootstrap_index_tbl %>% glimpse()
+```
+
+To save on storage and memory, full replicas of the dataset are not stored in
+this datastructure, but rather than index to each of the rows - we then use
+the `analysis()` function to return the full sample.
+
+Now that we have our bootstrap data to work from, we construct a bootstrap
+distribution of claim rates when segmented by our variables.
+
+
+```{r construct_bootstrap_claimrate_estimates, echo=TRUE}
+construct_bootdata <- ~ claimrate_vardata_tbl %>%
+  mutate(data = map2(label, varname,
+                     construct_claimrate_data_plots,
+                     data_tbl = .x %>% analysis()))
+
+extract_data <- ~ .x %>% mutate(data_tbl = map(data, "data_tbl"))
+
+bootstrap_claimrate_tbl <- bootstrap_index_tbl %>%
+  mutate(boot_data = map(splits, construct_bootdata)) %>%
+  mutate(tmpdata = map(boot_data, extract_data)) %>%
+  select(id, tmpdata) %>%
+  unnest(tmpdata) %>%
+  select(-data) %>%
+  group_nest(label, varname) %>%
+  mutate(newdata = map(data, ~ .x %>% unnest(data_tbl))) %>%
+  select(label, varname, newdata)
+
+
+construct_plot <- function(varname, data_tbl) {
+  data_plot <- ggplot(data_tbl) +
+    geom_boxplot(aes(x = !! sym(varname), y = claim_rate,
+                     group = !! sym(varname))) +
+    expand_limits(y = 0) +
+    labs(x = varname, y = "Claim Rate", fill = "Mean Total Exposure") +
+    ggtitle(glue("Bootstrap Estimates of the Claim Rate - {varname}"))
+  
+  if(varname %in% c("brand", "region")) {
+    data_plot <- data_plot + theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  }
+
+  return(data_plot)
+}
+
+
+bootstrap_claimrate_tbl %>%
+  mutate(data_plot = map2(varname, newdata, construct_plot)) %>%
+  pull(data_plot)
+```
+
+
+## Explore Density Patterns
+
+It appears that the `density` variable captures the population density of the
+residence for the policy holder. Accidents tend to happen in area of higher
+population density as this is where the cars are, so it is worth doing a bit
+of exploration here to see if there is correlation between it and other
+parameters.
+
+
+### Density vs Region
+
+We first look to see how `density` is distributed across the `region` values
+to get an idea of how this works.
+
+
+```{r explore_region_density, echo=TRUE}
+region_density_plot <- ggplot(data_tbl) +
+  geom_boxplot(aes(x = region, y = density)) +
+  xlab("Region") +
+  ylab("Density") +
+  expand_limits(y = 0) +
+  ggtitle("Boxplot of Density by Region") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+region_density_plot + scale_y_log10     (labels = label_comma())
+region_density_plot + scale_y_continuous(labels = label_comma())
+```
+
+There appears to be a pattern here so we want to look at histograms (both
+standard and log-scale) across the regions.
+
+```{r plot_density_facet_histogram, echo=TRUE}
+hist_plot <- ggplot(data_tbl) +
+  geom_histogram(aes(x = density), bins = 50) +
+  xlab("Density") +
+  ylab("Frequency") +
+  facet_wrap(vars(region), scales = "free") +
+  ggtitle("Facet Plot of Histograms")
+
+hist_plot + scale_x_continuous(labels = label_comma())
+hist_plot + scale_x_log10     (labels = label_comma())
+```
+
+
+### Density vs Power
+
+The `power` value for the vehicle is often a risk factor to be accounted for
+so we also want to see how `density` distributes across it.
+
+
+```{r explore_power_density, echo=TRUE}
+power_density_plot <- ggplot(data_tbl) +
+  geom_boxplot(aes(x = power, y = density)) +
+  xlab("Vehicle Power") +
+  ylab("Density") +
+  expand_limits(y = 0) +
+  ggtitle("Boxplot of Density by Vehicle Power") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+power_density_plot + scale_y_log10     (labels = label_comma())
+power_density_plot + scale_y_continuous(labels = label_comma())
+```
+
+
+
+## Distibution of Claims vs Non-Claims Policy
+
+We also want to investigate whether or not we observe a difference between
+the distribution of variables for policies with or without a claim.
+
+```{r distribution_of_claims_noclaims, echo=TRUE}
+data_tbl <- data_tbl %>% mutate(has_claim = claim_count > 0)
+
+construct_comparison_plot <- function(label, varname) {
+  data_plot <- ggplot(data_tbl) +
+    geom_bar(aes(x = !! sym(varname))) +
+    facet_wrap(vars(has_claim), scales = "free_y", nrow = 2) +
+    scale_y_continuous(label = label_comma()) +
+    labs(x = label, y = "Frequency", fill = "Claims") +
+    ggtitle(glue("Comparison Plot of {label} by Presence of Claim"))
+  
+  if(varname %in% c("brand", "region")) {
+    data_plot <- data_plot + theme(axis.text.x = element_text(angle = 90))
+  }
+  
+  return(data_plot)
+} 
+
+
+vardata_tbl %>%
+  mutate(data_plot = map2(label, varname, construct_comparison_plot)) %>%
+  pull(data_plot)
+```
+
+Finally, we have a quick look at how `exposure` differs across the claim-free
+and claim set of policies. This may not be useful from a predictive point of
+view, but it can be relevant in terms of operations and risk management.
+
+
+
+```{r comparison_plot_exposure, echo=TRUE}
+ggplot(data_tbl) +
+  geom_histogram(aes(x = exposure), bins = 50) +
+  facet_wrap(vars(has_claim), scales = "free_y", nrow = 2) +
+  scale_y_continuous(label = label_comma()) +
+  ggtitle("Comparison Plot of Exposure by Presence of Claim")
+```
+
+Finally, we want to take a look a `density` across the two subsets of the data.
+This may help us check the perceived wisdom of risk increasing for policy
+holders living in areas with more people.
+
+
+```{r comparison_plot_density, echo=TRUE}
+density_plot <- ggplot(data_tbl) +
+  geom_histogram(aes(x = density), bins = 50) +
+  facet_wrap(vars(has_claim), scales = "free_y", nrow = 2) +
+  scale_y_continuous(label = label_comma()) +
+  labs(x = "Density", y = "Frequency", fill = "Claims") +
+  ggtitle("Comparison Plot of Density by Presence of Claim")
+
+(density_plot + scale_x_continuous(label = label_comma())) %>% plot()
+(density_plot + scale_x_log10     (label = label_comma())) %>% plot()
+```
+
+We do not see a huge difference between these two subsets, though this does
+not disprove that there is a relationship.
+
+
+## Geospatial Visualisations
+
+We have some geospatial data on the various regions in France, so we need to
+load the shapefiles and then add all region-related data to this to create
+the visualisation plots.
+
+```{r load_shapefile_data, echo=TRUE}
+fra_adm_sf <- st_read("geospatial_data/", layer = "FRA_adm1")
+
+fra_adm_sf %>% plot()
+```
+
+Now that we have loaded the data we redo 
+
+
+```{r append_region_values, echo=TRUE}
+fra_adm_sf <- fra_adm_sf %>%
+  mutate(
+    region = NAME_1 %>%
+      stri_trans_general("LATIN-ASCII") %>%
+      str_replace_all(" ", "-")
+    )
+
+fra_adm_sf %>% glimpse()
+```
+
+We first want to see a plot of the claim rate by region on a choropleth map.
+
+```{r plot_claim_rate_choropleth, echo=TRUE}
+plot_sf <- fra_adm_sf %>%
+  left_join(data_tbl %>% calculate_claim_rate(region), by = "region")
+
+ggplot(plot_sf) +
+  geom_sf(aes(fill = claim_rate)) +
+  geom_sf_text(aes(label = region)) +
+  labs(fill = "Claim Rate") +
+  theme_void()
+```
+
+
+# Severity Investigation
+
+Having focused solely on the frequency side of the data, we now turn our
+attention to the size of the claims.
+
+## Investigate Claim Size
+
+We now turn our attention to the size of the claim and investigate if any of
+the policy variables are predictive of claim size.
+
+```{r construct_claim_data, echo=TRUE}
+claimdata_tbl <- modeldata_tbl %>% unnest(sev_data)
+
+claimdata_tbl %>% glimpse()
+```
+
+We start by constructing a separate table of claim data and perform some
+basic exploration on that.
+
+We start by plotting the total claim size data set as a single distribution.
+
+```{r plot_claim_size, echo=TRUE}
+ggplot(claimdata_tbl) +
+  geom_histogram(aes(x = claim_amount), bins = 50) +
+  labs(x = "Claim Size", y = "Frequency") +
+  scale_x_log10(labels = label_comma()) +
+  ggtitle(glue("Histogram of Claim Size"))
+
+ggplot(claimdata_tbl) +
+  geom_histogram(aes(x = claim_amount, y = cumsum(..count..)), bins = 50) +
+  scale_x_log10(labels = label_comma()) +
+  xlab("Claim Amount") +
+  ylab("Cumulative Frequency") +
+  ggtitle("Cumulative Histogram of the Claim Size")
+
+```
+
+```{r create_claim_size_facet_plot, echo=TRUE}
+facet_vars <- c("power", "brand", "gas", "region", "claim_count")
+
+create_facet_plot <- function(varname, data_tbl) {
+  facet_plot <- ggplot(data_tbl) +
+    geom_histogram(aes(x = claim_amount), bins = 50) +
+    facet_wrap(vars(!! sym(varname)), scales = "free_y") +
+    labs(x = "Claim Size", y = "Frequency") +
+    scale_x_log10(labels = label_comma()) +
+    ggtitle(glue("Histogram of Claim Size Facetted by {varname}"))
+  
+  facet_cuml_plot <- ggplot(data_tbl) +
+    stat_ecdf(aes(x = claim_amount)) +
+    facet_wrap(vars(!! sym(varname)), scales = "free_y", shrink = TRUE) +
+    scale_x_log10(labels = label_comma()) +
+    labs(x = "Claim Size", y = "Cumulative Probability") +
+    ggtitle(glue("Cumulative ECDF of Claim Size Facetted by {varname}"))
+
+  facet_ecdf_plot <- ggplot(data_tbl) +
+    stat_ecdf(aes(x = claim_amount, colour = !! sym(varname))) +
+    scale_x_log10(labels = label_comma()) +
+    labs(x = "Claim Size", y = "Cumulative Probability") +
+    ggtitle(glue("Cumulative ECDF of Claim Size Coloured by {varname}"))
+
+  
+  return(
+    list(
+      hist_plot = facet_plot,
+      cuml_plot = facet_cuml_plot,
+      ecdf_plot = facet_ecdf_plot
+    )
+  )
+}
+
+
+print_plots <- function(x) {
+  x$hist_plot %>% print()
+  x$cuml_plot %>% print()
+  x$ecdf_plot %>% print()
+  
+  cat("---")
+}
+
+
+facet_vars %>%
+  map(create_facet_plot, data_tbl = claimdata_tbl) %>%
+  map(print_plots)
+```
+
+
+## Investigate Tail Properties
+
+Severity distributions for liability insurance usually have a heavy right-tail
+- a small number of claims are massive. As a result, we often look to use
+various heavy-tailed distributions such as the Pareto to model these large
+losses.
+
+```{r plot_claim_size_alpha_hill_plot, echo=TRUE}
+claimdata_tbl %>%
+  pull(claim_amount) %>%
+  hill(option = "alpha")
+```
+
+
+
+```{r plot_claim_size_xi_hill_plot, echo=TRUE}
+claimdata_tbl %>%
+  pull(claim_amount) %>%
+  hill(option = "xi")
+```
+
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+sessioninfo::session_info()
+```
