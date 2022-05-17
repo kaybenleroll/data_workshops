@@ -359,9 +359,6 @@ Execution halted
 
 ---
 
-## Docker
-
-
 ![](img/docker.png)
 
 ---
@@ -379,7 +376,7 @@ Library versioning
 ---
 
 ```
-FROM rocker/verse:4.0.0
+FROM rocker/verse:4.1.3
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -389,7 +386,9 @@ RUN apt-get update \
     conflicted \
     cowplot \
     knitr \
+    markdown \
     revealjs \
+    rmarkdown \
     snakecase
 ```
 
@@ -434,6 +433,27 @@ TJLUYOM
 ---
 
 ![](img/maude_lebowski.png)
+
+---
+
+![](img/chemical_brothers.png)
+
+
+# Getting Started
+
+---
+
+## git
+
+---
+
+## Makefiles
+
+---
+
+## Containers
+
+
 
 
 
