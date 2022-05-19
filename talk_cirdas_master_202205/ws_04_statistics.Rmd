@@ -48,48 +48,34 @@ theme_set(theme_cowplot())
 
 
 
-# Knowledge
+
+# Problem
 
 ---
 
-Mark Twain
+Just How Bad are England at Penalty Shootouts?
 
-![](img/mark_twain.png)
+![](img/penalty_miss.png)
+
 
 ---
 
-It ain't what you don't know that gets you into trouble...
+```{r show_england_tournaments, echo=FALSE}
+england_penalty_tbl <- tribble(
+    ~Year,      ~Opponent,  ~Tournament, ~Result
+    ,1990, "West Germany",  "World Cup",  "Loss"
+    ,1996,        "Spain",      "Euros",   "Win"
+    ,1996,      "Germany",      "Euros",  "Loss"
+    ,1998,    "Argentina",  "World Cup",  "Loss"
+    ,2004,     "Portugal",      "Euros",  "Loss"
+    ,2006,     "Portugal",  "World Cup",  "Loss"
+    ,2012,        "Italy",      "Euros",  "Loss"
+    ,2018,     "Colombia",  "World Cup",   "Win"
+    ,2021,        "Italy",      "Euros",  "Loss"
+)
 
----
-
-... It's what you know for sure that just ain't so.
-
----
-
-## Donald Rumsfeld
-
-![](img/rumsfeld.png)
-
----
-
-IMAGE Known Knowns etc HERE
-
----
-
-
-
-
-
-
-
-# Risk vs Uncertainty
-
----
-
-![](img/frank_knight.png)
-
-Frank Knight - *Risk, Uncertainty and Profit* (1921)
-
+england_penalty_tbl %>% (knitr::kable)(align = c('lllc'))
+```
 
 
 
