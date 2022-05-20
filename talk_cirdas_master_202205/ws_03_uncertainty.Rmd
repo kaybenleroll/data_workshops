@@ -91,6 +91,47 @@ IMAGE Known Knowns etc HERE
 Frank Knight - *Risk, Uncertainty and Profit* (1921)
 
 
+# Psychology
+
+## Ellsberg Paradox
+
+---
+
+![](img/ellsberg_twourn.png)
+
+---
+
+*1R*: Left Red €100
+
+*1B*: Left Black €100
+
+---
+
+*1R*: Left Red €100
+
+*2R*: Right Red €100
+
+---
+
+![](img/ellsberg_oneurn.png)
+
+---
+
+*1R*: Red €100
+
+*2R*: Black €100
+
+---
+
+*1R*: Red and Black €100
+
+*2R*: Black and Yellow €100
+
+
+
+# What Do We Do?
+
+## Risk
 
 
 
