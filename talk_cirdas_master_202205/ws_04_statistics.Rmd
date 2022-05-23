@@ -1,8 +1,8 @@
 ---
 title: "Demystifying Data"
-subtitle: "03 - Risk, Uncertainty and Knowledge"
+subtitle: "04 - The Power and Perils of Statistics"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-05-19"
+date: "2022-06-02"
 output:
   revealjs::revealjs_presentation:
     theme: night
