@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "03 - Risk, Uncertainty and Knowledge"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-05-19"
+date: "2022-05-26"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -50,9 +50,23 @@ theme_set(theme_cowplot())
 
 # Knowledge
 
+
+## Donald Rumsfeld
+
+\
+
+![](img/rumsfeld.png)
+
 ---
 
-Mark Twain
+IMAGE Known Knowns etc HERE
+
+
+---
+
+## Mark Twain
+
+\
 
 ![](img/mark_twain.png)
 
@@ -64,19 +78,6 @@ It ain't what you don't know that gets you into trouble...
 
 ... It's what you know for sure that just ain't so.
 
----
-
-## Donald Rumsfeld
-
-![](img/rumsfeld.png)
-
----
-
-IMAGE Known Knowns etc HERE
-
-
-
-
 
 
 # Risk vs Uncertainty
@@ -87,6 +88,27 @@ IMAGE Known Knowns etc HERE
 
 Frank Knight - *Risk, Uncertainty and Profit* (1921)
 
+
+## Risk
+
+\
+
+Quantifiable randomness
+
+\
+
+Probability etc.
+
+
+## Uncertainty
+
+\
+
+Lack of quantifiable knowledge
+
+\
+
+Fundamental ignorance
 
 # Psychology
 
@@ -128,8 +150,17 @@ Frank Knight - *Risk, Uncertainty and Profit* (1921)
 
 # What Do We Do?
 
-## Risk
+---
 
+What are we dealing with?
+
+---
+
+Quantify risks
+
+---
+
+Manage uncertainties
 
 
 
