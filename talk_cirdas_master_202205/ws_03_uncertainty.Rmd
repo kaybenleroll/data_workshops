@@ -1,0 +1,111 @@
+---
+title: "Demystifying Data"
+subtitle: "03 - Risk, Uncertainty and Knowledge"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2022-05-19"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+
+# Knowledge
+
+---
+
+Mark Twain
+
+![](img/mark_twain.png)
+
+---
+
+It ain't what you don't know that gets you into trouble...
+
+---
+
+... It's what you know for sure that just ain't so.
+
+---
+
+## Donald Rumsfeld
+
+![](img/rumsfeld.png)
+
+---
+
+IMAGE Known Knowns etc HERE
+
+---
+
+
+
+
+
+
+
+# Risk vs Uncertainty
+
+---
+
+![](img/frank_knight.png)
+
+Frank Knight - *Risk, Uncertainty and Profit* (1921)
+
+
+
+
+
+
+# Summary
+
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops
