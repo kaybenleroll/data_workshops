@@ -59,10 +59,32 @@ theme_set(theme_cowplot())
 
 ---
 
-IMAGE Known Knowns etc HERE
+Reports that say that something hasn't happened are always interesting to me,
+because as we know, there are known knowns; there are things we know we know.
 
+We also know there are known unknowns; that is to say we know there are some
+things we do not know.
+
+But there are also unknown unknowns - the ones we don't know we don't know.
+
+And if one looks throughout the history of our country and other free
+countries, it is the latter category that tends to be the difficult ones.
 
 ---
+
+```{r known_unknown_plots, echo=FALSE}
+plot_tbl <- expand_grid(
+    Belief  = c("Known", "Unknown"),
+    Reality = c("Known", "Unknown")
+    )
+
+ggplot(plot_tbl) +
+  geom_tile(
+    aes(x = Belief, y = Reality),
+    width = 0.95, height = 0.95, fill = "grey"
+    )
+```
+
 
 ## Mark Twain
 
