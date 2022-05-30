@@ -1,0 +1,97 @@
+---
+title: "Demystifying Data"
+subtitle: "04 - The Power and Perils of Statistics"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2022-06-02"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+
+
+# Problem
+
+---
+
+Just How Bad are England at Penalty Shootouts?
+
+![](img/penalty_miss.png)
+
+
+---
+
+```{r show_england_tournaments, echo=FALSE}
+england_penalty_tbl <- tribble(
+    ~Year,      ~Opponent,  ~Tournament, ~Result,
+     1990, "West Germany",  "World Cup",  "Loss",
+     1996,        "Spain",      "Euros",   "Win",
+     1996,      "Germany",      "Euros",  "Loss",
+     1998,    "Argentina",  "World Cup",  "Loss",
+     2004,     "Portugal",      "Euros",  "Loss",
+     2006,     "Portugal",  "World Cup",  "Loss",
+     2012,        "Italy",      "Euros",  "Loss",
+     2018,     "Colombia",  "World Cup",   "Win",
+     2021,        "Italy",      "Euros",  "Loss"
+)
+
+england_penalty_tbl %>% (knitr::kable)(align = c('lllc'))
+```
+
+
+
+
+
+# Summary
+
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops

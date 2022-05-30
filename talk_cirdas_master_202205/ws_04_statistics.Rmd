@@ -17,6 +17,9 @@ library(conflicted)
 library(tidyverse)
 library(rlang)
 library(cowplot)
+library(CASdatasets)
+library(rsample)
+library(scales)
 
 
 source("lib_utils.R")
@@ -44,40 +47,332 @@ options(
 set.seed(42)
 
 theme_set(theme_cowplot())
+
+data(freMTPLfreq)
+data(freMTPL2freq)
 ```
 
 
+# Statistics
 
 
-# Problem
+## Mark Twain
 
----
+\
 
-Just How Bad are England at Penalty Shootouts?
-
-![](img/penalty_miss.png)
-
+![](img/mark_twain.png)
 
 ---
 
-```{r show_england_tournaments, echo=FALSE}
-england_penalty_tbl <- tribble(
-    ~Year,      ~Opponent,  ~Tournament, ~Result
-    ,1990, "West Germany",  "World Cup",  "Loss"
-    ,1996,        "Spain",      "Euros",   "Win"
-    ,1996,      "Germany",      "Euros",  "Loss"
-    ,1998,    "Argentina",  "World Cup",  "Loss"
-    ,2004,     "Portugal",      "Euros",  "Loss"
-    ,2006,     "Portugal",  "World Cup",  "Loss"
-    ,2012,        "Italy",      "Euros",  "Loss"
-    ,2018,     "Colombia",  "World Cup",   "Win"
-    ,2021,        "Italy",      "Euros",  "Loss"
-)
+There are three kinds of lies: ...
 
-england_penalty_tbl %>% (knitr::kable)(align = c('lllc'))
+---
+
+... lies,
+
+---
+
+... damned lies,
+
+---
+
+... and statistics.
+
+
+# Misleading Statistics
+
+## How to Lie with Statistics
+
+\
+
+
+![](img/lie_statistics.png)
+
+## Correlation / Causation
+
+---
+
+Post Hoc, Ergo Proptor Hoc
+
+---
+
+![](img/bad_pirates.png)
+
+## Replication Crisis
+
+\
+
+
+![](img/replication.png)
+
+
+# Relative Variation
+
+---
+
+```{r construct_price_data, echo=FALSE}
+start_date <- as.Date("2021-01-01")
+end_date   <- as.Date("2021-12-31")
+
+set.seed(42)
+
+price_tbl <- seq(from = start_date, to = end_date, by = "day") %>%
+  enframe(name = NULL, value = "price_date") %>%
+  mutate(
+    x_norm = rnorm(n(), mean = 0, sd = 1),
+    x1_one = (0.002 + x_norm * 0.02) %>% exp() %>% cumprod(),
+    x2_one = (0.002 + x_norm * 0.03) %>% exp() %>% cumprod(),
+    x1_two = 30 + x1_one,
+    x2_two = 30 + x2_one
+    ) %>%
+  pivot_longer(
+    cols = !price_date,
+    names_to  = "variable",
+    values_to = "value"
+    )
+
+ggplot(price_tbl %>% filter(str_detect(variable, "_one"))) +
+  geom_line(aes(x = price_date, y = value, colour = variable)) +
+  labs(
+    x = "Date",
+    y = "Value",
+    colour = "Series"
+    )
+```
+
+---
+
+```{r plot_series_with_zero, echo=FALSE}
+ggplot(price_tbl %>% filter(str_detect(variable, "_one"))) +
+  geom_line(aes(x = price_date, y = value, colour = variable)) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Date",
+    y = "Value",
+    colour = "Series"
+    )
+```
+
+---
+
+```{r plot_higher_series, echo=FALSE}
+ggplot(price_tbl %>% filter(str_detect(variable, "_two"))) +
+  geom_line(aes(x = price_date, y = value, colour = variable)) +
+  labs(
+    x = "Date",
+    y = "Value",
+    colour = "Series"
+    )
+```
+
+---
+
+```{r plot_higher_series_with_zero, echo=FALSE}
+ggplot(price_tbl %>% filter(str_detect(variable, "_two"))) +
+  geom_line(aes(x = price_date, y = value, colour = variable)) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Date",
+    y = "Value",
+    colour = "Series"
+    )
 ```
 
 
+# Bad Visualisation
+
+---
+
+![](img/bad_buildings.png)
+
+---
+
+![](img/bad_biscuit.png)
+
+---
+
+![](img/bad_intervals.png)
+
+---
+
+![](img/bad_height.png)
+
+---
+
+![](img/bad_pirates.png)
+
+---
+
+Bar Charts Considered Harmful
+
+
+
+# What to Do?
+
+## Quantify Uncertainty
+
+---
+
+```{r load_mtpl_data, echo=FALSE}
+freq_tbl <- freMTPLfreq %>%
+  as_tibble()
+
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_exposure = sum(Exposure),
+    claim_rate     = sum(ClaimNb) / total_exposure
+    )
+
+
+ggplot(region_rate_tbl) +
+  geom_point(aes(x = Region, y = claim_rate), size = 3) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Exploratory Plot of Claim Rate by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+
+---
+
+```{r plot_bootstrapped_claim_rates, echo=FALSE}
+calc_region_rate <- function(bootstrap_split) {
+  bootstrap_tbl <- bootstrap_split %>%
+    as_tibble() %>%
+    group_by(Region) %>%
+    summarise(
+      .groups = "drop",
+      
+      claim_rate = sum(ClaimNb) / sum(Exposure)
+      )
+  
+  return(bootstrap_tbl)
+}
+
+bootstrap_freq_tbl <- freq_tbl %>%
+  bootstraps(times = 100) %>%
+  mutate(freq_data = map(splits, calc_region_rate)) %>%
+  select(id, freq_data) %>%
+  unnest(freq_data) %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean   = mean(claim_rate),
+    median = median(claim_rate),
+    
+    p10    = quantile(claim_rate, probs = 0.10),
+    p25    = quantile(claim_rate, probs = 0.25),
+    p75    = quantile(claim_rate, probs = 0.75),
+    p90    = quantile(claim_rate, probs = 0.90)
+    )
+
+ggplot(bootstrap_freq_tbl) +
+  geom_errorbar(aes(x = Region, ymin = p10, ymax = p90), width = 0, size = 1) +
+  geom_errorbar(aes(x = Region, ymin = p25, ymax = p75), width = 0, size = 3) +
+  geom_point(aes(x = Region, y = median), size = 3) +
+  geom_point(aes(x = Region, y = mean), colour = 'red', size = 2) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Uncertainty Estimates for Claim Rates by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+---
+
+
+## Not-Bad DataViz
+
+---
+
+![](img/good_pirates.png)
+
+---
+
+\
+
+Lines
+
+\
+
+Points
+
+\
+
+Bars
+
+---
+
+```{r plot_region_rate_dataviz, echo=FALSE}
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_exposure = sum(Exposure),
+    claim_rate     = sum(ClaimNb) / total_exposure
+    )
+
+
+ggplot(region_rate_tbl) +
+  geom_point(aes(x = Region, y = claim_rate), size = 3) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Claim Rate by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+---
+
+```{r plot_region_rate_cols_dataviz, echo=FALSE}
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_exposure = sum(Exposure),
+    claim_rate     = sum(ClaimNb) / total_exposure
+    )
+
+
+ggplot(region_rate_tbl) +
+  geom_col(aes(x = Region, y = claim_rate, fill = total_exposure), size = 3) +
+  scale_fill_gradient(low = "blue", high = "red", labels = label_comma()) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    fill = "Exposure",
+    title = "Claim Rate by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+
+## Model Validation
+
+---
+
+Test / Train Datasets
+
+\
+
+Cross-Validation
+
+---
+
+![](img/model_validation.png)
 
 
 
