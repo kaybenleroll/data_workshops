@@ -55,6 +55,52 @@ data(freMTPL2freq)
 
 # Statistics
 
+## Origins
+
+---
+
+19th Century Industrial Nations
+
+---
+
+Demographics
+
+\
+
+Population
+
+\
+
+Industrial Output
+
+---
+
+Sample vs Population
+
+---
+
+Probability Theory
+
+---
+
+Gambling / Casinos
+
+---
+
+Meyer Lansky
+
+\
+
+![](img/meyer_lansky.png)
+
+---
+
+Guinness
+
+\
+
+Student-t
+
 
 ## Mark Twain
 
@@ -205,6 +251,9 @@ ggplot(price_tbl %>% filter(str_detect(variable, "_two"))) +
 
 Bar Charts Considered Harmful
 
+---
+
+![](img/worst_dataviz.png)
 
 
 # What to Do?
