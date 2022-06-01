@@ -249,7 +249,7 @@ ggplot(price_tbl %>% filter(str_detect(variable, "_two"))) +
 
 ---
 
-Bar Charts Considered Harmful
+Pie Charts Considered Harmful
 
 ---
 
