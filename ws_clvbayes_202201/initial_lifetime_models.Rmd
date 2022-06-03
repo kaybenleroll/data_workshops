@@ -188,8 +188,12 @@ model.
 ## Construct the Model Data
 
 We take a analagous approach for our lifetime model as we did for the
-frequency model. We takea subset of the data and use the rest of the data to
+frequency model. We take a subset of the data and use the rest of the data to
 validate the model.
+
+We also need to exclude all customers with just a single transaction on our
+system as the first transaction is considered the 'birth' of the customer and
+it is second and subsequent transactions that help us calculate statistics.
 
 ```{r construct_10k_data_subset, echo=TRUE}
 break_date <- as.Date("2018-01-01")
@@ -201,6 +205,7 @@ training_tbl <- customer_transactions_tbl %>%
     tnx_timestamp <= break_date
     ) %>%
   group_nest(customer_id, .key = "tnx_data") %>%
+  filter(map_int(tnx_data, nrow) > 1) %>%
   slice_sample(n = 10000) %>%
   unnest(tnx_data)
 
@@ -381,7 +386,7 @@ ltmodel_mintime_stanfit$draws() %>%
 We now want to visualise the posterior distribution of the expected lifetime
 of the customer.
 
-```{r construct_posterior_expected_lifetime_validation, echo=TRUE}
+```{r construct_posterior_expected_lifetime_validation, echo=TRUE, cache=TRUE}
 ltmodel_mintime_validation_tbl <- ltmodel_mintime_stanfit %>%
   recover_types(training_stats_tbl) %>%
   spread_draws(mu[customer_id], tau[customer_id]) %>%
@@ -400,20 +405,24 @@ We now use our existing routine to compare the posterior values for `mu` with
 the predetermined value.
 
 ```{r calculate_ltmodel_mintime_mu_qvalues, echo=TRUE}
-plotvalid_tbl <- ltmodel_mintime_validation_tbl %>%
-  calculate_distribution_qvals(post_mu, customer_mu)
+ltmodel_mintime_mu_qvalues_tbl <- ltmodel_mintime_validation_tbl %>%
+  calculate_distribution_qvals(post_mu, customer_mu, customer_id, first_tnx_date)
 
-ggplot(plotvalid_tbl) +
+ref_value <- ltmodel_mintime_mu_qvalues_tbl %>%
+  nrow() %>%
+  divide_by(50)
+
+ggplot(ltmodel_mintime_mu_qvalues_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
-  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  geom_hline(aes(yintercept = ref_value), colour = "red") +
   labs(
     x = "Quantile",
     y = "Count",
     title = "Quantile Plot of the q-Values for the Mu Posterior Distribution (mintime Model)"
     )
 
-ggplot(plotvalid_tbl) +
-  geom_point(aes(x = q_val, y = customer_mu)) +
+ggplot(ltmodel_mintime_mu_qvalues_tbl) +
+  geom_point(aes(x = q_val, y = customer_mu), size = 1, alpha = 0.05) +
   labs(
     x = "Quantile",
     y = "Customer Mu",
@@ -421,23 +430,30 @@ ggplot(plotvalid_tbl) +
     )
 ```
 
+
+
+
 We repeat this process for looking at the $\tau$ value to see the effect on
 average lifetime.
 
 ```{r calculate_ltmodel_mintime_tau_qvalues, echo=TRUE}
-plotvalid_tbl <- ltmodel_mintime_validation_tbl %>%
-  calculate_distribution_qvals(post_tau_mean, customer_tau)
+ltmodel_mintime_tau_qvalues_tbl <- ltmodel_mintime_validation_tbl %>%
+  calculate_distribution_qvals(post_tau_mean, customer_tau, customer_id, first_tnx_date)
 
-ggplot(plotvalid_tbl) +
+ref_value <- ltmodel_mintime_tau_qvalues_tbl %>%
+  nrow() %>%
+  divide_by(50)
+
+ggplot(ltmodel_mintime_tau_qvalues_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
-  geom_hline(aes(yintercept = plotvalid_tbl %>% nrow() %>% divide_by(50)), colour = "red") +
+  geom_hline(aes(yintercept = ref_value), colour = "red") +
   labs(
     x = "Quantile",
     y = "Count",
     title = "Quantile Plot of the q-Values for the Tau Posterior Distribution (mintime Model)"
     )
 
-ggplot(plotvalid_tbl) +
+ggplot(ltmodel_mintime_tau_qvalues_tbl) +
   geom_point(aes(x = q_val, y = customer_tau)) +
   labs(
     x = "Quantile",
@@ -461,7 +477,7 @@ This needs much further investigation, and we calculate some summary statistics
 for these parameters and plot them against our known 'true' values for these
 quantities.
 
-```{r calculate_ltmodel_mintime_postsummary_stats, echo=TRUE}
+```{r calculate_ltmodel_mintime_postsummary_stats, echo=TRUE, cache=TRUE}
 ltmodel_mintime_postsummary_tbl <- ltmodel_mintime_validation_tbl %>%
   group_by(customer_id) %>%
   summarise(
@@ -534,6 +550,94 @@ ggplot(plot_tbl) +
 ```
 
 
+### Investigate q_value Cohorts
+
+We produced a scatter plot of `customer_mu` against `q_value` and it does not
+look correct - the q-value should be independent of the value of `customer_mu`
+so we need to look into this further.
+
+To start with, we look at the lower end of the `q_value` distribution.
+
+```{r plot_ltmodel_mintime_low_end_mu_qvalues, echo=TRUE}
+plot_tbl <- ltmodel_mintime_mu_qvalues_tbl %>%
+  filter(q_val < 0.1) %>%
+  select(customer_id) %>%
+  inner_join(ltmodel_mintime_postsummary_tbl, by = "customer_id")
+
+ggplot(plot_tbl) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = mu_p10, ymax = mu_p90),
+    size = 1, width = 0) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = mu_p25, ymax = mu_p75),
+    size = 3, width = 0) +
+  geom_point(
+    aes(x = customer_id, y = customer_mu),
+    colour = "red") +
+  labs(
+    x = "Customer ID",
+    y = "Lifetime Mu",
+    title = "Posterior Estimates of Small q-Value Customers") +
+  theme(axis.text.x = element_text(angle = 30, vjust = 0.5, size = 8))
+```
+
+We are looking at `customer_mu` but it might require instead looking at
+`customer_tau`.
+
+```{r plot_ltmodel_mintime_low_end_tau_qvalues, echo=TRUE}
+### This is not 
+plot_tbl <- ltmodel_mintime_mu_qvalues_tbl %>%
+  filter(q_val < 0.1) %>%
+  select(customer_id) %>%
+  inner_join(ltmodel_mintime_postsummary_tbl, by = "customer_id")
+
+ggplot(plot_tbl) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = tau_p10, ymax = tau_p90),
+    size = 1, width = 0) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = tau_p25, ymax = tau_p75),
+    size = 3, width = 0) +
+  geom_point(
+    aes(x = customer_id, y = customer_tau),
+    colour = "red") +
+  labs(
+    x = "Customer ID",
+    y = "Lifetime Tau",
+    title = "Posterior Estimates of Small q-Value Customers") +
+  theme(axis.text.x = element_text(angle = 30, vjust = 0.5, size = 8))
+```
+
+
+A few outliers are skewing this, so we add a log-scale to the $y$-axis plot.
+
+```{r plot_ltmodel_mintime_low_end_tau_qvalues_logscale, echo=TRUE}
+ggplot(plot_tbl) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = tau_p10, ymax = tau_p90),
+    size = 1, width = 0) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = tau_p25, ymax = tau_p75),
+    size = 3, width = 0) +
+  geom_point(
+    aes(x = customer_id, y = customer_tau),
+    colour = "red") +
+  scale_y_log10(labels = label_comma()) +
+  labs(
+    x = "Customer ID",
+    y = "Lifetime Tau",
+    title = "Posterior Estimates of Small q-Value Customers") +
+  theme(axis.text.x = element_text(angle = 30, vjust = 0.5, size = 8))
+```
+
+
+It seems that the fact we only have censored observations of the lifetime is
+going to impair the ability of the model to recover parameters.
+
+We continue for now though, and see if additions to the model can improve
+things.
+
+
 ## Fit Fixed-Prior Min/Max Time Model
 
 It is clear that we need to improve our approach for estimating customer
@@ -594,7 +698,7 @@ ltmodel_minmax_stanfit$cmdstan_diagnose()
 We now want to visualise the posterior distribution of the expected lifetime
 of the customer.
 
-```{r construct_posterior_expected_lifetime_validation_minmax, echo=TRUE}
+```{r construct_posterior_expected_lifetime_validation_minmax, echo=TRUE, cache=TRUE}
 ltmodel_minmax_validation_tbl <- ltmodel_minmax_stanfit %>%
   recover_types(training_stats_tbl) %>%
   spread_draws(mu[customer_id], tau[customer_id]) %>%
@@ -614,7 +718,7 @@ the predetermined value.
 
 ```{r calculate_ltmodel_minmax_qvalues, echo=TRUE}
 plotvalid_tbl <- ltmodel_minmax_validation_tbl %>%
-  calculate_distribution_qvals(post_mu, customer_mu)
+  calculate_distribution_qvals(post_mu, customer_mu, customer_id, first_tnx_date)
 
 ggplot(plotvalid_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
@@ -677,7 +781,7 @@ ltmodel_tightprior_stanfit$cmdstan_diagnose()
 Once again we construct validation plots for our data - comparing the
 posterior distributions against the known customer value.
 
-```{r construct_posterior_expected_lifetime_validation_tightprior, echo=TRUE}
+```{r construct_posterior_expected_lifetime_validation_tightprior, echo=TRUE, cache=TRUE}
 ltmodel_tightprior_validation_tbl <- ltmodel_tightprior_stanfit %>%
   recover_types(training_stats_tbl) %>%
   spread_draws(mu[customer_id], tau[customer_id]) %>%
@@ -697,7 +801,7 @@ the predetermined value.
 
 ```{r calculate_ltmodel_tightprior_qvalues, echo=TRUE}
 plotvalid_tbl <- ltmodel_tightprior_validation_tbl %>%
-  calculate_distribution_qvals(post_mu, customer_mu)
+  calculate_distribution_qvals(post_mu, customer_mu, customer_id, first_tnx_date)
 
 ggplot(plotvalid_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
