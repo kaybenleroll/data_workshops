@@ -1,12 +1,12 @@
 remotes::install_github(
   "paul-buerkner/brms",
-  ref     = "v2.16.1",
+  ref     = "v2.17.0",
   upgrade = "always"
 )
 
 remotes::install_github(
   "stan-dev/cmdstanr",
-  ref     = "v0.4.0",
+  ref     = "v0.5.2",
   upgrade = "never"
 )
 
@@ -25,5 +25,5 @@ install_cmdstan(
   cpp_options = cmdstan_flags,
   quiet       = FALSE,
   overwrite   = FALSE,
-  version     = "2.29.0"
+  version     = "2.29.2"
 )
