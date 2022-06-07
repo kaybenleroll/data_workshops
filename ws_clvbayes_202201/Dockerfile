@@ -1,4 +1,4 @@
-FROM rocker/verse:4.1.1
+FROM rocker/verse:4.1.3
 
 RUN apt-get update \
   && apt-get upgrade -y \

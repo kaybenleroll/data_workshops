@@ -805,7 +805,7 @@ plotdata_tbl <- comparison_summary_tbl %>%
     ) %>%
   group_nest(lambda_segment) %>%
   mutate(
-    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 15))
+    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 10))
     ) %>%
   select(lambda_segment, sample_data) %>%
   unnest(sample_data) %>%
@@ -1084,7 +1084,7 @@ plotdata_tbl <- comparison_summary_tbl %>%
     ) %>%
   group_nest(lambda_segment) %>%
   mutate(
-    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 15))
+    sample_data = map(data, ~ .x %>% group_nest(customer_id) %>% slice_sample(n = 10))
     ) %>%
   select(lambda_segment, sample_data) %>%
   unnest(sample_data) %>%
@@ -1867,7 +1867,7 @@ valid_lambda_tbl <- validation_data_tbl %>%
 ggplot(valid_lambda_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
   geom_hline(aes(yintercept = 200), colour = "red") +
-  facet_wrap(vars(model_label), ncol = 1) +
+  facet_wrap(vars(model_label), ncol = 2) +
   labs(
     x = "Quantile",
     y = "Count",
@@ -1882,7 +1882,7 @@ valid_count_tbl <- validation_data_tbl %>%
 ggplot(valid_count_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
   geom_hline(aes(yintercept = 200), colour = "red") +
-  facet_wrap(vars(model_label), ncol = 1) +
+  facet_wrap(vars(model_label), ncol = 2) +
   labs(
     x = "Quantile",
     y = "Count",
