@@ -62,6 +62,7 @@ theme_set(theme_cowplot())
 ---
 
 ![](img/dan_ariely.png)
+
 Dan Ariely
 
 ---
@@ -80,8 +81,8 @@ so everyone claims they are doing it.
 
 ## Terminology
 
-\
 
+---
 
 Different meanings
 
@@ -540,9 +541,9 @@ Dimensionality Reduction
 
 # Natural Language Processing
 
-\
+---
 
-More prevalent
+More prevalent recently
 
 \
 
@@ -551,6 +552,15 @@ Supervised / Unsupervised / Semi-supervised
 \
 
 Google Translate
+
+---
+
+Uses neural networks
+
+\
+
+Very large models (APIs)
+
 
 
 ## Entity Extraction
@@ -603,6 +613,11 @@ Lots of functionality
 Assign "topics" to each "document"
 
 ---
+
+![](img/nlp_lda.png)
+
+
+Reference: [http://dontloo.github.io/blog/lda/]()
 
 
 ## word2vec
