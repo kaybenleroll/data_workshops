@@ -10,12 +10,17 @@ RUN apt-get update \
     pbzip2 \
   && apt-get clean \
   && install2.r --error \
+    cleanNLP \
     conflicted \
     cowplot \
+    ISLR \
     knitr \
     markdown \
+    NeuralNetTools \
+    rattle \
     revealjs \
     rmarkdown \
+    rpart \
     rsample \
     snakecase \
     sf \
@@ -29,6 +34,10 @@ RUN Rscript /tmp/docker_install_sys_rpkgs.R
 
 WORKDIR /home/rstudio
 USER rstudio
+
+COPY build/docker_install_user_rpkgs.R /tmp
+RUN Rscript /tmp/docker_install_user_rpkgs.R
+
 
 COPY build/conffiles.7z /tmp
 RUN 7z x /tmp/conffiles.7z       \
