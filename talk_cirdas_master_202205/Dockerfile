@@ -3,6 +3,7 @@ FROM rocker/verse:4.1.3
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     byobu \
+    libavfilter-dev \
     libgdal-dev \
     libproj15 \
     libudunits2-0 \
@@ -10,10 +11,14 @@ RUN apt-get update \
     pbzip2 \
   && apt-get clean \
   && install2.r --error \
+    av \
     cleanNLP \
     conflicted \
     cowplot \
+    gganimate \
+    gifski \
     ISLR \
+    kableExtra \
     knitr \
     markdown \
     NeuralNetTools \
@@ -24,7 +29,8 @@ RUN apt-get update \
     rsample \
     snakecase \
     sf \
-    tmap
+    tmap \
+    transformr
 
 WORKDIR /tmp
 
