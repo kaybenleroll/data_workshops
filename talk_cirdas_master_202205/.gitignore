@@ -1,2 +1,4 @@
 .vscode/*
 
+*_cache/*
+*_files/*
