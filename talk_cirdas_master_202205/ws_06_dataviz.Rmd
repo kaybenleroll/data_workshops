@@ -396,6 +396,7 @@ ggplot(plot_tbl) +
 
 ## Compare Region by Fuel Type
 
+---
 
 ```{r plot_exposure_region_fueltype_stacked, echo=FALSE}
 plot_tbl <- freq_tbl %>%
