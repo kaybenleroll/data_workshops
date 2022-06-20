@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "06 - Data Visualisation"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-06-02"
+date: "2022-06-16"
 output:
   revealjs::revealjs_presentation:
     theme: night
