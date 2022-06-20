@@ -31,6 +31,7 @@ library(cowplot)
 library(directlabels)
 library(magrittr)
 library(rlang)
+library(vctrs)
 library(fs)
 library(purrr)
 library(furrr)
@@ -389,12 +390,12 @@ of the customer.
 ```{r construct_posterior_expected_lifetime_validation, echo=TRUE, cache=TRUE}
 ltmodel_mintime_validation_tbl <- ltmodel_mintime_stanfit %>%
   recover_types(training_stats_tbl) %>%
-  spread_draws(mu[customer_id], tau[customer_id]) %>%
+  spread_draws(mu[customer_id], tau[customer_id], p_alive[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
   select(
     customer_id, first_tnx_date, draw_id = .draw,
-    post_mu = mu, post_tau_mean = tau,
+    post_mu = mu, post_tau_mean = tau, post_p_alive = p_alive,
     customer_mu, customer_tau
     )
 
@@ -633,8 +634,89 @@ ggplot(plot_tbl) +
 It seems that the fact we only have censored observations of the lifetime is
 going to impair the ability of the model to recover parameters.
 
+
+### Validate p_alive Metric
+
+A final validation approach is to take the average value for `p_alive` for
+each customer, group all these values into equally-spaced buckets and then
+check the proportion for each of these buckets against the proportion of
+customers in that bucket that made a subsequent transaction.
+
+This gives us a visual validation of the proportions.
+
+```{r construct_posterior_palive_stats, echo=TRUE}
+ltmodel_mintime_alive_tbl <- ltmodel_mintime_validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean_p_alive = mean(post_p_alive)
+    ) %>%
+  mutate(
+    p_alive_decile = cut(
+      mean_p_alive,
+      breaks = seq(0, 1, by = 0.05),
+      labels = sprintf("PALIVE_%03d", 5 * 1:20)
+      )
+    ) %>%
+  left_join(
+    test_tbl %>% count(customer_id, name = "tnx_count"),
+    by = "customer_id"
+    ) %>%
+  replace_na(
+    list(tnx_count = 0)
+    ) %>%
+  mutate(still_alive = if_else(tnx_count > 0, "ACTIVE", "INACTIVE"))
+
+ltmodel_mintime_alive_tbl %>% glimpse()
+```
+
+Having constructed the dataset, we then construct the visualisation of the
+proportions.
+
+```{r construct_posterior_palive_stats_plot, echo=TRUE}
+ltmodel_mintime_alive_valid_tbl <- ltmodel_mintime_alive_tbl %>%
+  count(p_alive_decile, still_alive) %>%
+  pivot_wider(
+    id_cols = p_alive_decile,
+    names_from = still_alive,
+    values_from = n,
+    values_fill = 0
+    ) %>%
+  mutate(
+    top_prop    = str_replace(p_alive_decile, "PALIVE_(\\d+)", "\\1") %>%
+      as.numeric() %>%
+      divide_by(100),
+    active_prop = ACTIVE / (ACTIVE + INACTIVE)
+    )
+
+ggplot(ltmodel_mintime_alive_valid_tbl) +
+  geom_point(aes(x = top_prop, y = active_prop)) +
+  geom_line(aes(x = top_prop, y = top_prop), colour = "red") +
+  labs(
+    x = "Bucket Proportion",
+    y = "Customer Proportion",
+    title = "Comparison Plot of p_alive Against Active Proportion"
+    ) +
+  expand_limits(x = 0)
+```
+
+
+As before, it looks like we are overstating the probability of a customer
+being alive, as the proportion of customers actually transacting is lower than
+suggested by the value of `p_alive`, and so our customer are going inactive at
+a higher rate than we expect and so we have an upward bias on the customer
+lifetime.
+
+
 We continue for now though, and see if additions to the model can improve
 things.
+
+
+```{r write_mintime_stanfit_disk, echo=TRUE}
+ltmodel_mintime_stanfit %>% write_rds("data/ltmodel_mintime_stanfit.rds")
+```
+
 
 
 ## Fit Fixed-Prior Min/Max Time Model
@@ -700,12 +782,12 @@ of the customer.
 ```{r construct_posterior_expected_lifetime_validation_minmax, echo=TRUE, cache=TRUE}
 ltmodel_minmax_validation_tbl <- ltmodel_minmax_stanfit %>%
   recover_types(training_stats_tbl) %>%
-  spread_draws(mu[customer_id], tau[customer_id]) %>%
+  spread_draws(mu[customer_id], tau[customer_id], p_alive[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
   select(
     customer_id, first_tnx_date, draw_id = .draw,
-    post_mu = mu, post_tau_mean = tau,
+    post_mu = mu, post_tau_mean = tau, post_p_alive = p_alive,
     customer_mu, customer_tau
     )
 
@@ -904,6 +986,73 @@ ggplot(plot_tbl) +
 ```
 
 
+### Validate p_alive Metric
+
+Once again, we construct the validation procedure for `p_alive`.
+
+```{r construct_posterior_palive_stats_minmax, echo=TRUE}
+ltmodel_minmax_alive_tbl <- ltmodel_minmax_validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean_p_alive = mean(post_p_alive)
+    ) %>%
+  mutate(
+    p_alive_decile = cut(
+      mean_p_alive,
+      breaks = seq(0, 1, by = 0.05),
+      labels = sprintf("PALIVE_%03d", 5 * 1:20)
+      )
+    ) %>%
+  left_join(
+    test_tbl %>% count(customer_id, name = "tnx_count"),
+    by = "customer_id"
+    ) %>%
+  replace_na(
+    list(tnx_count = 0)
+    ) %>%
+  mutate(still_alive = if_else(tnx_count > 0, "ACTIVE", "INACTIVE"))
+
+ltmodel_minmax_alive_tbl %>% glimpse()
+```
+
+Having constructed the dataset, we then construct the visualisation of the
+proportions.
+
+```{r construct_posterior_palive_stats_minmax_plot, echo=TRUE}
+ltmodel_minmax_alive_valid_tbl <- ltmodel_minmax_alive_tbl %>%
+  count(p_alive_decile, still_alive) %>%
+  pivot_wider(
+    id_cols = p_alive_decile,
+    names_from = still_alive,
+    values_from = n,
+    values_fill = 0
+    ) %>%
+  mutate(
+    top_prop    = str_replace(p_alive_decile, "PALIVE_(\\d+)", "\\1") %>%
+      as.numeric() %>%
+      divide_by(100),
+    active_prop = ACTIVE / (ACTIVE + INACTIVE)
+    )
+
+ggplot(ltmodel_minmax_alive_valid_tbl) +
+  geom_point(aes(x = top_prop, y = active_prop)) +
+  geom_line(aes(x = top_prop, y = top_prop), colour = "red") +
+  labs(
+    x = "Bucket Proportion",
+    y = "Customer Proportion",
+    title = "Comparison Plot of p_alive Against Active Proportion"
+    ) +
+  expand_limits(x = 0)
+```
+
+
+
+```{r write_minmax_stanfit_disk, echo=TRUE}
+ltmodel_minmax_stanfit %>% write_rds("data/ltmodel_minmax_stanfit.rds")
+```
+
 
 
 ## Fit Tighter Fixed-Prior Min/Max Time Model
@@ -950,12 +1099,12 @@ posterior distributions against the known customer value.
 ```{r construct_posterior_expected_lifetime_validation_tightprior, echo=TRUE, cache=TRUE}
 ltmodel_tightprior_validation_tbl <- ltmodel_tightprior_stanfit %>%
   recover_types(training_stats_tbl) %>%
-  spread_draws(mu[customer_id], tau[customer_id]) %>%
+  spread_draws(mu[customer_id], tau[customer_id], p_alive[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
   select(
     customer_id, first_tnx_date, draw_id = .draw,
-    post_mu = mu, post_tau_mean = tau,
+    post_mu = mu, post_tau_mean = tau, post_p_alive = p_alive,
     customer_mu, customer_tau
     )
 
@@ -1124,6 +1273,72 @@ ggplot(plot_tbl) +
 ```
 
 
+### Validate p_alive Metric
+
+Once again, we construct the validation procedure for `p_alive`.
+
+```{r construct_posterior_palive_stats_tightprior, echo=TRUE}
+ltmodel_tightprior_alive_tbl <- ltmodel_tightprior_validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean_p_alive = mean(post_p_alive)
+    ) %>%
+  mutate(
+    p_alive_decile = cut(
+      mean_p_alive,
+      breaks = seq(0, 1, by = 0.05),
+      labels = sprintf("PALIVE_%03d", 5 * 1:20)
+      )
+    ) %>%
+  left_join(
+    test_tbl %>% count(customer_id, name = "tnx_count"),
+    by = "customer_id"
+    ) %>%
+  replace_na(
+    list(tnx_count = 0)
+    ) %>%
+  mutate(still_alive = if_else(tnx_count > 0, "ACTIVE", "INACTIVE"))
+
+ltmodel_tightprior_alive_tbl %>% glimpse()
+```
+
+Having constructed the dataset, we then construct the visualisation of the
+proportions.
+
+```{r construct_posterior_palive_stats_tightprior_plot, echo=TRUE}
+ltmodel_tightprior_alive_valid_tbl <- ltmodel_tightprior_alive_tbl %>%
+  count(p_alive_decile, still_alive) %>%
+  pivot_wider(
+    id_cols = p_alive_decile,
+    names_from = still_alive,
+    values_from = n,
+    values_fill = 0
+    ) %>%
+  mutate(
+    top_prop    = str_replace(p_alive_decile, "PALIVE_(\\d+)", "\\1") %>%
+      as.numeric() %>%
+      divide_by(100),
+    active_prop = ACTIVE / (ACTIVE + INACTIVE)
+    )
+
+ggplot(ltmodel_tightprior_alive_valid_tbl) +
+  geom_point(aes(x = top_prop, y = active_prop)) +
+  geom_line(aes(x = top_prop, y = top_prop), colour = "red") +
+  labs(
+    x = "Bucket Proportion",
+    y = "Customer Proportion",
+    title = "Comparison Plot of p_alive Against Active Proportion"
+    ) +
+  expand_limits(x = 0)
+```
+
+
+
+```{r write_tightprior_stanfit_disk, echo=TRUE}
+ltmodel_tightprior_stanfit %>% write_rds("data/ltmodel_tightprior_stanfit.rds")
+```
 
 
 
@@ -1206,6 +1421,10 @@ mcmc_trace(
 ```
 
 
+```{r write_hier_stanfit_disk, echo=TRUE}
+ltmodel_hier_stanfit %>% write_rds("data/ltmodel_hier_stanfit.rds")
+```
+
 
 ## Compile and Fit One-Parameter Hierarchical Model
 
@@ -1276,12 +1495,12 @@ posterior distributions against the known customer value.
 ```{r construct_posterior_expected_lifetime_validation_hier_one, echo=TRUE, cache=TRUE}
 ltmodel_hier_one_validation_tbl <- ltmodel_hier_one_stanfit %>%
   recover_types(training_stats_tbl) %>%
-  spread_draws(mu[customer_id], tau[customer_id]) %>%
+  spread_draws(mu[customer_id], tau[customer_id], p_alive[customer_id]) %>%
   ungroup() %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
   select(
     customer_id, first_tnx_date, draw_id = .draw,
-    post_mu = mu, post_tau_mean = tau,
+    post_mu = mu, post_tau_mean = tau, post_p_alive = p_alive,
     customer_mu, customer_tau
     )
 
@@ -1450,9 +1669,95 @@ ggplot(plot_tbl) +
 ```
 
 
+### Validate p_alive Metric
+
+Once again, we construct the validation procedure for `p_alive`.
+
+```{r construct_posterior_palive_stats_hier_one, echo=TRUE}
+ltmodel_hier_one_alive_tbl <- ltmodel_hier_one_validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean_p_alive = mean(post_p_alive)
+    ) %>%
+  mutate(
+    p_alive_decile = cut(
+      mean_p_alive,
+      breaks = seq(0, 1, by = 0.05),
+      labels = sprintf("PALIVE_%03d", 5 * 1:20)
+      )
+    ) %>%
+  left_join(
+    test_tbl %>% count(customer_id, name = "tnx_count"),
+    by = "customer_id"
+    ) %>%
+  replace_na(
+    list(tnx_count = 0)
+    ) %>%
+  mutate(still_alive = if_else(tnx_count > 0, "ACTIVE", "INACTIVE"))
+
+ltmodel_hier_one_alive_tbl %>% glimpse()
+```
+
+Having constructed the dataset, we then construct the visualisation of the
+proportions.
+
+```{r construct_posterior_palive_stats_hier_one_plot, echo=TRUE}
+ltmodel_hier_one_alive_valid_tbl <- ltmodel_hier_one_alive_tbl %>%
+  count(p_alive_decile, still_alive) %>%
+  pivot_wider(
+    id_cols = p_alive_decile,
+    names_from = still_alive,
+    values_from = n,
+    values_fill = 0
+    ) %>%
+  mutate(
+    top_prop    = str_replace(p_alive_decile, "PALIVE_(\\d+)", "\\1") %>%
+      as.numeric() %>%
+      divide_by(100),
+    active_prop = ACTIVE / (ACTIVE + INACTIVE)
+    )
+
+ggplot(ltmodel_hier_one_alive_valid_tbl) +
+  geom_point(aes(x = top_prop, y = active_prop)) +
+  geom_line(aes(x = top_prop, y = top_prop), colour = "red") +
+  labs(
+    x = "Bucket Proportion",
+    y = "Customer Proportion",
+    title = "Comparison Plot of p_alive Against Active Proportion"
+    ) +
+  expand_limits(x = 0)
+```
 
 
 
+```{r write_hier_one_stanfit_disk, echo=TRUE}
+ltmodel_hier_one_stanfit %>% write_rds("data/ltmodel_hier_one_stanfit.rds")
+```
+
+
+# Construct Lifetime p_alive Comparison Plot
+
+Finally, we want to take all the data from our `p_alive` value comparison plots
+together and see how our different models combine.
+
+```{r construct_p_alive_model_comparison_plot, echo=TRUE}
+p_alive_valid_tbl <- lsos(pattern = "_alive_valid_tbl") %>%
+  row.names() %>%
+  enframe(name = NULL, value = "variable_name") %>%
+  mutate(
+    label = str_replace(variable_name, "ltmodel_(.*?)_alive_valid.*", "\\1"),
+    data  = map(variable_name, get)) %>%
+  unnest(data)
+
+ggplot(p_alive_valid_tbl) +
+  geom_line(aes(x = top_prop, y = active_prop, colour = label)) +
+  labs(
+    x = "Cu"
+  )
+
+```
 
 
 # R Environment
