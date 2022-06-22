@@ -1,0 +1,374 @@
+---
+title: "Building Initial Monetary Models"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+source("lib_utils.R")
+source("lib_btyd.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width        = 80L,
+  warn         = 1,
+  brms.backend = "cmdstanr",
+  mc.cores     = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+In this workbook we investigate different ways to model the transaction
+frequency of individual customers, with a view to expanding this approach into
+a more traditional P/NBD model.
+
+# Load and Configure Datasets
+
+We first want to load some synthetic transaction data.
+
+```{r load_synth_transaction_data, echo=TRUE}
+customer_cohort_tbl <- read_rds("data/synthdata_allfixed_cohort_tbl.rds")
+customer_cohort_tbl %>% glimpse()
+
+customer_simparams_tbl <- read_rds("data/synthdata_allfixed_simparams_tbl.rds")
+customer_simparams_tbl %>% glimpse()
+
+customer_transactions_tbl <- read_rds("data/synthdata_allfixed_transactions_tbl.rds")
+customer_transactions_tbl %>% glimpse()
+```
+
+Our transaction data is our main input data for this work, so we will show the
+first few rows of this.
+
+```{r show_transaction_data, echo=TRUE}
+customer_transactions_tbl %>% arrange(tnx_timestamp) %>% head(10)
+```
+
+We also want to set up a number of parameters for use in this workbook
+
+```{r setup_workbook_parameters, echo=TRUE}
+stan_modeldir <- "stan_models"
+stan_codedir  <-   "stan_code"
+```
+
+
+## Construct Visualisation Data
+
+```{r construct_frequency_modelling_data, echo=TRUE}
+customer_summarystats_tbl <- customer_transactions_tbl %>%
+  calculate_transaction_summary_stats()
+
+customer_summarystats_tbl %>% glimpse()
+```
+
+We want to view the transactions to get a sense of how regular our transactions
+are in general.
+
+```{r plot_customer_transaction_times, echo=TRUE}
+plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id, .key = "cust_data") %>%
+  filter(map_int(cust_data, nrow) > 3) %>%
+  slice_sample(n = 30) %>%
+  unnest(cust_data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Date",
+    y = "Customer ID",
+    title = "Visualisation of Customer Transaction Times"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+
+## Construct Data Subsets
+
+For the purposes of saving on time and computation, we construct a subset of
+the data first, and rather than constructing different samples each time we
+instead construct sets of `customer_id` to draw upon, then using those list
+of values when we want to take a subset.
+
+We do this by randomly shuffling the data and then selecting the top $n$ values
+of `customer_id`.
+
+```{r construct_data_subset_ids, echo=TRUE}
+shuffle_tbl <- customer_summarystats_tbl %>%
+  slice_sample(prop = 1, replace = FALSE)
+
+id_1000  <- shuffle_tbl %>% head(1000)  %>% pull(customer_id) %>% sort()
+id_5000  <- shuffle_tbl %>% head(5000)  %>% pull(customer_id) %>% sort()
+id_10000 <- shuffle_tbl %>% head(10000) %>% pull(customer_id) %>% sort()
+```
+
+We now have a list of `customer_id` values we use to subset the data.
+
+# Fit Transaction Amount Models
+
+We first want to use these samples of the dataset to look at it.
+
+
+```{r construct_fit_data_subsets, echo=TRUE}
+fit_1000_data_tbl <- customer_transactions_tbl %>%
+  filter(customer_id %in% id_1000)
+
+fit_1000_data_tbl %>% glimpse()
+
+
+fit_10000_data_tbl <- customer_transactions_tbl %>%
+  filter(customer_id %in% id_10000)
+  
+fit_10000_data_tbl %>% glimpse()
+```
+
+
+
+## Fit Stan Model
+
+We start by fitting our first Stan model, fitting a Poisson rate for each
+individual customer.
+
+```{r display_amtmodel_flat_stancode, echo=FALSE}
+read_lines("stan_code/amtmodel_flat.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_amtmodel_flat_stanmodel, echo=TRUE, results="hide"}
+amtmodel_flat_stanmodel <- cmdstan_model(
+  "stan_code/amtmodel_flat.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_amtmodel_flat_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "amtmodel_flat"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- fit_1000_data_tbl %>%
+  select(customer_id, tnx_amt = tnx_amount) %>%
+  compose_data(
+    p_p1  = 100,
+    p_p2  =   1,
+    nu_p1 =   1,
+    nu_p2 =   1
+    )
+
+amtmodel_flat_stanfit <- amtmodel_flat_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+amtmodel_flat_stanfit$summary()
+```
+
+We first want to check the HMC diagnostics.
+
+```{r calculate_amtmodel_flat_hmc_diagnostics, echo=TRUE}
+amtmodel_flat_stanfit$cmdstan_diagnose()
+```
+
+
+### Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_p_nu_traceplots_warmup, echo=TRUE}
+parameter_subset <- c(
+  "p[1]", "nu[1]", "p[2]", "nu[2]", "p[3]", "nu[3]"
+  )
+
+amtmodel_flat_stanfit$draws(inc_warmup = TRUE) %>%
+  mcmc_trace(
+    pars     = parameter_subset,
+    n_warmup = 500
+    ) +
+  ggtitle("Full Traceplots of Some Posterior Values")
+```
+
+
+As the warmup is skewing the y-axis somewhat, we repeat this process without
+the warmup.
+
+```{r plot_traceplots_nowarmup, echo=TRUE}
+amtmodel_flat_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(
+    pars     = parameter_subset
+    ) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Posterior Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_amtmodel_flat_parameter_rhat, echo=TRUE}
+amtmodel_flat_stanfit %>%
+  rhat(pars = c("p", "nu")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_amtmodel_flat_parameter_neffratio, echo=TRUE}
+amtmodel_flat_stanfit %>%
+  neff_ratio(pars = c("p", "nu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_amtmodel_flat_parameter_acf, echo=TRUE}
+amtmodel_flat_stanfit$draws() %>%
+  mcmc_acf(pars = parameter_subset) +
+    ggtitle("Autocorrelation Plot of Sample Posterior Values")
+```
+
+In practice we do not always require a comprehensive exploration of the
+diagnostics, but it is good practice to run through the various visualisations
+when we fit a model to ensure our sample is valid.
+
+
+
+## Check Model Fit
+
+We now need to check the parameters of this fit against the data to see how
+effective our model is at capturing the data. In this case we have the benefit
+of knowing the 'true' data, and so we compare our model output against the
+input parameters.
+
+```{r construct_amtmodel_flat_validation, echo=TRUE}
+amtmodel_flat_validation_tbl <- amtmodel_flat_stanfit %>%
+  recover_types(fit_1000_data_tbl) %>%
+  spread_draws(p[customer_id], nu[customer_id]) %>%
+  ungroup() %>%
+  inner_join(
+    customer_summarystats_tbl %>% select(customer_id, tnx_count),
+    by = "customer_id"
+    ) %>%
+  inner_join(customer_simparams_tbl, by = "customer_id") %>%
+  select(
+    customer_id, draw_id = .draw, tnx_count,
+    post_p = p, post_nu = nu, customer_p, customer_nu
+    )
+
+amtmodel_flat_validation_tbl %>% glimpse()
+```
+
+Having constructed the validation data we now want to check the quantile of
+each 'true' value in the posterior distribution for the parameter. If our
+model is valid, this distribution will be uniform on $[0, 1]$.
+
+```{r calculate_amtmodel_flat_qvalues, echo=TRUE}
+plotvalid_tbl <- amtmodel_flat_validation_tbl %>%
+  calculate_distribution_qvals(post_p, customer_p, customer_id)
+
+ref_value <- plotvalid_tbl %>% nrow() %>% divide_by(50)
+
+ggplot(plotvalid_tbl) +
+  geom_histogram(aes(x = q_val), bins = 50) +
+  geom_hline(aes(yintercept = ref_value), colour = "red") +
+  labs(
+    x = "Quantile",
+    y = "Count",
+    title = "Quantile Plot of the q-Values for the Posterior Distribution"
+    )
+
+ggplot(plotvalid_tbl) +
+  geom_point(aes(x = q_val, y = customer_p)) +
+  labs(
+    x = "Quantile",
+    y = "Customer p",
+    title = "Scatterplot of q-Value against p"
+    )
+```
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
