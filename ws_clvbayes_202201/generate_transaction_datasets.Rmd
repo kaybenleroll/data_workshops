@@ -397,6 +397,60 @@ synthdata_lifetime_transactions_tbl %>% write_rds("data/synthdata_lifetime_trans
 
 
 
+# Generate Fixed-Frequency Fixed-Lifetime Transaction Data
+
+We are now going to fix the frequency of the transactions as well as the
+lifetime of the customer.
+
+```{r generate_allfixed_synth_cohort, echo=TRUE}
+pnbd_params_lst <- list(
+  mu_shape     =   2,
+  mu_rate      =  20,
+
+  lambda_shape =   1,
+  lambda_rate  =   4,
+
+  mx_p         = 100,
+  mx_q         =   1,
+  mx_g         =   1
+  )
+
+synthdata_allfixed_cohort_tbl <- generate_customer_cohort_data(
+    n_customers = n_customers,
+    first_date  = as.Date("2019-01-01"),
+    last_date   = as.Date("2019-12-31")
+    )
+
+synthdata_allfixed_simparams_tbl <- synthdata_allfixed_cohort_tbl %>%
+  generate_pnbd_customer_simulation_params(
+    params_lst = pnbd_params_lst
+    ) %>%
+  transmute(
+    customer_id, cohort_qtr, cohort_ym, first_tnx_date, customer_mu,
+    customer_tau = 53, customer_lambda = 0.1, customer_nu, customer_p
+    )
+
+synthdata_allfixed_transactions_tbl <- synthdata_allfixed_simparams_tbl %>%
+  generate_pnbd_customer_transaction_data(
+    final_tnx_date = as.Date("2019-12-31")
+    )
+
+synthdata_allfixed_transactions_tbl %>% glimpse()
+```
+
+
+## Write Data to Disk
+
+We now write this data to disk.
+
+```{r write_allfixed_synth_data_disk, echo=TRUE}
+synthdata_allfixed_cohort_tbl       %>% write_rds("data/synthdata_allfixed_cohort_tbl.rds")
+synthdata_allfixed_simparams_tbl    %>% write_rds("data/synthdata_allfixed_simparams_tbl.rds")
+synthdata_allfixed_transactions_tbl %>% write_rds("data/synthdata_allfixed_transactions_tbl.rds")
+```
+
+
+
 
 
 # R Environment
