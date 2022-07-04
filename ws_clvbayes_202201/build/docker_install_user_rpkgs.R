@@ -25,5 +25,5 @@ install_cmdstan(
   cpp_options = cmdstan_flags,
   quiet       = FALSE,
   overwrite   = FALSE,
-  version     = "2.29.2"
+  version     = "2.30.0"
 )
