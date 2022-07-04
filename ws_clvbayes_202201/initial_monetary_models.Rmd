@@ -179,7 +179,7 @@ fit_10000_data_tbl %>% glimpse()
 
 
 
-## Fit Stan Model
+## Fit Initial Flat Stan Model
 
 We start by fitting our first Stan model, fitting a Poisson rate for each
 individual customer.
@@ -208,10 +208,9 @@ stanfit_prefix <- str_c("fit_", stan_modelname)
 stan_data_lst <- fit_1000_data_tbl %>%
   select(customer_id, tnx_amt = tnx_amount) %>%
   compose_data(
-    p_p1  = 100,
-    p_p2  =   1,
-    nu_p1 =   1,
-    nu_p2 =   1
+    p  =  100,
+    q =     1,
+    g =     1
     )
 
 amtmodel_flat_stanfit <- amtmodel_flat_stanmodel$sample(
@@ -242,7 +241,7 @@ few different visualisations of the diagnostics.
 
 ```{r plot_p_nu_traceplots_warmup, echo=TRUE}
 parameter_subset <- c(
-  "p[1]", "nu[1]", "p[2]", "nu[2]", "p[3]", "nu[3]"
+  "nu[1]", "nu[2]", "nu[3]", "nu[4]", "nu[5]", "nu[6]"
   )
 
 amtmodel_flat_stanfit$draws(inc_warmup = TRUE) %>%
@@ -276,7 +275,7 @@ of the chains.
 
 ```{r plot_amtmodel_flat_parameter_rhat, echo=TRUE}
 amtmodel_flat_stanfit %>%
-  rhat(pars = c("p", "nu")) %>%
+  rhat(pars = c("nu")) %>%
   mcmc_rhat() +
     ggtitle("Plot of Parameter R-hat Values")
 ```
@@ -288,7 +287,7 @@ view.
 
 ```{r plot_amtmodel_flat_parameter_neffratio, echo=TRUE}
 amtmodel_flat_stanfit %>%
-  neff_ratio(pars = c("p", "nu")) %>%
+  neff_ratio(pars = c("nu")) %>%
   mcmc_neff() +
     ggtitle("Plot of Parameter Effective Sample Sizes")
 ```
@@ -318,7 +317,7 @@ input parameters.
 ```{r construct_amtmodel_flat_validation, echo=TRUE}
 amtmodel_flat_validation_tbl <- amtmodel_flat_stanfit %>%
   recover_types(fit_1000_data_tbl) %>%
-  spread_draws(p[customer_id], nu[customer_id]) %>%
+  spread_draws(nu[customer_id]) %>%
   ungroup() %>%
   inner_join(
     customer_summarystats_tbl %>% select(customer_id, tnx_count),
@@ -327,7 +326,7 @@ amtmodel_flat_validation_tbl <- amtmodel_flat_stanfit %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
   select(
     customer_id, draw_id = .draw, tnx_count,
-    post_p = p, post_nu = nu, customer_p, customer_nu
+    post_nu = nu, customer_p, customer_nu
     )
 
 amtmodel_flat_validation_tbl %>% glimpse()
@@ -338,12 +337,12 @@ each 'true' value in the posterior distribution for the parameter. If our
 model is valid, this distribution will be uniform on $[0, 1]$.
 
 ```{r calculate_amtmodel_flat_qvalues, echo=TRUE}
-plotvalid_tbl <- amtmodel_flat_validation_tbl %>%
-  calculate_distribution_qvals(post_p, customer_p, customer_id)
+amtmodel_flat_nu_qvalues_tbl <- amtmodel_flat_validation_tbl %>%
+  calculate_distribution_qvals(post_nu, customer_nu, customer_id)
 
-ref_value <- plotvalid_tbl %>% nrow() %>% divide_by(50)
+ref_value <- amtmodel_flat_nu_qvalues_tbl %>% nrow() %>% divide_by(50)
 
-ggplot(plotvalid_tbl) +
+ggplot(amtmodel_flat_nu_qvalues_tbl) +
   geom_histogram(aes(x = q_val), bins = 50) +
   geom_hline(aes(yintercept = ref_value), colour = "red") +
   labs(
@@ -352,8 +351,8 @@ ggplot(plotvalid_tbl) +
     title = "Quantile Plot of the q-Values for the Posterior Distribution"
     )
 
-ggplot(plotvalid_tbl) +
-  geom_point(aes(x = q_val, y = customer_p)) +
+ggplot(amtmodel_flat_nu_qvalues_tbl) +
+  geom_point(aes(x = q_val, y = customer_nu)) +
   labs(
     x = "Quantile",
     y = "Customer p",
@@ -362,7 +361,33 @@ ggplot(plotvalid_tbl) +
 ```
 
 
+In real world examples we will not have any "true" parameter values though,
+so we also want to look at the distribution of $q$-values against the derived
+ECDFs:
 
+```{r calculate_amtmodel_flat_tnxamt_qvalues, echo=TRUE}
+amtmodel_flat_amt_qvals_tbl <-  fit_1000_data_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    tnx_vals = list(tnx_amount)
+    ) %>%
+  inner_join(
+    amtmodel_flat_validation_tbl %>% select(customer_id, customer_p, post_nu),
+    by = "customer_id"
+    ) %>%
+  mutate(
+    q_vals = pmap(
+      list(x1 = tnx_vals, x2 = customer_p, x3 = post_nu),
+      function(x1, x2, x3) pgamma(q = x1, shape = x2, rate = x3)
+      )
+    ) %>%
+  select(customer_id, customer_p, post_nu, q_vals) %>%
+  unnest(q_vals)
+
+amtmodel_flat_amt_qvals_tbl %>% glimpse()
+```
 
 
 # R Environment
