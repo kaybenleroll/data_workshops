@@ -11,8 +11,19 @@ data {
   vector<lower=0>[n] tnx_amt;        // transaction amount
 }
 
+
 parameters {
   vector<lower=0>[n_customer_id] nu;
+}
+
+
+transformed parameters {
+  vector<lower=0>[n_customer_id] cust_mean = (p / nu);
+  vector<lower=0>[n_customer_id] cust_cv;
+
+  for(i in 1:n_customer_id) {
+    cust_cv[i] = sqrt(p);
+  }
 }
 
 model {
