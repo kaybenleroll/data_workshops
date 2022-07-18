@@ -1379,8 +1379,8 @@ stan_data_lst <- training_stats_tbl %>%
     mean_p1 =  5,
     mean_p2 = 50,
     
-    cov_p1  = 5,
-    cov_p2  = 5
+    cv_p1   =  5,
+    cv_p2   =  5
     )
 
 ltmodel_hier_stanfit <- ltmodel_hier_stanmodel$sample(
@@ -1415,7 +1415,7 @@ parameters.
 ```{r plot_ltmodel_hier_param_traceplots, echo=TRUE}
 mcmc_trace(
     x    = ltmodel_hier_stanfit$draws(),
-    pars = c("hier_mean", "hier_cov")
+    pars = c("hier_mean", "hier_cv")
     ) +
   ggtitle("Traceplots of Lifetime Hierarchical Parameter Values")
 ```
