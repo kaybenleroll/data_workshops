@@ -6,7 +6,7 @@ remotes::install_github(
 
 remotes::install_github(
   "stan-dev/cmdstanr",
-  ref     = "v0.5.2",
+  ref     = "v0.5.3",
   upgrade = "never"
 )
 
@@ -25,5 +25,5 @@ install_cmdstan(
   cpp_options = cmdstan_flags,
   quiet       = FALSE,
   overwrite   = FALSE,
-  version     = "2.30.0"
+  version     = "2.30.1"
 )
