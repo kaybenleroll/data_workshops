@@ -356,7 +356,7 @@ ggplot(amtmodel_flat_nu_qvalues_tbl) +
   labs(
     x = "Quantile",
     y = "Customer p",
-    title = "Scatterplot of q-Value against p"
+    title = "Scatterplot of q-Value against nu"
     )
 ```
 
@@ -528,7 +528,7 @@ input parameters.
 ```{r construct_amtmodel_flat_reparam_validation, echo=TRUE}
 amtmodel_flat_reparam_validation_tbl <- amtmodel_flat_reparam_stanfit %>%
   recover_types(fit_1000_data_tbl) %>%
-  spread_draws(nu[customer_id]) %>%
+  spread_draws(nu[customer_id], cust_mean[customer_id], cust_cv[customer_id]) %>%
   ungroup() %>%
   inner_join(
     customer_summarystats_tbl %>% select(customer_id, tnx_count),
@@ -537,7 +537,8 @@ amtmodel_flat_reparam_validation_tbl <- amtmodel_flat_reparam_stanfit %>%
   inner_join(customer_simparams_tbl, by = "customer_id") %>%
   select(
     customer_id, draw_id = .draw, tnx_count,
-    post_nu = nu, customer_p, customer_nu
+    post_nu = nu, customer_p, customer_nu,
+    post_cust_mean = cust_mean, post_cust_cv = cust_cv
     )
 
 amtmodel_flat_reparam_validation_tbl %>% glimpse()

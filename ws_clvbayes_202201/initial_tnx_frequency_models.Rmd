@@ -498,9 +498,7 @@ parameter_subset <- c(
   )
 
 freqmodel_flat_stanfit$draws(inc_warmup = FALSE) %>%
-  mcmc_trace(
-    pars     = parameter_subset
-    ) +
+  mcmc_trace(pars = parameter_subset) +
   expand_limits(y = 0) +
   labs(
     x = "Iteration",

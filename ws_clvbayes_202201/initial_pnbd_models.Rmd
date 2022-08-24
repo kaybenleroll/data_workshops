@@ -1,0 +1,506 @@
+---
+title: "Initial Exploration of the P/NBD Model"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+source("lib_utils.R")
+source("lib_btyd.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+In this workbook we introduce the various different BTYD models, starting with
+a discussion of the underlying theory.
+
+
+# Background Theory
+
+Before we start working on fitting and using the various Buy-Till-You-Die
+models, we first need to discuss the basic underlying theory and model.
+
+In this model, we assume a customer becomes 'alive' to the business at the
+first purchase and then makes purchases stochastically but at a steady-rate
+for a period of time, and then 'dies' - i.e. becomes inactive to the business -
+hence the use of "Buy-Till-You-Die".
+
+Thus, at a high level these models decompose into modelling the transaction
+events using distributions such as the Poisson or Negative Binomial, and then
+modelling the 'dropout' process using some other method.
+
+A number of BTYD models exist and for this workshop we will focus on the
+BG/NBD model - the Beta-Geometric Negative Binomial Distribution model (though
+we will discuss the P/NBD model also).
+
+These models require only two pieces of information about each customer's
+purchasing history: the "recency" (when the last transaction occurred) and
+"frequency" (the count of transactions made by that customer in a specified
+time period).
+
+The notation used to represent this information is
+
+$$
+X = (x, \, t_x, \, T),
+$$
+where
+
+$$
+\begin{eqnarray*}
+x   &=& \text{the number of transactions},           \\
+T   &=& \text{the observed time period},             \\
+t_x &=& \text{the time since the last transaction}.
+\end{eqnarray*}
+$$
+
+From this summary data we can fit most BTYD models.
+
+# BTYD Models
+
+There are a number of different statistical approaches to building BTYD
+models - relying on a number of different assumptions about how the various
+recency, frequency and monetary values are modelled.
+
+We now discuss a number of different ways of modelling this.
+
+
+
+
+
+## Pareto/Negative-Binomial Distribution (P/NBD) Model
+
+The P/NBD model relies on five assumptions:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with shape $r$ and rate $\alpha$. 
+  1. Each customer has an unobserved 'lifetime' of length $\tau$. This point at
+  which the customer becomes inactive is distributed as an exponential with
+  dropout rate $\mu$.
+  1. Heterogeneity in dropout rates across customers follows a Gamma
+  distribution $\Gamma(\mu \, | \, s, \beta)$ with shape parameter $s$ and
+  rate parameter $\beta$.
+  1. The transaction rate $\lambda$ and the dropout rate $\mu$ vary
+  independently across customers.
+
+
+As before, we express this in mathematical notation as:
+
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r),    \\
+\mu &\sim& \Gamma(s, \beta),         \\
+\tau &\sim& \text{Exponential}(\mu)
+\end{eqnarray*}
+$$
+
+
+## Beta-Geometric/Negative-Binomial Distribution (BG/NBD) Model
+
+This model relies on a number of base assumptions, somewhat similar to the
+P/NBD model but modelling lifetime with a different process:
+
+  1. While active, the number of transactions made by a customer follows a
+  Poisson process with transaction rate $\lambda$.
+  1. Heterogeneity in $\lambda$ follows a Gamma distribution
+  $\Gamma(\lambda \, | \, \alpha, r)$ with parameters shape $r$ and rate
+  $\alpha$. 
+  1. After any transaction, a customer becomes inactive with probability $p$.
+  1. Heterogeneity in $p$ follows a Beta distribution $B(p \, | \, a, b)$ with
+  shape parameters $a$ and $b$.
+  1. The transaction rate $\lambda$ and the dropout probability $p$ vary
+  independently across customers.
+
+
+Note that it follows from the above assumptions that the probability of a
+customer being 'alive' after any transaction is given by the Geometric
+distribution, and hence the Beta-Geometric in the name.
+
+To put this into more formal mathematical notation, we have:
+ 
+$$
+\begin{eqnarray*}
+\lambda &\sim& \Gamma(\alpha, r),                 \\
+P(\text{alive}, k) &\sim& \text{Geometric}(p, k), \\
+p &\sim& \text{Beta}(a, b)
+\end{eqnarray*}
+$$
+
+
+# Initial P/NBD Models
+
+We start by modelling the P/NBD model using our synthetic datasets before we
+try to model real-life data.
+
+
+## Load Long Time-frame Synthetic Data
+
+
+```{r load_longframe_synthetic_data, echo=TRUE}
+customer_cohortdata_tbl <- read_rds("data/synthdata_longframe_cohort_tbl.rds")
+customer_cohortdata_tbl %>% glimpse()
+
+customer_simparams_tbl  <- read_rds("data/synthdata_longframe_simparams_tbl.rds")
+customer_simparams_tbl %>% glimpse()
+
+customer_transactions_tbl <- read_rds("data/synthdata_longframe_transactions_tbl.rds")
+customer_transactions_tbl %>% glimpse()
+```
+
+
+## Derive the Log-likelihood Function
+
+We now turn our attention to deriving the log-likelihood model for the P/NBD
+model.
+
+We assume that we know that a given customer has made $x$ transactions after
+the initial one over an observed period of time $T$, and we label these
+transactions $t_1$, $t_2$, ..., $t_x$.
+
+![](img/clv_pnbd_arrow.png)
+
+
+To model the likelihood for this observation, we need to consider two
+possibilities: one for where the customer is still 'alive' at $T$, and one
+where the customer has 'died' by $T$.
+
+In the first instance, the likelihood is the product of the observations of
+each transaction, multiplied by the likelihood of the customer still being
+alive at time $T$.
+
+Because we are modelling the transaction counts as a Poisson process, this
+corresponds to the times between events following an exponential distribution,
+and so both the transaction times and the lifetime likelihoods use the
+exponential.
+
+This gives us:
+
+$$
+\begin{eqnarray*}
+L(\lambda \, | \, t_1, t_2, ..., t_x, T, \, \tau > T)
+  &=& \lambda e^{-\lambda t_1} \lambda e^{-\lambda(t_2 - t_1)} ...
+      \lambda e^{-\lambda (t_x - t_{x-1})} e^{-\lambda(T - t)} \\
+  &=& \lambda^x e^{-\lambda T}
+\end{eqnarray*}
+$$
+
+and we can combine this with the likelihood of the lifetime of the customer
+$\tau$ being greater than the observation window $T$,
+
+$$
+P(\tau > T \, | \, \mu) = e^{-\mu T}
+$$
+
+For the second case, the customer becomes inactive at some time $\tau$ in the
+interval $(t_x, T]$, and so the likelihood is
+
+$$
+\begin{eqnarray*}
+L(\lambda \, | \, t_1, t_2, ..., t_x, T, \, \tau > T)
+  &=& \lambda e^{-\lambda t_1} \lambda e^{-\lambda(t_2 - t_1)} ...
+      \lambda e^{-\lambda (t_x - t_{x-1})} e^{-\lambda(\tau - t_x)} \\
+  &=& \lambda^x e^{-\lambda \tau}
+\end{eqnarray*}
+$$
+
+In both cases we do not need the times of the individual transactions, and all
+we need are the values $(x, t_x, T)$.
+
+As we cannot observe $\tau$, we want to remove the conditioning on $\tau$ by
+integrating it out.
+
+$$
+\begin{eqnarray*}
+L(\lambda, \mu \, | \, x, t_x, T)
+  &=& L(\lambda \, | \, t_1, t_2, ..., t_x, T, \, \tau > T) \, P(\tau > T \, | \, \mu) +
+      \int^T_{t_x} L(\lambda \, | \, x, T, \text{ inactive at } (t_x, T] ) \, f(\tau \, | \mu) d\tau \\
+  &=& \lambda^x e^{-\lambda T} e^{\mu T} +
+      \lambda^x \int^T_{t_x} e^{-\lambda \tau} \mu e^{-\mu \tau} d\tau   \\
+  &=& \lambda^x e^{-(\lambda + \mu)T} + \frac{\lambda^x \mu}{\lambda + \mu} e^{-(\lambda + \mu) t_x} +
+      \frac{\lambda^x \mu}{\lambda + \mu} e^{-(\lambda + \mu) T} \\
+  &=& \frac{\lambda^x \mu}{\lambda + \mu} e^{-(\lambda + \mu) t_x} +
+      \frac{\lambda^{x+1} \mu}{\lambda + \mu} e^{-(\lambda + \mu) T}
+\end{eqnarray*}
+$$
+
+In Stan, we do not calculate the likelihoods but the Log-likelihood, so we need
+to take the log of this expression. This creates a problem, as we have no easy
+way to calculate $\log(a + b)$. As this expression occurs a lot, Stan provides
+a `log_sum_exp()`, which is defined by
+
+$$
+\log \, (a + b) = \text{log_sum_exp}(\log a, \log b)
+$$
+
+$$
+\begin{eqnarray*}
+LL(\lambda, \mu \, | \, x, t_x, T)
+  &=&
+    \log \left(
+      \frac{\lambda^x \, \mu}{\lambda + \mu}
+      \left( e^{-(\lambda + \mu) t_x} + \lambda e^{-(\lambda + \mu) T} \right)
+      \right) \\
+  &=& x \log \lambda + \log \mu -log(\lambda + \mu) +
+    \text{log_sum_exp}(-(\lambda + \mu) \, t_x, \; \log \lambda - (\lambda + \mu) \, T)
+\end{eqnarray*}
+$$
+
+This is the log-likelihood model we want to fit in Stan.
+
+
+## Construct Datasets
+
+Having loaded the synthetic data we need to construct a number of 
+
+```{r construct_summary_stats_data, echo=TRUE}
+customer_summarystats_tbl <- customer_transactions_tbl %>%
+  calculate_transaction_cbs_data(last_date = as.Date("2018-12-31"))
+
+customer_summarystats_tbl %>% glimpse()
+```
+
+As before, we construct a number of subsets of the data for use later on with
+the modelling and create some data subsets.
+
+
+```{r construct_data_subset_ids, echo=TRUE}
+shuffle_tbl <- customer_summarystats_tbl %>%
+  slice_sample(n = nrow(.), replace = FALSE)
+
+id_1000  <- shuffle_tbl %>% head(1000)  %>% pull(customer_id) %>% sort()
+id_5000  <- shuffle_tbl %>% head(5000)  %>% pull(customer_id) %>% sort()
+id_10000 <- shuffle_tbl %>% head(10000) %>% pull(customer_id) %>% sort()
+```
+
+We then construct some fit data based on these values.
+
+```{r construct_fit_subset_data, echo=TRUE}
+fit_1000_data_tbl  <- customer_summarystats_tbl %>% filter(customer_id %in% id_1000)
+fit_1000_data_tbl %>% glimpse()
+
+fit_10000_data_tbl <- customer_summarystats_tbl %>% filter(customer_id %in% id_10000)
+fit_10000_data_tbl %>% glimpse()
+```
+
+
+# Fit Initial P/NBD Model
+
+We now construct our Stan model and prepare to fit it with our synthetic
+dataset.
+
+Before we start on that, we set a few parameters for the workbook to organise
+our Stan code.
+
+```{r setup_workbook_parameters, echo=TRUE}
+stan_modeldir <- "stan_models"
+stan_codedir  <-   "stan_code"
+```
+
+
+We start with the Stan model.
+
+```{r display_pnbd_fixed_model_stancode, echo=FALSE}
+read_lines("stan_code/pnbd_fixed.stan") %>% cat(sep = "\n")
+```
+
+This file contains a few new features of Stan - named file includes and
+user-defined functions - `calculate_pnbd_loglik`. We look at this file here:
+
+```{r display_util_functions_stancode, echo=FALSE}
+read_lines("stan_code/util_functions.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_pnbd_fixed_stanmodel, echo=TRUE, results="hide"}
+pnbd_fixed_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_fixed.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_pnbd_fixed_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_fixed"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- fit_1000_data_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn = 0.25,
+    lambda_cv = 1.00,
+    
+    mu_mn     = 0.10,
+    mu_cv     = 1.00,
+    )
+
+pnbd_fixed_stanfit <- pnbd_fixed_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_fixed_stanfit$summary()
+```
+
+
+
+
+## Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_lambda_traceplots_warmup, echo=TRUE}
+parameter_subset <- c(
+  "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]",
+  "mu[1]",     "mu[2]",     "mu[3]",     "mu[4]"
+  )
+
+pnbd_fixed_stanfit$draws(inc_warmup = TRUE) %>%
+  mcmc_trace(
+    pars     = parameter_subset,
+    n_warmup = 500
+    ) +
+  ggtitle("Full Traceplots of Some Lambda and Mu Values")
+```
+
+
+As the warmup is skewing the y-axis somewhat, we repeat this process without
+the warmup.
+
+```{r plot_lambda_traceplots_nowarmup, echo=TRUE}
+pnbd_fixed_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = parameter_subset) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and Mu Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_pnbd_fixed_parameter_rhat, echo=TRUE}
+pnbd_fixed_stanfit %>%
+  rhat(pars = c("lambda", "mu")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_pnbd_fixed_parameter_neffratio, echo=TRUE}
+pnbd_fixed_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_pnbd_fixed_parameter_acf, echo=TRUE}
+pnbd_fixed_stanfit$draws() %>%
+  mcmc_acf(pars = parameter_subset) +
+    ggtitle("Autocorrelation Plot of Sample Values")
+```
+
+As before, this first fit has a comprehensive run of fit diagnostics, but for
+the sake of brevity in later models we will show only the traceplots once we
+are satisfied with the validity of the sample.
+
+
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
