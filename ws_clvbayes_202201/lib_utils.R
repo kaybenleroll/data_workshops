@@ -121,3 +121,68 @@ rgamma_mucv <- function(n, mu, cv, ...) {
 
   rgamma(n = n, shape = params[1], rate = params[2], ...)
 }
+
+
+create_posterior_validation_data <- function(stanfit, data_tbl, simparams_tbl, bincount = 50) {
+
+  validation_tbl <- stanfit %>%
+    recover_types(data_tbl) %>%
+    spread_draws(lambda[customer_id], mu[customer_id]) %>%
+    ungroup() %>%
+    inner_join(simparams_tbl, by = "customer_id") %>%
+    select(
+      customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda,
+      post_mu = mu, customer_mu
+      )
+
+  validation_tbl %>% glimpse()
+
+
+  tmp_tbl <- validation_tbl %>%
+    calculate_distribution_qvals(post_lambda, customer_lambda, customer_id)
+
+  qvalues_tbl <- validation_tbl %>%
+    calculate_distribution_qvals(post_mu, customer_mu, customer_id) %>%
+    rename(qval_mu = q_val) %>%
+    inner_join(tmp_tbl, by = "customer_id") %>%
+    select(
+      customer_id, customer_lambda, qval_lambda = q_val, customer_mu, qval_mu
+      )
+
+
+  unif_count <- qvalues_tbl %>%
+    nrow() %>%
+    divide_by(bincount)
+
+  lambda_qval_plot <- ggplot(qvalues_tbl) +
+    geom_histogram(aes(x = qval_lambda), bins = bincount) +
+    geom_hline(aes(yintercept = unif_count), colour = "red") +
+    labs(
+      x = "q-Values",
+      y = "Frequency",
+
+      title = "Histogram of the q-Values for Lambda"
+      )
+
+  mu_qval_plot <- ggplot(qvalues_tbl) +
+    geom_histogram(aes(x = qval_mu), bins = bincount) +
+    geom_hline(aes(yintercept = unif_count), colour = "red") +
+    labs(
+      x = "q-Values",
+      y = "Frequency",
+
+      title = "Histogram of the q-Values for Mu"
+      )
+
+
+  valid_lst <- list(
+    validation_tbl   = validation_tbl,
+    qvalues_tbl      = qvalues_tbl,
+
+    mu_qval_plot     = mu_qval_plot,
+    lambda_qval_plot = lambda_qval_plot
+    )
+
+  return(valid_lst)
+}
+

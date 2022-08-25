@@ -417,6 +417,12 @@ pnbd_fixed_stanfit$summary()
 ```
 
 
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_fixed_hmc_diagnostics, echo=TRUE}
+pnbd_fixed_stanfit$cmdstan_diagnose()
+```
+
 
 
 ## Visual Diagnostics of the Sample Validity
@@ -490,9 +496,28 @@ the sake of brevity in later models we will show only the traceplots once we
 are satisfied with the validity of the sample.
 
 
+## Check Model Fit
+
+As we are still working with synthetic data, we know the true values for each
+customer and so we can check how good our model is at recovering the true
+values on a customer-by-customer basis.
+
+As in previous workbooks, we build our validation datasets and then check the
+distribution of $q$-values for both $\lambda$ and $\mu$ across the customer
+base.
 
 
+```{r construct_pnbd_fixed_validation_qvalues, echo=TRUE}
+pnbd_fixed_valid_lst <- create_posterior_validation_data(
+  stanfit       = pnbd_fixed_stanfit,
+  data_tbl      = fit_1000_data_tbl,
+  simparams_tbl = customer_simparams_tbl
+  )
 
+pnbd_fixed_valid_lst$lambda_qval_plot %>% plot()
+
+pnbd_fixed_valid_lst$mu_qval_plot %>% plot()
+```
 
 
 
