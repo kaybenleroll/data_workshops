@@ -521,6 +521,134 @@ pnbd_fixed_valid_lst$mu_qval_plot %>% plot()
 
 
 
+# Fit Alternate Prior P/NBD Model
+
+
+We now repeat all of the above but with an alternative set of priors and compare
+the outputs to give us an idea of the sensitivity of the inference to the input
+priors.
+
+We will repeat this a few times, so we start by increasing the co-efficient of
+variation in the priors. We keep everything else constant, including the seed
+used by Stan.
+
+```{r fit_pnbd_fixed2_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_fixed2"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- fit_1000_data_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn = 0.25,
+    lambda_cv = 2.00,
+    
+    mu_mn     = 0.10,
+    mu_cv     = 2.00,
+    )
+
+pnbd_fixed2_stanfit <- pnbd_fixed_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_fixed_stanfit$summary()
+```
+
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_fixed2_hmc_diagnostics, echo=TRUE}
+pnbd_fixed2_stanfit$cmdstan_diagnose()
+```
+
+
+
+## Visual Diagnostics of the Sample Validity
+
+We do not repeat the full set of validation checks here, but look at the plot
+of effective stepsizes.
+
+```{r plot_pnbd_fixed2_parameter_neffratio, echo=TRUE}
+pnbd_fixed2_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes for Alternate Priors")
+```
+
+
+## Check Model Fit
+
+As we are still working with synthetic data, we know the true values for each
+customer and so we can check how good our model is at recovering the true
+values on a customer-by-customer basis.
+
+As in previous workbooks, we build our validation datasets and then check the
+distribution of $q$-values for both $\lambda$ and $\mu$ across the customer
+base.
+
+
+```{r construct_pnbd_fixed2_validation_qvalues, echo=TRUE}
+pnbd_fixed2_valid_lst <- create_posterior_validation_data(
+  stanfit       = pnbd_fixed2_stanfit,
+  data_tbl      = fit_1000_data_tbl,
+  simparams_tbl = customer_simparams_tbl
+  )
+
+pnbd_fixed2_valid_lst$lambda_qval_plot %>% plot()
+
+pnbd_fixed2_valid_lst$mu_qval_plot %>% plot()
+```
+
+We now construct some error-bar plots for a subset of the customers to get an
+idea of the differences across the two posteriors.
+
+```{r construct_fixed_fixed2_comparison_data, echo=TRUE}
+comparison_plot_tbl <- list(
+    fixed  = pnbd_fixed_valid_lst$validation_tbl,
+    fixed2 = pnbd_fixed2_valid_lst$validation_tbl
+    ) %>%
+  bind_rows(.id = "post_label") %>%
+  group_by(post_label, customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    p10 = quantile(post_lambda, 0.10),
+    p25 = quantile(post_lambda, 0.25),
+    p50 = quantile(post_lambda, 0.50),
+    p75 = quantile(post_lambda, 0.75),
+    p90 = quantile(post_lambda, 0.90),
+    
+    customer_lambda = customer_lambda %>% unique()
+    ) %>%
+  group_nest(customer_id) %>%
+  slice_sample(n = 50) %>%
+  unnest(data)
+
+ggplot(comparison_plot_tbl) +
+  geom_point(aes(x = customer_id, y = customer_lambda)) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = p25, ymax = p75, colour = post_label),
+    position = position_dodge(width = 0.75), width = 0, size = 3,
+    ) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = p10, ymax = p90, colour = post_label),
+    position = position_dodge(width = 0.75), width = 0, size = 1,
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5)
+    )
+```
+
+
+
+# Assessing the P/NBD Models
+
 
 # R Environment
 
