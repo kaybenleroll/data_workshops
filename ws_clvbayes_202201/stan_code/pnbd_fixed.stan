@@ -38,3 +38,9 @@ model {
 
   target += calculate_pnbd_loglik(n, lambda, mu, x, t_x, T_cal);
 }
+
+generated quantities {
+  vector[n] p_alive;         // Probability that they are still "alive"
+
+  p_alive = 1 ./ (1 + mu ./ (mu + lambda) .* (exp((lambda + mu) .* (T_cal - t_x)) - 1));
+}

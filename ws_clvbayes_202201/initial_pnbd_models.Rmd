@@ -212,6 +212,28 @@ customer_transactions_tbl %>% glimpse()
 ```
 
 
+We re-produce the visualisation of the transaction times we used in previous
+workbooks.
+
+```{r plot_customer_transaction_times, echo=TRUE}
+plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id, .key = "cust_data") %>%
+  filter(map_int(cust_data, nrow) > 3) %>%
+  slice_sample(n = 30) %>%
+  unnest(cust_data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+      x = "Date",
+      y = "Customer ID",
+      title = "Visualisation of Customer Transaction Times"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+
 ## Derive the Log-likelihood Function
 
 We now turn our attention to deriving the log-likelihood model for the P/NBD
@@ -314,7 +336,8 @@ This is the log-likelihood model we want to fit in Stan.
 
 ## Construct Datasets
 
-Having loaded the synthetic data we need to construct a number of 
+Having loaded the synthetic data we need to construct a number of datasets of
+derived values.
 
 ```{r construct_summary_stats_data, echo=TRUE}
 customer_summarystats_tbl <- customer_transactions_tbl %>%
@@ -331,6 +354,7 @@ the modelling and create some data subsets.
 shuffle_tbl <- customer_summarystats_tbl %>%
   slice_sample(n = nrow(.), replace = FALSE)
 
+id_50    <- shuffle_tbl %>% head(50)    %>% pull(customer_id) %>% sort() 
 id_1000  <- shuffle_tbl %>% head(1000)  %>% pull(customer_id) %>% sort()
 id_5000  <- shuffle_tbl %>% head(5000)  %>% pull(customer_id) %>% sort()
 id_10000 <- shuffle_tbl %>% head(10000) %>% pull(customer_id) %>% sort()
@@ -345,6 +369,26 @@ fit_1000_data_tbl %>% glimpse()
 fit_10000_data_tbl <- customer_summarystats_tbl %>% filter(customer_id %in% id_10000)
 fit_10000_data_tbl %>% glimpse()
 ```
+
+
+Finally, we also want to recreate our transaction visualisation for the first
+50 customers randomly selected.
+
+```{r plot_customer_transaction_times_first50, echo=TRUE}
+plot_tbl <- customer_transactions_tbl %>%
+  filter(customer_id %in% id_50)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+      x = "Date",
+      y = "Customer ID",
+      title = "Visualisation of Customer Transaction Times"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+```
+
 
 
 # Fit Initial P/NBD Model
@@ -508,7 +552,7 @@ base.
 
 
 ```{r construct_pnbd_fixed_validation_qvalues, echo=TRUE}
-pnbd_fixed_valid_lst <- create_posterior_validation_data(
+pnbd_fixed_valid_lst <- create_pnbd_posterior_validation_data(
   stanfit       = pnbd_fixed_stanfit,
   data_tbl      = fit_1000_data_tbl,
   simparams_tbl = customer_simparams_tbl
@@ -594,7 +638,7 @@ base.
 
 
 ```{r construct_pnbd_fixed2_validation_qvalues, echo=TRUE}
-pnbd_fixed2_valid_lst <- create_posterior_validation_data(
+pnbd_fixed2_valid_lst <- create_pnbd_posterior_validation_data(
   stanfit       = pnbd_fixed2_stanfit,
   data_tbl      = fit_1000_data_tbl,
   simparams_tbl = customer_simparams_tbl
@@ -648,6 +692,163 @@ ggplot(comparison_plot_tbl) +
 
 
 # Assessing the P/NBD Models
+
+We now focus on assess the various versions of our models without the benefit
+of knowing the 'true' answer as we will not have this information in our
+real-world applications.
+
+A key derived quantity to employ is $P_{alive}(T)$, the probability that the
+customer is still 'alive' at the point of observation of the data.
+
+
+## Calculating P_alive
+
+The probability that a customer with purchase history $(x, t_x, T)$ is 'alive'
+at time $T$ is the probability that the (unobserved) time at which he becomes
+inactive ($\tau$) occurs after T, that is $P(\tau > T)$.
+
+We apply Bayes' Theorem to give us:
+
+$$
+\begin{eqnarray*}
+P(\tau > T \, | \, \lambda, \mu, x, t_x, T)
+  &=& \frac{L(\lambda \, | \, x, T, \tau > T) \, P(\tau > T \, | \, \mu)}
+           {L(\lambda, \mu \, | \, x, t_x, T)} \\
+  &=& \frac{\lambda^x e^{−(λ+μ)T}}
+           {L(\lambda, \mu \, | \, x, t_x, T)}
+\end{eqnarray*}
+$$
+
+We know the likelihood for this model, so can now substitute this in:
+
+$$
+\begin{eqnarray*}
+P(\tau > T \, | \, \lambda, \mu, x, t_x, T)
+  &=& \frac{\lambda^x e^{−(λ+μ)T}}
+           {\frac{\lambda^x \mu}{\lambda + \mu} e^{-(\lambda + \mu) t_x} +
+      \frac{\lambda^{x+1} \mu}{\lambda + \mu} e^{-(\lambda + \mu) T}} \\
+  &=& \frac{\lambda^x \, e^{-(\lambda + \mu)T}}
+           {\lambda^x e^{-(\lambda + \mu)T}
+             \{1 + (\frac{u}{\lambda + \mu})
+             [e^{-(\lambda + \mu)(t_x - T)} - 1 ]\}} \\
+  &=& \frac{1}{1 + (\frac{u}{\lambda + \mu})
+             [e^{(\lambda + \mu)(T - t_x)} - 1 ]}
+\end{eqnarray*}
+$$
+
+We now want to verify this calculation in our posterior estimates. To do this,
+we take a number of different cohorts of customers, and visually inspect our
+transaction visualisation.
+
+
+```{r calculate_pnbd_alive_summary_stats, echo=TRUE}
+pnbd_fixed_palive_summary_tbl <- pnbd_fixed_valid_lst$validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    p_alive_p10 = quantile(p_alive, 0.10),
+    p_alive_p25 = quantile(p_alive, 0.25),
+    p_alive_p50 = quantile(p_alive, 0.50),
+    p_alive_p75 = quantile(p_alive, 0.75),
+    p_alive_p90 = quantile(p_alive, 0.90)
+    )
+
+pnbd_fixed_palive_summary_tbl %>% glimpse()
+```
+
+We now take the customers that are highly likely to no longer be active, and
+highly likely to be active, and so we use the 10\% and 90\% percentiles.
+
+
+```{r plot_likely_active_transactions, echo=TRUE}
+likely_active_id <- pnbd_fixed_palive_summary_tbl %>%
+  filter(p_alive_p10 > 0.95) %>%
+  pull(customer_id)
+
+
+plot_tbl <- customer_transactions_tbl %>%
+  filter(
+    tnx_timestamp < as.Date("2019-01-01"),
+    customer_id %in% likely_active_id
+    )
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  geom_vline(aes(xintercept = as.POSIXct("2019-01-01")), colour = "red") +
+  labs(
+      x = "Date",
+      y = "Customer ID",
+      title = "Visualisation of Transaction Times for Likely Active Customers"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+This is useful, but the longer period of time prevents us from seeing the more
+recent transactions clearly, so we focus on the final year.
+
+
+```{r plot_likely_active_transactions_2018, echo=TRUE}
+likely_active_id <- pnbd_fixed_palive_summary_tbl %>%
+  filter(p_alive_p10 > 0.95) %>%
+  pull(customer_id)
+
+
+plot_tbl <- customer_transactions_tbl %>%
+  filter(
+    tnx_timestamp <  as.Date("2019-01-01"),
+    tnx_timestamp >= as.Date("2018-01-01"),
+    customer_id %in% likely_active_id
+    )
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  geom_vline(aes(xintercept = as.POSIXct("2019-01-01")), colour = "red") +
+  labs(
+      x = "Date",
+      y = "Customer ID",
+      title = "Visualisation of Transaction Times for Likely Active Customers"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+We see that most of the active customers have reasonably recent transactions.
+
+
+
+
+```{r plot_likely_inactive_transactions, echo=TRUE}
+likely_inactive_id <- pnbd_fixed_palive_summary_tbl %>%
+  filter(p_alive_p90 < 0.05) %>%
+  pull(customer_id)
+
+
+plot_tbl <- customer_transactions_tbl %>%
+  filter(
+    tnx_timestamp < as.Date("2019-01-01"),
+    customer_id %in% likely_inactive_id
+    )
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line(alpha = 0.1) +
+  geom_point(alpha = 0.1, size = 1) +
+  geom_vline(aes(xintercept = as.POSIXct("2019-01-01")), colour = "red") +
+  labs(
+      x = "Date",
+      y = "Customer ID",
+      title = "Visualisation of Transaction Times for Likely Inactive Customers"
+    ) +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+    )
+```
+
+
+
+
 
 
 # R Environment
