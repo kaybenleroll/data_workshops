@@ -29,7 +29,9 @@ HTML_FILES := $(patsubst %.Rmd,%.html,$(RMD_FILES))
 all-html: $(HTML_FILES)
 
 .Rmd.html:
+	echo "TIMESTAMP:" `date` "- Rendering script $<" >> output.log
 	Rscript -e 'rmarkdown::render("$<")'
+	echo "TIMESTAMP:" `date` "- Finished" >> output.log
 
 .dot.png:
 	dot -Tpng -o$*.png $<
@@ -45,11 +47,16 @@ generate_transaction_datasets.html: exploring_retail_data.html
 initial_tnx_frequency_models.html: exploring_retail_data.html \
   generate_transaction_datasets.html
 initial_lifetime_models.html: initial_tnx_frequency_models.html
+initial_monetary_models.html: generate_transaction_datasets.html \
+  exploring_retail_data.html
+  initial_pnbd_models.html: initial_tnx_frequency_models.html \
+  initial_lifetime_models.html initial_monetary_models.html
 
 
 mrproper: clean-cache clean-data clean-html clean-models
 	rm -fv data/*.xlsx
 	rm -fv *.dot
+	rm -fv output.log
 
 clean-data:
 	rm -fv data/*.rds

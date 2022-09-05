@@ -12,3 +12,5 @@ temp*.R
 ORIG_*
 
 .vscode/*
+
+*.log
