@@ -20,12 +20,12 @@ RUN apt-get update \
   && mkdir -p $HOME/.R \
   && echo "" > $HOME/.R/Makevars \
   && echo "CXX=clang++"                                            >> $HOME/.R/Makevars \
-  && echo "CXXFLAGS=-Os -mtune=native -march=native"               >> $HOME/.R/Makevars \
+  && echo "CXXFLAGS=-Os"                                           >> $HOME/.R/Makevars \
   && echo "CXXFLAGS+= -Wno-unused-variable -Wno-unused-function"   >> $HOME/.R/Makevars \
   && echo "CXXFLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined"   >> $HOME/.R/Makevars \
   && echo ""                                                       >> $HOME/.R/Makevars \
   && echo "CXX14=clang++"                                          >> $HOME/.R/Makevars \
-  && echo "CXX14FLAGS=-Os -mtune=native -march=native"             >> $HOME/.R/Makevars \
+  && echo "CXX14FLAGS=-Os"                                         >> $HOME/.R/Makevars \
   && echo "CXX14FLAGS+= -Wno-unused-variable -Wno-unused-function" >> $HOME/.R/Makevars \
   && echo "CXX14FLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined" >> $HOME/.R/Makevars \
   && echo ""                                                       >> $HOME/.R/Makevars \
