@@ -751,7 +751,10 @@ pnbd_fixed_palive_summary_tbl <- pnbd_fixed_valid_lst$validation_tbl %>%
     p_alive_p25 = quantile(p_alive, 0.25),
     p_alive_p50 = quantile(p_alive, 0.50),
     p_alive_p75 = quantile(p_alive, 0.75),
-    p_alive_p90 = quantile(p_alive, 0.90)
+    p_alive_p90 = quantile(p_alive, 0.90),
+    
+    p_alive_range50 = p_alive_p75 - p_alive_p25,
+    p_alive_range80 = p_alive_p90 - p_alive_p10,
     )
 
 pnbd_fixed_palive_summary_tbl %>% glimpse()
@@ -817,8 +820,6 @@ ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
 We see that most of the active customers have reasonably recent transactions.
 
 
-
-
 ```{r plot_likely_inactive_transactions, echo=TRUE}
 likely_inactive_id <- pnbd_fixed_palive_summary_tbl %>%
   filter(p_alive_p90 < 0.05) %>%
@@ -837,11 +838,61 @@ ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
   geom_vline(aes(xintercept = as.POSIXct("2019-01-01")), colour = "red") +
   labs(
       x = "Date",
-      y = "Customer ID",
+      y = "Customer",
       title = "Visualisation of Transaction Times for Likely Inactive Customers"
     ) +
   theme(
-    axis.text.y = element_blank(),
+    axis.text.y  = element_blank(),
+    axis.ticks.y = element_blank()
+    )
+```
+
+Finally, we want to look at the customers with the most uncertainty in their
+value for `p_alive`. There are a number of ways to do this, but we start by
+looking at the range in values.
+
+First we look at the distribution of these ranges.
+
+```{r plot_distribution_p_alive_ranges, echo=TRUE}
+ggplot(pnbd_fixed_palive_summary_tbl) +
+  geom_histogram(aes(x = p_alive_range80), binwidth = 0.02) +
+  labs(
+    x = "80% Interval Range",
+    y = "Frequency",
+    title = "Distribution of Range of Values for the 80% Credibility Range for p_alive"
+    )
+```
+
+
+We see that most customers have their credibility intervals in a reasonably
+tight range, and so we can just look at customers where this range is at least
+0.3.
+
+
+```{r plot_pnbd_fixed_palive_uncertain_customers_transactions, echo=TRUE}
+plot_tbl <- pnbd_fixed_palive_summary_tbl %>% 
+  filter(p_alive_range80 > 0.3) %>%
+  select(customer_id, p_alive_range80) %>%
+  inner_join(customer_transactions_tbl, by = "customer_id") %>%
+  filter(
+    tnx_timestamp <  as.Date("2019-01-01"),
+    tnx_timestamp >= as.Date("2018-01-01")
+    )
+
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, colour = p_alive_range80)) +
+  geom_line(alpha = 0.5) +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_vline(aes(xintercept = as.POSIXct("2019-01-01")), colour = "red") +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(
+      x = "Date",
+      y = "Customer",
+      colour = "Interval Range",
+      title = "Visualisation of Transaction Times for Non-Confident p_alive Customers"
+    ) +
+  theme(
+    axis.text.y  = element_blank(),
     axis.ticks.y = element_blank()
     )
 ```
