@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "02 - The Virtues of Simplicity"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-05-19"
+date: "2022-09-15"
 output:
   revealjs::revealjs_presentation:
     theme: night

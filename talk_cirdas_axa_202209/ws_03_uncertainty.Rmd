@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "03 - Risk, Uncertainty and Knowledge"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-05-26"
+date: "2022-09-22"
 output:
   revealjs::revealjs_presentation:
     theme: night
