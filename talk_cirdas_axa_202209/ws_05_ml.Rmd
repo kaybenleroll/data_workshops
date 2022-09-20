@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "05 - ML and Models and Data - Oh My!!!"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-06-09"
+date: "2022-10-06"
 output:
   revealjs::revealjs_presentation:
     theme: night

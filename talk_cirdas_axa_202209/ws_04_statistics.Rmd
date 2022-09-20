@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "04 - The Power and Perils of Statistics"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-06-02"
+date: "2022-09-29"
 output:
   revealjs::revealjs_presentation:
     theme: night
