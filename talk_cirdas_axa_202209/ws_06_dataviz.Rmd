@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "06 - Data Visualisation"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: "2022-06-16"
+date: "2022-10-13"
 output:
   revealjs::revealjs_presentation:
     theme: night
@@ -214,7 +214,7 @@ bootstrap_freq_tbl <- freq_tbl %>%
 
 ---
 
-```{r load_mtpl_data, echo=FALSE}
+```{r calculate_region_claim_rate, echo=FALSE}
 region_rate_tbl <- freq_tbl %>%
   group_by(Region) %>%
   summarise(
@@ -302,6 +302,34 @@ ggplot(plot_sf) +
 
 ---
 
+```{r construct_geospatial_claim_rate_plot_zerofill, echo=FALSE}
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    claim_rate = sum(ClaimNb) / sum(Exposure)
+    )
+
+plot_sf <- fra_adm_sf %>%
+  select(Region = NAME_1, geometry) %>%
+  left_join(region_rate_tbl, by = "Region")
+
+ggplot(plot_sf) +
+  geom_sf(aes(fill = claim_rate)) +
+  geom_sf_text(aes(label = Region)) +
+  scale_fill_gradient(low = "yellow", high = "red") +
+  expand_limits(fill = 0) +
+  labs(
+    fill = "Claim Rate",
+    title = "Visualisation of Claim Rate by Region (Zero Fill Value)"
+    ) +
+  theme_void()
+```
+
+
+---
+
 ```{r construct_geospatial_quantile_animation, echo=FALSE, cache=TRUE}
 region_rate_anim_tbl <- bootstrap_freq_tbl %>%
   group_by(Region) %>%
@@ -339,7 +367,32 @@ animate(plot_anim + enter_fade() + exit_fade(), renderer = gifski_renderer())
 ```
 
 
+
 # Visualise Comparisons
+
+
+```{r calculate_region_claim_rate_fill_exposure, echo=FALSE}
+plot_tbl <- bootstrap_freq_summ_tbl %>%
+  left_join(region_rate_tbl, by = "Region")
+
+ggplot(plot_tbl) +
+  geom_errorbar(aes(x = Region, ymin = p10, ymax = p90, colour = total_exposure), width = 0, size = 1) +
+  geom_errorbar(aes(x = Region, ymin = p25, ymax = p75, colour = total_exposure), width = 0, size = 3) +
+  geom_point(aes(x = Region, y = median), size = 3) +
+  geom_point(aes(x = Region, y = mean), colour = 'red', size = 2) +
+  scale_colour_gradient(low = "#d8b365", high = "#5ab4ac", labels = label_comma()) +
+  expand_limits(y = 0, colour = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    colour = "Exposure",
+    title = "Uncertainty Estimates for Claim Rates by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+---
+
 
 ```{r construct_region_comparisons, echo=FALSE}
 region_exposure_tbl <- freq_tbl %>%
