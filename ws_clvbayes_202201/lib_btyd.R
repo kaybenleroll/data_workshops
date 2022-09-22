@@ -100,3 +100,39 @@ create_pnbd_posterior_validation_data <- function(stanfit, data_tbl, simparams_t
 }
 
 
+generate_pnbd_validation_transactions <- function(p_alive, lambda, mu, tnx_mu, tnx_cv, start_dttm, end_dttm) {
+
+  customer_active <- rbernoulli(n = 1, p = p_alive)
+
+  if(customer_active) {
+    tau <- rexp(n = 1, rate = mu)
+
+    tnx_intervals <- calculate_event_times(
+      rate       = lambda,
+      total_time = tau,
+      block_size = 1000
+      )
+
+    event_dates <- start_dttm + (cumsum(tnx_intervals) * (7 * 24 * 60 * 60))
+
+    tnx_amounts <- rgamma_mucv(length(event_dates), mu = tnx_mu, cv = tnx_cv)
+
+    tnxdata_tbl <- tibble(
+        tnx_timestamp = event_dates,
+        tnx_amount    = tnx_amounts %>% round(2)
+        ) %>%
+      filter(
+        tnx_timestamp <= end_dttm
+        )
+
+  } else {
+    tnxdata_tbl <- tibble(
+        tnx_timestamp = start_dttm,
+        tnx_amount    = 0
+        ) %>%
+      slice(0)
+  }
+
+
+  return(tnxdata_tbl)
+}

@@ -11,6 +11,13 @@ remotes::install_github(
 )
 
 
+remotes::install_github(
+  "rmcelreath/rethinking",
+  ref     = "v2.2.1",
+  upgrade = "never"
+)
+
+
 library(cmdstanr)
 
 cmdstan_flags <- list(
