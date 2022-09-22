@@ -100,6 +100,22 @@ It ain't what you don't know that gets you into trouble...
 
 ... It's what you know for sure that just ain't so.
 
+---
+
+```{r repeat1_known_unknown_plots, echo=FALSE}
+plot_tbl <- expand_grid(
+    Belief  = c("Known", "Unknown"),
+    Reality = c("Known", "Unknown")
+    )
+
+ggplot(plot_tbl) +
+  geom_tile(
+    aes(x = Belief, y = Reality),
+    width = 0.95, height = 0.95, fill = "grey"
+    )
+```
+
+
 
 
 # Risk vs Uncertainty
