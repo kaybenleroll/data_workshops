@@ -104,12 +104,17 @@ generate_pnbd_validation_transactions <- function(p_alive, lambda, mu, tnx_mu, t
 
   customer_active <- rbernoulli(n = 1, p = p_alive)
 
+  max_obs <- difftime(end_dttm, start_dttm, units = "weeks")
+
+
   if(customer_active) {
     tau <- rexp(n = 1, rate = mu)
 
+    obs_time <- min(tau, max_obs)
+
     tnx_intervals <- calculate_event_times(
       rate       = lambda,
-      total_time = tau,
+      total_time = obs_time,
       block_size = 1000
       )
 
@@ -135,4 +140,19 @@ generate_pnbd_validation_transactions <- function(p_alive, lambda, mu, tnx_mu, t
 
 
   return(tnxdata_tbl)
+}
+
+
+construct_observed_data_posterior_comparisons <- function(valid_tbl, obsdata_tbl) {
+  ### First compared simulated transaction counts by customer
+  valid_tbl %>%
+    group_by(customer_id) %>%
+    summarise(
+      .groups = "drop",
+
+      sim_tnx_counts = list(sim_tnx_count)
+      ) %>%
+    inner_join(obsdata_tbl, by = "customer_id")
+
+
 }

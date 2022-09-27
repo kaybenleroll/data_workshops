@@ -6,7 +6,9 @@ data/*.rds
 data/*.csv
 
 stan_models/*
-precompute/*.rds
+precompute/pnbd_fixed/*.rds
+precompute/pnbd_fixed2/*.rds
+precompute/pnbd_fixed3/*.rds
 
 *_cache/*
 *_files/*

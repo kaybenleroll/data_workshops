@@ -930,26 +930,32 @@ Thinking ahead, this function will also include parameters for the transaction
 amount, but for these models we set both those values to 1.
 
 
-```{r generate_pnbd_fixed_validation_transactions, echo=TRUE, cache=TRUE}
+```{r generate_pnbd_fixed_validation_transactions, echo=TRUE}
 pnbd_fixed_validsims_tbl <- pnbd_fixed_valid_lst$validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
   mutate(
-    sim_data = future_pmap(
-      list(
-        p_alive = p_alive,
-        lambda  = post_lambda,
-        mu      = post_mu
+    sim_file = glue(
+      "precompute/pnbd_fixed/sims_pnbd_fixed_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 421
         ),
-      generate_pnbd_validation_transactions,
-      
-      tnx_mu     = 1,
-      tnx_cv     = 1,
-      start_dttm = as.POSIXct("2019-01-01"),
-      end_dttm   = "2020-01-01",
-      
-      .options = furrr_options(seed = 421),
       .progress = TRUE
       )
-    )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
+
 
 pnbd_fixed_validsims_tbl %>% glimpse()
 ```
@@ -1099,6 +1105,54 @@ We see this gives us silly values at least for low transaction count customers,
 especially for those customers with no extra transactions after the initial
 one.
 
+That said, these outputs are useful
+
+```{r generate_pnbd_fixed2_validation_transactions, echo=TRUE}
+pnbd_fixed2_validsims_tbl <- pnbd_fixed2_valid_lst$validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "precompute/pnbd_fixed2/sims_pnbd_fixed2_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 421
+        ),
+      .progress = TRUE
+      )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
+
+
+pnbd_fixed2_validsims_tbl %>% glimpse()
+```
+
+
+
+
+## Comparing Simulation Data
+
+Before we move on to other aspects of model validation, we also want to check
+the simulation of transaction counts against the observed counts.
+
+
+```{r construct_simulation_comparisons_pnbd_fixed_fixed2}
+
+
+```
+
+
+
 
 # Fitting Lower-CV Prior Model
 
@@ -1199,32 +1253,86 @@ We now want to generate our validation simulations using our existing
 functions, like we did for previous models.
 
 
-```{r generate_pnbd_fixed3_validation_sims, echo=TRUE, cache=TRUE}
+```{r generate_pnbd_fixed3_validation_sims, echo=TRUE}
+plan(multisession)
+
 pnbd_fixed3_validsims_tbl <- pnbd_fixed3_validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
   mutate(
-    sim_data = future_pmap(
-      list(
-        p_alive = p_alive,
-        lambda  = post_lambda,
-        mu      = post_mu
+    sim_file = glue(
+      "precompute/pnbd_fixed3/sims_pnbd_fixed3_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 421
         ),
-      generate_pnbd_validation_transactions,
-      
-      tnx_mu     = 1,
-      tnx_cv     = 1,
-      start_dttm = as.POSIXct("2019-01-01"),
-      end_dttm   = "2020-01-01",
-      
-      .options = furrr_options(seed = 421),
       .progress = TRUE
       )
-    )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
 
-pnbd_fixed_validsims_tbl %>% glimpse()
+
+pnbd_fixed3_validsims_tbl %>% glimpse()
 ```
 
+Having constructed the validation posterior we now join this data to our
+observations and calculate the $q$-values as before.
+
+```{r construct_pnbd_fixed3_1000_validation_data, echo=TRUE}
+pnbd_fixed3_1000_validation_tbl <- pnbd_fixed3_validsims_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_count = list(map_int(sim_data, nrow))
+    ) %>%
+  left_join(obs_2019_id1000_stats_tbl, by = "customer_id") %>%
+  replace_na(list(tnx_count = 0)) %>%
+  mutate(
+    tnx_count_qval = map2_dbl(sim_count, tnx_count, ~ ecdf(.x)(.y))
+    )
+
+pnbd_fixed3_1000_validation_tbl %>% glimpse()
+```
+
+Once again, for now we want to remove all the customers with no transactions
+and where all their validation simulations have zero transactions.
+
+```{r plot_pnbd_fixed3_qval_histogram, echo=TRUE}
+plot_tbl <- pnbd_fixed3_1000_validation_tbl %>% 
+  filter(!(tnx_count == 0 & tnx_count_qval == 1))
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = tnx_count_qval), bins = 50) +
+  labs(
+    x = "q-Value",
+    y = "Frequency",
+    title = "Histogram of q-Values From Posterior Simulation of Transactions Counts"
+  )
+```
+
+Here we see we still have a heavy bias towards high $q$-values, so we need to
+see exactly what the issues are.
+
+One thing to look at is to compare the distribution of total transaction count
+for each iteration in our posterior sample against the observed amount. This
+should at least give us a broad sense of how well the model is capturing that
+aspect of the data as a whole.
+
+```{r}
 
 
+```
 
 
 
