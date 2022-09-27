@@ -29,9 +29,9 @@ HTML_FILES := $(patsubst %.Rmd,%.html,$(RMD_FILES))
 all-html: $(HTML_FILES)
 
 .Rmd.html:
-	echo "TIMESTAMP:" `date` "- Rendering script $<" >> output.log
-	Rscript -e 'rmarkdown::render("$<")'
-	echo "TIMESTAMP:" `date` "- Finished" >> output.log
+	echo "TIMESTAMP:" `date` "- Rendering script $<" >> output.log 2>&1
+	Rscript -e 'rmarkdown::render("$<")'  >> output.log 2>&1
+	echo "TIMESTAMP:" `date` "- Finished" >> output.log 2>&1
 
 .dot.png:
 	dot -Tpng -o$*.png $<
