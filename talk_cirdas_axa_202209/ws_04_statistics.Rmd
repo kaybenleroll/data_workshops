@@ -142,6 +142,10 @@ Post Hoc, Ergo Proptor Hoc
 
 ---
 
+![](img/correlation_causation_duck.png)
+
+---
+
 ![](img/bad_pirates.png)
 
 ## Replication Crisis

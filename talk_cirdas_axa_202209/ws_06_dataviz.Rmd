@@ -308,7 +308,9 @@ region_rate_tbl <- freq_tbl %>%
   summarise(
     .groups = "drop",
     
-    claim_rate = sum(ClaimNb) / sum(Exposure)
+    total_claim    = sum(ClaimNb),
+    total_exposure = sum(Exposure),
+    claim_rate     = sum(ClaimNb) / sum(Exposure)
     )
 
 plot_sf <- fra_adm_sf %>%
