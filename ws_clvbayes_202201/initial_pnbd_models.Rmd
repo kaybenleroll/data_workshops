@@ -390,6 +390,20 @@ ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
 ```
 
 
+## Write Data
+
+```{r write_data_disk, echo=TRUE}
+id_1000  %>% write_rds("data/id_1000.rds")
+id_5000  %>% write_rds("data/id_5000.rds")
+id_10000 %>% write_rds("data/id_10000.rds")
+
+fit_1000_data_tbl  %>% write_rds("data/fit_1000_longframe_data_tbl.rds")
+fit_10000_data_tbl %>% write_rds("data/fit_10000_longframe_data_tbl.rds")
+
+customer_summarystats_tbl %>% write_rds("data/customer_summarystats_longframe_tbl.rds")
+```
+
+
 
 # Fit Initial P/NBD Model
 
