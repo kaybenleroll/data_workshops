@@ -1145,21 +1145,112 @@ pnbd_fixed2_validsims_tbl %>% glimpse()
 Before we move on to other aspects of model validation, we also want to check
 the simulation of transaction counts against the observed counts.
 
+### Assessing the pnbd_fixed Model
 
-```{r construct_simulation_comparisons_pnbd_fixed_fixed2}
+We first want to look at the total transaction count and count of customers
+transacted, comparing the observed amount to that observed in the actual data.
 
 
+```{r construct_pnbd_fixed_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_2019_id1000_stats_tbl %>% 
+  semi_join(pnbd_fixed_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_fixed_tnx_simsumm_tbl <- pnbd_fixed_validsims_tbl %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_fixed_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_fixed_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
 ```
 
 
+### Assessing the pnbd_fixed2 Model
+
+We repeat this assessment for our `pnbd_fixed2` model, which had a wider
+coefficient of variation in our prior parameters.
+
+
+```{r construct_pnbd_fixed2_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_2019_id1000_stats_tbl %>% 
+  semi_join(pnbd_fixed2_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_fixed2_tnx_simsumm_tbl <- pnbd_fixed2_validsims_tbl %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_fixed2_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_fixed2_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
+We see that in general, our models are over-estimating the count of customers
+transacting in the following year, as well as the total count of transactions
+made.
+
+This suggests we should try an alternative prior, as our priors on both
+lifetime and transaction rate may skew too high.
 
 
 # Fitting Lower-CV Prior Model
 
-To avoid those low-end values of the model, we refit our model with a lower
-coefficient of variation -- this should solve the lower end of the distribution
-though the tradeoff means that that the right tail of the distribution is less
-pronounced.
+Our existing fits have a number of different issues, so it is worth trying to
+refit this model with a lower coefficient of variation -- this should solve the
+lower end of the distribution though the tradeoff means that that the right
+tail of the distribution is less pronounced. Given we are skewing high in our
+transaction counts though, this may not be a problem.
+
+
 
 ```{r fit_pnbd_fixed3_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "pnbd_fixed3"
@@ -1254,8 +1345,6 @@ functions, like we did for previous models.
 
 
 ```{r generate_pnbd_fixed3_validation_sims, echo=TRUE}
-plan(multisession)
-
 pnbd_fixed3_validsims_tbl <- pnbd_fixed3_validation_tbl %>%
   group_nest(customer_id, .key = "cust_params") %>%
   mutate(
@@ -1324,15 +1413,56 @@ ggplot(plot_tbl) +
 Here we see we still have a heavy bias towards high $q$-values, so we need to
 see exactly what the issues are.
 
-One thing to look at is to compare the distribution of total transaction count
-for each iteration in our posterior sample against the observed amount. This
-should at least give us a broad sense of how well the model is capturing that
-aspect of the data as a whole.
+## Assessing this Model
 
-```{r}
+We now repeat our assessment approach for this new model, investigating our
+simulations by looking at transaction counts.
+
+```{r construct_pnbd_fixed3_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_2019_id1000_stats_tbl %>% 
+  semi_join(pnbd_fixed2_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_fixed3_tnx_simsumm_tbl <- pnbd_fixed3_validsims_tbl %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
 
 
+ggplot(pnbd_fixed3_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_fixed3_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), bins = 50) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
 ```
+
+
+Overall, it looks like our choice of prior parameters has a big effect on our
+estimates, so we need to take this into account.
+
+An improvement to this model would allow us to express uncertainty around
+these models, which is the next step.
+
 
 
 
