@@ -979,7 +979,7 @@ We also want the summary statistics for the transactions in the final year that
 is not included in the fitted data.
 
 ```{r calculate_validation_year_statistics, echo=TRUE}
-obs_2019_id1000_stats_tbl <- customer_transactions_tbl %>%
+obs_2019_stats_tbl <- customer_transactions_tbl %>%
   filter(
     tnx_timestamp >= as.POSIXct("2019-01-01")
     ) %>%
@@ -992,7 +992,7 @@ obs_2019_id1000_stats_tbl <- customer_transactions_tbl %>%
     last_tnx  = max(tnx_timestamp)
     )
 
-obs_2019_id1000_stats_tbl %>% glimpse()
+obs_2019_stats_tbl %>% glimpse()
 ```
 
 We now want to combine this data to start our investigation of the model
@@ -1008,7 +1008,7 @@ pnbd_fixed_1000_validation_tbl <- pnbd_fixed_validsims_tbl %>%
     
     sim_count = list(map_int(sim_data, nrow))
     ) %>%
-  left_join(obs_2019_id1000_stats_tbl, by = "customer_id") %>%
+  left_join(obs_2019_stats_tbl, by = "customer_id") %>%
   replace_na(list(tnx_count = 0)) %>%
   mutate(
     tnx_count_qval = map2_dbl(sim_count, tnx_count, ~ ecdf(.x)(.y))
@@ -1166,7 +1166,7 @@ transacted, comparing the observed amount to that observed in the actual data.
 
 
 ```{r construct_pnbd_fixed_tnx_simulations, echo=TRUE}
-tnx_data_tbl <- obs_2019_id1000_stats_tbl %>% 
+tnx_data_tbl <- obs_2019_stats_tbl %>% 
   semi_join(pnbd_fixed_validsims_tbl, by = "customer_id")
 
 obs_customer_count  <- tnx_data_tbl %>% nrow()
@@ -1193,7 +1193,7 @@ ggplot(pnbd_fixed_tnx_simsumm_tbl) +
     )
 
 ggplot(pnbd_fixed_tnx_simsumm_tbl) +
-  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 1) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
   geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
   labs(
     x = "Simulated Transaction Count",
@@ -1211,7 +1211,7 @@ coefficient of variation in our prior parameters.
 
 
 ```{r construct_pnbd_fixed2_tnx_simulations, echo=TRUE}
-tnx_data_tbl <- obs_2019_id1000_stats_tbl %>% 
+tnx_data_tbl <- obs_2019_stats_tbl %>% 
   semi_join(pnbd_fixed2_validsims_tbl, by = "customer_id")
 
 obs_customer_count  <- tnx_data_tbl %>% nrow()
@@ -1238,7 +1238,7 @@ ggplot(pnbd_fixed2_tnx_simsumm_tbl) +
     )
 
 ggplot(pnbd_fixed2_tnx_simsumm_tbl) +
-  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 1) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
   geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
   labs(
     x = "Simulated Transaction Count",
@@ -1399,7 +1399,7 @@ pnbd_fixed3_1000_validation_tbl <- pnbd_fixed3_validsims_tbl %>%
     
     sim_count = list(map_int(sim_data, nrow))
     ) %>%
-  left_join(obs_2019_id1000_stats_tbl, by = "customer_id") %>%
+  left_join(obs_2019_stats_tbl, by = "customer_id") %>%
   replace_na(list(tnx_count = 0)) %>%
   mutate(
     tnx_count_qval = map2_dbl(sim_count, tnx_count, ~ ecdf(.x)(.y))
@@ -1433,8 +1433,8 @@ We now repeat our assessment approach for this new model, investigating our
 simulations by looking at transaction counts.
 
 ```{r construct_pnbd_fixed3_tnx_simulations, echo=TRUE}
-tnx_data_tbl <- obs_2019_id1000_stats_tbl %>% 
-  semi_join(pnbd_fixed2_validsims_tbl, by = "customer_id")
+tnx_data_tbl <- obs_2019_stats_tbl %>% 
+  semi_join(pnbd_fixed3_validsims_tbl, by = "customer_id")
 
 obs_customer_count  <- tnx_data_tbl %>% nrow()
 obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
@@ -1460,7 +1460,7 @@ ggplot(pnbd_fixed3_tnx_simsumm_tbl) +
     )
 
 ggplot(pnbd_fixed3_tnx_simsumm_tbl) +
-  geom_histogram(aes(x = sim_total_tnx_count), bins = 50) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
   geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
   labs(
     x = "Simulated Transaction Count",
@@ -1477,6 +1477,12 @@ estimates, so we need to take this into account.
 An improvement to this model would allow us to express uncertainty around
 these models, which is the next step.
 
+
+# Write to Disk
+
+```{r write_obs_data_disk, echo=TRUE}
+obs_2019_stats_tbl %>% write_rds("data/longframe_obs_2019_stats_tbl.rds")
+```
 
 
 
