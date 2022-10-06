@@ -29,8 +29,11 @@ RUN apt-get update \
     rsample \
     snakecase \
     sf \
+    tidytext \
     tmap \
     transformr
+
+
 
 WORKDIR /tmp
 

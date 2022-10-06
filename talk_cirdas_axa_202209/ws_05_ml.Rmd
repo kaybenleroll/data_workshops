@@ -342,7 +342,8 @@ default_tree <- rpart(
 fancyRpartPlot(
   default_tree,
   main = 'Decision Tree for the Credit Default Dataset',
-  sub  = ''
+  sub  = '',
+  type = 5
   )
 ```
 
