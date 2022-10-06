@@ -27,6 +27,8 @@ library(gganimate)
 library(gifski)
 library(av)
 library(transformr)
+library(tidytext)
+library(wordcloud2)
 
 
 source("lib_utils.R")
@@ -582,6 +584,54 @@ ggplot(plot_tbl) +
     legend.position = "none",
     axis.text.x = element_text(angle = 30, vjust = 0.5, size = 6)
     )
+```
+
+
+# Text Data
+
+
+## Word Cloud
+
+
+```{r display_easter1916_text, echo=FALSE, comment = ""}
+easter1916_text <- read_lines("easter1916_proclamation.txt") %>%
+  str_c(collapse = " ")
+
+easter1916_text %>% str_wrap(width = 90) %>% cat()
+```
+
+---
+
+
+```{r show_easter1916_word_cloud_no_stop, echo=FALSE}
+data(stop_words)
+
+easter1916_tidytext_tbl <- easter1916_text %>%
+  enframe(name = NULL, value = "text") %>%
+  unnest_tokens(word, text) %>%
+  count(word, sort = TRUE)
+
+easter1916_tidytext_tbl %>%
+  wordcloud2(shuffle = FALSE)
+```
+
+
+---
+
+Stop words
+
+\
+
+
+(the, and, but, ...)
+
+
+---
+
+```{r show_easter1916_word_cloud, echo=FALSE}
+easter1916_tidytext_tbl %>%
+  anti_join(stop_words, by = "word") %>%
+  wordcloud2(shuffle = FALSE)
 ```
 
 
