@@ -1,14 +1,11 @@
-.Rproj.user/
+.Rproj.user/*
 .git/
 
-data/*.xlsx
-data/*.rds
-data/*.csv
+data/*
+
+precompute/*
 
 stan_models/*
-precompute/pnbd_fixed/*.rds
-precompute/pnbd_fixed2/*.rds
-precompute/pnbd_fixed3/*.rds
 
 *_cache/*
 *_files/*
