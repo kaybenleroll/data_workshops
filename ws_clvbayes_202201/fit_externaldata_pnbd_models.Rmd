@@ -1,0 +1,388 @@
+---
+title: "Fit the P/NBD Model to External Data"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+source("lib_utils.R")
+source("lib_btyd.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+
+
+
+
+
+# Load Transactional Datasets
+
+We first want to load the real-world transactional dataset.
+
+
+## Load Pre-processed Transactional Data
+
+
+```{r load_customer_cohort_data, echo=TRUE}
+customer_cohortdata_tbl <- read_rds("data/customer_cohort_tbl.rds")
+customer_cohortdata_tbl %>% glimpse()
+```
+
+We also want to load the raw transaction data as we want to transform the data
+into a form we now use.
+
+```{r load_transactional_data, echo=TRUE}
+retail_transaction_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+retail_transaction_data_tbl %>% glimpse()
+```
+
+We need to aggregate this data up into a form to match our synthetic data, so
+we aggregate transactions by `invoice_id`.
+
+
+```{r aggregate_total_transaction_spend_data, echo=TRUE}
+customer_transactions_tbl <- retail_transaction_data_tbl %>%
+  drop_na(customer_id) %>%
+  filter(exclude = TRUE) %>%
+  group_by(tnx_timestamp = invoice_dttm, customer_id, invoice_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_spend = sum(stock_value)
+    ) %>%
+  filter(total_spend > 0) %>%
+  arrange(tnx_timestamp, customer_id)
+
+customer_transactions_tbl %>% glimpse()
+```
+
+
+We re-produce the visualisation of the transaction times we used in previous
+workbooks.
+
+```{r plot_customer_transaction_times, echo=TRUE}
+plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id, .key = "cust_data") %>%
+  filter(map_int(cust_data, nrow) > 3) %>%
+  slice_sample(n = 30) %>%
+  unnest(cust_data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+      x = "Date",
+      y = "Customer ID",
+      title = "Visualisation of Customer Transaction Times"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+
+# Fit the Fixed Prior P/NBD Model
+
+
+```{r setup_workbook_parameters, echo=TRUE}
+stan_modeldir <- "stan_models"
+stan_codedir  <-   "stan_code"
+```
+
+
+We first need to construct our fitted dataset from this external data.
+
+
+
+In terms of choosing a cut-off point, we will consider all transactions up to
+and including March 31, 2011.
+
+```{r construct_fitting_dataset, echo=TRUE}
+pnbd_fitdata_tbl <- customer_transactions_tbl %>%
+  calculate_transaction_cbs_data(last_date = as.POSIXct("2011-04-01"))
+
+pnbd_fitdata_tbl %>% glimpse()
+```
+
+We also want to construct some summary statistics for the data after that.
+
+```{r construct_validation_summary_statistics, echo=TRUE}
+obs_stats_tbl <- customer_transactions_tbl %>%
+  filter(
+    tnx_timestamp >= as.POSIXct("2011-04-01")
+    ) %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    tnx_count = n(),
+    first_tnx = min(tnx_timestamp),
+    last_tnx  = max(tnx_timestamp)
+    )
+
+obs_stats_tbl %>% glimpse()
+```
+
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_pnbd_extdata_fixed_stanmodel, echo=TRUE, results="hide"}
+pnbd_extdata_fixed_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_fixed.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_pnbd_extdata_fixed_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_extdata_fixed"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- pnbd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn = 0.25,
+    lambda_cv = 0.60,
+    
+    mu_mn     = 0.10,
+    mu_cv     = 0.60,
+    )
+
+pnbd_extdata_fixed_stanfit <- pnbd_extdata_fixed_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_extdata_fixed_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_extdata_fixed_hmc_diagnostics, echo=TRUE}
+pnbd_extdata_fixed_stanfit$cmdstan_diagnose()
+```
+
+
+## Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_extdata_fixed_traceplots, echo=TRUE}
+parameter_subset <- c(
+  "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]",
+  "mu[1]",     "mu[2]",     "mu[3]",     "mu[4]"
+  )
+
+pnbd_extdata_fixed_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = parameter_subset) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and Mu Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_pnbd_extdata_fixed_parameter_rhat, echo=TRUE}
+pnbd_extdata_fixed_stanfit %>%
+  rhat(pars = c("lambda", "mu")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_pnbd_extdata_fixed_parameter_neffratio, echo=TRUE}
+pnbd_extdata_fixed_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_pnbd_extdata_fixed_parameter_acf, echo=TRUE}
+pnbd_extdata_fixed_stanfit$draws() %>%
+  mcmc_acf(pars = parameter_subset) +
+    ggtitle("Autocorrelation Plot of Sample Values")
+```
+
+
+## Validate the Fixed Prior Model
+
+```{r construct_pnbd_extdata_fixed_posterior_data, echo=TRUE}
+pnbd_extdata_fixed_validation_tbl <- pnbd_extdata_fixed_stanfit %>%
+  recover_types(pnbd_fitdata_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+  ungroup() %>%
+  select(customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive)
+
+pnbd_extdata_fixed_validation_tbl %>% glimpse()
+```
+
+Having constructed our simulations inputs, we now generate our simulations.
+
+```{r generate_pnbd_extdata_fixed_validation_sims, echo=TRUE}
+pnbd_extdata_fixed_validsims_tbl <- pnbd_extdata_fixed_validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "precompute/pnbd_extdata_fixed/sims_pnbd_extdata_fixed_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 4202
+        ),
+      .progress = TRUE
+      )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
+
+
+pnbd_extdata_fixed_validsims_tbl %>% glimpse()
+```
+
+
+
+```{r construct_pnbd_extdata_fixed_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_stats_tbl %>% 
+  semi_join(pnbd_extdata_fixed_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_extdata_fixed_tnx_simsumm_tbl <- pnbd_extdata_fixed_validsims_tbl %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_extdata_fixed_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_extdata_fixed_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```

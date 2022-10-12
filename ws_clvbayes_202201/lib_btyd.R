@@ -231,39 +231,39 @@ run_pnbd_simulations_chunk <- function(sim_file, param_tbl) {
 
   if(file_exists(sim_file)) {
     simdata_tbl <- read_rds(sim_file)
+  } else {
+    simdata_tbl <- param_tbl %>%
+      mutate(
+        sim_data = pmap(
+          list(
+            p_alive  = p_alive,
+            lambda   = post_lambda,
+            mu       = post_mu
+            ),
+          generate_pnbd_validation_transactions,
 
-    return(simdata_tbl)
+          tnx_mu     = 1,
+          tnx_cv     = 1,
+          start_dttm = as.POSIXct("2019-01-01"),
+          end_dttm   = as.POSIXct("2020-01-01")
+          ),
+        sim_tnx_count = map_int(sim_data, nrow),
+        max_data = map(
+          sim_data,
+          ~ .x %>%
+            slice_max(n = 1, order_by = tnx_timestamp, with_ties = FALSE) %>%
+            select(sim_tnx_last = tnx_timestamp)
+          )
+        ) %>%
+      unnest(max_data, keep_empty = TRUE)
+
+    simdata_tbl %>% write_rds(sim_file)
   }
 
+  output_tbl <- simdata_tbl %>%
+    select(draw_id, sim_tnx_count, sim-tnx_last)
 
-  simdata_tbl <- param_tbl %>%
-    mutate(
-      sim_data = pmap(
-        list(
-          p_alive  = p_alive,
-          lambda   = post_lambda,
-          mu       = post_mu
-          ),
-        generate_pnbd_validation_transactions,
-
-        tnx_mu     = 1,
-        tnx_cv     = 1,
-        start_dttm = as.POSIXct("2019-01-01"),
-        end_dttm   = as.POSIXct("2020-01-01")
-        ),
-      sim_tnx_count = map_int(sim_data, nrow),
-      max_data = map(
-        sim_data,
-        ~ .x %>%
-          slice_max(n = 1, order_by = tnx_timestamp, with_ties = FALSE) %>%
-          select(sim_tnx_last = tnx_timestamp)
-        )
-      ) %>%
-    unnest(max_data, keep_empty = TRUE)
-
-  simdata_tbl %>% write_rds(sim_file)
-
-  return(simdata_tbl)
+  return(output_tbl)
 }
 
 
