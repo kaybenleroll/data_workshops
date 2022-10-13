@@ -227,11 +227,13 @@ generate_pnbd_validation_transactions <- function(p_alive, lambda, mu, tnx_mu, t
 }
 
 
-run_pnbd_simulations_chunk <- function(sim_file, param_tbl) {
+run_pnbd_simulations_chunk <- function(
+    sim_file, param_tbl, start_dttm = as.POSIXct("2019-01-01"),
+    end_dttm   = as.POSIXct("2020-01-01")) {
 
-  if(file_exists(sim_file)) {
-    simdata_tbl <- read_rds(sim_file)
-  } else {
+  calc_file <- !file_exists(sim_file)
+
+  if(calc_file) {
     simdata_tbl <- param_tbl %>%
       mutate(
         sim_data = pmap(
@@ -244,8 +246,8 @@ run_pnbd_simulations_chunk <- function(sim_file, param_tbl) {
 
           tnx_mu     = 1,
           tnx_cv     = 1,
-          start_dttm = as.POSIXct("2019-01-01"),
-          end_dttm   = as.POSIXct("2020-01-01")
+          start_dttm = start_dttm,
+          end_dttm   = end_dttm
           ),
         sim_tnx_count = map_int(sim_data, nrow),
         max_data = map(
@@ -260,10 +262,8 @@ run_pnbd_simulations_chunk <- function(sim_file, param_tbl) {
     simdata_tbl %>% write_rds(sim_file)
   }
 
-  output_tbl <- simdata_tbl %>%
-    select(draw_id, sim_tnx_count, sim-tnx_last)
 
-  return(output_tbl)
+  return(calc_file)
 }
 
 

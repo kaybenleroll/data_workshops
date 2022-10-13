@@ -161,16 +161,16 @@ In terms of choosing a cut-off point, we will consider all transactions up to
 and including March 31, 2011.
 
 ```{r construct_fitting_dataset, echo=TRUE}
-pnbd_fitdata_tbl <- customer_transactions_tbl %>%
+btyd_fitdata_tbl <- customer_transactions_tbl %>%
   calculate_transaction_cbs_data(last_date = as.POSIXct("2011-04-01"))
 
-pnbd_fitdata_tbl %>% glimpse()
+btyd_fitdata_tbl %>% glimpse()
 ```
 
 We also want to construct some summary statistics for the data after that.
 
 ```{r construct_validation_summary_statistics, echo=TRUE}
-obs_stats_tbl <- customer_transactions_tbl %>%
+btyd_obs_stats_tbl <- customer_transactions_tbl %>%
   filter(
     tnx_timestamp >= as.POSIXct("2011-04-01")
     ) %>%
@@ -183,7 +183,7 @@ obs_stats_tbl <- customer_transactions_tbl %>%
     last_tnx  = max(tnx_timestamp)
     )
 
-obs_stats_tbl %>% glimpse()
+btyd_obs_stats_tbl %>% glimpse()
 ```
 
 
@@ -205,7 +205,7 @@ We then use this compiled model with our data to produce a fit of the data.
 stan_modelname <- "pnbd_extdata_fixed"
 stanfit_prefix <- str_c("fit_", stan_modelname) 
 
-stan_data_lst <- pnbd_fitdata_tbl %>%
+stan_data_lst <- btyd_fitdata_tbl %>%
   select(customer_id, x, t_x, T_cal) %>%
   compose_data(
     lambda_mn = 0.25,
@@ -218,8 +218,8 @@ stan_data_lst <- pnbd_fitdata_tbl %>%
 pnbd_extdata_fixed_stanfit <- pnbd_extdata_fixed_stanmodel$sample(
   data            =                stan_data_lst,
   chains          =                            4,
-  iter_warmup     =                          500,
-  iter_sampling   =                          500,
+  iter_warmup     =                          200,
+  iter_sampling   =                           50,
   seed            =                         4201,
   save_warmup     =                         TRUE,
   output_dir      =                stan_modeldir,
@@ -295,10 +295,12 @@ pnbd_extdata_fixed_stanfit$draws() %>%
 
 ```{r construct_pnbd_extdata_fixed_posterior_data, echo=TRUE}
 pnbd_extdata_fixed_validation_tbl <- pnbd_extdata_fixed_stanfit %>%
-  recover_types(pnbd_fitdata_tbl) %>%
+  recover_types(btyd_fitdata_tbl) %>%
   spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
   ungroup() %>%
-  select(customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive)
+  select(
+    customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
+    )
 
 pnbd_extdata_fixed_validation_tbl %>% glimpse()
 ```
@@ -306,39 +308,70 @@ pnbd_extdata_fixed_validation_tbl %>% glimpse()
 Having constructed our simulations inputs, we now generate our simulations.
 
 ```{r generate_pnbd_extdata_fixed_validation_sims, echo=TRUE}
-pnbd_extdata_fixed_validsims_tbl <- pnbd_extdata_fixed_validation_tbl %>%
+precompute_dir <- "precompute/pnbd_extdata_fixed"
+
+precomputed_tbl <- dir_ls(precompute_dir) %>%
+  enframe(name = NULL, value = "sim_file") %>%
+  mutate(sim_file = sim_file %>% as.character())
+
+
+pnbd_extdata_fixed_validsims_lookup_tbl <- pnbd_extdata_fixed_validation_tbl %>%
   group_nest(customer_id, .key = "cust_params") %>%
   mutate(
     sim_file = glue(
-      "precompute/pnbd_extdata_fixed/sims_pnbd_extdata_fixed_{customer_id}.rds"
-      ),
-    chunk_data = future_map2(
-      sim_file, cust_params,
-      run_pnbd_simulations_chunk,
-
-      .options = furrr_options(
-        globals  = c(
-          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
-          "generate_pnbd_validation_transactions"
-          ),
-        packages   = c("tidyverse", "fs"),
-        scheduling = FALSE,
-        seed       = 4202
-        ),
-      .progress = TRUE
+      "{precompute_dir}/sims_pnbd_extdata_fixed_{customer_id}.rds"
       )
-    ) %>%
-  select(-cust_params) %>%
-  unnest(chunk_data)
+    )
+    
 
+exec_tbl <-  pnbd_extdata_fixed_validsims_lookup_tbl %>%
+  anti_join(precomputed_tbl, by = "sim_file")
+
+
+if(exec_tbl %>% nrow() > 0) {
+  exec_tbl %>%
+    mutate(
+      calc_file = future_map2_lgl(
+        sim_file, cust_params,
+        run_pnbd_simulations_chunk,
+        start_dttm = as.POSIXct("2011-04-01"),
+        end_dttm   = as.POSIXct("2011-12-10"),
+  
+        .options = furrr_options(
+          globals  = c(
+            "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+            "generate_pnbd_validation_transactions"
+            ),
+          packages   = c("tidyverse", "fs"),
+          scheduling = FALSE,
+          seed       = 4202
+          ),
+        .progress = TRUE
+        )
+      )
+}
+
+exec_tbl %>% glimpse()
+
+pnbd_extdata_fixed_validsims_lookup_tbl %>% glimpse()
+```
+
+We now load all the simulations into a file.
+
+```{r load_pnbd_extdata_fixe_validsims, echo=TRUE, cache=TRUE}
+pnbd_extdata_fixed_validsims_tbl <- pnbd_extdata_fixed_validsims_lookup_tbl %>%
+  mutate(
+    data = map(sim_file, ~ .x %>% read_rds() %>% select(draw_id, sim_tnx_count, sim_tnx_last))
+    ) %>%
+  select(customer_id, data) %>%
+  unnest(data)
 
 pnbd_extdata_fixed_validsims_tbl %>% glimpse()
 ```
 
 
-
 ```{r construct_pnbd_extdata_fixed_tnx_simulations, echo=TRUE}
-tnx_data_tbl <- obs_stats_tbl %>% 
+tnx_data_tbl <- btyd_obs_stats_tbl %>% 
   semi_join(pnbd_extdata_fixed_validsims_tbl, by = "customer_id")
 
 obs_customer_count  <- tnx_data_tbl %>% nrow()
@@ -355,7 +388,7 @@ pnbd_extdata_fixed_tnx_simsumm_tbl <- pnbd_extdata_fixed_validsims_tbl %>%
 
 
 ggplot(pnbd_extdata_fixed_tnx_simsumm_tbl) +
-  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 10) +
   geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
   labs(
     x = "Simulated Customers With Transactions",
@@ -365,7 +398,7 @@ ggplot(pnbd_extdata_fixed_tnx_simsumm_tbl) +
     )
 
 ggplot(pnbd_extdata_fixed_tnx_simsumm_tbl) +
-  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 20) +
   geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
   labs(
     x = "Simulated Transaction Count",
@@ -376,6 +409,14 @@ ggplot(pnbd_extdata_fixed_tnx_simsumm_tbl) +
 ```
 
 
+## Write to Disk
+
+```{r write_files_to_disk, echo=TRUE}
+
+```
+
+
+# Fit Alternative Prior Model
 
 
 

@@ -49,9 +49,10 @@ initial_tnx_frequency_models.html: exploring_retail_data.html \
 initial_lifetime_models.html: initial_tnx_frequency_models.html
 initial_monetary_models.html: generate_transaction_datasets.html \
   exploring_retail_data.html
-
 initial_pnbd_models.html: initial_tnx_frequency_models.html \
   initial_lifetime_models.html initial_monetary_models.html
+fit_externaldata_pnbd_models.html: initial_pnbd_models.html
+
 
 
 mrproper: clean-cache clean-data clean-html clean-models
