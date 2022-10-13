@@ -4,11 +4,3 @@ remotes::install_github(
   subdir  = "pkg",
   upgrade = "never"
 )
-
-
-remotes::install_github(
-  "gaospecial/wordcloud2",
-  ref     = "cd95cdb58e71a72970d24420f4d2487c067c7648",
-  upgrade = "never",
-)
-

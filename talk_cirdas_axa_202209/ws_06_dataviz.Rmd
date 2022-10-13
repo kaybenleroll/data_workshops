@@ -28,7 +28,7 @@ library(gifski)
 library(av)
 library(transformr)
 library(tidytext)
-library(wordcloud2)
+library(ggwordcloud)
 
 
 source("lib_utils.R")
@@ -374,6 +374,7 @@ animate(plot_anim + enter_fade() + exit_fade(), renderer = gifski_renderer())
 
 # Visualise Comparisons
 
+---
 
 ```{r calculate_region_claim_rate_fill_exposure, echo=FALSE}
 plot_tbl <- bootstrap_freq_summ_tbl %>%
@@ -416,7 +417,6 @@ region_data_tbl <- region_exposure_tbl %>%
   inner_join(region_claims_tbl, by = "Region")
 ```
 
----
 
 ```{r construct_comparison_plot_data, echo=FALSE}
 comparison_data_tbl <- region_data_tbl %>%
@@ -443,7 +443,7 @@ ggplot(plot_tbl) +
     x = "Region",
     y = "Proportion",
     fill = "Type",
-    title = "Comparison of Proportions of Total Claims and Exposure"
+    title = "Comparison of Proportions of Total Claims and Exposure by Region"
     ) +
   theme(
     axis.text.x = element_text(angle = 20, vjust = 0.5, size = 10)
@@ -467,7 +467,7 @@ ggplot(plot_tbl) +
     x = "Region",
     y = "Total Exposure",
     fill = "Fuel Type",
-    title = "Total Exposure by Region (Stacked Bars)"
+    title = "Total Exposure of Fuel Type by Region (Stacked Bars)"
     ) +
   scale_y_continuous(labels = label_comma()) +
   theme(
@@ -487,7 +487,7 @@ ggplot(plot_tbl) +
     x = "Region",
     y = "Total Exposure",
     fill = "Fuel Type",
-    title = "Total Exposure by Region"
+    title = "Total Exposure of Fuel Type by Region"
     ) +
   scale_y_continuous(labels = label_comma()) +
   theme(
@@ -514,7 +514,7 @@ ggplot(plot_tbl) +
     x = "Region",
     y = "Total Exposure",
     fill = "Brand",
-    title = "Total Exposure by Region (Stacked Bars)"
+    title = "Total Exposure of Vehicle Brand by Region (Stacked Bars)"
     ) +
   scale_y_continuous(labels = label_comma()) +
   theme(
@@ -534,7 +534,7 @@ ggplot(plot_tbl) +
     x = "Region",
     y = "Total Exposure",
     fill = "Brand",
-    title = "Total Exposure by Region"
+    title = "Total Exposure of Vehicle Brand by Region"
     ) +
   scale_y_continuous(labels = label_comma()) +
   theme(
@@ -554,7 +554,7 @@ ggplot(plot_tbl) +
     x = "Region",
     y = "Total Exposure",
     fill = "Brand",
-    title = "Total Exposure by Region"
+    title = "Total Exposure of Vehicle Brand by Region"
     ) +
   facet_wrap(vars(VehBrand), scales = "free_y") +
   scale_y_continuous(labels = label_comma()) +
@@ -576,7 +576,7 @@ ggplot(plot_tbl) +
     x = "Region",
     y = "Total Exposure",
     fill = "Brand",
-    title = "Total Exposure by Region"
+    title = "Total Exposure of Vehicle Brand by Region"
     ) +
   facet_wrap(vars(VehBrand)) +
   scale_y_continuous(labels = label_comma()) +
@@ -604,15 +604,15 @@ easter1916_text %>% str_wrap(width = 90) %>% cat()
 
 
 ```{r show_easter1916_word_cloud_no_stop, echo=FALSE}
-data(stop_words)
-
 easter1916_tidytext_tbl <- easter1916_text %>%
   enframe(name = NULL, value = "text") %>%
   unnest_tokens(word, text) %>%
-  count(word, sort = TRUE)
+  count(word, name = "word_freq", sort = TRUE)
 
-easter1916_tidytext_tbl %>%
-  wordcloud2(shuffle = FALSE)
+ggplot(easter1916_tidytext_tbl) +
+  geom_text_wordcloud(aes(label = word, size = word_freq)) +
+  scale_size_area(max_size = 16) +
+  theme_minimal()
 ```
 
 
@@ -629,11 +629,33 @@ Stop words
 ---
 
 ```{r show_easter1916_word_cloud, echo=FALSE}
-easter1916_tidytext_tbl %>%
-  anti_join(stop_words, by = "word") %>%
-  wordcloud2(shuffle = FALSE)
+data(stop_words)
+
+ggplot(easter1916_tidytext_tbl %>% anti_join(stop_words, by = "word")) +
+  geom_text_wordcloud(aes(label = word, size = word_freq), rm_outside = TRUE) +
+  scale_size_area(max_size = 16) +
+  theme_minimal()
 ```
 
+
+---
+
+```{r show_easter1916_word_cloud_angle_colour, echo=FALSE}
+easter1916_fullcloud_tbl <- easter1916_tidytext_tbl %>%
+  anti_join(stop_words, by = "word") %>%
+  mutate(
+    label_colour = factor(sample.int(5, n(), replace = TRUE)),
+    label_angle  = 45 * runif(n(), min = -2, max = 2)
+    )
+
+ggplot(easter1916_fullcloud_tbl) +
+  geom_text_wordcloud(
+    aes(label = word, size = word_freq, angle = label_angle, colour = label_colour),
+    rm_outside = TRUE
+    ) +
+  scale_size_area(max_size = 16) +
+  theme_minimal()
+```
 
 
 # Pie Charts
