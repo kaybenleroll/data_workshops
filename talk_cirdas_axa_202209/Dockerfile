@@ -16,6 +16,7 @@ RUN apt-get update \
     conflicted \
     cowplot \
     gganimate \
+    ggwordcloud \
     gifski \
     ISLR \
     kableExtra \
