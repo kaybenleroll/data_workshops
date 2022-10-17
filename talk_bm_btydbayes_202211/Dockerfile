@@ -68,18 +68,18 @@ WORKDIR /tmp
 COPY build/docker_install_sys_rpkgs.R /tmp
 RUN Rscript /tmp/docker_install_sys_rpkgs.R
 
-COPY build/docker_render_pdf.R /tmp
-COPY build/test_report.Rmd /tmp
+COPY build/test_report.qmd /tmp
+RUN quarto render test_report.qmd --to pdf \
+  && rm -fv /tmp/test_report.pdf
 
-RUN Rscript /tmp/docker_render_pdf.R \
-  && rm -fv /tmp/test_report.pdf \
-  && git clone https://github.com/lindenb/makefile2graph.git \
+
+RUN git clone https://github.com/lindenb/makefile2graph.git \
   && cd makefile2graph \
   && make \
-  && make install \
-  && cp -r $HOME/.R /home/rstudio \
+  && make install
+  
+RUN cp -r $HOME/.R /home/rstudio \
   && chown -R rstudio:rstudio /home/rstudio/.R
-
 
 
 WORKDIR /home/rstudio

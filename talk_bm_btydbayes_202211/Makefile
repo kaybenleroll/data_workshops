@@ -1,6 +1,6 @@
 ### repo variables
 PROJECT_USER=kaybenleroll
-PROJECT_NAME=ws_clvbayes_202201
+PROJECT_NAME=talk_bm_btydbayes_202211
 PROJECT_TAG=latest
 
 IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}:${PROJECT_TAG}
@@ -12,7 +12,7 @@ DOCKER_GID=$(shell id -g)
 
 RSTUDIO_PORT=8787
 
-PROJECT_FOLDER=workshop
+PROJECT_FOLDER=btydtalk
 
 
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
@@ -41,17 +41,6 @@ full_deps.dot:
 
 depgraph: full_deps.png
 
-exploring_retail_data.html: retrieve_retail_data.html
-generate_transaction_datasets.html: exploring_retail_data.html
-
-initial_tnx_frequency_models.html: exploring_retail_data.html \
-  generate_transaction_datasets.html
-initial_lifetime_models.html: initial_tnx_frequency_models.html
-initial_monetary_models.html: generate_transaction_datasets.html \
-  exploring_retail_data.html
-initial_pnbd_models.html: initial_tnx_frequency_models.html \
-  initial_lifetime_models.html initial_monetary_models.html
-fit_externaldata_pnbd_models.html: initial_pnbd_models.html
 
 
 
