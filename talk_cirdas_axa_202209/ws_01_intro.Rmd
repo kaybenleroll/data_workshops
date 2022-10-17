@@ -1,0 +1,216 @@
+---
+title: "Demystifying Data"
+subtitle: "01 - Introduction"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2022-09-08"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include=FALSE}
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+# Introduction
+
+
+## Who Am I?
+
+\
+
+Former quant
+
+\
+
+Insurance
+
+\
+
+Specialty risks
+
+
+---
+
+![](img/maurice_moss.png)
+
+---
+
+Nerd
+
+
+# Key Concepts
+
+
+## The Big Short
+
+![](img/the_big_short.png)
+
+---
+
+
+\
+
+
+"The truth is like poetry--
+
+\
+
+-- and most people f**king hate poetry,"
+
+
+---
+
+Change
+
+\
+
+Uncertainty
+
+
+# Three Ideas
+
+---
+
+\
+
+
+Uncertainty
+
+\
+
+Simplicity
+
+\
+
+Culture
+
+
+## Uncertainty
+
+
+---
+
+![](img/rounders.png)
+
+---
+
+![](img/crossroads.png)
+
+---
+
+![](img/scary_cave.png)
+
+
+## Simplicity
+
+---
+
+![](img/maradona_goal.png)
+
+---
+
+![](img/denis_irwin.png)
+
+---
+
+Great Goalscorer
+
+\
+
+vs
+
+\
+
+Scorer of Great Goals
+
+
+## Culture
+
+---
+
+![](img/hippo_cartoon.png)
+
+
+
+
+
+# Why Bother?
+
+---
+
+Great Question!
+
+---
+
+![](img/data_new_oil.png)
+
+---
+
+Jack of all trades and master of none...
+
+---
+
+... is oftentimes better than master of one
+
+---
+
+Data is the new oil. It's valuable, but if unrefined it cannot really be
+used. It has to be changed into gas, plastic, chemicals, etc to create a
+valuable entity that drives profitable activity; so data must be broken down,
+analyzed for it to have value.
+
+
+# Summary
+
+
+---
+
+Culture
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops

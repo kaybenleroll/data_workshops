@@ -1,0 +1,218 @@
+---
+title: "Demystifying Data"
+subtitle: "03 - Risk, Uncertainty and Knowledge"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2022-09-22"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+
+# Knowledge
+
+
+## Donald Rumsfeld
+
+\
+
+![](img/rumsfeld.png)
+
+---
+
+Reports that say that something hasn't happened are always interesting to me,
+because as we know, there are known knowns; there are things we know we know.
+
+We also know there are known unknowns; that is to say we know there are some
+things we do not know.
+
+But there are also unknown unknowns - the ones we don't know we don't know.
+
+And if one looks throughout the history of our country and other free
+countries, it is the latter category that tends to be the difficult ones.
+
+---
+
+```{r known_unknown_plots, echo=FALSE}
+plot_tbl <- expand_grid(
+    Belief  = c("Known", "Unknown"),
+    Reality = c("Known", "Unknown")
+    )
+
+ggplot(plot_tbl) +
+  geom_tile(
+    aes(x = Belief, y = Reality),
+    width = 0.95, height = 0.95, fill = "grey"
+    )
+```
+
+
+## Mark Twain
+
+\
+
+![](img/mark_twain.png)
+
+---
+
+It ain't what you don't know that gets you into trouble...
+
+---
+
+... It's what you know for sure that just ain't so.
+
+---
+
+```{r repeat1_known_unknown_plots, echo=FALSE}
+plot_tbl <- expand_grid(
+    Belief  = c("Known", "Unknown"),
+    Reality = c("Known", "Unknown")
+    )
+
+ggplot(plot_tbl) +
+  geom_tile(
+    aes(x = Belief, y = Reality),
+    width = 0.95, height = 0.95, fill = "grey"
+    )
+```
+
+
+
+
+# Risk vs Uncertainty
+
+---
+
+![](img/frank_knight.png)
+
+Frank Knight - *Risk, Uncertainty and Profit* (1921)
+
+
+## Risk
+
+\
+
+Quantifiable randomness
+
+\
+
+Probability etc.
+
+
+## Uncertainty
+
+\
+
+Lack of quantifiable knowledge
+
+\
+
+Fundamental ignorance
+
+# Psychology
+
+## Ellsberg Paradox
+
+---
+
+![](img/ellsberg_twourn.png)
+
+---
+
+*1R*: Left Red €100
+
+*1B*: Left Black €100
+
+---
+
+*1R*: Left Red €100
+
+*2R*: Right Red €100
+
+---
+
+![](img/ellsberg_oneurn.png)
+
+---
+
+*1R*: Red €100
+
+*2R*: Black €100
+
+---
+
+*1R*: Red and Black €100
+
+*2R*: Black and Yellow €100
+
+
+
+# What Do We Do?
+
+---
+
+What are we dealing with?
+
+---
+
+Quantify risks
+
+---
+
+Manage uncertainties
+
+
+
+# Summary
+
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops

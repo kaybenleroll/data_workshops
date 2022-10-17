@@ -1,0 +1,8 @@
+.Rproj.user/*
+.vscode/*
+.git/*
+
+geospatial_data/FRA_*
+
+*.Rmd
+*.html
