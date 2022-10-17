@@ -1,24 +1,7 @@
 ---
-title: "Temp Report"
+title: "Temporary Quarto Document"
 author: "Mick Cooney <mcooney@describedata.com>"
 date: "`r Sys.Date()`"
-output:
-  rmdformats::readthedown:
-    toc_depth: 3
-    use_bookdown: TRUE
-    code_folding: hide
-    fig_caption: TRUE
-
-  html_document:
-    fig_caption: yes
-    number_sections: yes
-    theme: cerulean
-    toc: yes
-    toc_depth: 3
-    toc_float:
-      smooth_scroll: FALSE
-
-  pdf_document: default
 ---
 
 
