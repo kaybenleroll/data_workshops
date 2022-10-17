@@ -1,0 +1,258 @@
+---
+title: "Demystifying Data"
+subtitle: "08 - Recap"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2022-10-27"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+library(CASdatasets)
+library(rsample)
+library(scales)
+library(sf)
+library(tmap)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+data(freMTPL2freq)
+data(freMTPL2sev)
+```
+
+# Intro
+
+---
+
+![](img/data_new_oil.png)
+
+---
+
+Data is the new oil. It's valuable, but if unrefined it cannot really be
+used. It has to be changed into gas, plastic, chemicals, etc to create a
+valuable entity that drives profitable activity; so data must be broken down,
+analyzed for it to have value.
+
+
+
+# Simplicity
+
+---
+
+![](img/einstein.png)
+
+\
+
+*"Everything should be made as simple as possible, but no simpler."*
+
+
+# Uncertainty
+
+---
+
+Donald Rumsfeld
+
+![](img/rumsfeld.png)
+
+
+---
+
+Reports that say that something hasn't happened are always interesting to me,
+because as we know, there are known knowns; there are things we know we know.
+
+We also know there are known unknowns; that is to say we know there are some
+things we do not know.
+
+But there are also unknown unknowns - the ones we don't know we don't know.
+
+And if one looks throughout the history of our country and other free
+countries, it is the latter category that tends to be the difficult ones.
+
+
+# Statistics
+
+---
+
+![](img/bad_pirates.png)
+
+---
+
+![](img/good_pirates.png)
+
+
+
+# Machine Learning
+
+---
+
+![](img/dan_ariely.png)
+
+Dan Ariely
+
+---
+
+Big Data is like teenage sex:
+
+everyone talks about it
+
+nobody really knows how to do it
+
+everyone thinks everyone else is doing it
+
+so everyone claims they are doing it.
+
+
+
+# Data Visualisation
+
+---
+
+```{r plot_bootstrapped_claim_rates, echo=FALSE, cache=TRUE}
+calc_region_rate <- function(bootstrap_split) {
+  bootstrap_tbl <- bootstrap_split %>%
+    as_tibble() %>%
+    group_by(Region) %>%
+    summarise(
+      .groups = "drop",
+      
+      claim_rate = sum(ClaimNb) / sum(Exposure)
+      )
+  
+  return(bootstrap_tbl)
+}
+
+freq_tbl <- freMTPL2freq %>% as_tibble()
+sev_tbl  <- freMTPL2sev  %>% as_tibble()
+
+combined_tbl <- freq_tbl %>%
+  nest_join(sev_tbl, by = "IDpol", name = "claim_data")
+
+
+bootstrap_freq_tbl <- freq_tbl %>%
+  bootstraps(times = 200) %>%
+  mutate(freq_data = map(splits, calc_region_rate)) %>%
+  select(id, freq_data) %>%
+  unnest(freq_data)
+
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    claim_rate = sum(ClaimNb) / sum(Exposure)
+    )
+
+bootstrap_freq_summ_tbl <- bootstrap_freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean   = mean(claim_rate),
+    median = median(claim_rate),
+    
+    p10    = quantile(claim_rate, probs = 0.10),
+    p25    = quantile(claim_rate, probs = 0.25),
+    p75    = quantile(claim_rate, probs = 0.75),
+    p90    = quantile(claim_rate, probs = 0.90)
+    )
+
+ggplot(bootstrap_freq_summ_tbl) +
+  geom_errorbar(aes(x = Region, ymin = p10, ymax = p90), width = 0, size = 1) +
+  geom_errorbar(aes(x = Region, ymin = p25, ymax = p75), width = 0, size = 3) +
+  geom_point(aes(x = Region, y = median), size = 3) +
+  geom_point(aes(x = Region, y = mean), colour = 'red', size = 2) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Uncertainty Estimates for Claim Rates by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+---
+
+```{r load_shapefile_data, echo=FALSE, results='hide'}
+fra_adm_sf <- st_read("geospatial_data/", layer = "FRA_adm1")
+```
+
+```{r construct_geospatial_claim_rate_plot, echo=FALSE}
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    claim_rate = sum(ClaimNb) / sum(Exposure)
+    )
+
+plot_sf <- fra_adm_sf %>%
+  select(Region = NAME_1, geometry) %>%
+  left_join(region_rate_tbl, by = "Region")
+
+ggplot(plot_sf) +
+  geom_sf(aes(fill = claim_rate)) +
+  geom_sf_text(aes(label = Region)) +
+  scale_fill_gradient(low = "yellow", high = "red") +
+  labs(
+    fill = "Claim Rate",
+    title = "Visualisation of Claim Rate by Region"
+    ) +
+  theme_void()
+```
+
+
+# Getting Started
+
+---
+
+![](img/churchill_planning.png)
+
+
+
+# Questions
+
+---
+
+Get In Touch!!!
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops
