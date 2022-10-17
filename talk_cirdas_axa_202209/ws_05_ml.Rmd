@@ -1,0 +1,662 @@
+---
+title: "Demystifying Data"
+subtitle: "05 - ML and Models and Data - Oh My!!!"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "2022-10-06"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+---
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+library(broom)
+library(ISLR)
+library(rpart)
+library(rattle)
+library(e1071)
+library(nnet)
+library(NeuralNetTools)
+library(cleanNLP)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     7,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+# What is Machine Learning?
+
+## A Word of Caution
+
+---
+
+![](img/dan_ariely.png)
+
+Dan Ariely
+
+---
+
+Big Data is like teenage sex:
+
+everyone talks about it
+
+nobody really knows how to do it
+
+everyone thinks everyone else is doing it
+
+so everyone claims they are doing it.
+
+
+
+## Terminology
+
+
+---
+
+Different meanings
+
+---
+
+
+Machine Learning
+
+\
+
+Artificial Intelligence
+
+\
+
+Statistical Learning
+
+\
+
+Applied Statistics
+
+---
+
+Historical context important
+
+\
+
+ML primarily from CS / EE
+
+
+---
+
+'Engineering' mentality
+
+
+
+## Data Format
+
+\
+
+Tabular based
+
+\
+
+
+```{r show_sample_table, echo=FALSE}
+data(Default)
+
+Default %>% head(n = 15)
+```
+
+---
+
+Exchangeability
+
+
+
+## Predictive Focus
+
+\
+
+Predictive accuracy
+
+\
+
+De-emphasises inference / uncertainty / explainability
+
+
+---
+
+Discoverability of model parameters
+
+---
+
+Example of linear models
+
+
+## Production
+
+\
+
+Scaling issues
+
+\
+
+Automated ML pipelines
+
+\
+
+Software engineering
+
+
+# Model Validation
+
+## Overfitting
+
+```{r create_overfit_data, echo=FALSE}
+overfit_data_tbl <- tribble(
+    ~x,    ~y,  ~row_type,
+    -4,    -2,    'train',
+    -3,     0,    'train',
+    -2,     1,    'train',
+    -1,     2,    'train',
+     0,     1,    'train',
+     1,     2,    'train',
+     2,    -1,     'test',
+     4,     1,    'train'
+)
+
+train_tbl <- overfit_data_tbl %>% filter(row_type == 'train')
+test_tbl  <- overfit_data_tbl %>% filter(row_type == 'test')
+
+
+fit_poly <- function(p_n) {
+  lm(y ~ poly(x, p_n), data = train_tbl)
+}
+
+create_predict_table <- function(fit_lm) {
+  new_y <- predict(fit_lm, newdata = overfit_data_tbl)
+  
+  overfit_data_tbl <- overfit_data_tbl %>%
+    mutate(predict_val = new_y)
+}
+
+
+overfit_struct_tbl <- tibble(poly_order = 1:6) %>%
+  mutate(
+    poly_fit = map(poly_order, fit_poly),
+    fit_data = map(poly_fit, create_predict_table)
+    )
+
+overfit_plotdata_tbl <- overfit_struct_tbl %>%
+  select(poly_order, fit_data) %>%
+  unnest(fit_data)
+
+ggplot(overfit_plotdata_tbl) +
+  geom_point(aes(x = x, y = y, colour = row_type)) +
+  geom_line(aes(x = x, y = predict_val), colour = 'red') +
+  facet_wrap(facets = vars(poly_order))
+```
+
+---
+
+### Bias-Variance Tradeoff
+
+\
+
+
+\begin{eqnarray*}
+\text{Bias}     &=& \text{under-complexity error}  \\
+\text{Variance} &=& \text{over-complexity error}
+\end{eqnarray*}
+
+
+## Cross-validation
+
+\
+
+Training-test split
+
+\
+
+$k$-fold
+
+\
+
+Train-validation-test split
+
+
+# Supervised Learning
+
+---
+
+Labelled data
+
+---
+
+$$
+\begin{eqnarray*}
+\text{Discrete output}   &\rightarrow& \text{Categorisation}   \\
+\text{Continuous output} &\rightarrow& \text{Regression}
+\end{eqnarray*}
+$$
+
+
+## Linear Models
+
+\
+
+
+Assumes data follows distributional form
+
+\
+
+Linear in parameters
+
+---
+
+```{r generate_linear_model, echo=FALSE}
+n_points <- 1000
+
+x <- runif(n_points, -10, 10)
+y <- 0.5 + (2 * x) + (0.1 * x * x) + rnorm(n_points, 0, 3)
+```
+
+
+```{r show_linear_model, echo=FALSE}
+simple_1_tbl <- lm(y ~ x) %>%
+  augment() %>%
+  arrange(x)
+
+ggplot(simple_1_tbl) +
+  geom_point(aes(x = x, y = y)) +
+  geom_line(aes(x = x, y = .fitted), colour = 'red', size = 1) +
+  labs(
+    x = "Feature",
+    y = "Target",
+    title = "Example of Linear Model (Linear output)"
+    )
+```
+
+---
+
+```{r show_linear_model_2, echo=FALSE}
+simple_2_tbl <- lm(y ~ x + I(x^2)) %>%
+  augment() %>%
+  arrange(x)
+
+ggplot(simple_2_tbl) +
+  geom_point(aes(x = x, y = y)) +
+  geom_line(aes(x = x, y = .fitted), colour = 'red', size = 1) +
+  labs(
+    x = "Feature",
+    y = "Target",
+    title = "Example of Linear Model (Non-linear output)"
+    )
+```
+
+
+## Decision / Regression Trees
+
+
+---
+
+```{r show_sample_table_2, echo=FALSE}
+Default %>% head(n = 15)
+```
+
+---
+
+```{r plot_default_tree, echo=FALSE}
+default_tree <- rpart(
+  default ~ student + balance + income,
+  data   = Default,
+  method = 'class'
+  )
+
+fancyRpartPlot(
+  default_tree,
+  main = 'Decision Tree for the Credit Default Dataset',
+  sub  = '',
+  type = 5
+  )
+```
+
+---
+
+Simple to understand
+
+\
+
+Highly explainable
+
+\
+
+Prone to overfitting
+
+---
+
+## Random Forest
+
+---
+
+![](img/random_forest.png)
+
+---
+
+\
+
+Ensemble of trees
+
+\
+
+Aggregate low-bias trees to reduce variance
+
+---
+
+Sample of rows, constrain splits
+
+\
+
+Self-tuning (mostly)
+
+
+---
+
+## Boosting
+
+\
+
+Ensemble of trees
+
+\
+
+Aggregate low-variance trees to reduce bias
+
+---
+
+Probably most performant approach
+
+\
+
+Tuning more involved
+
+
+## Support Vector Machines (SVM)
+
+\
+
+Geometric method
+
+\
+
+Divides 'feature space' into regions
+
+---
+
+```{r student_svm_plot, echo=FALSE}
+svm_data_tbl <- list(
+    tibble(label = 'class_a', x = rnorm(1000, 1, 0.5), y = rnorm(1000,  1, 0.5)),
+    tibble(label = 'class_b', x = rnorm(1000, 3, 0.5), y = rnorm(1000, -1, 0.5))
+    ) %>%
+  bind_rows() %>%
+  mutate(label = factor(label))
+
+sample_svm <- svm(label ~ x + y, data = svm_data_tbl)
+
+plot(sample_svm, data = svm_data_tbl, x ~ y)
+```
+
+--
+
+
+
+## Neural Networks
+
+```{r fit_neural_network, echo=FALSE, results='hide'}
+default_nnet <- nnet(
+  default ~ student + income + balance,
+  data = Default,
+  size = 10)
+```
+
+```{r plot_neural_network, echo=FALSE}
+plotnet(default_nnet)
+```
+
+
+# Unsupervised Learning
+
+---
+
+Unlabelled data
+
+
+## Clustering
+
+```{r create_mixture_data, echo=FALSE}
+n_data <- 100
+
+mixture_tbl <- tribble(
+  ~id,   ~x_mu,   ~y_mu,
+    1,       3,      -1,
+    2,      -3,       0,
+    3,      -1,       3,
+    4,       0,       1,
+    5,       2,      -2
+)
+
+mixture_data_tbl <- mixture_tbl %>%
+  mutate(
+    data = map2(
+      x_mu, y_mu,
+      ~ tibble(x = rnorm(n_data, .x, 1), y = rnorm(n_data, .y, 1))
+      )
+    ) %>%
+  unnest(data)
+
+ggplot(mixture_data_tbl) +
+  geom_point(aes(x = x, y = y), data = mixture_data_tbl)
+```
+
+---
+
+```{r show_kmeans_clusters, echo=FALSE}
+use_data_tbl <- mixture_data_tbl %>%
+  select(x, y)
+
+mixture_kmeans_3 <- kmeans(use_data_tbl, 3)
+mixture_kmeans_5 <- kmeans(use_data_tbl, 5)
+mixture_kmeans_7 <- kmeans(use_data_tbl, 7)
+
+use_data_tbl <- use_data_tbl %>%
+  mutate(
+    km_3 = mixture_kmeans_3$cluster %>% as.character,
+    km_5 = mixture_kmeans_5$cluster %>% as.character,
+    km_7 = mixture_kmeans_7$cluster %>% as.character
+    )
+
+ggplot(use_data_tbl) +
+  geom_point(aes(x = x, y = y, colour = km_3)) +
+  ggtitle("k-Means Clustering - 3 Centroids")
+```
+
+
+---
+
+```{r plot_kmeans_5, echo=FALSE}
+ggplot(use_data_tbl) +
+  geom_point(aes(x = x, y = y, colour = km_5)) +
+  ggtitle("k-Means Clustering - 5 Centroids")
+```
+
+---
+
+```{r plot_kmeans_7, echo=FALSE}
+ggplot(use_data_tbl) +
+  geom_point(aes(x = x, y = y, colour = km_7)) +
+  ggtitle("k-Means Clustering - 7 Centroids")
+```
+
+---
+
+### Real-world Example
+
+
+![](img/dublin_census_clustering.png)
+
+---
+
+Topic Modelling
+
+\
+
+Dimensionality Reduction
+
+
+
+# Natural Language Processing
+
+---
+
+More prevalent recently
+
+\
+
+Supervised / Unsupervised / Semi-supervised
+
+\
+
+Google Translate
+
+---
+
+Uses neural networks
+
+\
+
+Very large models (APIs)
+
+
+
+## Entity Extraction
+
+\
+
+
+IRISHMEN AND IRISHWOMEN: In the name of God and of the dead generations from
+which she receives her old tradition of nationhood, Ireland, through us,
+summons her children to her flag and strikes for her freedom.
+
+---
+
+```{r show_proclamation_entity_extraction, echo=FALSE}
+cnlp_init_udpipe(model_name = "english")
+
+proclamation_str <- c("
+IRISHMEN AND IRISHWOMEN: In the name of God and of the dead generations from
+which she receives her old tradition of nationhood, Ireland, through us,
+summons her children to her flag and strikes for her freedom."
+)
+
+proc_annotate <- cnlp_annotate(proclamation_str, backend = "udpipe")
+
+proc_annotate$token %>%
+  select(doc_id, token, lemma, upos, relation) %>%
+  head(15) %>%
+  knitr::kable(align = "rllll")
+```
+
+
+
+## Latent Dirichlet Allocation (LDA)
+
+\
+
+Unsupervised (clustering)
+
+\
+
+Topic modelling
+
+\
+
+Lots of functionality
+
+
+---
+
+Assign "topics" to each "document"
+
+---
+
+![](img/nlp_lda.png)
+
+
+Reference: [http://dontloo.github.io/blog/lda/]()
+
+
+## word2vec
+
+\
+
+Words as vectors
+
+\
+
+Semantic meaning
+
+---
+
+$$
+\text{King} - \text{Male} + \text{Female} \approx \text{Queen}
+$$
+
+\
+
+
+$$
+\text{Paris} - \text{France} + \text{UK} \approx \text{London}
+$$
+
+
+
+# Summary
+
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+https://github.com/kaybenleroll/data_workshops
