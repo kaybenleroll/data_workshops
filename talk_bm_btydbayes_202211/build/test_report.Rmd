@@ -1,0 +1,88 @@
+---
+title: "Temp Report"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    number_sections: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r knit_opts, include = FALSE}
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(scales)
+library(cowplot)
+
+resolve_conflicts <- function(pkg_priority) {
+  get_index <- function(pkg_name) {
+    idx <- str_which(pkg_priority, pkg_name)
+
+    if(length(idx) == 0) {
+      idx <- 0L
+    }
+
+    return(idx)
+  }
+
+  conflict_lst <- conflict_scout()
+
+  for(func_name in names(conflict_lst)) {
+    pkg_index <- map_int(conflict_lst[[func_name]], get_index)
+
+    pkg_index <- pkg_index[pkg_index > 0]
+
+    if(length(pkg_index) == 0) {
+      pkg_use <- conflict_lst[[func_name]][1]
+    } else {
+      pkg_use <- pkg_index %>%
+        min() %>%
+        pkg_priority[.]
+    }
+
+    conflict_prefer(func_name, pkg_use)
+  }
+
+  return(conflict_lst)
+}
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
