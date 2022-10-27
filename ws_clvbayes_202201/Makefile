@@ -30,8 +30,8 @@ all-html: $(HTML_FILES)
 
 .Rmd.html:
 	echo "TIMESTAMP:" `date` "- Rendering script $<" >> output.log 2>&1
-	Rscript -e 'rmarkdown::render("$<")'  >> output.log 2>&1
-	echo "TIMESTAMP:" `date` "- Finished" >> output.log 2>&1
+	Rscript -e 'rmarkdown::render("$<")'             >> output.log 2>&1
+	echo "TIMESTAMP:" `date` "- Finished"            >> output.log 2>&1
 
 .dot.png:
 	dot -Tpng -o$*.png $<
