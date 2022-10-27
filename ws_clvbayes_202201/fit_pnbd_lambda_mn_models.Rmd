@@ -173,20 +173,20 @@ stanfit_prefix <- str_c("fit_", stan_modelname)
 stan_data_lst <- btyd_fitdata_tbl %>%
   select(customer_id, x, t_x, T_cal) %>%
   compose_data(
-    lambda_mn_p1 = log(0.25) - 0.5 * (0.5)^2,
-    lambda_mn_p2 = 1.0,
+    lambda_mn_p1 = log(1) - 0.5 * (1.0)^2,
+    lambda_mn_p2 = 1,
     
     lambda_cv = 1.00,
     
-    mu_mn     = 0.10,
+    mu_mn     = 0.05,
     mu_cv     = 0.60,
     )
 
 pnbd_hierlambdamn_stanfit <- pnbd_hierlambdamn_stanmodel$sample(
   data            =                stan_data_lst,
   chains          =                            4,
-  iter_warmup     =                          200,
-  iter_sampling   =                           50,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
   seed            =                         4201,
   save_warmup     =                         TRUE,
   output_dir      =                stan_modeldir,
@@ -209,13 +209,8 @@ Now that we have a sample from the posterior distribution we need to create a
 few different visualisations of the diagnostics.
 
 ```{r plot_hierlambdamn_traceplots, echo=TRUE}
-parameter_subset <- c(
-  "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]",
-  "mu[1]",     "mu[2]",     "mu[3]",     "mu[4]"
-  )
-
 pnbd_hierlambdamn_stanfit$draws(inc_warmup = FALSE) %>%
-  mcmc_trace(pars = parameter_subset) +
+  mcmc_trace(pars = c("lambda_mn", "alpha", "lambda[1]", "lambda[2]", "mu[1]", "mu[2]")) +
   expand_limits(y = 0) +
   labs(
     x = "Iteration",
@@ -243,7 +238,7 @@ view.
 
 ```{r plot_pnbd_hierlambdamn_parameter_neffratio, echo=TRUE}
 pnbd_hierlambdamn_stanfit %>%
-  neff_ratio(pars = c("lambda", "mu")) %>%
+  neff_ratio(pars = c("lambda_mn", "lambda", "mu")) %>%
   mcmc_neff() +
     ggtitle("Plot of Parameter Effective Sample Sizes")
 ```
@@ -253,12 +248,16 @@ parameter.
 
 ```{r plot_pnbd_hierlambdamn_parameter_acf, echo=TRUE}
 pnbd_hierlambdamn_stanfit$draws() %>%
-  mcmc_acf(pars = parameter_subset) +
+  mcmc_acf(pars = c("lambda_mn", "alpha", "lambda[1]", "lambda[2]", "mu[1]", "mu[2]")) +
     ggtitle("Autocorrelation Plot of Sample Values")
 ```
 
 
 ## Validate the Hierarchical Lambda-Mean Model
+
+We now want to validate the outputs of this model by looking at the posteriors
+for both $\lambda$, $\mu$ and `p_alive`, and then running our simulations using
+these outputs.
 
 ```{r construct_pnbd_hierlambdamn_posterior_data, echo=TRUE}
 pnbd_hierlambdamn_validation_tbl <- pnbd_hierlambdamn_stanfit %>%
@@ -270,10 +269,6 @@ pnbd_hierlambdamn_validation_tbl <- pnbd_hierlambdamn_stanfit %>%
     )
 
 pnbd_hierlambdamn_validation_tbl %>% glimpse()
-```
-
-```{r}
-knitr::knit_exit()
 ```
 
 
@@ -342,6 +337,9 @@ pnbd_hierlambdamn_validsims_tbl <- pnbd_hierlambdamn_validsims_lookup_tbl %>%
 pnbd_hierlambdamn_validsims_tbl %>% glimpse()
 ```
 
+
+We also want to look at how our simulated data compares to the transaction
+data that occurred after Apr 1 2011.
 
 ```{r construct_pnbd_hierlambdamn_tnx_simulations, echo=TRUE}
 tnx_data_tbl <- btyd_obs_stats_tbl %>% 
