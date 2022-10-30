@@ -46,6 +46,7 @@ RUN apt-get update \
     furrr \
     loo \
     modeltime \
+    patchwork \
     posterior \
     projpred \
     prophet \
