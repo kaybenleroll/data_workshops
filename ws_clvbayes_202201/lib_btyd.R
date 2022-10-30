@@ -227,6 +227,54 @@ generate_pnbd_validation_transactions <- function(p_alive, lambda, mu, tnx_mu, t
 }
 
 
+generate_bgnbd_validation_transactions <- function(lambda, p, tnx_mu, tnx_cv, start_dttm, end_dttm) {
+
+  customer_active <- rbernoulli(n = 1, p = 1 - p)
+
+  max_obs <- difftime(end_dttm, start_dttm, units = "weeks")
+
+
+  if(customer_active) {
+    tnx_intervals <- calculate_event_times(
+      rate       = lambda,
+      total_time = max_obs,
+      block_size = 1000
+    )
+
+    goes_inactive <- rbernoulli(n = length(tnx_intervals), p = p)
+
+    if(any(goes_inactive)) {
+      inactive_idx <- which(goes_inactive)[1]
+
+      tnx_intervals <- tnx_intervals[1:inactive_idx]
+    }
+
+    event_dates <- start_dttm + (cumsum(tnx_intervals) * (7 * 24 * 60 * 60))
+
+    tnx_amounts <- rgamma_mucv(length(event_dates), mu = tnx_mu, cv = tnx_cv)
+
+    tnxdata_tbl <- tibble(
+        tnx_timestamp = event_dates,
+        tnx_amount    = tnx_amounts %>% round(2)
+        ) %>%
+      filter(
+        tnx_timestamp <= end_dttm
+      )
+
+  } else {
+    tnxdata_tbl <- tibble(
+        tnx_timestamp = start_dttm,
+        tnx_amount    = 0
+        ) %>%
+      slice(0)
+  }
+
+
+  return(tnxdata_tbl)
+}
+
+
+
 run_pnbd_simulations_chunk <- function(
     sim_file, param_tbl, start_dttm = as.POSIXct("2019-01-01"),
     end_dttm   = as.POSIXct("2020-01-01")) {
@@ -267,6 +315,46 @@ run_pnbd_simulations_chunk <- function(
 }
 
 
+run_bgnbd_simulations_chunk <- function(
+    sim_file, param_tbl,
+    start_dttm = as.POSIXct("2019-01-01"),
+    end_dttm   = as.POSIXct("2020-01-01")) {
+
+  calc_file <- !file_exists(sim_file)
+
+  if(calc_file) {
+    simdata_tbl <- param_tbl %>%
+      mutate(
+        sim_data = pmap(
+          list(
+            lambda   = post_lambda,
+            p        = post_p
+          ),
+          generate_bgnbd_validation_transactions,
+
+          tnx_mu     = 1,
+          tnx_cv     = 1,
+          start_dttm = start_dttm,
+          end_dttm   = end_dttm
+        ),
+        sim_tnx_count = map_int(sim_data, nrow),
+        max_data = map(
+          sim_data,
+          ~ .x %>%
+            slice_max(n = 1, order_by = tnx_timestamp, with_ties = FALSE) %>%
+            select(sim_tnx_last = tnx_timestamp)
+        )
+      ) %>%
+      unnest(max_data, keep_empty = TRUE)
+
+    simdata_tbl %>% write_rds(sim_file)
+  }
+
+
+  return(calc_file)
+}
+
+
 validate_frequency_model <- function(freqmodel_stanfit, input_data_tbl) {
 
   freqmodel_valid_tbl <- freqmodel_stanfit %>%
@@ -287,5 +375,8 @@ validate_frequency_model <- function(freqmodel_stanfit, input_data_tbl) {
 
   return(freqmodel_valid_tbl)
 }
+
+
+
 
 
