@@ -400,6 +400,242 @@ bias, but the model is fitting much faster, so working on this.
 
 
 
+# Fit Hierarchical Mean BG/NBD Model
+
+
+```{r display_bgnbd_hier_means_model_stancode, echo=FALSE}
+read_lines("stan_code/bgnbd_hier_means.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_bgnbd_hier_means_stanmodel, echo=TRUE, results="hide"}
+bgnbd_hier_means_stanmodel <- cmdstan_model(
+  "stan_code/bgnbd_hier_means.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+)
+```
+
+
+## Fit the Model
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_bgnbd_hier_means_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "bgnbd_hier_means"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- btyd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn_p1 = log(1) - 0.5 * (1.0)^2,
+    lambda_mn_p2 = 1.0,
+
+    lambda_cv    = 1.0,
+
+    p_mn_mu      = 0.1,
+    p_mn_k       = 10,
+
+    p_k          = 10
+  )
+
+bgnbd_hier_means_stanfit <- bgnbd_hier_means_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4202,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+)
+
+bgnbd_hier_means_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_bgnbd_hier_means_hmc_diagnostics, echo=TRUE, cache=TRUE}
+bgnbd_hier_means_stanfit$cmdstan_diagnose()
+```
+
+
+## Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_bgnbd_hier_means_traceplots, echo=TRUE}
+sample_params <- c(
+  "lambda_mn", "p_mn",
+  "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]", "lambda[5]",
+  "p[1]",      "p[2]",      "p[3]",      "p[4]",      "p[5]"
+  )
+
+bgnbd_hier_means_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = sample_params) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and p Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_bgnbd_hier_means_parameter_rhat, echo=TRUE}
+bgnbd_hier_means_stanfit %>%
+  rhat(pars = c("lambda_mn", "p_mn", "lambda", "p")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_bgnbd_hier_means_parameter_neffratio, echo=TRUE}
+bgnbd_hier_means_stanfit %>%
+  neff_ratio(pars = c("lambda_mn", "p_mn", "lambda", "p")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+
+
+## Validate the Hierarchical Lambda-Mean Model
+
+We now want to validate the outputs of this model by looking at the posteriors
+for both $\lambda$, $\mu$ and `p_alive`, and then running our simulations using
+these outputs.
+
+```{r construct_bgnbd_hier_means_posterior_data, echo=TRUE}
+bgnbd_hier_means_validation_tbl <- bgnbd_hier_means_stanfit %>%
+  recover_types(btyd_fitdata_tbl) %>%
+  spread_draws(lambda[customer_id], p[customer_id]) %>%
+  ungroup() %>%
+  select(
+    customer_id, draw_id = .draw, post_lambda = lambda, post_p = p
+    )
+
+bgnbd_hier_means_validation_tbl %>% glimpse()
+```
+
+
+
+Having constructed our simulations inputs, we now generate our simulations.
+
+```{r generate_bgnbd_hier_means_validation_sims, echo=TRUE}
+precompute_dir <- "precompute/bgnbd_hier_means"
+
+precomputed_tbl <- dir_ls(precompute_dir) %>%
+  enframe(name = NULL, value = "sim_file") %>%
+  mutate(sim_file = sim_file %>% as.character())
+
+
+bgnbd_hier_means_validsims_lookup_tbl <- bgnbd_hier_means_validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "{precompute_dir}/sims_bgnbd_hier_means_{customer_id}.rds"
+      )
+    )
+    
+
+exec_tbl <-  bgnbd_hier_means_validsims_lookup_tbl %>%
+  anti_join(precomputed_tbl, by = "sim_file")
+
+
+if(exec_tbl %>% nrow() > 0) {
+  exec_tbl %>%
+    mutate(
+      calc_file = future_map2_lgl(
+        sim_file, cust_params,
+        run_bgnbd_simulations_chunk,
+        start_dttm = as.POSIXct("2011-04-01"),
+        end_dttm   = as.POSIXct("2011-12-10"),
+  
+        .options = furrr_options(
+          globals  = c(
+            "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+            "generate_bgnbd_validation_transactions"
+            ),
+          packages   = c("tidyverse", "fs"),
+          scheduling = FALSE,
+          seed       = 4202
+          ),
+        .progress = TRUE
+        )
+      )
+}
+
+exec_tbl %>% glimpse()
+
+bgnbd_hier_means_validsims_lookup_tbl %>% glimpse()
+```
+
+We now load all the simulations into a file.
+
+```{r load_bgnbd_hier_means_validsims, echo=TRUE, cache=TRUE}
+bgnbd_hier_means_validsims_tbl <- bgnbd_hier_means_validsims_lookup_tbl %>%
+  mutate(
+    data = map(sim_file, ~ .x %>% read_rds() %>% select(draw_id, sim_tnx_count, sim_tnx_last))
+    ) %>%
+  select(customer_id, sim_file, data) %>%
+  unnest(data)
+
+bgnbd_hier_means_validsims_tbl %>% glimpse()
+```
+
+
+We also want to look at how our simulated data compares to the transaction
+data that occurred after Apr 1 2011.
+
+```{r construct_bgnbd_hier_means_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- btyd_obs_stats_tbl %>% 
+  semi_join(bgnbd_hier_means_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+bgnbd_hier_means_tnx_simsumm_tbl <- bgnbd_hier_means_validsims_tbl %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(bgnbd_hier_means_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 10) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(bgnbd_hier_means_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 50) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
 
 
 
