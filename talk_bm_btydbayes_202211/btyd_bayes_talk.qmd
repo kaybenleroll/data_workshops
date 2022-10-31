@@ -1,0 +1,24 @@
+---
+title: "BTYD Modelling with Stan"
+author: "Mick Cooney <mickcooney@gmail.com>"
+editor: source
+format:
+  revealjs:
+    theme: night
+    highlight: pygments
+    center: true
+    reveal_options:
+      slideNumber: true
+
+---
+
+
+# BTYD Models
+
+
+
+# Stan Code
+
+
+
+# Simulations

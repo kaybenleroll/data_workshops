@@ -1,12 +1,11 @@
-.Rproj.user/
+.Rproj.user/*
 .git/
 
-data/*.xlsx
-data/*.rds
-data/*.csv
+data/*
+
+precompute/*
 
 stan_models/*
-precompute/*.rds
 
 *_cache/*
 *_files/*

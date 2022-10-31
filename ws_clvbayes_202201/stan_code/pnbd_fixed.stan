@@ -9,11 +9,11 @@ data {
   vector<lower=0>[n] T_cal; // total observation time
   vector<lower=0>[n] x;     // number of purchases observed
 
-  real<lower=0> lambda_mn;  // hyperprior mean for lambda
-  real<lower=0> lambda_cv;  // hyperprior cv   for lambda
+  real<lower=0> lambda_mn;  // prior mean for lambda
+  real<lower=0> lambda_cv;  // prior cv   for lambda
 
-  real<lower=0> mu_mn;      // hyperprior mean for mu
-  real<lower=0> mu_cv;      // hyperprior mean for mu
+  real<lower=0> mu_mn;      // prior mean for mu
+  real<lower=0> mu_cv;      // prior mean for mu
 }
 
 transformed data {

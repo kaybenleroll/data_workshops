@@ -11,13 +11,20 @@ remotes::install_github(
 )
 
 
+remotes::install_github(
+  "rmcelreath/rethinking",
+  ref     = "v2.2.1",
+  upgrade = "never"
+)
+
+
 library(cmdstanr)
 
 cmdstan_flags <- list(
   "CXX"        = "clang++",
-  "CXXFLAGS"   = "-Os -mtune=native -march=native  -Wno-unused-variable -Wno-unused-function  -Wno-unknown-pragmas -Wno-macro-redefined",
+  "CXXFLAGS"   = "-Os -Wno-unused-variable -Wno-unused-function  -Wno-unknown-pragmas -Wno-macro-redefined",
   "CXX14"      = "clang++",
-  "CXX14FLAGS" = "-Os -mtune=native -march=native  -Wno-unused-variable -Wno-unused-function  -Wno-unknown-pragmas -Wno-macro-redefined"
+  "CXX14FLAGS" = "-Os -Wno-unused-variable -Wno-unused-function  -Wno-unknown-pragmas -Wno-macro-redefined"
 )
 
 install_cmdstan(
