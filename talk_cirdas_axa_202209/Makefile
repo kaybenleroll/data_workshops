@@ -12,7 +12,7 @@ DOCKER_GID=$(shell id -g)
 
 RSTUDIO_PORT=8787
 
-PROJECT_FOLDER=workshop
+PROJECT_FOLDER=axaclass
 
 
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
