@@ -883,22 +883,24 @@ pnbd_extdata_hiermu_stanmodel <- cmdstan_model(
 ```
 
 
+## First Fit Attempt
+
 We then use this compiled model with our data to produce a fit of the data.
 
 ```{r fit_pnbd_extdata_hiermu_stanmodel, echo=TRUE, cache=TRUE}
-stan_modelname <- "pnbd_hiermu"
+stan_modelname <- "pnbd_extdata_hiermu"
 stanfit_prefix <- str_c("fit_", stan_modelname) 
 
 stan_data_lst <- btyd_fitdata_tbl %>%
   select(customer_id, x, t_x, T_cal) %>%
   compose_data(
-    lambda_mn = 0.50,
-    lambda_cv = 1.50,
+    lambda_mn = 1.00,
+    lambda_cv = 0.75,
     
-    mu_mn_p1  = log(0.1) - 0.5 * (0.5)^2,
+    mu_mn_p1  = log(0.05) - 0.5 * (0.5)^2,
     mu_mn_p2  = 0.5,
     
-    mu_cv_p1  = log(1) - 0.5 * (0.2)^2,
+    mu_cv_p1  = log(0.5) - 0.5 * (0.2)^2,
     mu_cv_p2  = 0.2,
     )
 
@@ -909,6 +911,8 @@ pnbd_extdata_hiermu_stanfit <- pnbd_extdata_hiermu_stanmodel$sample(
   iter_sampling   =                          500,
   seed            =                         4204,
   save_warmup     =                         TRUE,
+  adapt_delta     =                         0.90,
+  max_treedepth   =                           10,
   output_dir      =                stan_modeldir,
   output_basename =               stanfit_prefix,
   )
@@ -923,7 +927,7 @@ pnbd_extdata_hiermu_stanfit$cmdstan_diagnose()
 ```
 
 
-## Visual Diagnostics of the Sample Validity
+### Visual Diagnostics of the Sample Validity
 
 Now that we have a sample from the posterior distribution we need to create a
 few different visualisations of the diagnostics.
@@ -931,7 +935,7 @@ few different visualisations of the diagnostics.
 
 ```{r plot_pnbd_extdata_hiermu_lambda_traceplots_nowarmup, echo=TRUE}
 pnbd_extdata_hiermu_stanfit$draws(inc_warmup = FALSE) %>%
-  mcmc_trace(pars = parameter_subset) +
+  mcmc_trace(pars = c("s", "beta", "mu_mn", "mu_cv")) +
   expand_limits(y = 0) +
   labs(
     x = "Iteration",
@@ -968,7 +972,7 @@ parameter.
 
 ```{r plot_pnbd_extdata_hiermu_parameter_acf, echo=TRUE}
 pnbd_extdata_hiermu_stanfit$draws() %>%
-  mcmc_acf(pars = parameter_subset) +
+  mcmc_acf(pars = c("s", "beta", "mu_mn", "mu_cv")) +
     ggtitle("Autocorrelation Plot of Sample Values")
 ```
 
@@ -977,7 +981,7 @@ the sake of brevity in later models we will show only the traceplots once we
 are satisfied with the validity of the sample.
 
 
-## Validate the Hier-Mu Model Fit
+### Validate the Hier-Mu Model Fit
 
 We now want to validate this model by using our simulation technique.
 
@@ -997,114 +1001,625 @@ pnbd_extdata_hiermu_validation_tbl <- pnbd_extdata_hiermu_stanfit %>%
 pnbd_extdata_hiermu_validation_tbl %>% glimpse()
 ```
 
-Having constructed our simulations inputs, we now generate our simulations.
+We now see there are a number of validity issues with our sample, and this
+needs some exploration.
 
-```{r generate_pnbd_extdata_hiermu_validation_sims, echo=TRUE}
-precompute_dir <- "precompute/pnbd_extdata_hiermu"
+Let's start by looking at the hierarchical parameters `mu_mn`, `mu_cv`, `s` and
+`beta`.
 
-precomputed_tbl <- dir_ls(precompute_dir) %>%
-  enframe(name = NULL, value = "sim_file") %>%
-  mutate(sim_file = sim_file %>% as.character())
+```{r plot_pnbd_extdata_hiermu_hierarchical_values, echo=TRUE}
+pnbd_extdata_hiermu_noncustomer_tbl <- pnbd_extdata_hiermu_stanfit %>%
+  tidy_draws() %>%
+  select(!contains("["))
 
+plot_tbl <- pnbd_extdata_hiermu_noncustomer_tbl %>%
+  select(.draw, mu_mn, mu_cv, s, beta, lp__, energy__) %>%
+  pivot_longer(cols = !.draw, names_to = "param", values_to = "value")
 
-pnbd_extdata_hiermu_validsims_lookup_tbl <- pnbd_extdata_hiermu_validation_tbl %>%
-  group_nest(customer_id, .key = "cust_params") %>%
-  mutate(
-    sim_file = glue(
-      "{precompute_dir}/sims_pnbd_extdata_hiermu_{customer_id}.rds"
-      )
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(param), scales = "free_x") +
+  labs(
+    x = "Value",
+    y = "Frequency",
+    title = "Histograms of Hierarchical and Diagnostic Quantities"
     )
-    
-
-exec_tbl <-  pnbd_extdata_hiermu_validsims_lookup_tbl %>%
-  anti_join(precomputed_tbl, by = "sim_file")
-
-
-if(exec_tbl %>% nrow() > 0) {
-  exec_tbl %>%
-    mutate(
-      calc_file = future_map2_lgl(
-        sim_file, cust_params,
-        run_pnbd_simulations_chunk,
-        start_dttm = as.POSIXct("2011-04-01"),
-        end_dttm   = as.POSIXct("2011-12-10"),
-  
-        .options = furrr_options(
-          globals  = c(
-            "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
-            "generate_pnbd_validation_transactions"
-            ),
-          packages   = c("tidyverse", "fs"),
-          scheduling = FALSE,
-          seed       = 4202
-          ),
-        .progress = TRUE
-        )
-      )
-}
-
-exec_tbl %>% glimpse()
-
-pnbd_extdata_hiermu_validsims_lookup_tbl %>% glimpse()
 ```
 
-We now load all the simulations into a file.
+We see from these histograms that the hierarchical parameters `mu_mn` and
+`mu_cv` looks to be way too high, so there is an issue here.
 
-```{r load_pnbd_extdata_hiermu_validsims, echo=TRUE, cache=TRUE}
-pnbd_extdata_hiermu_validsims_tbl <- pnbd_extdata_hiermu_validsims_lookup_tbl %>%
-  mutate(
-    data = map(sim_file, ~ .x %>% read_rds() %>% select(draw_id, sim_tnx_count, sim_tnx_last))
-    ) %>%
-  select(customer_id, data) %>%
-  unnest(data)
+We now should look at the $\mu$ values for individual customers. In each case
+we have a distribution for each customer, so we start by looking at the median
+value of each customer. We could also check the mean values, but these
+distributions may be skewed, so we may get a better picture from using the
+median value.
 
-pnbd_extdata_hiermu_validsims_tbl %>% glimpse()
-```
-
-
-```{r construct_pnbd_extdata_hiermu_tnx_simulations, echo=TRUE}
-tnx_data_tbl <- btyd_obs_stats_tbl %>% 
-  semi_join(pnbd_extdata_hiermu_validsims_tbl, by = "customer_id")
-
-obs_customer_count  <- tnx_data_tbl %>% nrow()
-obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
-
-pnbd_extdata_hiermu_tnx_simsumm_tbl <- pnbd_extdata_hiermu_validsims_tbl %>%
-  group_by(draw_id) %>%
+```{r plot_pnbd_extdata_hiermu_customer_mu_values, echo=TRUE}
+pnbd_extdata_hiermu_summvals_tbl <- pnbd_extdata_hiermu_validation_tbl %>%
+  group_by(customer_id) %>%
   summarise(
     .groups = "drop",
     
-    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
-    sim_total_tnx_count = sum(sim_tnx_count)
+    mean_mu       = mean(post_mu),
+    mean_lambda   = mean(post_lambda),
+    mean_p_alive  = mean(p_alive),
+    
+    median_mu     = median(post_mu),
+    median_lambda = median(post_lambda),
+    median_pa     = median(p_alive)
+  )
+
+plot_tbl <- pnbd_extdata_hiermu_summvals_tbl %>%
+  pivot_longer(
+    cols      = !customer_id,
+    names_to  = "param",
+    values_to = "value"
     )
 
-
-ggplot(pnbd_extdata_hiermu_tnx_simsumm_tbl) +
-  geom_histogram(aes(x = sim_customer_count), binwidth = 10) +
-  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(param), scales = "free_x") +
   labs(
-    x = "Simulated Customers With Transactions",
+    x = "Value",
     y = "Frequency",
-    title = "Histogram of Count of Customers Transacted",
-    subtitle = "Observed Count in Red"
+    title = "Histograms of Customer Quantities"
+    )
+```
+
+We see the posterior is showing a strong multi-modality for all our parameters
+so we want to check both $\mu$ and $\lambda$ together.
+
+```{r plot_hiermu_posterior_parameters_scatterplot, echo=TRUE}
+ggplot(pnbd_extdata_hiermu_summvals_tbl) +
+  geom_point(aes(x = median_mu, median_lambda)) +
+  labs(
+    x = "Mean Mu",
+    y = "Mean Lambda",
+    title = "Scatterplot of Posterior Median of Lambda and Mu"
+    )
+```
+
+
+We see there is a cohort of customers that have a very short lifetime (high
+values of $\mu$ as the mean lifetime is $1 / \mu$).
+
+We can also see that the data induces a conditional dependency on a customers
+value of $\mu$ and $\lambda$.
+
+It may be best to visualise the transactions of these customers with extreme
+values of $\mu$, so we focus purely on the customers that have a median value
+of $\mu$ above 10.
+
+
+```{r plot_extreme_customer_transaction_visualisations, echo=TRUE}
+filter_custs_tbl <- pnbd_extdata_hiermu_summvals_tbl %>%
+  filter(median_mu > 10)
+
+extreme_tnx_tbl <- customer_transactions_tbl %>%
+  filter(tnx_timestamp < as.POSIXct("2011-04-01")) %>%
+  semi_join(filter_custs_tbl, by = "customer_id") %>%
+  group_by(customer_id) %>%
+  mutate(tnx_first = min(tnx_timestamp)) %>%
+  ungroup() %>%
+  group_by(tnx_first, customer_id) %>%
+  mutate(
+    cust_rank = cur_group_id(),
+    tnx_count = n()
+    ) %>%
+  ungroup()
+
+ggplot(
+    extreme_tnx_tbl,
+    aes(x = tnx_timestamp, y = cust_rank, group = cust_rank, colour = as.character(tnx_count))
+    ) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Time",
+    y = "Customer Rank",
+    colour = "Tnx Count",
+    title  = "Plot of Individual Customer Transactions of Extreme Customers"
+    )
+```
+
+There are many customers in this transaction so we focus on the earliest 75
+customers to get a closer look.
+
+```{r plot_focused_extreme_customer_transaction_visualisations, echo=TRUE}
+ggplot(
+    extreme_tnx_tbl %>% filter(cust_rank <= 75),
+    aes(x = tnx_timestamp, y = cust_rank, group = cust_rank, colour = as.character(tnx_count))
+    ) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Time",
+    y = "Customer Rank",
+    colour = "Tnx Count",
+    title  = "Plot of Individual Customer Transactions of Extreme Customers"
+    )
+```
+
+We see that there are a number of customers that transact in a short
+period of time after they become active and then stop. This cohort of customers
+is likely the source of our multi-modality, so we first focus on removing those
+from our initial dataset and see what effect this has on our fit.
+
+```{r show_extreme_customers, echo=TRUE}
+extreme_customers_tbl <- btyd_fitdata_tbl %>%
+  filter(x == 0 | t_x < 0.15)
+
+btyd_trimmed_fitdata_tbl <- btyd_fitdata_tbl %>%
+  anti_join(extreme_customers_tbl, by = "customer_id")
+```
+
+
+## Second Fit Attempt
+
+Before we remove the data from this model, we instead try to refit with the
+same amount of data, but with a much tighter prior on `mu_cv`.
+
+
+```{r fit_pnbd_extdata_hiermu2_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_extdata_hiermu2"
+stanfit_prefix <- str_c("fit_", stan_modelname)
+
+stan_data_lst <- btyd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn = 1.00,
+    lambda_cv = 0.75,
+    
+    mu_mn_p1  = log(0.05) - 0.5 * (0.5)^2,
+    mu_mn_p2  = 0.5,
+    
+    mu_cv_p1  = log(0.5) - 0.5 * (0.01)^2,
+    mu_cv_p2  = 0.01,
     )
 
-ggplot(pnbd_extdata_hiermu_tnx_simsumm_tbl) +
-  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 50) +
-  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+pnbd_extdata_hiermu2_stanfit <- pnbd_extdata_hiermu_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4205,
+  save_warmup     =                         TRUE,
+  adapt_delta     =                         0.90,
+  max_treedepth   =                           10,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_extdata_hiermu2_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_extdata_hiermu2_hmc_diagnostics, echo=TRUE}
+pnbd_extdata_hiermu2_stanfit$cmdstan_diagnose()
+```
+
+
+
+### Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+
+```{r plot_pnbd_extdata_hiermu2_lambda_traceplots_nowarmup, echo=TRUE}
+pnbd_extdata_hiermu2_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = c("s", "beta", "mu_mn", "mu_cv")) +
+  expand_limits(y = 0) +
   labs(
-    x = "Simulated Transaction Count",
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and Mu Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_pnbd_extdata_hiermu2_parameter_rhat, echo=TRUE}
+pnbd_extdata_hiermu2_stanfit %>%
+  rhat(pars = c("lambda", "mu", "s", "beta", "mu_mn", "mu_cv")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_pnbd_extdata_hiermu2_parameter_neffratio, echo=TRUE}
+pnbd_extdata_hiermu2_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu", "s", "beta", "mu_mn", "mu_cv")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_pnbd_extdata_hiermu2_parameter_acf, echo=TRUE}
+pnbd_extdata_hiermu2_stanfit$draws() %>%
+  mcmc_acf(pars = c("s", "beta", "mu_mn", "mu_cv")) +
+    ggtitle("Autocorrelation Plot of Sample Values")
+```
+
+As before, this first fit has a comprehensive run of fit diagnostics, but for
+the sake of brevity in later models we will show only the traceplots once we
+are satisfied with the validity of the sample.
+
+
+### Validate the Hier-Mu Model Fit
+
+We now want to validate this model by using our simulation technique.
+
+We first extract our posterior by customer, and use this as the basis of our
+simulations.
+
+
+```{r construct_pnbd_extdata_hiermu2_posterior_data, echo=TRUE}
+pnbd_extdata_hiermu2_validation_tbl <- pnbd_extdata_hiermu2_stanfit %>%
+  recover_types(btyd_fitdata_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+  ungroup() %>%
+  select(
+    customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
+    )
+
+pnbd_extdata_hiermu2_validation_tbl %>% glimpse()
+```
+
+
+```{r plot_pnbd_extdata_hiermu2_hierarchical_values, echo=TRUE}
+pnbd_extdata_hiermu2_noncustomer_tbl <- pnbd_extdata_hiermu2_stanfit %>%
+  tidy_draws() %>%
+  select(!contains("["))
+
+plot_tbl <- pnbd_extdata_hiermu2_noncustomer_tbl %>%
+  select(.draw, mu_mn, mu_cv, s, beta, lp__, energy__) %>%
+  pivot_longer(cols = !.draw, names_to = "param", values_to = "value")
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(param), scales = "free_x") +
+  labs(
+    x = "Value",
     y = "Frequency",
-    title = "Histogram of Count of Total Transaction Count",
-    subtitle = "Observed Count in Red"
+    title = "Histograms of Hierarchical and Diagnostic Quantities"
+    )
+```
+
+
+```{r plot_pnbd_extdata_hiermu2_customer_mu_values, echo=TRUE}
+pnbd_extdata_hiermu2_summvals_tbl <- pnbd_extdata_hiermu2_validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean_mu       = mean(post_mu),
+    mean_lambda   = mean(post_lambda),
+    mean_p_alive  = mean(p_alive),
+    
+    median_mu     = median(post_mu),
+    median_lambda = median(post_lambda),
+    median_pa     = median(p_alive)
+    )
+
+plot_tbl <- pnbd_extdata_hiermu2_summvals_tbl %>%
+  pivot_longer(
+    cols      = !customer_id,
+    names_to  = "param",
+    values_to = "value"
+    )
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(param), scales = "free_x") +
+  labs(
+    x = "Value",
+    y = "Frequency",
+    title = "Histograms of Customer Quantities"
+    )
+```
+
+
+```{r plot_hiermu2_posterior_parameters_scatterplot, echo=TRUE}
+ggplot(pnbd_extdata_hiermu2_summvals_tbl) +
+  geom_point(aes(x = median_mu, median_lambda)) +
+  labs(
+    x = "Mean Mu",
+    y = "Mean Lambda",
+    title = "Scatterplot of Posterior Median of Lambda and Mu"
     )
 ```
 
 
 
+## Third Fit Attempt
+
+Before we remove the data from this model, we instead try to refit with the
+same amount of data, but with a much tighter prior on `mu_cv`.
+
+
+```{r fit_pnbd_extdata_hiermu3_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_extdata_hiermu3"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- btyd_trimmed_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn = 1.00,
+    lambda_cv = 0.75,
+    
+    mu_mn_p1  = log(0.05) - 0.5 * (0.5)^2,
+    mu_mn_p2  = 0.5,
+    
+    mu_cv_p1  = log(0.5) - 0.5 * (0.05)^2,
+    mu_cv_p2  = 0.05,
+    )
+
+pnbd_extdata_hiermu3_stanfit <- pnbd_extdata_hiermu_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4205,
+  save_warmup     =                         TRUE,
+  adapt_delta     =                         0.90,
+  max_treedepth   =                           10,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_extdata_hiermu3_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_extdata_hiermu3_hmc_diagnostics, echo=TRUE}
+pnbd_extdata_hiermu3_stanfit$cmdstan_diagnose()
+```
 
 
 
+### Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+
+```{r plot_pnbd_extdata_hiermu3_lambda_traceplots_nowarmup, echo=TRUE}
+pnbd_extdata_hiermu3_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = c("s", "beta", "mu_mn", "mu_cv")) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and Mu Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_pnbd_extdata_hiermu3_parameter_rhat, echo=TRUE}
+pnbd_extdata_hiermu3_stanfit %>%
+  rhat(pars = c("lambda", "mu", "s", "beta", "mu_mn", "mu_cv")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_pnbd_extdata_hiermu3_parameter_neffratio, echo=TRUE}
+pnbd_extdata_hiermu3_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu", "s", "beta", "mu_mn", "mu_cv")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_pnbd_extdata_hiermu3_parameter_acf, echo=TRUE}
+pnbd_extdata_hiermu3_stanfit$draws() %>%
+  mcmc_acf(pars = c("s", "beta", "mu_mn", "mu_cv")) +
+    ggtitle("Autocorrelation Plot of Sample Values")
+```
+
+As before, this first fit has a comprehensive run of fit diagnostics, but for
+the sake of brevity in later models we will show only the traceplots once we
+are satisfied with the validity of the sample.
+
+
+### Validate the Hier-Mu Model Fit
+
+We now want to validate this model by using our simulation technique.
+
+We first extract our posterior by customer, and use this as the basis of our
+simulations.
+
+
+```{r construct_pnbd_extdata_hiermu3_posterior_data, echo=TRUE}
+pnbd_extdata_hiermu3_validation_tbl <- pnbd_extdata_hiermu3_stanfit %>%
+  recover_types(btyd_trimmed_fitdata_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+  ungroup() %>%
+  select(
+    customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
+    )
+
+pnbd_extdata_hiermu3_validation_tbl %>% glimpse()
+```
+
+
+```{r plot_pnbd_extdata_hiermu3_hierarchical_values, echo=TRUE}
+pnbd_extdata_hiermu3_noncustomer_tbl <- pnbd_extdata_hiermu3_stanfit %>%
+  tidy_draws() %>%
+  select(!contains("["))
+
+plot_tbl <- pnbd_extdata_hiermu3_noncustomer_tbl %>%
+  select(.draw, mu_mn, mu_cv, s, beta, lp__, energy__) %>%
+  pivot_longer(cols = !.draw, names_to = "param", values_to = "value")
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(param), scales = "free_x") +
+  labs(
+    x = "Value",
+    y = "Frequency",
+    title = "Histograms of Hierarchical and Diagnostic Quantities"
+    )
+```
+
+
+```{r plot_pnbd_extdata_hiermu3_customer_mu_values, echo=TRUE}
+pnbd_extdata_hiermu3_summvals_tbl <- pnbd_extdata_hiermu3_validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    mean_mu       = mean(post_mu),
+    mean_lambda   = mean(post_lambda),
+    mean_p_alive  = mean(p_alive),
+    
+    median_mu     = median(post_mu),
+    median_lambda = median(post_lambda),
+    median_pa     = median(p_alive)
+    )
+
+plot_tbl <- pnbd_extdata_hiermu3_summvals_tbl %>%
+  pivot_longer(
+    cols      = !customer_id,
+    names_to  = "param",
+    values_to = "value"
+    )
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = value), bins = 50) +
+  facet_wrap(vars(param), scales = "free_x") +
+  labs(
+    x = "Value",
+    y = "Frequency",
+    title = "Histograms of Customer Quantities"
+    )
+```
+
+
+```{r plot_hiermu3_posterior_parameters_scatterplot, echo=TRUE}
+ggplot(pnbd_extdata_hiermu3_summvals_tbl) +
+  geom_point(aes(x = median_mu, median_lambda)) +
+  labs(
+    x = "Mean Mu",
+    y = "Mean Lambda",
+    title = "Scatterplot of Posterior Median of Lambda and Mu"
+    )
+```
+
+
+
+# Fit Two-Mean Prior Model
+
+We now attempt to add a prior to both the $\mu$ and $\lambda$ hyper-priors.
+
+This is unlikely to work as the additional freedom of the model is likely to
+re-introduce degeneracies into this model, but it is worth the attempt.
+
+```{r display_pnbd_extdata_hiermeans_model_stancode, echo=FALSE}
+read_lines("stan_code/pnbd_hiermeans.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_pnbd_extdata_hiermeans_stanmodel, echo=TRUE, results="hide"}
+pnbd_extdata_hiermeans_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_hiermeans.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+
+## Run the Stan Model on the Data
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_pnbd_extdata_hiermeans_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_extdata_hiermeans"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- btyd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn_p1 = log(1) - 0.5 * (0.5)^2,
+    lambda_mn_p2 = 0.5,
+    
+    mu_mn_p1     = log(0.05) - 0.5 * (0.1)^2,
+    mu_mn_p2     = 0.1,
+
+    lambda_cv    = 0.75,
+    mu_cv        = 0.1
+    )
+
+pnbd_extdata_hiermeans_stanfit <- pnbd_extdata_hiermeans_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4206,
+  save_warmup     =                         TRUE,
+#  adapt_delta     =                         0.90,
+#  max_treedepth   =                           10,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_extdata_hiermeans_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_extdata_hiermeans_hmc_diagnostics, echo=TRUE, cache=TRUE}
+pnbd_extdata_hiermeans_stanfit$cmdstan_diagnose()
+```
+
+
+```{r plot_pnbd_extdata_hiermeans_lambda_traceplots_nowarmup, echo=TRUE}
+pnbd_extdata_hiermeans_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = c("lambda_mn", "mu_mn", "alpha", "beta")) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of the Model Hierarchical Parameters"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+
+
+# Write Data to Disk
+
+We now write the data used to fit our models to disk.
+
+```{r write_data_to_disk, echo=TRUE}
+customer_transactions_tbl %>% write_rds("data/customer_transactions_tbl.rds")
+btyd_fitdata_tbl          %>% write_rds("data/btyd_fitdata_tbl.rds")
+btyd_obs_stats_tbl        %>% write_rds("data/btyd_obs_stats_tbl.rds")
+extreme_customers_tbl     %>% write_rds("data/extreme_customers_tbl.rds")
+```
 
 
 

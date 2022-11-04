@@ -1006,7 +1006,7 @@ pnbd_fixed_1000_validation_tbl <- pnbd_fixed_validsims_tbl %>%
   summarise(
     .groups = "drop",
     
-    sim_count = list(map_int(sim_data, nrow))
+    sim_count = list(map_int(sim_file, ~ .x %>% read_rds() %>% nrow()))
     ) %>%
   left_join(obs_2019_stats_tbl, by = "customer_id") %>%
   replace_na(list(tnx_count = 0)) %>%
@@ -1075,6 +1075,8 @@ pnbd_fixed_validsims_tbl %>%
   filter(
     customer_id == "C201212_0330"
     ) %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
   select(customer_id, post_lambda, post_mu, p_alive) %>%
   arrange(desc(p_alive)) %>%
   glimpse()
@@ -1089,6 +1091,8 @@ pnbd_fixed_validsims_tbl %>%
   filter(
     customer_id == "C201212_0330"
     ) %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
   select(customer_id, draw_id, post_lambda, post_mu, p_alive) %>%
   filter(
     abs(1 - (p_alive / median(p_alive))) < 0.2
@@ -1173,6 +1177,8 @@ obs_customer_count  <- tnx_data_tbl %>% nrow()
 obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
 
 pnbd_fixed_tnx_simsumm_tbl <- pnbd_fixed_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
   group_by(draw_id) %>%
   summarise(
     .groups = "drop",
@@ -1218,6 +1224,8 @@ obs_customer_count  <- tnx_data_tbl %>% nrow()
 obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
 
 pnbd_fixed2_tnx_simsumm_tbl <- pnbd_fixed2_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
   group_by(draw_id) %>%
   summarise(
     .groups = "drop",
@@ -1397,7 +1405,7 @@ pnbd_fixed3_1000_validation_tbl <- pnbd_fixed3_validsims_tbl %>%
   summarise(
     .groups = "drop",
     
-    sim_count = list(map_int(sim_data, nrow))
+    sim_count = list(map_int(sim_file, ~ .x %>% read_rds() %>% nrow()))
     ) %>%
   left_join(obs_2019_stats_tbl, by = "customer_id") %>%
   replace_na(list(tnx_count = 0)) %>%
@@ -1440,6 +1448,8 @@ obs_customer_count  <- tnx_data_tbl %>% nrow()
 obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
 
 pnbd_fixed3_tnx_simsumm_tbl <- pnbd_fixed3_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
   group_by(draw_id) %>%
   summarise(
     .groups = "drop",
@@ -1649,6 +1659,8 @@ pnbd_hiermu_validsims_tbl %>% glimpse()
 
 ```{r construct_pnbd_hiermu_1000_validation_data, echo=TRUE}
 pnbd_hiermu_1000_validation_tbl <- pnbd_hiermu_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
   group_by(customer_id) %>%
   summarise(
     .groups = "drop",
@@ -1674,6 +1686,8 @@ obs_customer_count  <- tnx_data_tbl %>% nrow()
 obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
 
 pnbd_hiermu_tnx_simsumm_tbl <- pnbd_hiermu_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
   group_by(draw_id) %>%
   summarise(
     .groups = "drop",
