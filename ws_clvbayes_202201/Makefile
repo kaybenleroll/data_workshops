@@ -30,8 +30,8 @@ all-html: $(HTML_FILES)
 
 .Rmd.html:
 	echo "TIMESTAMP:" `date` "- Rendering script $<" >> output.log 2>&1
-	Rscript -e 'rmarkdown::render("$<")'  >> output.log 2>&1
-	echo "TIMESTAMP:" `date` "- Finished" >> output.log 2>&1
+	Rscript -e 'rmarkdown::render("$<")'             >> output.log 2>&1
+	echo "TIMESTAMP:" `date` "- Finished"            >> output.log 2>&1
 
 .dot.png:
 	dot -Tpng -o$*.png $<
@@ -52,7 +52,7 @@ initial_monetary_models.html: generate_transaction_datasets.html \
 initial_pnbd_models.html: initial_tnx_frequency_models.html \
   initial_lifetime_models.html initial_monetary_models.html
 fit_externaldata_pnbd_models.html: initial_pnbd_models.html
-
+fit_pnbd_lambda_mn_models.html: fit_externaldata_pnbd_models.html
 
 
 mrproper: clean-cache clean-data clean-html clean-models

@@ -12,11 +12,11 @@ data {
   real<lower=0> lambda_mn;  // prior mean for lambda
   real<lower=0> lambda_cv;  // prior cv   for lambda
 
-  real mu_mn_p1;           // hyperprior p1 for mu mean
-  real<lower=0> mu_mn_p2;  // hyperprior p2 for mu mean
+  real mu_mn_p1;            // hyperprior p1 for mu mean
+  real<lower=0> mu_mn_p2;   // hyperprior p2 for mu mean
 
-  real mu_cv_p1;           // hyperprior p1 for mu cv
-  real<lower=0> mu_cv_p2;  // hyperprior p2 for mu cv
+  real mu_cv_p1;            // hyperprior p1 for mu cv
+  real<lower=0> mu_cv_p2;   // hyperprior p2 for mu cv
 }
 
 transformed data {

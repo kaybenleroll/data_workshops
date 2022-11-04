@@ -1,4 +1,4 @@
-FROM rocker/verse:4.2.0
+FROM rocker/verse:4.2.1
 
 RUN apt-get update \
   && apt-get upgrade -y \
@@ -46,6 +46,7 @@ RUN apt-get update \
     furrr \
     loo \
     modeltime \
+    patchwork \
     posterior \
     projpred \
     prophet \
