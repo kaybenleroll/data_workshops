@@ -983,10 +983,8 @@ are satisfied with the validity of the sample.
 
 ### Validate the Hier-Mu Model Fit
 
-We now want to validate this model by using our simulation technique.
-
-We first extract our posterior by customer, and use this as the basis of our
-simulations.
+Despite knowing the model is invalid, it is worth looking at the outputs of the
+model to help us diagnose some issues to try to learn what might be occurring.
 
 
 ```{r construct_pnbd_extdata_hiermu_posterior_data, echo=TRUE}
