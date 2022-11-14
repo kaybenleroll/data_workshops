@@ -54,6 +54,9 @@ initial_pnbd_models.html: initial_tnx_frequency_models.html \
 fit_externaldata_pnbd_models.html: initial_pnbd_models.html
 fit_externaldata_pnbd_lambda_mn_models.html: fit_externaldata_pnbd_models.html
 fit_bgnbd_models.html: fit_externaldata_pnbd_models.html
+consolidate_btyd_models.html: fit_externaldata_pnbd_lambda_mn_models.html \
+  fit_bgnbd_models.html
+
 
 
 mrproper: clean-cache clean-data clean-html clean-models
