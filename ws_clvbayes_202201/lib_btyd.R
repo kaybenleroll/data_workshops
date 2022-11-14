@@ -377,6 +377,124 @@ validate_frequency_model <- function(freqmodel_stanfit, input_data_tbl) {
 }
 
 
+construct_model_validation_data <- function(
+    btyd_stanfit, btyd_fitdata_tbl, btyd_obs_stats_tbl,
+    precompute_dir, precompute_key, run_chunk_func) {
+
+
+  ## First we build the simulation input values
+  btyd_validation_tbl <- btyd_stanfit %>%
+    recover_types(btyd_fitdata_tbl) %>%
+    spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+    ungroup() %>%
+    select(
+      customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
+      )
+
+
+  ## Our simulations are precomputed, so we want to exclude any files that
+  ## already exist on the file system
+
+  precomputed_tbl <- dir_ls(precompute_dir) %>%
+    enframe(name = NULL, value = "sim_file") %>%
+    mutate(sim_file = sim_file %>% as.character())
+
+
+  btyd_validsims_lookup_tbl <- btyd_validation_tbl %>%
+    group_nest(customer_id, .key = "cust_params") %>%
+    mutate(
+      sim_file = glue(
+        "{precompute_dir}/{precompute_key}_{customer_id}.rds"
+        )
+      )
+
+
+  exec_tbl <-  btyd_validsims_lookup_tbl %>%
+    anti_join(precomputed_tbl, by = "sim_file")
+
+
+  ## Assuming there are simulations missing, run those simulations.
+  if(exec_tbl %>% nrow() > 0) {
+    exec_tbl %>%
+      mutate(
+        calc_file = future_map2_lgl(
+          sim_file, cust_params,
+          run_chunk_func,
+
+          .options = furrr_options(
+            globals  = c(
+              "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+              "run_pnbd_simulations_chunk", "run_bgnbd_simulations_chunk",
+              "generate_pnbd_validation_transactions",
+              "generate_bgnbd_validation_transactions"
+              ),
+            packages   = c("tidyverse", "fs"),
+            scheduling = FALSE,
+            seed       = 4202
+          ),
+          .progress = TRUE
+        )
+      )
+  }
+
+
+  ## All files should now be generated, so read the output data into a table
+  btyd_validsims_tbl <- btyd_validsims_lookup_tbl %>%
+    mutate(
+      data = map(sim_file, ~ .x %>% read_rds() %>% select(draw_id, sim_tnx_count, sim_tnx_last))
+      ) %>%
+    select(customer_id, sim_file, data) %>%
+    unnest(data)
+
+
+  ## Filtering on those customers that existed in the fitted data, calculate
+  ## observed values for comparison purposes
+  tnx_data_tbl <- btyd_obs_stats_tbl %>%
+    semi_join(btyd_validsims_tbl, by = "customer_id")
+
+  obs_customer_count  <- tnx_data_tbl %>% nrow()
+  obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+  btyd_tnx_simsumm_tbl <- btyd_validsims_tbl %>%
+    group_by(draw_id) %>%
+    summarise(
+      .groups = "drop",
+
+      sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+      sim_total_tnx_count = sum(sim_tnx_count)
+      )
+
+
+  valid_custcount_plot <- ggplot(btyd_tnx_simsumm_tbl) +
+    geom_histogram(aes(x = sim_customer_count), binwidth = 10) +
+    geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+    labs(
+      x = "Simulated Customers With Transactions",
+      y = "Frequency",
+      title = "Histogram of Count of Customers Transacted",
+      subtitle = "Observed Count in Red"
+      )
+
+  valid_tnxcount_plot <- ggplot(btyd_tnx_simsumm_tbl) +
+    geom_histogram(aes(x = sim_total_tnx_count), binwidth = 50) +
+    geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+    labs(
+      x = "Simulated Transaction Count",
+      y = "Frequency",
+      title = "Histogram of Count of Total Transaction Count",
+      subtitle = "Observed Count in Red"
+      )
+
+
+  valid_lst <- list(
+    btyd_validation_tbl  = btyd_validation_tbl,
+    btyd_validsims_tbl   = btyd_validsims_tbl,
+    valid_custcount_plot = valid_custcount_plot,
+    valid_tnxcount_plot  = valid_tnxcount_plot
+    )
+
+  return(valid_lst)
+}
 
 
 

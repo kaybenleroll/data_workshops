@@ -190,7 +190,7 @@ stan_data_lst <- btyd_fitdata_tbl %>%
     lambda_cv = 1.00,
     
     p_mn      =  0.10,
-    p_k       = 10.00,
+    p_k       =  2.00,
     )
 
 bgnbd_fixed_stanfit <- bgnbd_fixed_stanmodel$sample(
