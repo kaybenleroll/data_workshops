@@ -21,17 +21,24 @@ GITHUB_USER=$(shell gh config get gh_user)
 CONTAINER_NAME=clv-workshop
 
 ### Project build targets
-.SUFFIXES: .Rmd .html .dot .png
+.SUFFIXES: .Rmd .qmd .html .dot .png
 
 RMD_FILES  := $(wildcard *.Rmd)
+QMD_FILES  := $(wildcard *.qmd)
 HTML_FILES := $(patsubst %.Rmd,%.html,$(RMD_FILES))
 
 all-html: $(HTML_FILES)
 
 .Rmd.html:
 	echo "TIMESTAMP:" `date` "- Rendering script $<" >> output.log 2>&1
-	Rscript -e 'rmarkdown::render("$<")'  >> output.log 2>&1
-	echo "TIMESTAMP:" `date` "- Finished" >> output.log 2>&1
+	Rscript -e 'rmarkdown::render("$<")'             >> output.log 2>&1
+	echo "TIMESTAMP:" `date` "- Finished"            >> output.log 2>&1
+
+.qmd.html:
+	echo "TIMESTAMP:" `date` "- Rendering script $<"  >> output.log 2>&1
+	Rscript -e 'quarto::quarto_render("$<")'          >> output.log 2>&1
+	echo "TIMESTAMP:" `date` "- Finished $*.html"     >> output.log 2>&1
+
 
 .dot.png:
 	dot -Tpng -o$*.png $<

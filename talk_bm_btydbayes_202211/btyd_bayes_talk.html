@@ -328,11 +328,82 @@
   <p class="author">Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
 </section>
 
+<section>
+<section id="background" class="title-slide slide level1 center">
+<h1>Background</h1>
+
+</section>
+<section class="slide level3 center">
+
+<p>Before I Begin…</p>
+</section>
+<section class="slide level3 center">
+
+<p>This talk is brought to you in association with</p>
+<p><br>
+</p>
+
+<img data-src="img/captain_hindsight.png" class="r-stretch"></section>
+<section id="bayesian-mixer" class="title-slide slide level2 center">
+<h2>Bayesian Mixer</h2>
+<p><br>
+</p>
+
+<img data-src="img/glenn_meyers.png" class="r-stretch"></section>
+
+<section id="dublin-data-science" class="title-slide slide level2 center">
+<h2>Dublin Data Science</h2>
+
+<img data-src="img/dds_pedro.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p><a href="https://www.youtube.com/playlist?list=PLBNUi5C90QfZ5t1JrgAtz_LXvCB7Eh5iu">Data Science: Soup to Nuts</a></p>
+<p><br>
+</p>
+
+<img data-src="img/youtube_playlist.png" class="r-stretch"></section>
+</section>
+<section>
+<section id="customer-lifetime-value" class="title-slide slide level1 center">
+<h1>Customer Lifetime Value</h1>
+
+</section>
+<section class="slide level3 center">
+
+</section>
+<section id="rfm-models" class="title-slide slide level2 center">
+<h2>RFM Models</h2>
+<p><br>
+</p>
+<p>Recency</p>
+<p><br>
+</p>
+<p>Frequency</p>
+<p><br>
+</p>
+<p>Monetary</p>
+</section>
+</section>
+<section>
 <section id="btyd-models" class="title-slide slide level1 center">
 <h1>BTYD Models</h1>
 
 </section>
+<section id="pnbd-models" class="title-slide slide level2 center">
+<h2>P/NBD Models</h2>
 
+</section>
+
+<section id="bgnbd-models" class="title-slide slide level2 center">
+<h2>BG/NBD Models</h2>
+
+</section>
+
+<section id="gg-spend-models" class="title-slide slide level2 center">
+<h2>G/G Spend Models</h2>
+
+</section>
+</section>
 <section id="stan-code" class="title-slide slide level1 center">
 <h1>Stan Code</h1>
 
@@ -368,7 +439,7 @@
       // Full list of configuration options available at:
       // https://revealjs.com/config/
       Reveal.initialize({
-'controlsAuto': true,
+'controlsAuto': false,
 'previewLinksAuto': false,
 'smaller': false,
 'pdfSeparateFragments': false,
@@ -379,7 +450,7 @@
 'smaller': false,
  
         // Display controls in the bottom right corner
-        controls: false,
+        controls: true,
 
         // Help the user learn the controls by providing hints, for example by
         // bouncing the down arrow when they first encounter a vertical slide
@@ -396,7 +467,7 @@
         progress: true,
 
         // Display the page number of the current slide
-        slideNumber: false,
+        slideNumber: 'h.v',
 
         // 'all', 'print', or 'speaker'
         showSlideNumber: 'all',
@@ -437,7 +508,7 @@
         rtl: false,
 
         // see https://revealjs.com/vertical-slides/#navigation-mode
-        navigationMode: 'linear',
+        navigationMode: 'default',
 
         // Randomizes the order of slides each time the presentation loads
         shuffle: false,

@@ -6,14 +6,94 @@ format:
   revealjs:
     theme: night
     highlight: pygments
+    controls: true
+    center-title-slide: true
     center: true
-    reveal_options:
-      slideNumber: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
 
 ---
 
 
+
+
+# Background
+
+---
+
+Before I Begin...
+
+---
+
+This talk is brought to you in association with
+
+\
+
+
+![](img/captain_hindsight.png)
+
+
+
+## Bayesian Mixer
+
+\
+
+
+![](img/glenn_meyers.png)
+
+
+
+## Dublin Data Science
+
+![](img/dds_pedro.png)
+
+---
+
+[Data Science: Soup to Nuts](https://www.youtube.com/playlist?list=PLBNUi5C90QfZ5t1JrgAtz_LXvCB7Eh5iu)
+
+\
+
+
+![](img/youtube_playlist.png)
+
+
+
+
+# Customer Lifetime Value
+
+
+## RFM Models
+
+\
+
+
+Recency
+
+\
+
+
+Frequency
+
+\
+
+
+Monetary
+
+
 # BTYD Models
+
+
+## P/NBD Models
+
+
+## BG/NBD Models
+
+
+## G/G Spend Models
+
 
 
 
