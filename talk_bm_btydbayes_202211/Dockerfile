@@ -50,6 +50,7 @@ RUN apt-get update \
     projpred \
     prophet \
     pryr \
+    quarto \
     rmdformats \
     rstan \
     rstanarm \
