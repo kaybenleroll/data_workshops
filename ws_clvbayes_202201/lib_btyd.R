@@ -382,14 +382,29 @@ construct_model_validation_data <- function(
     precompute_dir, precompute_key, run_chunk_func) {
 
 
+  model_type <- btyd_stanfit$output_files() %>%
+    extract2(1) %>%
+    basename() %>%
+    str_replace("^fit_(.+?)_.*", "\\1")
+
   ## First we build the simulation input values
-  btyd_validation_tbl <- btyd_stanfit %>%
-    recover_types(btyd_fitdata_tbl) %>%
-    spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
-    ungroup() %>%
-    select(
-      customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
+  if(model_type == "pnbd") {
+    btyd_validation_tbl <- btyd_stanfit %>%
+      recover_types(btyd_fitdata_tbl) %>%
+      spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+      ungroup() %>%
+      select(
+        customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
       )
+  } else {
+    btyd_validation_tbl <- btyd_stanfit %>%
+      recover_types(btyd_fitdata_tbl) %>%
+      spread_draws(lambda[customer_id], p[customer_id]) %>%
+      ungroup() %>%
+      select(
+        customer_id, draw_id = .draw, post_lambda = lambda, post_p = p
+        )
+  }
 
 
   ## Our simulations are precomputed, so we want to exclude any files that

@@ -482,14 +482,14 @@ pnbd_consol_lambmn_valid_lst$valid_tnxcount_plot  %>% print()
 We now want to fit our BG/NBD model with fixed priors.
 
 
-```{r display_bgnbd_fixed_model_stancode, echo=FALSE}
+```{r display_bgnbd_consol_fixed_model_stancode, echo=FALSE}
 read_lines("stan_code/bgnbd_fixed.stan") %>% cat(sep = "\n")
 ```
 
 We now compile this model using `CmdStanR`.
 
-```{r compile_bgnbd_fixed_stanmodel, echo=TRUE, results="hide"}
-bgnbd_fixed_stanmodel <- cmdstan_model(
+```{r compile_bgnbd_consol_fixed_stanmodel, echo=TRUE, results="hide"}
+bgnbd_consol_fixed_stanmodel <- cmdstan_model(
   "stan_code/bgnbd_fixed.stan",
   include_paths =   stan_codedir,
   pedantic      =           TRUE,
@@ -502,7 +502,7 @@ bgnbd_fixed_stanmodel <- cmdstan_model(
 
 We then use this compiled model with our data to produce a fit of the data.
 
-```{r fit_bgnbd_fixed_stanmodel, echo=TRUE, cache=TRUE}
+```{r fit_bgnbd_consol_fixed_stanmodel, echo=TRUE, cache=TRUE}
 stan_modelname <- "bgnbd_consol_fixed"
 stanfit_prefix <- str_c("fit_", stan_modelname) 
 
@@ -516,7 +516,7 @@ stan_data_lst <- btyd_fitdata_tbl %>%
     p_k       =  2.00,
     )
 
-bgnbd_fixed_stanfit <- bgnbd_fixed_stanmodel$sample(
+bgnbd_consol_fixed_stanfit <- bgnbd_consol_fixed_stanmodel$sample(
   data            =                stan_data_lst,
   chains          =                            4,
   iter_warmup     =                          500,
@@ -527,13 +527,13 @@ bgnbd_fixed_stanfit <- bgnbd_fixed_stanmodel$sample(
   output_basename =               stanfit_prefix,
   )
 
-bgnbd_fixed_stanfit$summary()
+bgnbd_consol_fixed_stanfit$summary()
 ```
 
 We have some basic HMC-based validity statistics we can check.
 
-```{r calculate_bgnbd_fixed_hmc_diagnostics, echo=TRUE, cache=TRUE}
-bgnbd_fixed_stanfit$cmdstan_diagnose()
+```{r calculate_bgnbd_consol_fixed_hmc_diagnostics, echo=TRUE, cache=TRUE}
+bgnbd_consol_fixed_stanfit$cmdstan_diagnose()
 ```
 
 
@@ -542,13 +542,13 @@ bgnbd_fixed_stanfit$cmdstan_diagnose()
 Now that we have a sample from the posterior distribution we need to create a
 few different visualisations of the diagnostics.
 
-```{r plot_bgnbd_fixed_traceplots, echo=TRUE}
+```{r plot_bgnbd_consol_fixed_traceplots, echo=TRUE}
 sample_params <- c(
   "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]", "lambda[5]", "lambda[6]",
   "p[1]",      "p[2]",      "p[3]",      "p[4]",      "p[5]",      "p[6]"
   )
 
-bgnbd_fixed_stanfit$draws(inc_warmup = FALSE) %>%
+bgnbd_consol_fixed_stanfit$draws(inc_warmup = FALSE) %>%
   mcmc_trace(pars = sample_params) +
   expand_limits(y = 0) +
   labs(
@@ -563,8 +563,8 @@ bgnbd_fixed_stanfit$draws(inc_warmup = FALSE) %>%
 A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
 of the chains.
 
-```{r plot_bgnbd_fixed_parameter_rhat, echo=TRUE}
-bgnbd_fixed_stanfit %>%
+```{r plot_bgnbd_consol_fixed_parameter_rhat, echo=TRUE}
+bgnbd_consol_fixed_stanfit %>%
   rhat(pars = c("lambda", "p")) %>%
   mcmc_rhat() +
     ggtitle("Plot of Parameter R-hat Values")
@@ -575,8 +575,8 @@ an estimate of the size of the sample from a statistical information point of
 view.
 
 
-```{r plot_bgnbd_fixed_parameter_neffratio, echo=TRUE}
-bgnbd_fixed_stanfit %>%
+```{r plot_bgnbd_consol_fixed_parameter_neffratio, echo=TRUE}
+bgnbd_consol_fixed_stanfit %>%
   neff_ratio(pars = c("lambda", "p")) %>%
   mcmc_neff() +
     ggtitle("Plot of Parameter Effective Sample Sizes")
@@ -585,8 +585,8 @@ bgnbd_fixed_stanfit %>%
 Finally, we also want to look at autocorrelation in the chains for each
 parameter.
 
-```{r plot_bgnbd_fixed_parameter_acf, echo=TRUE}
-bgnbd_fixed_stanfit$draws() %>%
+```{r plot_bgnbd_consol_fixed_parameter_acf, echo=TRUE}
+bgnbd_consol_fixed_stanfit$draws() %>%
   mcmc_acf(pars = sample_params) +
     ggtitle("Autocorrelation Plot of Sample Values")
 ```
@@ -602,7 +602,6 @@ run_chunk <- function(sim_file, param_tbl)
     start_dttm = as.POSIXct("2011-01-01"),
     end_dttm   = as.POSIXct("2011-12-10")
     )
-
 
 bgnbd_consol_fixed_valid_lst <- construct_model_validation_data(
     btyd_stanfit       = bgnbd_consol_fixed_stanfit,
@@ -623,6 +622,161 @@ observed data.
 bgnbd_consol_fixed_valid_lst$valid_custcount_plot %>% print()
 
 bgnbd_consol_fixed_valid_lst$valid_tnxcount_plot  %>% print()
+```
+
+
+
+# Fit the Hierarchical Means BG/NBD Model
+
+We now want to fit our BG/NBD model with hierarchical priors for the means of
+both $\lambda$ and $p$.
+
+
+```{r display_bgnbd_consol_hier_means_model_stancode, echo=FALSE}
+read_lines("stan_code/bgnbd_hier_means.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_bgnbd_consol_hier_means_stanmodel, echo=TRUE, results="hide"}
+bgnbd_consol_hier_means_stanmodel <- cmdstan_model(
+  "stan_code/bgnbd_hier_means.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+
+## Fit the Model
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_bgnbd_consol_hier_means_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "bgnbd_consol_hier_means"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- btyd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn_p1 = log(0.25) - 0.5 * (1.0)^2,
+    lambda_mn_p2 = 1.0,
+
+    lambda_cv    = 1.0,
+
+    p_mn_mu      = 0.1,
+    p_mn_k       = 100,
+
+    p_k          = 10
+    )
+
+bgnbd_consol_hier_means_stanfit <- bgnbd_consol_hier_means_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4204,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+bgnbd_consol_hier_means_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_bgnbd_consol_hier_means_hmc_diagnostics, echo=TRUE, cache=TRUE}
+bgnbd_consol_hier_means_stanfit$cmdstan_diagnose()
+```
+
+
+## Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_bgnbd_consol_hier_means_traceplots, echo=TRUE}
+sample_params <- c(
+  "lambda_mn", "p_mn",
+  "lambda[1]", "lambda[2]", "lambda[3]", "lambda[4]", "lambda[5]",
+  "p[1]",      "p[2]",      "p[3]",      "p[4]",      "p[5]"
+  )
+
+bgnbd_consol_hier_means_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = sample_params) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and p Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_bgnbd_consol_hier_means_parameter_rhat, echo=TRUE}
+bgnbd_consol_hier_means_stanfit %>%
+  rhat(pars = c("lambda_mn", "p_mn", "lambda", "p")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_bgnbd_consol_hier_means_parameter_neffratio, echo=TRUE}
+bgnbd_consol_hier_means_stanfit %>%
+  neff_ratio(pars = c("lambda_mn", "p_mn", "lambda", "p")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_bgnbd_consol_hier_means_parameter_acf, echo=TRUE}
+bgnbd_consol_hier_means_stanfit$draws() %>%
+  mcmc_acf(pars = sample_params) +
+    ggtitle("Autocorrelation Plot of Sample Values")
+```
+
+
+## Validate the Fixed Prior BG/NBD Model
+
+
+```{r construct_bgnbd_consol_hier_means_validation_data, echo=TRUE}
+run_chunk <- function(sim_file, param_tbl)
+  run_bgnbd_simulations_chunk(
+    sim_file, param_tbl,
+    start_dttm = as.POSIXct("2011-01-01"),
+    end_dttm   = as.POSIXct("2011-12-10")
+    )
+
+bgnbd_consol_hier_means_valid_lst <- construct_model_validation_data(
+    btyd_stanfit       = bgnbd_consol_hier_means_stanfit,
+    btyd_fitdata_tbl   = btyd_fitdata_tbl,
+    btyd_obs_stats_tbl = btyd_obs_stats_tbl,
+    precompute_dir     = "precompute/bgnbd_consol_hier_means",
+    precompute_key     = "sims_bgnbd_consol_hier_means",
+    run_chunk_func     = run_chunk
+    )
+
+bgnbd_consol_hier_means_valid_lst %>% glimpse(max.level = 1)
+```
+
+Having ran the simulations, we now want to check the outputs against the
+observed data.
+
+```{r bgnbd_consol_hier_means_valid_lst_validation_plots, echo=TRUE}
+bgnbd_consol_hier_means_valid_lst$valid_custcount_plot %>% print()
+
+bgnbd_consol_hier_means_valid_lst$valid_tnxcount_plot  %>% print()
 ```
 
 
