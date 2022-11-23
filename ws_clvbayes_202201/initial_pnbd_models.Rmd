@@ -390,6 +390,20 @@ ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
 ```
 
 
+## Write Data
+
+```{r write_data_disk, echo=TRUE}
+id_1000  %>% write_rds("data/id_1000.rds")
+id_5000  %>% write_rds("data/id_5000.rds")
+id_10000 %>% write_rds("data/id_10000.rds")
+
+fit_1000_data_tbl  %>% write_rds("data/fit_1000_longframe_data_tbl.rds")
+fit_10000_data_tbl %>% write_rds("data/fit_10000_longframe_data_tbl.rds")
+
+customer_summarystats_tbl %>% write_rds("data/customer_summarystats_longframe_tbl.rds")
+```
+
+
 
 # Fit Initial P/NBD Model
 
@@ -601,7 +615,7 @@ pnbd_fixed2_stanfit <- pnbd_fixed_stanmodel$sample(
   output_basename =               stanfit_prefix,
   )
 
-pnbd_fixed_stanfit$summary()
+pnbd_fixed2_stanfit$summary()
 ```
 
 
@@ -697,11 +711,11 @@ We now focus on assess the various versions of our models without the benefit
 of knowing the 'true' answer as we will not have this information in our
 real-world applications.
 
-A key derived quantity to employ is $P_{alive}(T)$, the probability that the
+A key derived quantity to employ is $p_{alive}(T)$, the probability that the
 customer is still 'alive' at the point of observation of the data.
 
 
-## Calculating P_alive
+## Calculating p_alive
 
 The probability that a customer with purchase history $(x, t_x, T)$ is 'alive'
 at time $T$ is the probability that the (unobserved) time at which he becomes
@@ -751,7 +765,10 @@ pnbd_fixed_palive_summary_tbl <- pnbd_fixed_valid_lst$validation_tbl %>%
     p_alive_p25 = quantile(p_alive, 0.25),
     p_alive_p50 = quantile(p_alive, 0.50),
     p_alive_p75 = quantile(p_alive, 0.75),
-    p_alive_p90 = quantile(p_alive, 0.90)
+    p_alive_p90 = quantile(p_alive, 0.90),
+    
+    p_alive_range50 = p_alive_p75 - p_alive_p25,
+    p_alive_range80 = p_alive_p90 - p_alive_p10,
     )
 
 pnbd_fixed_palive_summary_tbl %>% glimpse()
@@ -817,8 +834,6 @@ ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
 We see that most of the active customers have reasonably recent transactions.
 
 
-
-
 ```{r plot_likely_inactive_transactions, echo=TRUE}
 likely_inactive_id <- pnbd_fixed_palive_summary_tbl %>%
   filter(p_alive_p90 < 0.05) %>%
@@ -837,15 +852,871 @@ ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id)) +
   geom_vline(aes(xintercept = as.POSIXct("2019-01-01")), colour = "red") +
   labs(
       x = "Date",
-      y = "Customer ID",
+      y = "Customer",
       title = "Visualisation of Transaction Times for Likely Inactive Customers"
     ) +
   theme(
-    axis.text.y = element_blank(),
+    axis.text.y  = element_blank(),
     axis.ticks.y = element_blank()
     )
 ```
 
+Finally, we want to look at the customers with the most uncertainty in their
+value for `p_alive`. There are a number of ways to do this, but we start by
+looking at the range in values.
+
+First we look at the distribution of these ranges.
+
+```{r plot_distribution_p_alive_ranges, echo=TRUE}
+ggplot(pnbd_fixed_palive_summary_tbl) +
+  geom_histogram(aes(x = p_alive_range80), binwidth = 0.02) +
+  labs(
+    x = "80% Interval Range",
+    y = "Frequency",
+    title = "Distribution of Range of Values for the 80% Credibility Range for p_alive"
+    )
+```
+
+
+We see that most customers have their credibility intervals in a reasonably
+tight range, and so we can just look at customers where this range is at least
+0.3.
+
+
+```{r plot_pnbd_fixed_palive_uncertain_customers_transactions, echo=TRUE}
+plot_tbl <- pnbd_fixed_palive_summary_tbl %>% 
+  filter(p_alive_range80 > 0.3) %>%
+  select(customer_id, p_alive_range80) %>%
+  inner_join(customer_transactions_tbl, by = "customer_id") %>%
+  filter(
+    tnx_timestamp <  as.Date("2019-01-01"),
+    tnx_timestamp >= as.Date("2018-01-01")
+    )
+
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, colour = p_alive_range80)) +
+  geom_line(alpha = 0.5) +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_vline(aes(xintercept = as.POSIXct("2019-01-01")), colour = "red") +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(
+      x = "Date",
+      y = "Customer",
+      colour = "Interval Range",
+      title = "Visualisation of Transaction Times for Non-Confident p_alive Customers"
+    ) +
+  theme(
+    axis.text.y  = element_blank(),
+    axis.ticks.y = element_blank()
+    )
+```
+
+
+## Constructing Model Validation Approaches.
+
+We now can combine each of these three inferred parameters, $\lambda$, $\mu$,
+`p_alive` as an input to data generating simulations and compare the observed
+data to our simulated data.
+
+Recall that our models were fit on data that occurred before a specific date:
+for this data the cutoff date is 2018-12-31.
+
+We can approach this generative process in a number of different ways, but the
+most natural appears to be the following (repeated for each customer in the
+training dataset):
+
+  1. Using `p_alive`, simulate if the customer is still active.
+  1. If active, simulate $\tau'$, the remaining lifetime from observed $T$
+     using $\mu$ -- $\tau' \sim \text{Exponential}(\mu)$.
+  1. Simulate times $t_x'$ between events from $T$,
+     $t_x' \sim \text{Exponential}(\lambda)$.
+  1. Keep all values where the cumulative sum of these time intervals is less
+     than $\tau$.
+
+Note that the above approach is simplified due to the 'memoryless' nature of
+the Exponential distribution. Also, we could just simulate event counts using
+$x' \sim \text{Poisson}(\lambda \tau')$ but it is more useful to also simulate
+time intervals between the transactions.
+
+To perform this simulation, we write a function
+`generate_pnbd_validation_transactions()` to perform the required calculations.
+Thinking ahead, this function will also include parameters for the transaction
+amount, but for these models we set both those values to 1.
+
+
+```{r generate_pnbd_fixed_validation_transactions, echo=TRUE}
+pnbd_fixed_validsims_tbl <- pnbd_fixed_valid_lst$validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "precompute/pnbd_fixed/sims_pnbd_fixed_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 421
+        ),
+      .progress = TRUE
+      )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
+
+
+pnbd_fixed_validsims_tbl %>% glimpse()
+```
+
+
+We also want the summary statistics for the transactions in the final year that
+is not included in the fitted data.
+
+```{r calculate_validation_year_statistics, echo=TRUE}
+obs_2019_stats_tbl <- customer_transactions_tbl %>%
+  filter(
+    tnx_timestamp >= as.POSIXct("2019-01-01")
+    ) %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    tnx_count = n(),
+    first_tnx = min(tnx_timestamp),
+    last_tnx  = max(tnx_timestamp)
+    )
+
+obs_2019_stats_tbl %>% glimpse()
+```
+
+We now want to combine this data to start our investigation of the model
+outputs. We then compare the distribution of simulated transaction counts for
+our posterior against the observed count in the data by calculating the
+$q$-value.
+
+```{r construct_pnbd_fixed_1000_validation_data, echo=TRUE}
+pnbd_fixed_1000_validation_tbl <- pnbd_fixed_validsims_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_count = list(map_int(sim_file, ~ .x %>% read_rds() %>% nrow()))
+    ) %>%
+  left_join(obs_2019_stats_tbl, by = "customer_id") %>%
+  replace_na(list(tnx_count = 0)) %>%
+  mutate(
+    tnx_count_qval = map2_dbl(sim_count, tnx_count, ~ ecdf(.x)(.y))
+    )
+
+pnbd_fixed_1000_validation_tbl %>% glimpse()
+```
+
+We first look at the distribution of these $q$-values.
+
+```{r pnbd_fixed_validation_histogram, echo=TRUE}
+ggplot(pnbd_fixed_1000_validation_tbl) +
+  geom_histogram(aes(x = tnx_count_qval), bins = 50) +
+  labs(
+    x = "q-Value for Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Transaction Count ECDF q-Values"
+    )
+```
+
+
+q-values of 1.0 are inflated in this data as we have a number of customers 
+that are marked to be highly likely to be inactive and so have a posterior
+distribution of all zero count transactions and observed no transactions in
+the validation set, so we can remove these data points.
+
+```{r check_pnbd_fixed_1000_validation_zerocount_rows, echo=TRUE}
+pnbd_fixed_1000_validation_tbl %>%
+  filter(
+    !(tnx_count == 0 & (tnx_count_qval == 1))
+    ) %>%
+  filter(tnx_count == 0) %>%
+  glimpse()
+```
+
+From inspection on this, we see there are a number of customers that have no
+observed transactions but also have a $q$-value of less than 1. In many cases
+this is fine, but we also see from the data there are a number of customers
+that have values close to 1 suggestion the simulations are almost all zero
+but also have a small count of simulations with at least one transaction.
+
+This needs some further exploration, so we compare these customers to our
+summary data on the posterior distributions.
+
+```{r investigate_pnbd_fixed_1000_validation_data, echo=TRUE}
+pnbd_fixed_1000_validation_tbl %>%
+  filter(
+    !(tnx_count == 0 & (tnx_count_qval == 1))
+    ) %>%
+  filter(tnx_count == 0) %>%
+  inner_join(pnbd_fixed_palive_summary_tbl, by = "customer_id") %>%
+  glimpse()
+```
+
+Looking at this data identifies some unusual aspects to how customers with
+values of $p_alive$ that are essentially zero are still producing non-zero
+transaction counts in our simulation, so we need to look at this.
+
+In particular, we look at the first customer in this summary dataset, 
+customer C201104_0418.
+
+```{r inspect_posterior_customer_C201212_0330, echo=TRUE}
+pnbd_fixed_validsims_tbl %>%
+  filter(
+    customer_id == "C201212_0330"
+    ) %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
+  select(customer_id, post_lambda, post_mu, p_alive) %>%
+  arrange(desc(p_alive)) %>%
+  glimpse()
+```
+
+We see these values come from a very low value of both $\lambda$ and $\mu$, so
+also want to see the values of the posterior that are more typical of the
+customer by looking at values around the median of `p_alive`.
+
+```{r inspect_posterior_customer_C201212_0330_body, echo=TRUE}
+pnbd_fixed_validsims_tbl %>%
+  filter(
+    customer_id == "C201212_0330"
+    ) %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
+  select(customer_id, draw_id, post_lambda, post_mu, p_alive) %>%
+  filter(
+    abs(1 - (p_alive / median(p_alive))) < 0.2
+    ) %>%
+  arrange(draw_id) %>%
+  glimpse()
+```
+
+We also want to look at all the transactions for that customer.
+
+```{r inspect_transactions_customer_C201212_0330, echo=TRUE}
+customer_transactions_tbl %>%
+  filter(customer_id == "C201212_0330")
+```
+
+
+Finally, we want to check the posterior distribution for the alternate prior
+model and see what this looks like.
+
+```{r check_pnbd_fixed2_customer_C201212_0330_posterior, echo=TRUE}
+pnbd_fixed2_valid_lst$validation_tbl %>%
+  filter(customer_id == "C201212_0330") %>%
+  select(customer_id, draw_id, post_lambda, post_mu, p_alive) %>%
+  arrange(desc(p_alive))
+```
+
+We see this gives us silly values at least for low transaction count customers,
+especially for those customers with no extra transactions after the initial
+one.
+
+That said, these outputs are useful
+
+```{r generate_pnbd_fixed2_validation_transactions, echo=TRUE}
+pnbd_fixed2_validsims_tbl <- pnbd_fixed2_valid_lst$validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "precompute/pnbd_fixed2/sims_pnbd_fixed2_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 421
+        ),
+      .progress = TRUE
+      )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
+
+
+pnbd_fixed2_validsims_tbl %>% glimpse()
+```
+
+
+
+
+## Comparing Simulation Data
+
+Before we move on to other aspects of model validation, we also want to check
+the simulation of transaction counts against the observed counts.
+
+### Assessing the pnbd_fixed Model
+
+We first want to look at the total transaction count and count of customers
+transacted, comparing the observed amount to that observed in the actual data.
+
+
+```{r construct_pnbd_fixed_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_2019_stats_tbl %>% 
+  semi_join(pnbd_fixed_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_fixed_tnx_simsumm_tbl <- pnbd_fixed_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_fixed_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_fixed_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
+
+### Assessing the pnbd_fixed2 Model
+
+We repeat this assessment for our `pnbd_fixed2` model, which had a wider
+coefficient of variation in our prior parameters.
+
+
+```{r construct_pnbd_fixed2_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_2019_stats_tbl %>% 
+  semi_join(pnbd_fixed2_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_fixed2_tnx_simsumm_tbl <- pnbd_fixed2_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_fixed2_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_fixed2_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
+We see that in general, our models are over-estimating the count of customers
+transacting in the following year, as well as the total count of transactions
+made.
+
+This suggests we should try an alternative prior, as our priors on both
+lifetime and transaction rate may skew too high.
+
+
+# Fitting Lower-CV Prior Model
+
+Our existing fits have a number of different issues, so it is worth trying to
+refit this model with a lower coefficient of variation -- this should solve the
+lower end of the distribution though the tradeoff means that that the right
+tail of the distribution is less pronounced. Given we are skewing high in our
+transaction counts though, this may not be a problem.
+
+
+
+```{r fit_pnbd_fixed3_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_fixed3"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- fit_1000_data_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn = 0.25,
+    lambda_cv = 0.60,
+    
+    mu_mn     = 0.10,
+    mu_cv     = 0.60,
+    )
+
+pnbd_fixed3_stanfit <- pnbd_fixed_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_fixed3_stanfit$summary()
+```
+
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_fixed3_hmc_diagnostics, echo=TRUE}
+pnbd_fixed3_stanfit$cmdstan_diagnose()
+```
+
+
+
+## Visual Diagnostics of the Sample Validity
+
+We do not repeat the full set of validation checks here, but look at the plot
+of the traces, effective stepsizes, and the autocorrelation.
+
+```{r plot_pnbd_fixed3_parameter_neffratio, echo=TRUE}
+pnbd_fixed3_stanfit$draws() %>%
+  mcmc_trace(pars = parameter_subset) +
+    ggtitle("Traceplot of Sample Parameters")
+
+pnbd_fixed3_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes for Low-CV Priors")
+
+pnbd_fixed3_stanfit$draws() %>%
+  mcmc_acf(pars = parameter_subset) +
+    ggtitle("Autocorrelation Plot of Sample Parameters")
+```
+
+
+## Comparing the Model Validation 
+
+We now construct our posterior dataset.
+
+```{r construct_pnbd_fixed3_posterior_data, echo=TRUE}
+pnbd_fixed3_validation_tbl <- pnbd_fixed3_stanfit %>%
+  recover_types(fit_1000_data_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+  ungroup() %>%
+  select(customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive)
+
+pnbd_fixed3_validation_tbl %>% glimpse()
+```
+
+We now want to check that customer from before to see if the posterior has
+any anomalous values.
+
+```{r check_pnbd_fixed3_customer_C201212_0330_posterior, echo=TRUE}
+pnbd_fixed3_validation_tbl %>%
+  filter(customer_id == "C201212_0330") %>%
+  select(customer_id, draw_id, post_lambda, post_mu, p_alive) %>%
+  arrange(desc(p_alive))
+```
+
+
+The customer has a very low posterior value for `p_alive`.
+
+
+## Generate Model Validation Simulations
+
+We now want to generate our validation simulations using our existing
+functions, like we did for previous models.
+
+
+```{r generate_pnbd_fixed3_validation_sims, echo=TRUE}
+pnbd_fixed3_validsims_tbl <- pnbd_fixed3_validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "precompute/pnbd_fixed3/sims_pnbd_fixed3_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 421
+        ),
+      .progress = TRUE
+      )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
+
+
+pnbd_fixed3_validsims_tbl %>% glimpse()
+```
+
+Having constructed the validation posterior we now join this data to our
+observations and calculate the $q$-values as before.
+
+```{r construct_pnbd_fixed3_1000_validation_data, echo=TRUE}
+pnbd_fixed3_1000_validation_tbl <- pnbd_fixed3_validsims_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_count = list(map_int(sim_file, ~ .x %>% read_rds() %>% nrow()))
+    ) %>%
+  left_join(obs_2019_stats_tbl, by = "customer_id") %>%
+  replace_na(list(tnx_count = 0)) %>%
+  mutate(
+    tnx_count_qval = map2_dbl(sim_count, tnx_count, ~ ecdf(.x)(.y))
+    )
+
+pnbd_fixed3_1000_validation_tbl %>% glimpse()
+```
+
+Once again, for now we want to remove all the customers with no transactions
+and where all their validation simulations have zero transactions.
+
+```{r plot_pnbd_fixed3_qval_histogram, echo=TRUE}
+plot_tbl <- pnbd_fixed3_1000_validation_tbl %>% 
+  filter(!(tnx_count == 0 & tnx_count_qval == 1))
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = tnx_count_qval), bins = 50) +
+  labs(
+    x = "q-Value",
+    y = "Frequency",
+    title = "Histogram of q-Values From Posterior Simulation of Transactions Counts"
+  )
+```
+
+Here we see we still have a heavy bias towards high $q$-values, so we need to
+see exactly what the issues are.
+
+## Assessing this Model
+
+We now repeat our assessment approach for this new model, investigating our
+simulations by looking at transaction counts.
+
+```{r construct_pnbd_fixed3_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_2019_stats_tbl %>% 
+  semi_join(pnbd_fixed3_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_fixed3_tnx_simsumm_tbl <- pnbd_fixed3_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_fixed3_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_fixed3_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
+
+Overall, it looks like our choice of prior parameters has a big effect on our
+estimates, so we need to take this into account.
+
+An improvement to this model would allow us to express uncertainty around
+these models, which is the next step.
+
+
+# Fit First Hierarchical Model
+
+We now want to add a hierarchy to the model by adding hierarchical priors to
+our P/NBD model. In particular, we focus on adding a prior for $\mu$ as we
+have more confidence in our estimates for $\lambda$ and so we want to model
+our uncertainty in the lifetime of the customer.
+
+
+```{r display_pnbd_hiermu_model_stancode, echo=FALSE}
+read_lines("stan_code/pnbd_hiermu.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_pnbd_hiermu_stanmodel, echo=TRUE, results="hide"}
+pnbd_hiermu_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_hiermu.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_pnbd_hiermu_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_hiermu"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- fit_1000_data_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn = 0.25,
+    lambda_cv = 1.00,
+    
+    mu_mn_p1  = log(0.1) - 0.5 * (0.5)^2,
+    mu_mn_p2  = 0.5,
+    
+    mu_cv_p1  = log(1) - 0.5 * (0.2)^2,
+    mu_cv_p2  = 0.2,
+    )
+
+pnbd_hiermu_stanfit <- pnbd_hiermu_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_hiermu_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_hiermu_hmc_diagnostics, echo=TRUE}
+pnbd_hiermu_stanfit$cmdstan_diagnose()
+```
+
+
+## Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+
+```{r plot_pnbd_hiermu_lambda_traceplots_nowarmup, echo=TRUE}
+pnbd_hiermu_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = parameter_subset) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and Mu Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_pnbd_hiermu_parameter_rhat, echo=TRUE}
+pnbd_hiermu_stanfit %>%
+  rhat(pars = c("lambda", "mu", "s", "beta", "mu_mn", "mu_cv")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_pnbd_hiermu_parameter_neffratio, echo=TRUE}
+pnbd_hiermu_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu", "s", "beta", "mu_mn", "mu_cv")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_pnbd_hiermu_parameter_acf, echo=TRUE}
+pnbd_hiermu_stanfit$draws() %>%
+  mcmc_acf(pars = parameter_subset) +
+    ggtitle("Autocorrelation Plot of Sample Values")
+```
+
+As before, this first fit has a comprehensive run of fit diagnostics, but for
+the sake of brevity in later models we will show only the traceplots once we
+are satisfied with the validity of the sample.
+
+
+## Validate the Hier-Mu Model Fit
+
+We now want to validate this model by using our simulation technique.
+
+We first extract our posterior by customer, and use this as the basis of our
+simulations.
+
+```{r construct_pnbd_hiermu_posterior_data, echo=TRUE}
+pnbd_hiermu_validation_tbl <- pnbd_hiermu_stanfit %>%
+  recover_types(fit_1000_data_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+  ungroup() %>%
+  select(customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive)
+
+pnbd_hiermu_validation_tbl %>% glimpse()
+```
+
+Having constructed our simulations inputs, we now generate our simulations.
+
+```{r generate_pnbd_hiermu_validation_sims, echo=TRUE}
+pnbd_hiermu_validsims_tbl <- pnbd_hiermu_validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "precompute/pnbd_hiermu/sims_pnbd_hiermu_{customer_id}.rds"
+      ),
+    chunk_data = future_map2(
+      sim_file, cust_params,
+      run_pnbd_simulations_chunk,
+
+      .options = furrr_options(
+        globals  = c(
+          "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+          "generate_pnbd_validation_transactions"
+          ),
+        packages   = c("tidyverse", "fs"),
+        scheduling = FALSE,
+        seed       = 421
+        ),
+      .progress = TRUE
+      )
+    ) %>%
+  select(-cust_params) %>%
+  unnest(chunk_data)
+
+
+pnbd_hiermu_validsims_tbl %>% glimpse()
+```
+
+
+
+```{r construct_pnbd_hiermu_1000_validation_data, echo=TRUE}
+pnbd_hiermu_1000_validation_tbl <- pnbd_hiermu_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_count = list(map_int(sim_data, nrow))
+    ) %>%
+  left_join(obs_2019_stats_tbl, by = "customer_id") %>%
+  replace_na(list(tnx_count = 0)) %>%
+  mutate(
+    tnx_count_qval = map2_dbl(sim_count, tnx_count, ~ ecdf(.x)(.y))
+    )
+
+pnbd_hiermu_1000_validation_tbl %>% glimpse()
+```
+
+
+
+```{r construct_pnbd_hiermu_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- obs_2019_stats_tbl %>% 
+  semi_join(pnbd_hiermu_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_hiermu_tnx_simsumm_tbl <- pnbd_hiermu_validsims_tbl %>%
+  mutate(data = map(sim_file, read_rds)) %>%
+  unnest(data) %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_hiermu_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 1) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_hiermu_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 5) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
 
 
 

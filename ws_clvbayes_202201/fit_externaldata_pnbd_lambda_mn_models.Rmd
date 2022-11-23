@@ -1,0 +1,666 @@
+---
+title: "Fit the Lambda-Mean P/NBD Models"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  rmdformats::readthedown:
+    toc_depth: 3
+    use_bookdown: TRUE
+    code_folding: hide
+    fig_caption: TRUE
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab #sandstone #spacelab #flatly
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 2
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries, echo=FALSE, message=FALSE}
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+library(tidyquant)
+
+
+source("lib_utils.R")
+source("lib_btyd.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+
+
+
+
+
+
+# Load Datasets
+
+We start by re-loading the data required for these models.
+
+
+## Load Pre-processed Transactional Data
+
+```{r load_transactional_data, echo=TRUE}
+retail_transaction_data_tbl <- read_rds("data/retail_data_cleaned_tbl.rds")
+retail_transaction_data_tbl %>% glimpse()
+```
+
+We also want to load the customer transactional data.
+
+```{r load_customer_transactions_data, echo=TRUE}
+customer_transactions_tbl <- read_rds("data/customer_transactions_tbl.rds")
+customer_transactions_tbl %>% glimpse()
+```
+
+
+Finally, we want to load the various datasets used to fit the P/NBD models
+
+```{r load_btyd_fitdata, echo=TRUE}
+btyd_fitdata_tbl <- read_rds("data/btyd_fitdata_tbl.rds")
+
+btyd_fitdata_tbl %>% glimpse()
+```
+
+
+```{r load_btyd_obs_data, echo=TRUE}
+btyd_obs_stats_tbl <- read_rds("data/btyd_obs_stats_tbl.rds")
+
+btyd_obs_stats_tbl %>% glimpse()
+```
+
+
+
+```{r load_extreme_customers, echo=TRUE}
+extreme_customers_tbl <- read_rds("data/extreme_customers_tbl.rds")
+
+extreme_customers_tbl %>% glimpse()
+```
+
+
+## Construct Customer Cohorts
+
+Later in this worksheet we will want to create customer cohorts based on the
+date of the first transaction for each customer.
+
+```{r construct_customer_cohort_data, echo=TRUE}
+customer_cohortdata_tbl <- customer_transactions_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    first_tnx_date = min(tnx_timestamp)
+    ) %>%
+  mutate(
+    cohort_qtr = first_tnx_date %>% as.yearqtr(),
+    cohort_ym  = first_tnx_date %>% format("%Y %m"),
+    
+    .after = "customer_id"
+    )
+
+customer_cohortdata_tbl %>% glimpse()
+```
+
+
+
+# Fit the Hierarchical Lambda-Mean P/NBD Model
+
+
+```{r setup_workbook_parameters, echo=TRUE}
+stan_modeldir <- "stan_models"
+stan_codedir  <-   "stan_code"
+```
+
+
+```{r display_pnbd_hierlambdamn_model_stancode, echo=FALSE}
+read_lines("stan_code/pnbd_hierlambdamn.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_pnbd_hierlambdamn_stanmodel, echo=TRUE, results="hide"}
+pnbd_hierlambdamn_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_hierlambdamn.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+
+## Fit the Model
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_pnbd_hierlambdamn_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_hierlambdamn"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- btyd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn_p1 = log(1) - 0.5 * (1.0)^2,
+    lambda_mn_p2 = 1,
+    
+    lambda_cv = 1.00,
+    
+    mu_mn     = 0.05,
+    mu_cv     = 0.60,
+    )
+
+pnbd_hierlambdamn_stanfit <- pnbd_hierlambdamn_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_hierlambdamn_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_hierlambdamn_hmc_diagnostics, echo=TRUE, cache=TRUE}
+pnbd_hierlambdamn_stanfit$cmdstan_diagnose()
+```
+
+
+## Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_hierlambdamn_traceplots, echo=TRUE}
+pnbd_hierlambdamn_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(pars = c("lambda_mn", "alpha", "lambda[1]", "lambda[2]", "mu[1]", "mu[2]")) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and Mu Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_pnbd_hierlambdamn_parameter_rhat, echo=TRUE}
+pnbd_hierlambdamn_stanfit %>%
+  rhat(pars = c("lambda_mn", "lambda", "mu")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_pnbd_hierlambdamn_parameter_neffratio, echo=TRUE}
+pnbd_hierlambdamn_stanfit %>%
+  neff_ratio(pars = c("lambda_mn", "lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+Finally, we also want to look at autocorrelation in the chains for each
+parameter.
+
+```{r plot_pnbd_hierlambdamn_parameter_acf, echo=TRUE}
+pnbd_hierlambdamn_stanfit$draws() %>%
+  mcmc_acf(pars = c("lambda_mn", "alpha", "lambda[1]", "lambda[2]", "mu[1]", "mu[2]")) +
+    ggtitle("Autocorrelation Plot of Sample Values")
+```
+
+
+## Validate the Hierarchical Lambda-Mean Model
+
+We now want to validate the outputs of this model by looking at the posteriors
+for both $\lambda$, $\mu$ and `p_alive`, and then running our simulations using
+these outputs.
+
+```{r construct_pnbd_hierlambdamn_posterior_data, echo=TRUE}
+pnbd_hierlambdamn_validation_tbl <- pnbd_hierlambdamn_stanfit %>%
+  recover_types(btyd_fitdata_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+  ungroup() %>%
+  select(
+    customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
+    )
+
+pnbd_hierlambdamn_validation_tbl %>% glimpse()
+```
+
+
+
+Having constructed our simulations inputs, we now generate our simulations.
+
+```{r generate_pnbd_hierlambdamn_validation_sims, echo=TRUE}
+precompute_dir <- "precompute/pnbd_hierlambdamn"
+
+precomputed_tbl <- dir_ls(precompute_dir) %>%
+  enframe(name = NULL, value = "sim_file") %>%
+  mutate(sim_file = sim_file %>% as.character())
+
+
+pnbd_hierlambdamn_validsims_lookup_tbl <- pnbd_hierlambdamn_validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "{precompute_dir}/sims_pnbd_hierlambdamn_{customer_id}.rds"
+      )
+    )
+    
+
+exec_tbl <-  pnbd_hierlambdamn_validsims_lookup_tbl %>%
+  anti_join(precomputed_tbl, by = "sim_file")
+
+
+if(exec_tbl %>% nrow() > 0) {
+  exec_tbl %>%
+    mutate(
+      calc_file = future_map2_lgl(
+        sim_file, cust_params,
+        run_pnbd_simulations_chunk,
+        start_dttm = as.POSIXct("2011-04-01"),
+        end_dttm   = as.POSIXct("2011-12-10"),
+  
+        .options = furrr_options(
+          globals  = c(
+            "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+            "generate_pnbd_validation_transactions"
+            ),
+          packages   = c("tidyverse", "fs"),
+          scheduling = FALSE,
+          seed       = 4202
+          ),
+        .progress = TRUE
+        )
+      )
+}
+
+exec_tbl %>% glimpse()
+
+pnbd_hierlambdamn_validsims_lookup_tbl %>% glimpse()
+```
+
+We now load all the simulations into a file.
+
+```{r load_pnbd_hierlambdamn_validsims, echo=TRUE, cache=TRUE}
+pnbd_hierlambdamn_validsims_tbl <- pnbd_hierlambdamn_validsims_lookup_tbl %>%
+  mutate(
+    data = map(sim_file, ~ .x %>% read_rds() %>% select(draw_id, sim_tnx_count, sim_tnx_last))
+    ) %>%
+  select(customer_id, sim_file, data) %>%
+  unnest(data)
+
+pnbd_hierlambdamn_validsims_tbl %>% glimpse()
+```
+
+
+We also want to look at how our simulated data compares to the transaction
+data that occurred after Apr 1 2011.
+
+```{r construct_pnbd_hierlambdamn_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- btyd_obs_stats_tbl %>% 
+  semi_join(pnbd_hierlambdamn_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_hierlambdamn_tnx_simsumm_tbl <- pnbd_hierlambdamn_validsims_tbl %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_hierlambdamn_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 10) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_hierlambdamn_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 50) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
+So this is pretty terrible. We now have a worse model than the one with fixed
+priors!
+
+We are not giving up though, and can try to segment our customers into cohorts,
+splitting them by initial transaction time. We then give each of these cohorts
+their own prior for lambda.
+
+
+# Fit Hierarchical Cohort-Lambda Model
+
+To add the cohort information to our model we need to add this information
+into our fit data in Stan.
+
+
+```{r construct_amended_data, echo=TRUE}
+btyd_cohort_fitdata_tbl <- btyd_fitdata_tbl %>%
+  select(-first_tnx_date, -last_tnx_date) %>%
+  inner_join(customer_cohortdata_tbl, by = "customer_id") %>%
+  mutate(
+    cohort = cohort_qtr %>% as.character()
+    ) %>%
+  select(customer_id, cohort, x, t_x, T_cal)
+
+btyd_cohort_fitdata_tbl %>% glimpse()
+```
+
+
+We now want to modify our Stan model to allow each customer cohort to have
+its own hyperprior.
+
+
+```{r display_pnbd_hiercohortlambda_model_stancode, echo=FALSE}
+read_lines("stan_code/pnbd_hiercohortlambda.stan") %>% cat(sep = "\n")
+```
+
+We now compile this model using `CmdStanR`.
+
+```{r compile_pnbd_hiercohortlambda_stanmodel, echo=TRUE, results="hide"}
+pnbd_hiercohortlambda_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_hiercohortlambda.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+```
+
+
+## Fit the Model
+
+We then use this compiled model with our data to produce a fit of the data.
+
+```{r fit_pnbd_hiercohortlambda_stanmodel, echo=TRUE, cache=TRUE}
+stan_modelname <- "pnbd_hiercohortlambda"
+stanfit_prefix <- str_c("fit_", stan_modelname) 
+
+stan_data_lst <- btyd_cohort_fitdata_tbl %>%
+  select(customer_id, cohort, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn_p1 = log(1) - 0.5 * (1.0)^2,
+    lambda_mn_p2 = 1,
+    
+    lambda_cv = 1.00,
+    
+    mu_mn     = 0.05,
+    mu_cv     = 0.60,
+    )
+
+pnbd_hiercohortlambda_stanfit <- pnbd_hiercohortlambda_stanmodel$sample(
+  data            =                stan_data_lst,
+  chains          =                            4,
+  iter_warmup     =                          500,
+  iter_sampling   =                          500,
+  seed            =                         4201,
+  save_warmup     =                         TRUE,
+  output_dir      =                stan_modeldir,
+  output_basename =               stanfit_prefix,
+  )
+
+pnbd_hiercohortlambda_stanfit$summary()
+```
+
+We have some basic HMC-based validity statistics we can check.
+
+```{r calculate_pnbd_hiercohortlambda_hmc_diagnostics, echo=TRUE, cache=TRUE}
+pnbd_hiercohortlambda_stanfit$cmdstan_diagnose()
+```
+
+
+## Visual Diagnostics of the Sample Validity
+
+Now that we have a sample from the posterior distribution we need to create a
+few different visualisations of the diagnostics.
+
+```{r plot_hiercohortlambda_traceplots, echo=TRUE}
+pnbd_hiercohortlambda_stanfit$draws(inc_warmup = FALSE) %>%
+  mcmc_trace(
+    pars = c(
+      "lambda_mn[1]", "lambda_mn[2]", "lambda_mn[3]",
+      "lambda_mn[4]", "lambda_mn[5]", "lambda_mn[6]"
+      )
+    ) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Sample of Lambda and Mu Values"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+
+A common MCMC diagnostic is $\hat{R}$ - which is a measure of the 'similarity'
+of the chains.
+
+```{r plot_pnbd_hiercohortlambda_parameter_rhat, echo=TRUE}
+pnbd_hiercohortlambda_stanfit %>%
+  rhat(pars = c("lambda_mn", "lambda", "mu")) %>%
+  mcmc_rhat() +
+    ggtitle("Plot of Parameter R-hat Values")
+```
+
+Related to this quantity is the concept of *effective sample size*, $N_{eff}$,
+an estimate of the size of the sample from a statistical information point of
+view.
+
+
+```{r plot_pnbd_hiercohortlambda_parameter_neffratio, echo=TRUE}
+pnbd_hiercohortlambda_stanfit %>%
+  neff_ratio(pars = c("lambda_mn", "lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+
+## Validate the Hierarchical Lambda-Mean Model
+
+We now want to validate the outputs of this model by looking at the posteriors
+for both $\lambda$, $\mu$ and `p_alive`, and then running our simulations using
+these outputs.
+
+```{r construct_pnbd_hiercohortlambda_posterior_data, echo=TRUE}
+pnbd_hiercohortlambda_validation_tbl <- pnbd_hiercohortlambda_stanfit %>%
+  recover_types(btyd_fitdata_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id], p_alive[customer_id]) %>%
+  ungroup() %>%
+  select(
+    customer_id, draw_id = .draw, post_lambda = lambda, post_mu = mu, p_alive
+    )
+
+pnbd_hiercohortlambda_validation_tbl %>% glimpse()
+```
+
+
+
+Having constructed our simulations inputs, we now generate our simulations.
+
+```{r generate_pnbd_hiercohortlambda_validation_sims, echo=TRUE}
+precompute_dir <- "precompute/pnbd_hiercohortlambda"
+
+precomputed_tbl <- dir_ls(precompute_dir) %>%
+  enframe(name = NULL, value = "sim_file") %>%
+  mutate(sim_file = sim_file %>% as.character())
+
+
+pnbd_hiercohortlambda_validsims_lookup_tbl <- pnbd_hiercohortlambda_validation_tbl %>%
+  group_nest(customer_id, .key = "cust_params") %>%
+  mutate(
+    sim_file = glue(
+      "{precompute_dir}/sims_pnbd_hiercohortlambda_{customer_id}.rds"
+      )
+    )
+    
+
+exec_tbl <-  pnbd_hiercohortlambda_validsims_lookup_tbl %>%
+  anti_join(precomputed_tbl, by = "sim_file")
+
+
+if(exec_tbl %>% nrow() > 0) {
+  exec_tbl %>%
+    mutate(
+      calc_file = future_map2_lgl(
+        sim_file, cust_params,
+        run_pnbd_simulations_chunk,
+        start_dttm = as.POSIXct("2011-04-01"),
+        end_dttm   = as.POSIXct("2011-12-10"),
+  
+        .options = furrr_options(
+          globals  = c(
+            "calculate_event_times", "rgamma_mucv", "gamma_mucv2shaperate",
+            "generate_pnbd_validation_transactions"
+            ),
+          packages   = c("tidyverse", "fs"),
+          scheduling = FALSE,
+          seed       = 4202
+          ),
+        .progress = TRUE
+        )
+      )
+}
+
+exec_tbl %>% glimpse()
+
+pnbd_hiercohortlambda_validsims_lookup_tbl %>% glimpse()
+```
+
+We now load all the simulations into a file.
+
+```{r load_pnbd_hiercohortlambda_validsims, echo=TRUE, cache=TRUE}
+pnbd_hiercohortlambda_validsims_tbl <- pnbd_hiercohortlambda_validsims_lookup_tbl %>%
+  mutate(
+    data = map(sim_file, ~ .x %>% read_rds() %>% select(draw_id, sim_tnx_count, sim_tnx_last))
+    ) %>%
+  select(customer_id, sim_file, data) %>%
+  unnest(data)
+
+pnbd_hiercohortlambda_validsims_tbl %>% glimpse()
+```
+
+
+We also want to look at how our simulated data compares to the transaction
+data that occurred after Apr 1 2011.
+
+```{r construct_pnbd_hiercohortlambda_tnx_simulations, echo=TRUE}
+tnx_data_tbl <- btyd_obs_stats_tbl %>% 
+  semi_join(pnbd_hiercohortlambda_validsims_tbl, by = "customer_id")
+
+obs_customer_count  <- tnx_data_tbl %>% nrow()
+obs_total_tnx_count <- tnx_data_tbl %>% pull(tnx_count) %>% sum()
+
+pnbd_hiercohortlambda_tnx_simsumm_tbl <- pnbd_hiercohortlambda_validsims_tbl %>%
+  group_by(draw_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    sim_customer_count  = length(sim_tnx_count[sim_tnx_count > 0]),
+    sim_total_tnx_count = sum(sim_tnx_count)
+    )
+
+
+ggplot(pnbd_hiercohortlambda_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_customer_count), binwidth = 10) +
+  geom_vline(aes(xintercept = obs_customer_count), colour = "red") +
+  labs(
+    x = "Simulated Customers With Transactions",
+    y = "Frequency",
+    title = "Histogram of Count of Customers Transacted",
+    subtitle = "Observed Count in Red"
+    )
+
+ggplot(pnbd_hiercohortlambda_tnx_simsumm_tbl) +
+  geom_histogram(aes(x = sim_total_tnx_count), binwidth = 50) +
+  geom_vline(aes(xintercept = obs_total_tnx_count), colour = "red") +
+  labs(
+    x = "Simulated Transaction Count",
+    y = "Frequency",
+    title = "Histogram of Count of Total Transaction Count",
+    subtitle = "Observed Count in Red"
+    )
+```
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
