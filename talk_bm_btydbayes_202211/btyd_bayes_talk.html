@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<script src="btyd_bayes_talk_files/libs/clipboard/clipboard.min.js"></script>
+<script src="btyd_bayes_talk_files/libs/quarto-html/tabby.min.js"></script>
+<script src="btyd_bayes_talk_files/libs/quarto-html/popper.min.js"></script>
+<script src="btyd_bayes_talk_files/libs/quarto-html/tippy.umd.min.js"></script>
+<link href="btyd_bayes_talk_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="btyd_bayes_talk_files/libs/quarto-html/quarto-html.min.css" rel="stylesheet" data-mode="light">
+<link href="btyd_bayes_talk_files/libs/quarto-html/quarto-syntax-highlighting-dark.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
+  <meta name="generator" content="quarto-1.1.189">
+
+  <meta name="author" content="Mick Cooney mickcooney@gmail.com">
+  <title>BTYD Modelling with Stan</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="btyd_bayes_talk_files/libs/revealjs/dist/reset.css">
+  <link rel="stylesheet" href="btyd_bayes_talk_files/libs/revealjs/dist/reveal.css">
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="btyd_bayes_talk_files/libs/revealjs/dist/theme/quarto.css" id="theme">
+  <link href="btyd_bayes_talk_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.css" rel="stylesheet">
+  <link href="btyd_bayes_talk_files/libs/revealjs/plugin/reveal-menu/menu.css" rel="stylesheet">
+  <link href="btyd_bayes_talk_files/libs/revealjs/plugin/reveal-menu/quarto-menu.css" rel="stylesheet">
+  <link href="btyd_bayes_talk_files/libs/revealjs/plugin/quarto-support/footer.css" rel="stylesheet">
+  <style type="text/css">
+
+  .callout {
+    margin-top: 1em;
+    margin-bottom: 1em;  
+    border-radius: .25rem;
+  }
+
+  .callout.callout-style-simple { 
+    padding: 0em 0.5em;
+    border-left: solid #acacac .3rem;
+    border-right: solid 1px silver;
+    border-top: solid 1px silver;
+    border-bottom: solid 1px silver;
+    display: flex;
+  }
+
+  .callout.callout-style-default {
+    border-left: solid #acacac .3rem;
+    border-right: solid 1px silver;
+    border-top: solid 1px silver;
+    border-bottom: solid 1px silver;
+  }
+
+  .callout .callout-body-container {
+    flex-grow: 1;
+  }
+
+  .callout.callout-style-simple .callout-body {
+    font-size: 1rem;
+    font-weight: 400;
+  }
+
+  .callout.callout-style-default .callout-body {
+    font-size: 0.9rem;
+    font-weight: 400;
+  }
+
+  .callout.callout-captioned.callout-style-simple .callout-body {
+    margin-top: 0.2em;
+  }
+
+  .callout:not(.callout-captioned) .callout-body {
+      display: flex;
+  }
+
+  .callout:not(.no-icon).callout-captioned.callout-style-simple .callout-content {
+    padding-left: 1.6em;
+  }
+
+  .callout.callout-captioned .callout-header {
+    padding-top: 0.2em;
+    margin-bottom: -0.2em;
+  }
+
+  .callout.callout-captioned .callout-caption  p {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+    
+  .callout.callout-captioned.callout-style-simple .callout-content  p {
+    margin-top: 0;
+  }
+
+  .callout.callout-captioned.callout-style-default .callout-content  p {
+    margin-top: 0.7em;
+  }
+
+  .callout.callout-style-simple div.callout-caption {
+    border-bottom: none;
+    font-size: .9rem;
+    font-weight: 600;
+    opacity: 75%;
+  }
+
+  .callout.callout-style-default  div.callout-caption {
+    border-bottom: none;
+    font-weight: 600;
+    opacity: 85%;
+    font-size: 0.9rem;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+  }
+
+  .callout.callout-style-default div.callout-content {
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+  }
+
+  .callout.callout-style-simple .callout-icon::before {
+    height: 1rem;
+    width: 1rem;
+    display: inline-block;
+    content: "";
+    background-repeat: no-repeat;
+    background-size: 1rem 1rem;
+  }
+
+  .callout.callout-style-default .callout-icon::before {
+    height: 0.9rem;
+    width: 0.9rem;
+    display: inline-block;
+    content: "";
+    background-repeat: no-repeat;
+    background-size: 0.9rem 0.9rem;
+  }
+
+  .callout-caption {
+    display: flex
+  }
+    
+  .callout-icon::before {
+    margin-top: 1rem;
+    padding-right: .5rem;
+  }
+
+  .callout.no-icon::before {
+    display: none !important;
+  }
+
+  .callout.callout-captioned .callout-body > .callout-content > :last-child {
+    margin-bottom: 0.5rem;
+  }
+
+  .callout.callout-captioned .callout-icon::before {
+    margin-top: .5rem;
+    padding-right: .5rem;
+  }
+
+  .callout:not(.callout-captioned) .callout-icon::before {
+    margin-top: 1rem;
+    padding-right: .5rem;
+  }
+
+  /* Callout Types */
+
+  div.callout-note {
+    border-left-color: #4582ec !important;
+  }
+
+  div.callout-note .callout-icon::before {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEU0lEQVRYCcVXTWhcVRQ+586kSUMMxkyaElstCto2SIhitS5Ek8xUKV2poatCcVHtUlFQk8mbaaziwpWgglJwVaquitBOfhQXFlqlzSJpFSpIYyXNjBNiTCck7x2/8/LeNDOZxDuEkgOXe++553zfefee+/OYLOXFk3+1LLrRdiO81yNqZ6K9cG0P3MeFaMIQjXssE8Z1JzLO9ls20MBZX7oG8w9GxB0goaPrW5aNMp1yOZIa7Wv6o2ykpLtmAPs/vrG14Z+6d4jpbSKuhdcSyq9wGMPXjonwmESXrriLzFGOdDBLB8Y6MNYBu0dRokSygMA/mrun8MGFN3behm6VVAwg4WR3i6FvYK1T7MHo9BK7ydH+1uurECoouk5MPRyVSBrBHMYwVobG2aOXM07sWrn5qgB60rc6mcwIDJtQrnrEr44kmy+UO9r0u9O5/YbkS9juQckLed3DyW2XV/qWBBB3ptvI8EUY3I9p/67OW+g967TNr3Sotn3IuVlfMLVnsBwH4fsnebJvyGm5GeIUA3jljERmrv49SizPYuq+z7c2H/jlGC+Ghhupn/hcapqmcudB9jwJ/3jvnvu6vu5lVzF1fXyZuZZ7U8nRmVzytvT+H3kilYvH09mLWrQdwFSsFEsxFVs5fK7A0g8gMZjbif4ACpKbjv7gNGaD8bUrlk8x+KRflttr22JEMRUbTUwwDQScyzPgedQHZT0xnx7ujw2jfVfExwYHwOsDTjLdJ2ebmeQIlJ7neo41s/DrsL3kl+W2lWvAga0tR3zueGr6GL78M3ifH0rGXrBC2aAR8uYcIA5gwV8zIE8onoh8u0Fca/ciF7j1uOzEnqcIm59sEXoGc0+z6+H45V1CvAvHcD7THztu669cnp+L0okAeIc6zjbM/24LgGM1gZk7jnRu1aQWoU9sfUOuhrmtaPIO3YY1KLLWZaEO5TKUbMY5zx8W9UJ6elpLwKXbsaZ4EFl7B4bMtDv0iRipKoDQT2sNQI9b1utXFdYisi+wzZ/ri/1m7QfDgEuvgUUEIJPq3DhX/5DWNqIXDOweC2wvIR90Oq3lDpdMIgD2r0dXvGdsEW5H6x6HLRJYU7C69VefO1x8Gde1ZFSJLfWS1jbCnhtOPxmpfv2LXOA2Xk2tvnwKKPFuZ/oRmwBwqRQDcKNeVQkYcOjtWVBuM/JuYw5b6isojIkYxyYAFn5K7ZBF10fea52y8QltAg6jnMqNHFBmGkQ1j+U43HMi2xMar1Nv0zGsf1s8nUsmUtPOOrbFIR8bHFDMB5zL13Gmr/kGlCkUzedTzzmzsaJXhYawnA3UmARpiYj5ooJZiUoxFRtK3X6pgNPv+IZVPcnwbOl6f+aBaO1CNvPW9n9LmCp01nuSaTRF2YxHqZ8DYQT6WsXT+RD6eUztwYLZ8rM+rcPxamv1VQzFUkzFXvkiVrySGQgJNvXHJAxiU3/NwiC03rSf05VBaPtu/Z7/B8Yn/w7eguloAAAAAElFTkSuQmCC');
+  }
+
+  div.callout-note.callout-style-default .callout-caption {
+    background-color: #dae6fb
+  }
+
+  div.callout-important {
+    border-left-color: #d9534f !important;
+  }
+
+  div.callout-important .callout-icon::before {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAEKklEQVRYCcVXTWhcVRS+575MJym48A+hSRFr00ySRQhURRfd2HYjk2SSTokuBCkU2o0LoSKKraKIBTcuFCoidGFD08nkBzdREbpQ1EDNIv8qSGMFUboImMSZd4/f9zJv8ibJMC8xJQfO3HPPPef7zrvvvnvviIkpC9nsw0UttFunbUhpFzFtarSd6WJkStVMw5xyVqYTvkwfzuf/5FgtkVoB0729j1rjXwThS7Vio+Mo6DNnvLfahoZ+i/o32lULuJ3NNiz7q6+pyAUkJaFF6JwaM2lUJlV0MlnQn5aTRbEu0SEqHUa0A4AdiGuB1kFXRfVyg5d87+Dg4DL6m2TLAub60ilj7A1Ec4odSAc8X95sHh7+ZRPCFo6Fnp7HfU/fBng/hi10CjCnWnJjsxvDNxWw0NfV6Rv5GgP3I3jGWXumdTD/3cbEOP2ZbOZp69yniG3FQ9z1jD7bnBu9Fc2tKGC2q+uAJOQHBDRiZX1x36o7fWBs7J9ownbtO+n0/qWkvW7UPIfc37WgT6ZGR++EOJyeQDSb9UB+DZ1G6DdLDzyS+b/kBCYGsYgJbSQHuThGKRcw5xdeQf8YdNHsc6ePXrlSYMBuSIAFTGAtQo+VuALo4BX83N190NWZWbynBjhOHsmNfFWLeL6v+ynsA58zDvvAC8j5PkbOcXCMg2PZFk3q8MjI7WAG/Dp9AwP7jdGBOOQkAvlFUB+irtm16I1Zw9YBcpGTGXYmk3kQIC/Cds55l+iMI3jqhjAuaoe+am2Jw5GT3Nbz3CkE12NavmzN5+erJW7046n/CH1RO/RVa8lBLozXk9uqykkGAyRXLWlLv5jyp4RFsG5vGVzpDLnIjTWgnRy2Rr+tDKvRc7Y8AyZq10jj8DqXdnIRNtFZb+t/ZRtXcDiVnzpqx8mPcDWxgARUqx0W1QB9MeUZiNrV4qP+Ehc+BpNgATsTX8ozYKL2NtFYAHc84fG7ndxUPr+AR/iQSns7uSUufAymwDOb2+NjK27lEFocm/EE2WpyIy/Hi66MWuMKJn8RvxIcj87IM5Vh9663ziW36kR0HNenXuxmfaD8JC7tfKbrhFr7LiZCrMjrzTeGx+PmkosrkNzW94ObzwocJ7A1HokLolY+AvkTiD/q1H0cN48c5EL8Crkttsa/AXQVDmutfyku0E7jShx49XqV3MFK8IryDhYVbj7Sj2P2eBxwcXoe8T8idsKKPRcnZw1b+slFTubwUwhktrfnAt7J++jwQtLZcm3sr9LQrjRzz6cfMv9aLvgmnAGvpoaGLxM4mAEaLV7iAzQ3oU0IvD5x9ix3yF2RAAuYAOO2f7PEFWCXZ4C9Pb2UsgDeVnFSpbFK7/IWu7TPTvBqzbGdCHOJQSxiEjt6IyZmxQyEJHv6xyQsYk//moVFsN2zP6fRImjfq7/n/wFDguUQFNEwugAAAABJRU5ErkJggg==');
+  }
+
+  div.callout-important.callout-style-default .callout-caption {
+    background-color: #f7dddc
+  }
+
+  div.callout-warning {
+    border-left-color: #f0ad4e !important;
+  }
+
+  div.callout-warning .callout-icon::before {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAAETklEQVRYCeVWW2gcVRg+58yaTUnizqbipZeX4uWhBEniBaoUX1Ioze52t7sRq6APio9V9MEaoWlVsFasRq0gltaAPuxms8lu0gcviE/FFOstVbSIxgcv6SU7EZqmdc7v9+9mJtNks51NTUH84ed889/PP+cmxP+d5FIbMJmNbpREu4WUkiTtCicKny0l1pIKmBzovF2S+hIJHX8iEu3hZJ5lNZGqyRrGSIQpq15AzF28jgpeY6yk6GVdrfFqdrD6Iw+QlB8g0YS2g7dyQmXM/IDhBhT0UCiRf59lfqmmDvzRt6kByV/m4JjtzuaujMUM2c5Z2d6JdKrRb3K2q6mA+oYVz8JnDdKPmmNthzkAk/lN63sYPgevrguc72aZX/L9C6x09GYyxBgCX4NlvyGUHOKELlm5rXeR1kchuChJt4SSwyddZRXgvwMGvYo4QSlk3/zkHD8UHxwVJA6zjZZqP8v8kK8OWLnIZtLyCAJagYC4rTGW/9Pqj92N/c+LUaAj27movwbi19tk/whRCIE7Q9vyI6yvRpftAKVTdUjOW40X3h5OXsKCdmFcx0xlLJoSuQngnrJe7Kcjm4OMq9FlC7CMmScQANuNvjfP3PjGXDBaUQmbp296S5L4DrpbrHN1T87ZVEZVCzg1FF0Ft+dKrlLukI+/c9ENo+TvlTDbYFvuKPtQ9+l052rXrgKoWkDAFnvh0wTOmYn8R5f4k/jN/fZiCM1tQx9jQQ4ANhqG4hiL0qIFTGViG9DKB7GYzgubnpofgYRwO+DFjh0Zin2m4b/97EDkXkc+f6xYAPX0KK2I/7fUQuwzuwo/L3AkcjugPNixC8cHf0FyPjWlItmLxWw4Ou9YsQCr5fijMGoD/zpdRy95HRysyXA74MWOnscpO4j2y3HAVisw85hX5+AFBRSHt4ShfLFkIMXTqyKFc46xdzQM6XbAi702a7sy04J0+feReMFKp5q9esYLCqAZYw/k14E/xcLLsFElaornTuJB0svMuJINy8xkIYuL+xPAlWRceH6+HX7THJ0djLUom46zREu7tTkxwmf/FdOZ/sh6Q8qvEAiHpm4PJ4a/doJe0gH1t+aHRgCzOvBvJedEK5OFE5jpm4AGP2a8Dxe3gGJ/pAutug9Gp6he92CsSsWBaEcxGx0FHytmIpuqGkOpldqNYQK8cSoXvd+xLxXADw0kf6UkJNFtdo5MOgaLjiQOQHcn+A6h5NuL2s0qsC2LOM75PcF3yr5STuBSAcGG+meA14K/CI21HcS4LBT6tv0QAh8Dr5l93AhZzG5ZJ4VxAqdZUEl9z7WJ4aN+svMvwHHL21UKTd1mqvChH7/Za5xzXBBKrUcB0TQ+Ulgkfbi/H/YT5EptrGzsEK7tR1B7ln9BBwckYfMiuSqklSznIuoIIOM42MQO+QnduCoFCI0bpkzjCjddHPN/F+2Yu+sd9bKNpVwHhbS3LluK/0zgfwD0xYI5dXuzlQAAAABJRU5ErkJggg==');
+  }
+
+  div.callout-warning.callout-style-default .callout-caption {
+    background-color: #fcefdc
+  }
+
+  div.callout-tip {
+    border-left-color: #02b875 !important;
+  }
+
+  div.callout-tip .callout-icon::before {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAADr0lEQVRYCe1XTWgTQRj9ZjZV8a9SPIkKgj8I1bMHsUWrqYLVg4Ue6v9BwZOxSYsIerFao7UiUryIqJcqgtpimhbBXoSCVxUFe9CTiogUrUp2Pt+3aUI2u5vdNh4dmMzOzHvvezuz8xNFM0mjnbXaNu1MvFWRXkXEyE6aYOYJpdW4IXuA4r0fo8qqSMDBU0v1HJUgVieAXxzCsdE/YJTdFcVIZQNMyhruOMJKXYFoLfIfIvVIMWdsrd+Rpd86ZmyzzjJmLStqRn0v8lzkb4rVIXvnpScOJuAn2ACC65FkPzEdEy4TPWRLJ2h7z4cArXzzaOdKlbOvKKX25Wl00jSnrwVxAg3o4dRxhO13RBSdNvH0xSARv3adTXbBdTf64IWO2vH0LT+cv4GR1DJt+DUItaQogeBX/chhbTBxEiZ6gftlDNXTrvT7co4ub5A6gp9HIcHvzTa46OS5fBeP87Qm0fQkr4FsYgVQ7Qg+ZayaDg9jhg1GkWj8RG6lkeSacrrHgDaxdoBiZPg+NXV/KifMuB6//JmYH4CntVEHy/keA6x4h4CU5oFy8GzrBS18cLJMXcljAKB6INjWsRcuZBWVaS3GDrqB7rdapVIeA+isQ57Eev9eCqzqOa81CY05VLd6SamW2wA2H3SiTbnbSxmzfp7WtKZkqy4mdyAlGx7ennghYf8voqp9cLSgKdqNfa6RdRsAAkPwRuJZNbpByn+RrJi1RXTwdi8RQF6ymDwGMAtZ6TVE+4uoKh+MYkcLsT0Hk8eAienbiGdjJHZTpmNjlbFJNKDVAp2fJlYju6IreQxQ08UJDNYdoLSl6AadO+fFuCQqVMB1NJwPm69T04Wv5WhfcWyfXQB+wXRs1pt+nCknRa0LVzSA/2B+a9+zQJadb7IyyV24YAxKp2Jqs3emZTuNnKxsah+uabKbMk7CbTgJx/zIgQYErIeTKRQ9yD9wxVof5YolPHqaWo7TD6tJlh7jQnK5z2n3+fGdggIOx2kaa2YI9QWarc5Ce1ipNWMKeSG4DysFF52KBmTNMmn5HqCFkwy34rDg05gDwgH3bBi+sgFhN/e8QvRn8kbamCOhgrZ9GJhFDgfcMHzFb6BAtjKpFhzTjwv1KCVuxHvCbsSiEz4CANnj84cwHdFXAbAOJ4LTSAawGWFn5tDhLMYz6nWeU2wJfIhmIJBefcd/A5FWQWGgrWzyORZ3Q6HuV+Jf0Bj+BTX69fm1zWgK7By1YTXchFDORywnfQ7GpzOo6S+qECrsx2ifVQAAAABJRU5ErkJggg==');
+  }
+
+  div.callout-tip.callout-style-default .callout-caption {
+    background-color: #ccf1e3
+  }
+
+  div.callout-caution {
+    border-left-color: #fd7e14 !important;
+  }
+
+  div.callout-caution .callout-icon::before {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAIKADAAQAAAABAAAAIAAAAACshmLzAAACV0lEQVRYCdVWzWoUQRCuqp2ICBLJXgITZL1EfQDBW/bkzUMUD7klD+ATSHBEfAIfQO+iXsWDxJsHL96EHAwhgzlkg8nBg25XWb0zIb0zs9muYYWkoKeru+vn664fBqElyZNuyh167NXJ8Ut8McjbmEraKHkd7uAnAFku+VWdb3reSmRV8PKSLfZ0Gjn3a6Xlcq9YGb6tADjn+lUfTXtVmaZ1KwBIvFI11rRXlWlatwIAAv2asaa9mlB9wwygiDX26qaw1yYPzFXg2N1GgG0FMF8Oj+VIx7E/03lHx8UhvYyNZLN7BwSPgekXXLribw7w5/c8EF+DBK5idvDVYtEEwMeYefjjLAdEyQ3M9nfOkgnPTEkYU+sxMq0BxNR6jExrAI31H1rzvLEfRIdgcv1XEdj6QTQAS2wtstEALLG1yEZ3QhH6oDX7ExBSFEkFINXH98NTrme5IOaaA7kIfiu2L8A3qhH9zRbukdCqdsA98TdElyeMe5BI8Rs2xHRIsoTSSVFfCFCWGPn9XHb4cdobRIWABNf0add9jakDjQJpJ1bTXOJXnnRXHRf+dNL1ZV1MBRCXhMbaHqGI1JkKIL7+i8uffuP6wVQAzO7+qVEbF6NbS0LJureYcWXUUhH66nLR5rYmva+2tjRFtojkM2aD76HEGAD3tPtKM309FJg5j/K682ywcWJ3PASCcycH/22u+Bh7Aa0ehM2Fu4z0SAE81HF9RkB21c5bEn4Dzw+/qNOyXr3DCTQDMBOdhi4nAgiFDGCinIa2owCEChUwD8qzd03PG+qdW/4fDzjUMcE1ZpIAAAAASUVORK5CYII=');
+  }
+
+  div.callout-caution.callout-style-default .callout-caption {
+    background-color: #ffe5d0
+  }
+
+  </style>
+  <style type="text/css">
+    .reveal div.sourceCode {
+      margin: 0;
+      overflow: auto;
+    }
+    .reveal div.hanging-indent {
+      margin-left: 1em;
+      text-indent: -1em;
+    }
+    .reveal .slide:not(.center) {
+      height: 100%;
+    }
+    .reveal .slide.scrollable {
+      overflow-y: auto;
+    }
+    .reveal .footnotes {
+      height: 100%;
+      overflow-y: auto;
+    }
+    .reveal .slide .absolute {
+      position: absolute;
+      display: block;
+    }
+    .reveal .footnotes ol {
+      counter-reset: ol;
+      list-style-type: none; 
+      margin-left: 0;
+    }
+    .reveal .footnotes ol li:before {
+      counter-increment: ol;
+      content: counter(ol) ". "; 
+    }
+    .reveal .footnotes ol li > p:first-child {
+      display: inline-block;
+    }
+    .reveal .slide ul,
+    .reveal .slide ol {
+      margin-bottom: 0.5em;
+    }
+    .reveal .slide ul li,
+    .reveal .slide ol li {
+      margin-top: 0.4em;
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide ul[role="tablist"] li {
+      margin-bottom: 0;
+    }
+    .reveal .slide ul li > *:first-child,
+    .reveal .slide ol li > *:first-child {
+      margin-block-start: 0;
+    }
+    .reveal .slide ul li > *:last-child,
+    .reveal .slide ol li > *:last-child {
+      margin-block-end: 0;
+    }
+    .reveal .slide .columns:nth-child(3) {
+      margin-block-start: 0.8em;
+    }
+    .reveal blockquote {
+      box-shadow: none;
+    }
+    .reveal .tippy-content>* {
+      margin-top: 0.2em;
+      margin-bottom: 0.7em;
+    }
+    .reveal .tippy-content>*:last-child {
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide > img.stretch.quarto-figure-center,
+    .reveal .slide > img.r-stretch.quarto-figure-center {
+      display: block;
+      margin-left: auto;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-left,
+    .reveal .slide > img.r-stretch.quarto-figure-left  {
+      display: block;
+      margin-left: 0;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-right,
+    .reveal .slide > img.r-stretch.quarto-figure-right  {
+      display: block;
+      margin-left: auto;
+      margin-right: 0; 
+    }
+  </style>
+</head>
+<body class="quarto-dark">
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide" class="center">
+  <h1 class="title">BTYD Modelling with Stan</h1>
+  <p class="author">Mick Cooney <a href="mailto:mickcooney@gmail.com" class="email">mickcooney@gmail.com</a></p>
+</section>
+
+<section>
+<section id="background" class="title-slide slide level1 center">
+<h1>Background</h1>
+
+</section>
+<section class="slide level3 center">
+
+<p>Before I Begin…</p>
+</section>
+<section class="slide level3 center">
+
+<p>This talk is brought to you in association with</p>
+<p><br>
+</p>
+
+<img data-src="img/captain_hindsight.png" class="r-stretch"></section>
+<section id="bayesian-mixer" class="title-slide slide level2 center">
+<h2>Bayesian Mixer</h2>
+<p><br>
+</p>
+
+<img data-src="img/glenn_meyers.png" class="r-stretch"></section>
+
+<section id="dublin-data-science" class="title-slide slide level2 center">
+<h2>Dublin Data Science</h2>
+
+<img data-src="img/dds_pedro.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p><a href="https://www.youtube.com/playlist?list=PLBNUi5C90QfZ5t1JrgAtz_LXvCB7Eh5iu">Data Science: Soup to Nuts</a></p>
+<p><br>
+</p>
+
+<img data-src="img/youtube_playlist.png" class="r-stretch"></section>
+
+<section id="goals" class="title-slide slide level2 center">
+<h2>Goals</h2>
+<p><br>
+</p>
+<ol type="1">
+<li>Teach Bayes</li>
+<li>Use realistic problem</li>
+<li>Learn BTYD</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+<p>How hard can it be???</p>
+</section>
+</section>
+<section>
+<section id="customer-lifetime-value" class="title-slide slide level1 center">
+<h1>Customer Lifetime Value</h1>
+
+</section>
+<section class="slide level3 center">
+
+<p>UCI Machine Learning Repository</p>
+<p><br>
+</p>
+<p>Online Retail II</p>
+<p><br>
+</p>
+<p><a href="">https://archive-beta.ics.uci.edu/dataset/502/online+retail+ii</a></p>
+</section>
+<section id="transaction-data" class="title-slide slide level2 center">
+<h2>Transaction Data</h2>
+<p><br>
+</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 8
+  Invoice StockCode Descript…¹ Quant…² InvoiceDate         Price Custo…³ Country
+  &lt;chr&gt;   &lt;chr&gt;     &lt;chr&gt;        &lt;dbl&gt; &lt;dttm&gt;              &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;  
+1 489434  85048     "15CM CHR…      12 2009-12-01 07:45:00  6.95 13085   United…
+2 489434  79323P    "PINK CHE…      12 2009-12-01 07:45:00  6.75 13085   United…
+3 489434  79323W    "WHITE CH…      12 2009-12-01 07:45:00  6.75 13085   United…
+4 489434  22041     "RECORD F…      48 2009-12-01 07:45:00  2.1  13085   United…
+5 489434  21232     "STRAWBER…      24 2009-12-01 07:45:00  1.25 13085   United…
+# … with abbreviated variable names ¹​Description, ²​Quantity, ³​`Customer ID`</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 22
+  row_id     invoice_id stock…¹ descr…² quant…³ invoice_…⁴ price custo…⁵ country
+  &lt;chr&gt;      &lt;chr&gt;      &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;  
+1 ROW0000001 489434     85048   "15CM …      12 2009-12-01  6.95 13085   United…
+2 ROW0000002 489434     79323P  "PINK …      12 2009-12-01  6.75 13085   United…
+3 ROW0000003 489434     79323W  "WHITE…      12 2009-12-01  6.75 13085   United…
+4 ROW0000004 489434     22041   "RECOR…      48 2009-12-01  2.1  13085   United…
+5 ROW0000005 489434     21232   "STRAW…      24 2009-12-01  1.25 13085   United…
+# … with 13 more variables: stock_code_upr &lt;chr&gt;, cancellation &lt;lgl&gt;,
+#   invoice_dttm &lt;dttm&gt;, invoice_month &lt;chr&gt;, invoice_dow &lt;chr&gt;,
+#   invoice_dom &lt;chr&gt;, invoice_hour &lt;chr&gt;, invoice_minute &lt;chr&gt;,
+#   invoice_woy &lt;chr&gt;, invoice_ym &lt;chr&gt;, stock_value &lt;dbl&gt;,
+#   invoice_monthprop &lt;dbl&gt;, exclude &lt;lgl&gt;, and abbreviated variable names
+#   ¹​stock_code, ²​description, ³​quantity, ⁴​invoice_date, ⁵​customer_id</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 4
+  tnx_timestamp       customer_id invoice_id total_spend
+  &lt;dttm&gt;              &lt;chr&gt;       &lt;chr&gt;            &lt;dbl&gt;
+1 2009-12-01 07:45:00 13085       489434            505.
+2 2009-12-01 07:45:59 13085       489435            146.
+3 2009-12-01 09:05:59 13078       489436            630.
+4 2009-12-01 09:08:00 15362       489437            311.
+5 2009-12-01 09:23:59 18102       489438           2286.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_transaction_data-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_transaction_data_more-1.png" width="960" class="r-stretch"></section>
+
+<section id="rfm-models" class="title-slide slide level2 center">
+<h2>RFM Models</h2>
+<p><br>
+</p>
+<p>Recency</p>
+<p><br>
+</p>
+<p>Frequency</p>
+<p><br>
+</p>
+<p>Monetary</p>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 9
+  customer_id date_most_recent    recen…¹ trans…² amount recen…³ frequ…⁴ monet…⁵
+  &lt;chr&gt;       &lt;dttm&gt;                &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;   &lt;int&gt;   &lt;int&gt;   &lt;int&gt;
+1 12346       2010-06-28 13:53:00   186.       11   373.       2       5       2
+2 12347       2010-12-07 14:56:59    24.4       2  1323.       5       2       4
+3 12348       2010-12-16 19:08:59    15.2       2   913.       5       2       3
+4 12349       2010-10-28 08:23:00    64.7       3  2671.       3       3       5
+5 12351       2010-11-29 15:23:00    32.4       1   301.       4       1       2
+# … with 1 more variable: rfm_score &lt;dbl&gt;, and abbreviated variable names
+#   ¹​recency_days, ²​transaction_count, ³​recency_score, ⁴​frequency_score,
+#   ⁵​monetary_score</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<p>Not much statistics…</p>
+</section>
+<section class="slide level3 center">
+
+<p>Censored data</p>
+</section>
+<section class="slide level3 center">
+
+<p>Survival analysis?</p>
+</section>
+</section>
+<section>
+<section id="btyd-models" class="title-slide slide level1 center">
+<h1>BTYD Models</h1>
+
+</section>
+<section class="slide level3 center">
+
+<p>Buy Till You Die</p>
+</section>
+<section class="slide level3 center">
+
+<p>Counting Your Customers: Who Are They and What Will They Do Next?</p>
+<p><br>
+</p>
+<p>(SMC Paper)</p>
+</section>
+<section class="slide level3 center">
+
+<p>Peter Fader</p>
+<p><br>
+</p>
+<p>Bruce Hardie</p>
+<p><br>
+</p>
+<p><a href="">http://www.brucehardie.com</a></p>
+</section>
+<section class="slide level3 center">
+
+<p>Statistical distributions of transactions</p>
+<p><br>
+</p>
+
+<img data-src="img/clv_pnbd_arrow.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p><span class="math display">\[
+\begin{eqnarray*}
+x &amp;=&amp; \text{count of transactions}         \\
+t_x &amp;=&amp; \text{time from birth to last transaction}    \\
+T   &amp;=&amp; \text{time from birth to observation time}
+\end{eqnarray*}
+\]</span></p>
+<p><span class="math display">\[
+\text{Data: } (x, t_x, T)
+\]</span></p>
+</section>
+<section id="pnbd-models" class="title-slide slide level2 center">
+<h2>P/NBD Models</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+x &amp;\sim&amp; \text{Poisson}(\lambda)          \\
+\tau &amp;\sim&amp; \text{Exponential}(\mu)       \\
+\\
+\lambda &amp;\sim&amp; \text{Gamma}(\alpha, r)    \\
+\mu &amp;\sim&amp; \text{Gamma}(s, \beta)         \\
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<p><span class="math display">\[
+\text{Parameters: } (\alpha, r, s, \beta)
+\]</span></p>
+</section>
+
+<section id="bgnbd-models" class="title-slide slide level2 center">
+<h2>BG/NBD Models</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+x &amp;\sim&amp; \text{Poisson}(\lambda)                  \\
+P(\text{alive}, k) &amp;\sim&amp; \text{Geometric}(p, k)  \\
+\\
+\lambda &amp;\sim&amp; \text{Gamma}(\alpha, r)            \\
+p &amp;\sim&amp; \text{Beta}(a, b)                        \\
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<p><span class="math display">\[
+\text{Parameters: } (\alpha, r, a, b)
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<p>But what about monetary?</p>
+</section>
+
+<section id="gg-spend-models" class="title-slide slide level2 center">
+<h2>G/G Spend Models</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+v &amp;\sim&amp; \text{Gamma}(p, \nu)     \\
+\\
+p &amp;\sim&amp; \text{Gamma}(q, \gamma)  \\
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<p><span class="math display">\[
+\text{Parameters: } (\nu, q, \gamma)
+\]</span></p>
+</section>
+
+<section id="first-attempts" class="title-slide slide level2 center">
+<h2>First Attempts</h2>
+<p><br>
+</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Pareto NBD Standard Model
+
+Call:
+pnbd(clv.data = customer_clvdata, start.params.model = c(r = 0.5, 
+    alpha = 10, s = 1, beta = 20))
+
+Coefficients:
+        r      alpha          s       beta  
+  0.84195   10.59826    0.05091  175.61767  
+KKT1: TRUE 
+KKT2: TRUE 
+
+Used Options:
+Correlation:     FALSE </code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/notsure_fry.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>To Stan!!!</p>
+
+<img data-src="img/onward.png" class="r-stretch"></section>
+</section>
+<section>
+<section id="stan-code" class="title-slide slide level1 center">
+<h1>Stan Code</h1>
+
+</section>
+<section id="likelihood-model" class="title-slide slide level2 center">
+<h2>Likelihood Model</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+LL(\lambda, \mu \, | \, x, t_x, T) = x \log \lambda + \log \mu - \log(\lambda + \mu) \\
+  + \, \text{log_sum_exp}(A, \, B)\\
+\\
+A = -(\lambda + \mu) \, t_x \;\;\;\; B = \log \lambda - (\lambda + \mu) \, T
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+The E-BFMI, 0.01, is below the nominal threshold of 0.30 which suggests that HMC may have trouble exploring the target distribution.
+If possible, try to reparameterize the model.
+
+The following parameters had fewer than 0.001 effective draws per transition:
+  s, beta
+Such low values indicate that the effective sample size estimators may be biased high and actual performance may be substantially lower than quoted.
+
+The following parameters had split R-hat greater than 1.05:
+  s, beta
+Such high values indicate incomplete mixing and biased estimation.
+You should consider regularizating your model with additional prior information or a more effective parameterization.
+
+Processing complete.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_fullhier_traceplots-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_fullhier_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/eleanor_awesome.png" class="r-stretch"><p>Well that doesn’t look awesome…</p>
+</section>
+
+<section id="simulation-based-calibration" class="title-slide slide level2 center">
+<h2>Simulation-Based Calibration</h2>
+<p><br>
+</p>
+<ol type="1">
+<li>Set values for parameters</li>
+<li>Use statistical model to generate data</li>
+<li>Fit model with model</li>
+<li>Compare fitted values to ‘real’ values</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+<p>But before we get to that…</p>
+</section>
+<section id="gamma-distribution" class="slide level3 center">
+<h3>Gamma Distribution</h3>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_gamma_distribution-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Reparameterise</p>
+<p><br>
+</p>
+<p><span class="math display">\[
+\text{Gamma}(r, \alpha) \rightarrow \text{Gamma}(\mu, c_v)
+\]</span></p>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+\mu   &amp;=&amp; \text{ Mean} \\
+c_v   &amp;=&amp; \text{ Coefficient of Variation}
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<p><span class="math display">\[
+\begin{eqnarray*}
+r      &amp;=&amp; \frac{1}{c_v^2}      \\
+\\
+\alpha &amp;=&amp; \frac{1}{\mu \, c_v^2}
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_reparam_gamma_distribution-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Use this parameterisation from now on</p>
+</section>
+</section>
+<section>
+<section id="models-of-synthetic-data" class="title-slide slide level1 center">
+<h1>Models of Synthetic Data</h1>
+
+</section>
+<section id="long-timeframe-data" class="title-slide slide level2 center">
+<h2>Long Timeframe Data</h2>
+<p><br>
+</p>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_longframe_synth_transaction_data-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_longframe_synth_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/star_wars_fail.png" class="r-stretch"></section>
+
+<section id="fixed-priors" class="title-slide slide level2 center">
+<h2>Fixed Priors</h2>
+<p><br>
+</p>
+<p>What if we ignore hierarchy?</p>
+<p><br>
+</p>
+<p>Fix priors</p>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_fixedprior_longframe_synth_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<div class="cell">
+
+</div>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_fixedprior_longframe_synth_data_boxplot-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_fixedprior_longframe_synth_data_qvals-1.png" width="960" class="r-stretch"></section>
+
+<section id="hierarchical-means-model" class="title-slide slide level2 center">
+<h2>Hierarchical-Means Model</h2>
+<p><br>
+</p>
+<ol type="1">
+<li>Fix both <span class="math inline">\(c_v\)</span> values</li>
+<li>Hierarchical priors for <span class="math inline">\(E(\lambda)\)</span> and <span class="math inline">\(E(\mu)\)</span>.</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>model {
+  // model the hyper-prior
+  lambda_mn ~ lognormal(lambda_mn_p1, lambda_mn_p2);
+  mu_mn     ~ lognormal(mu_mn_p1,     mu_mn_p2);
+
+  // setting priors
+  lambda ~ gamma(r, alpha);
+  mu     ~ gamma(s,  beta);
+
+  target += calculate_pnbd_loglik(n, lambda, mu, x, t_x, T_cal);
+}</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_hiermeans_longframe_synth_traceplots-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_hiermeans_longframe_synth_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<div class="cell">
+
+</div>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_hiermeans_longframe_synth_data_boxplot-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_hiermeans_longframe_synth_data_qvals-1.png" width="960" class="r-stretch"></section>
+</section>
+<section>
+<section id="models-on-real-world-data" class="title-slide slide level1 center">
+<h1>Models on Real-World Data</h1>
+
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_realworld_transaction_data_redux-1.png" width="960" class="r-stretch"></section>
+<section id="fixed-prior-model" class="title-slide slide level2 center">
+<h2>Fixed Prior Model</h2>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_fixedprior_extdata_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Cannot compare to ‘real’ values</p>
+</section>
+<section class="slide level3 center">
+
+<ol type="1">
+<li>Count of customers transacting</li>
+<li>Count of all transactions</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_fixed_extdata_custcount.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_fixed_extdata_tnxcount.png" class="r-stretch"></section>
+
+<section id="hierarchical-lambda-model" class="title-slide slide level2 center">
+<h2>Hierarchical-Lambda Model</h2>
+
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_lambmn_extdata_custcount.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_lambmn_extdata_tnxcount.png" class="r-stretch"></section>
+
+<section id="bgnbd-model" class="title-slide slide level2 center">
+<h2>BG/NBD Model</h2>
+
+</section>
+<section class="slide level3 center">
+
+<p>No explicit lifetime model</p>
+<p><br>
+</p>
+<p>Chance of lapsing, <span class="math inline">\(p\)</span>, after transaction</p>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/bgnbd_hiermeans_extdata_custcount.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/bgnbd_hiermeans_extdata_tnxcount.png" class="r-stretch"></section>
+</section>
+<section>
+<section id="conclusion" class="title-slide slide level1 center">
+<h1>Conclusion</h1>
+
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/captain_hindsight_sidekicks.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Lessons Learned</p>
+</section>
+<section id="workshop" class="title-slide slide level2 center">
+<h2>Workshop</h2>
+
+</section>
+<section class="slide level3 center">
+
+<p>Bad Idea</p>
+</section>
+<section class="slide level3 center">
+
+<p>Better to use brms / rstanarm</p>
+</section>
+<section class="slide level3 center">
+
+<p>Useful approach <span class="math inline">\(\rightarrow\)</span> Problem worth solving</p>
+</section>
+
+<section id="btyd-models-1" class="title-slide slide level2 center">
+<h2>BTYD Models</h2>
+
+</section>
+<section class="slide level3 center">
+
+<p>Re-do Data Generation</p>
+</section>
+<section class="slide level3 center">
+
+<p>Pay attention to seasonality</p>
+</section>
+<section class="slide level3 center">
+
+<p>Add monetary modelling</p>
+</section>
+</section>
+<section id="thank-you" class="title-slide slide level1 center">
+<h1>Thank You!</h1>
+<p><br>
+</p>
+<p>This talk…</p>
+<p><a href="">https://github.com/kaybenleroll/data_workshops/talk_bm_btydbayes_202211</a></p>
+<p><br>
+</p>
+<p>Workshop…</p>
+<p><a href="">https://github.com/kaybenleroll/data_workshops/ws_clvbayes_202201</a></p>
+<div class="footer footer-default">
+
+</div>
+</section>
+    </div>
+  </div>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/dist/reveal.js"></script>
+  <!-- reveal.js plugins -->
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.js"></script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/pdf-export/pdfexport.js"></script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/reveal-menu/menu.js"></script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/reveal-menu/quarto-menu.js"></script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/quarto-support/support.js"></script>
+  
+
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/notes/notes.js"></script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/search/search.js"></script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/zoom/zoom.js"></script>
+  <script src="btyd_bayes_talk_files/libs/revealjs/plugin/math/math.js"></script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+'controlsAuto': false,
+'previewLinksAuto': false,
+'smaller': false,
+'pdfSeparateFragments': false,
+'autoAnimateEasing': "ease",
+'autoAnimateDuration': 1,
+'autoAnimateUnmatched': true,
+'menu': {"side":"left","useTextContentForMissingTitles":true,"markers":false,"loadIcons":false,"custom":[{"title":"Tools","icon":"<i class=\"fas fa-gear\"></i>","content":"<ul class=\"slide-menu-items\">\n<li class=\"slide-tool-item active\" data-item=\"0\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.fullscreen(event)\"><kbd>f</kbd> Fullscreen</a></li>\n<li class=\"slide-tool-item\" data-item=\"1\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.speakerMode(event)\"><kbd>s</kbd> Speaker View</a></li>\n<li class=\"slide-tool-item\" data-item=\"2\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.overview(event)\"><kbd>o</kbd> Slide Overview</a></li>\n<li class=\"slide-tool-item\" data-item=\"3\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.overview(event)\"><kbd>e</kbd> PDF Export Mode</a></li>\n<li class=\"slide-tool-item\" data-item=\"4\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.keyboardHelp(event)\"><kbd>?</kbd> Keyboard Help</a></li>\n</ul>"}],"openButton":true},
+'smaller': false,
+ 
+        // Display controls in the bottom right corner
+        controls: true,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: false,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'edges',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: 'h.v',
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: true,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: true,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: true,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: false,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'default',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: false,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'none',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'none',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1050,
+
+        height: 700,
+
+        // Factor of the display size that should remain empty around the content
+        margin: 0.1,
+
+        math: {
+          mathjax: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          tex2jax: {
+            inlineMath: [['\\(','\\)']],
+            displayMath: [['\\[','\\]']],
+            balanceBraces: true,
+            processEscapes: false,
+            processRefs: true,
+            processEnvironments: true,
+            preview: 'TeX',
+            skipTags: ['script','noscript','style','textarea','pre','code'],
+            ignoreClass: 'tex2jax_ignore',
+            processClass: 'tex2jax_process'
+          },
+        },
+
+        // reveal.js plugins
+        plugins: [QuartoLineHighlight, PdfExport, RevealMenu, QuartoSupport,
+
+          RevealMath,
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    
+    <script>
+      // htmlwidgets need to know to resize themselves when slides are shown/hidden.
+      // Fire the "slideenter" event (handled by htmlwidgets.js) when the current
+      // slide changes (different for each slide format).
+      (function () {
+        function fireSlideChanged(previousSlide, currentSlide) {
+
+          // dispatch for htmlwidgets
+          const event = window.document.createEvent("Event");
+          event.initEvent("slideenter", true, true);
+          window.document.dispatchEvent(event);
+
+          // dispatch for shiny
+          if (window.jQuery) {
+            if (previousSlide) {
+              window.jQuery(previousSlide).trigger("hidden");
+            }
+            if (currentSlide) {
+              window.jQuery(currentSlide).trigger("shown");
+            }
+          }
+        }
+
+        // hookup for reveal
+        if (window.Reveal) {
+          window.Reveal.addEventListener("slidechanged", function(event) {
+            fireSlideChanged(event.previousSlide, event.currentSlide);
+          });
+        }
+
+        // hookup for slidy
+        if (window.w3c_slidy) {
+          window.w3c_slidy.add_observer(function (slide_num) {
+            // slide_num starts at position 1
+            fireSlideChanged(null, w3c_slidy.slides[slide_num - 1]);
+          });
+        }
+
+      })();
+    </script>
+
+    <script id="quarto-html-after-body" type="application/javascript">
+    window.document.addEventListener("DOMContentLoaded", function (event) {
+      const toggleBodyColorMode = (bsSheetEl) => {
+        const mode = bsSheetEl.getAttribute("data-mode");
+        const bodyEl = window.document.querySelector("body");
+        if (mode === "dark") {
+          bodyEl.classList.add("quarto-dark");
+          bodyEl.classList.remove("quarto-light");
+        } else {
+          bodyEl.classList.add("quarto-light");
+          bodyEl.classList.remove("quarto-dark");
+        }
+      }
+      const toggleBodyColorPrimary = () => {
+        const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+        if (bsSheetEl) {
+          toggleBodyColorMode(bsSheetEl);
+        }
+      }
+      toggleBodyColorPrimary();  
+      const tabsets =  window.document.querySelectorAll(".panel-tabset-tabby")
+      tabsets.forEach(function(tabset) {
+        const tabby = new Tabby('#' + tabset.id);
+      });
+      const clipboard = new window.ClipboardJS('.code-copy-button', {
+        target: function(trigger) {
+          return trigger.previousElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        // button target
+        const button = e.trigger;
+        // don't keep focus
+        button.blur();
+        // flash "checked"
+        button.classList.add('code-copy-button-checked');
+        var currentTitle = button.getAttribute("title");
+        button.setAttribute("title", "Copied!");
+        setTimeout(function() {
+          button.setAttribute("title", currentTitle);
+          button.classList.remove('code-copy-button-checked');
+        }, 1000);
+        // clear code selection
+        e.clearSelection();
+      });
+      function tippyHover(el, contentFn) {
+        const config = {
+          allowHTML: true,
+          content: contentFn,
+          maxWidth: 500,
+          delay: 100,
+          arrow: false,
+          appendTo: function(el) {
+              return el.closest('section.slide') || el.parentElement;
+          },
+          interactive: true,
+          interactiveBorder: 10,
+          theme: 'quarto-reveal',
+          placement: 'bottom-start'
+        };
+          config['offset'] = [0,0];
+          config['maxWidth'] = 700;
+        window.tippy(el, config); 
+      }
+      const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+      for (var i=0; i<noterefs.length; i++) {
+        const ref = noterefs[i];
+        tippyHover(ref, function() {
+          // use id or data attribute instead here
+          let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+          try { href = new URL(href).hash; } catch {}
+          const id = href.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          return note.innerHTML;
+        });
+      }
+      var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+      for (var i=0; i<bibliorefs.length; i++) {
+        const ref = bibliorefs[i];
+        const cites = ref.parentNode.getAttribute('data-cites').split(' ');
+        tippyHover(ref, function() {
+          var popup = window.document.createElement('div');
+          cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    });
+    </script>
+    
+
+</body></html>
