@@ -18,7 +18,7 @@ PROJECT_FOLDER=btydtalk
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
 GITHUB_USER=$(shell gh config get gh_user)
 
-CONTAINER_NAME=clv-workshop
+CONTAINER_NAME=btyd-talk
 
 ### Project build targets
 .SUFFIXES: .Rmd .qmd .html .dot .png

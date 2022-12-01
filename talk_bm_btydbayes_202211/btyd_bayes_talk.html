@@ -362,6 +362,21 @@
 </p>
 
 <img data-src="img/youtube_playlist.png" class="r-stretch"></section>
+
+<section id="goals" class="title-slide slide level2 center">
+<h2>Goals</h2>
+<p><br>
+</p>
+<ol type="1">
+<li>Teach Bayes</li>
+<li>Use realistic problem</li>
+<li>Learn BTYD</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+<p>How hard can it be???</p>
+</section>
 </section>
 <section>
 <section id="customer-lifetime-value" class="title-slide slide level1 center">
@@ -370,7 +385,77 @@
 </section>
 <section class="slide level3 center">
 
+<p>UCI Machine Learning Repository</p>
+<p><br>
+</p>
+<p>Online Retail II</p>
+<p><br>
+</p>
+<p><a href="">https://archive-beta.ics.uci.edu/dataset/502/online+retail+ii</a></p>
 </section>
+<section id="transaction-data" class="title-slide slide level2 center">
+<h2>Transaction Data</h2>
+<p><br>
+</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 8
+  Invoice StockCode Descript…¹ Quant…² InvoiceDate         Price Custo…³ Country
+  &lt;chr&gt;   &lt;chr&gt;     &lt;chr&gt;        &lt;dbl&gt; &lt;dttm&gt;              &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;  
+1 489434  85048     "15CM CHR…      12 2009-12-01 07:45:00  6.95 13085   United…
+2 489434  79323P    "PINK CHE…      12 2009-12-01 07:45:00  6.75 13085   United…
+3 489434  79323W    "WHITE CH…      12 2009-12-01 07:45:00  6.75 13085   United…
+4 489434  22041     "RECORD F…      48 2009-12-01 07:45:00  2.1  13085   United…
+5 489434  21232     "STRAWBER…      24 2009-12-01 07:45:00  1.25 13085   United…
+# … with abbreviated variable names ¹​Description, ²​Quantity, ³​`Customer ID`</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 22
+  row_id     invoice_id stock…¹ descr…² quant…³ invoice_…⁴ price custo…⁵ country
+  &lt;chr&gt;      &lt;chr&gt;      &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt; &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;  
+1 ROW0000001 489434     85048   "15CM …      12 2009-12-01  6.95 13085   United…
+2 ROW0000002 489434     79323P  "PINK …      12 2009-12-01  6.75 13085   United…
+3 ROW0000003 489434     79323W  "WHITE…      12 2009-12-01  6.75 13085   United…
+4 ROW0000004 489434     22041   "RECOR…      48 2009-12-01  2.1  13085   United…
+5 ROW0000005 489434     21232   "STRAW…      24 2009-12-01  1.25 13085   United…
+# … with 13 more variables: stock_code_upr &lt;chr&gt;, cancellation &lt;lgl&gt;,
+#   invoice_dttm &lt;dttm&gt;, invoice_month &lt;chr&gt;, invoice_dow &lt;chr&gt;,
+#   invoice_dom &lt;chr&gt;, invoice_hour &lt;chr&gt;, invoice_minute &lt;chr&gt;,
+#   invoice_woy &lt;chr&gt;, invoice_ym &lt;chr&gt;, stock_value &lt;dbl&gt;,
+#   invoice_monthprop &lt;dbl&gt;, exclude &lt;lgl&gt;, and abbreviated variable names
+#   ¹​stock_code, ²​description, ³​quantity, ⁴​invoice_date, ⁵​customer_id</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 4
+  tnx_timestamp       customer_id invoice_id total_spend
+  &lt;dttm&gt;              &lt;chr&gt;       &lt;chr&gt;            &lt;dbl&gt;
+1 2009-12-01 07:45:00 13085       489434            505.
+2 2009-12-01 07:45:59 13085       489435            146.
+3 2009-12-01 09:05:59 13078       489436            630.
+4 2009-12-01 09:08:00 15362       489437            311.
+5 2009-12-01 09:23:59 18102       489438           2286.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_transaction_data-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_transaction_data_more-1.png" width="960" class="r-stretch"></section>
+
 <section id="rfm-models" class="title-slide slide level2 center">
 <h2>RFM Models</h2>
 <p><br>
@@ -383,34 +468,594 @@
 </p>
 <p>Monetary</p>
 </section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 5 × 9
+  customer_id date_most_recent    recen…¹ trans…² amount recen…³ frequ…⁴ monet…⁵
+  &lt;chr&gt;       &lt;dttm&gt;                &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;   &lt;int&gt;   &lt;int&gt;   &lt;int&gt;
+1 12346       2010-06-28 13:53:00   186.       11   373.       2       5       2
+2 12347       2010-12-07 14:56:59    24.4       2  1323.       5       2       4
+3 12348       2010-12-16 19:08:59    15.2       2   913.       5       2       3
+4 12349       2010-10-28 08:23:00    64.7       3  2671.       3       3       5
+5 12351       2010-11-29 15:23:00    32.4       1   301.       4       1       2
+# … with 1 more variable: rfm_score &lt;dbl&gt;, and abbreviated variable names
+#   ¹​recency_days, ²​transaction_count, ³​recency_score, ⁴​frequency_score,
+#   ⁵​monetary_score</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<p>Not much statistics…</p>
+</section>
+<section class="slide level3 center">
+
+<p>Censored data</p>
+</section>
+<section class="slide level3 center">
+
+<p>Survival analysis?</p>
+</section>
 </section>
 <section>
 <section id="btyd-models" class="title-slide slide level1 center">
 <h1>BTYD Models</h1>
 
 </section>
+<section class="slide level3 center">
+
+<p>Buy Till You Die</p>
+</section>
+<section class="slide level3 center">
+
+<p>Counting Your Customers: Who Are They and What Will They Do Next?</p>
+<p><br>
+</p>
+<p>(SMC Paper)</p>
+</section>
+<section class="slide level3 center">
+
+<p>Peter Fader</p>
+<p><br>
+</p>
+<p>Bruce Hardie</p>
+<p><br>
+</p>
+<p><a href="">http://www.brucehardie.com</a></p>
+</section>
+<section class="slide level3 center">
+
+<p>Statistical distributions of transactions</p>
+<p><br>
+</p>
+
+<img data-src="img/clv_pnbd_arrow.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p><span class="math display">\[
+\begin{eqnarray*}
+x &amp;=&amp; \text{count of transactions}         \\
+t_x &amp;=&amp; \text{time from birth to last transaction}    \\
+T   &amp;=&amp; \text{time from birth to observation time}
+\end{eqnarray*}
+\]</span></p>
+<p><span class="math display">\[
+\text{Data: } (x, t_x, T)
+\]</span></p>
+</section>
 <section id="pnbd-models" class="title-slide slide level2 center">
 <h2>P/NBD Models</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+x &amp;\sim&amp; \text{Poisson}(\lambda)          \\
+\tau &amp;\sim&amp; \text{Exponential}(\mu)       \\
+\\
+\lambda &amp;\sim&amp; \text{Gamma}(\alpha, r)    \\
+\mu &amp;\sim&amp; \text{Gamma}(s, \beta)         \\
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
 
+<p><span class="math display">\[
+\text{Parameters: } (\alpha, r, s, \beta)
+\]</span></p>
 </section>
 
 <section id="bgnbd-models" class="title-slide slide level2 center">
 <h2>BG/NBD Models</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+x &amp;\sim&amp; \text{Poisson}(\lambda)                  \\
+P(\text{alive}, k) &amp;\sim&amp; \text{Geometric}(p, k)  \\
+\\
+\lambda &amp;\sim&amp; \text{Gamma}(\alpha, r)            \\
+p &amp;\sim&amp; \text{Beta}(a, b)                        \\
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
 
+<p><span class="math display">\[
+\text{Parameters: } (\alpha, r, a, b)
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<p>But what about monetary?</p>
 </section>
 
 <section id="gg-spend-models" class="title-slide slide level2 center">
 <h2>G/G Spend Models</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+v &amp;\sim&amp; \text{Gamma}(p, \nu)     \\
+\\
+p &amp;\sim&amp; \text{Gamma}(q, \gamma)  \\
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
 
+<p><span class="math display">\[
+\text{Parameters: } (\nu, q, \gamma)
+\]</span></p>
 </section>
+
+<section id="first-attempts" class="title-slide slide level2 center">
+<h2>First Attempts</h2>
+<p><br>
+</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Pareto NBD Standard Model
+
+Call:
+pnbd(clv.data = customer_clvdata, start.params.model = c(r = 0.5, 
+    alpha = 10, s = 1, beta = 20))
+
+Coefficients:
+        r      alpha          s       beta  
+  0.84195   10.59826    0.05091  175.61767  
+KKT1: TRUE 
+KKT2: TRUE 
+
+Used Options:
+Correlation:     FALSE </code></pre>
+</div>
+</div>
 </section>
+<section class="slide level3 center">
+
+
+<img data-src="img/notsure_fry.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>To Stan!!!</p>
+
+<img data-src="img/onward.png" class="r-stretch"></section>
+</section>
+<section>
 <section id="stan-code" class="title-slide slide level1 center">
 <h1>Stan Code</h1>
 
 </section>
+<section id="likelihood-model" class="title-slide slide level2 center">
+<h2>Likelihood Model</h2>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+LL(\lambda, \mu \, | \, x, t_x, T) = x \log \lambda + \log \mu - \log(\lambda + \mu) \\
+  + \, \text{log_sum_exp}(A, \, B)\\
+\\
+A = -(\lambda + \mu) \, t_x \;\;\;\; B = \log \lambda - (\lambda + \mu) \, T
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
 
-<section id="simulations" class="title-slide slide level1 center">
-<h1>Simulations</h1>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+The E-BFMI, 0.01, is below the nominal threshold of 0.30 which suggests that HMC may have trouble exploring the target distribution.
+If possible, try to reparameterize the model.
+
+The following parameters had fewer than 0.001 effective draws per transition:
+  s, beta
+Such low values indicate that the effective sample size estimators may be biased high and actual performance may be substantially lower than quoted.
+
+The following parameters had split R-hat greater than 1.05:
+  s, beta
+Such high values indicate incomplete mixing and biased estimation.
+You should consider regularizating your model with additional prior information or a more effective parameterization.
+
+Processing complete.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_fullhier_traceplots-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_fullhier_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/eleanor_awesome.png" class="r-stretch"><p>Well that doesn’t look awesome…</p>
+</section>
+
+<section id="simulation-based-calibration" class="title-slide slide level2 center">
+<h2>Simulation-Based Calibration</h2>
+<p><br>
+</p>
+<ol type="1">
+<li>Set values for parameters</li>
+<li>Use statistical model to generate data</li>
+<li>Fit model with model</li>
+<li>Compare fitted values to ‘real’ values</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+<p>But before we get to that…</p>
+</section>
+<section id="gamma-distribution" class="slide level3 center">
+<h3>Gamma Distribution</h3>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_gamma_distribution-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Reparameterise</p>
+<p><br>
+</p>
+<p><span class="math display">\[
+\text{Gamma}(r, \alpha) \rightarrow \text{Gamma}(\mu, c_v)
+\]</span></p>
+<p><br>
+</p>
+<p><span class="math display">\[
+\begin{eqnarray*}
+\mu   &amp;=&amp; \text{ Mean} \\
+c_v   &amp;=&amp; \text{ Coefficient of Variation}
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+<p><span class="math display">\[
+\begin{eqnarray*}
+r      &amp;=&amp; \frac{1}{c_v^2}      \\
+\\
+\alpha &amp;=&amp; \frac{1}{\mu \, c_v^2}
+\end{eqnarray*}
+\]</span></p>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_reparam_gamma_distribution-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Use this parameterisation from now on</p>
+</section>
+</section>
+<section>
+<section id="models-of-synthetic-data" class="title-slide slide level1 center">
+<h1>Models of Synthetic Data</h1>
+
+</section>
+<section id="long-timeframe-data" class="title-slide slide level2 center">
+<h2>Long Timeframe Data</h2>
+<p><br>
+</p>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_longframe_synth_transaction_data-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_longframe_synth_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/star_wars_fail.png" class="r-stretch"></section>
+
+<section id="fixed-priors" class="title-slide slide level2 center">
+<h2>Fixed Priors</h2>
+<p><br>
+</p>
+<p>What if we ignore hierarchy?</p>
+<p><br>
+</p>
+<p>Fix priors</p>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_fixedprior_longframe_synth_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<div class="cell">
+
+</div>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_fixedprior_longframe_synth_data_boxplot-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_fixedprior_longframe_synth_data_qvals-1.png" width="960" class="r-stretch"></section>
+
+<section id="hierarchical-means-model" class="title-slide slide level2 center">
+<h2>Hierarchical-Means Model</h2>
+<p><br>
+</p>
+<ol type="1">
+<li>Fix both <span class="math inline">\(c_v\)</span> values</li>
+<li>Hierarchical priors for <span class="math inline">\(E(\lambda)\)</span> and <span class="math inline">\(E(\mu)\)</span>.</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>model {
+  // model the hyper-prior
+  lambda_mn ~ lognormal(lambda_mn_p1, lambda_mn_p2);
+  mu_mn     ~ lognormal(mu_mn_p1,     mu_mn_p2);
+
+  // setting priors
+  lambda ~ gamma(r, alpha);
+  mu     ~ gamma(s,  beta);
+
+  target += calculate_pnbd_loglik(n, lambda, mu, x, t_x, T_cal);
+}</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_hiermeans_longframe_synth_traceplots-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_hiermeans_longframe_synth_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<div class="cell">
+
+</div>
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_hiermeans_longframe_synth_data_boxplot-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/plot_hiermeans_longframe_synth_data_qvals-1.png" width="960" class="r-stretch"></section>
+</section>
+<section>
+<section id="models-on-real-world-data" class="title-slide slide level1 center">
+<h1>Models on Real-World Data</h1>
+
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/visualise_realworld_transaction_data_redux-1.png" width="960" class="r-stretch"></section>
+<section id="fixed-prior-model" class="title-slide slide level2 center">
+<h2>Fixed Prior Model</h2>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Checking sampler transitions treedepth.
+Treedepth satisfactory for all transitions.
+
+Checking sampler transitions for divergences.
+No divergent transitions found.
+
+Checking E-BFMI - sampler transitions HMC potential energy.
+E-BFMI satisfactory.
+
+Effective sample size satisfactory.
+
+Split R-hat values satisfactory all parameters.
+
+Processing complete, no problems detected.</code></pre>
+</div>
+</div>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="btyd_bayes_talk_files/figure-revealjs/show_pnbd_fixedprior_extdata_ess_ratios-1.png" width="960" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Cannot compare to ‘real’ values</p>
+</section>
+<section class="slide level3 center">
+
+<ol type="1">
+<li>Count of customers transacting</li>
+<li>Count of all transactions</li>
+</ol>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_fixed_extdata_custcount.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_fixed_extdata_tnxcount.png" class="r-stretch"></section>
+
+<section id="hierarchical-lambda-model" class="title-slide slide level2 center">
+<h2>Hierarchical-Lambda Model</h2>
+
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_lambmn_extdata_custcount.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/pnbd_lambmn_extdata_tnxcount.png" class="r-stretch"></section>
+
+<section id="bgnbd-model" class="title-slide slide level2 center">
+<h2>BG/NBD Model</h2>
+
+</section>
+<section class="slide level3 center">
+
+<p>No explicit lifetime model</p>
+<p><br>
+</p>
+<p>Chance of lapsing, <span class="math inline">\(p\)</span>, after transaction</p>
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/bgnbd_hiermeans_extdata_custcount.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+
+<img data-src="img/bgnbd_hiermeans_extdata_tnxcount.png" class="r-stretch"></section>
+</section>
+<section>
+<section id="conclusion" class="title-slide slide level1 center">
+<h1>Conclusion</h1>
+
+</section>
+<section class="slide level3 center">
+
+
+<img data-src="img/captain_hindsight_sidekicks.png" class="r-stretch"></section>
+<section class="slide level3 center">
+
+<p>Lessons Learned</p>
+</section>
+<section id="workshop" class="title-slide slide level2 center">
+<h2>Workshop</h2>
+
+</section>
+<section class="slide level3 center">
+
+<p>Bad Idea</p>
+</section>
+<section class="slide level3 center">
+
+<p>Better to use brms / rstanarm</p>
+</section>
+<section class="slide level3 center">
+
+<p>Useful approach <span class="math inline">\(\rightarrow\)</span> Problem worth solving</p>
+</section>
+
+<section id="btyd-models-1" class="title-slide slide level2 center">
+<h2>BTYD Models</h2>
+
+</section>
+<section class="slide level3 center">
+
+<p>Re-do Data Generation</p>
+</section>
+<section class="slide level3 center">
+
+<p>Pay attention to seasonality</p>
+</section>
+<section class="slide level3 center">
+
+<p>Add monetary modelling</p>
+</section>
+</section>
+<section id="thank-you" class="title-slide slide level1 center">
+<h1>Thank You!</h1>
+<p><br>
+</p>
+<p>This talk…</p>
+<p><a href="">https://github.com/kaybenleroll/data_workshops/talk_bm_btydbayes_202211</a></p>
+<p><br>
+</p>
+<p>Workshop…</p>
+<p><a href="">https://github.com/kaybenleroll/data_workshops/ws_clvbayes_202201</a></p>
 <div class="footer footer-default">
 
 </div>
@@ -626,6 +1271,48 @@
         ]
       });
     </script>
+    
+    <script>
+      // htmlwidgets need to know to resize themselves when slides are shown/hidden.
+      // Fire the "slideenter" event (handled by htmlwidgets.js) when the current
+      // slide changes (different for each slide format).
+      (function () {
+        function fireSlideChanged(previousSlide, currentSlide) {
+
+          // dispatch for htmlwidgets
+          const event = window.document.createEvent("Event");
+          event.initEvent("slideenter", true, true);
+          window.document.dispatchEvent(event);
+
+          // dispatch for shiny
+          if (window.jQuery) {
+            if (previousSlide) {
+              window.jQuery(previousSlide).trigger("hidden");
+            }
+            if (currentSlide) {
+              window.jQuery(currentSlide).trigger("shown");
+            }
+          }
+        }
+
+        // hookup for reveal
+        if (window.Reveal) {
+          window.Reveal.addEventListener("slidechanged", function(event) {
+            fireSlideChanged(event.previousSlide, event.currentSlide);
+          });
+        }
+
+        // hookup for slidy
+        if (window.w3c_slidy) {
+          window.w3c_slidy.add_observer(function (slide_num) {
+            // slide_num starts at position 1
+            fireSlideChanged(null, w3c_slidy.slides[slide_num - 1]);
+          });
+        }
+
+      })();
+    </script>
+
     <script id="quarto-html-after-body" type="application/javascript">
     window.document.addEventListener("DOMContentLoaded", function (event) {
       const toggleBodyColorMode = (bsSheetEl) => {

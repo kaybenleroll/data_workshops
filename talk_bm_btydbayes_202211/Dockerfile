@@ -51,6 +51,7 @@ RUN apt-get update \
     prophet \
     pryr \
     quarto \
+    rfm \
     rmdformats \
     rstan \
     rstanarm \
