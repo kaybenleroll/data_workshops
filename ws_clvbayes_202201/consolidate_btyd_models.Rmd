@@ -326,13 +326,6 @@ pnbd_consol_fixed_valid_lst$valid_tnxcount_plot  %>% print()
 ```
 
 
-## Write to Disk
-
-```{r write_files_to_disk, echo=TRUE}
-pnbd_consol_fixed_valid_lst %>% write_rds("data/pnbd_consol_fixed_valid_lst.rds")
-```
-
-
 
 # Fit the Hierarchical Lambda-Mean P/NBD Model
 
@@ -778,6 +771,18 @@ bgnbd_consol_hier_means_valid_lst$valid_custcount_plot %>% print()
 
 bgnbd_consol_hier_means_valid_lst$valid_tnxcount_plot  %>% print()
 ```
+
+
+
+# Write to Disk
+
+```{r write_files_to_disk, echo=TRUE}
+pnbd_consol_fixed_valid_lst       %>% write_rds("data/pnbd_consol_fixed_valid_lst.rds")
+pnbd_consol_lambmn_valid_lst      %>% write_rds("data/pnbd_consol_lambmn_valid_lst.rds")
+bgnbd_consol_fixed_valid_lst      %>% write_rds("data/bgnbd_consol_fixed_valid_lst.rds")
+bgnbd_consol_hier_means_valid_lst %>% write_rds("data/bgnbd_consol_hier_means_valid_lst.rds")
+```
+
 
 
 

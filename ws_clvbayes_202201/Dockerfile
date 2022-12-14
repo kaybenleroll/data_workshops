@@ -73,8 +73,9 @@ COPY build/docker_render_pdf.R /tmp
 COPY build/test_report.Rmd /tmp
 
 RUN Rscript /tmp/docker_render_pdf.R \
-  && rm -fv /tmp/test_report.pdf \
-  && git clone https://github.com/lindenb/makefile2graph.git \
+  && rm -fv /tmp/test_report.docker_render_pdf
+
+RUN git clone https://github.com/lindenb/makefile2graph.git \
   && cd makefile2graph \
   && make \
   && make install \
