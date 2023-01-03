@@ -1,12 +1,19 @@
-film_title,script_filename
-"Austin Powers - International Man of Mystery","Austin-Powers---International-Man-of-Mystery"
-"The Godfather","Godfather"
-"The Godfather Part II","Godfather-Part-II"
-"The Godfather Part III","Godfather-Part-III,-The"
-"Star Wars: A New Hope","Star-Wars-A-New-Hope"
-"Star Wars: The Empire Strikes Back",""
-"Star Wars: Return of the Jedi",""
-"Chinatown",""
-"Soylent Green",""
-
-
+film_title,release_year,genre,script_filename
+Austin Powers - International Man of Mystery,1997,Comedy,Austin-Powers---International-Man-of-Mystery
+The Godfather,1972,Crime,Godfather
+The Godfather Part II,1974,Crime,Godfather-Part-II
+The Godfather Part III,1990,Crime,"Godfather-Part-III,-The"
+Star Wars: A New Hope,1977,Science Fiction,Star-Wars-A-New-Hope
+Star Wars: The Empire Strikes Back,1980,Science Fiction,Star-Wars-The-Empire-Strikes-Back
+Star Wars: Return of the Jedi,1983,Science Fiction,Star-Wars-Return-of-the-Jedi
+Chinatown,1974,Crime,Chinatown
+The Green Mile,,,"Green-Mile,-The"
+12 Years a Slave,,Drama,12-Years-a-Slave
+Reservoir Dogs,,Crime,Reservoir-Dogs
+Dances With Wolves,,Western,Dances-with-Wolves
+Django Unchained,,Western,Django-Unchained
+Tombstone,,Western,Tombstone
+Apocalypse Now,,,Apocalypse-Now
+2001 A Space Odyssey,,Science Fiction,2001-A-Space-Odyssey
+The Shining,,Horror,"Shining,-The"
+Office Space,,Comedy,Office-Space
