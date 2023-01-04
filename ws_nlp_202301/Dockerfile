@@ -55,6 +55,7 @@ RUN apt-get update \
     lda \
     lobstr \
     lsa \
+    markdown \
     ngram \
     ngramrr \
     NLP \
