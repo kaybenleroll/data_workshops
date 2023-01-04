@@ -1,0 +1,223 @@
+---
+title: "Retrieve and Parse Selected Film Scripts"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: sandstone
+      dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r import_libraries}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(directlabels)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(polite)
+library(rvest)
+library(snakecase)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+plan(multisession)
+```
+
+In this workbook we first retrieve the list of film scripts from a input table
+provided and then we parse out the retrieved HTML files.
+
+# Set Up Input Data
+
+We have a CSV file that contains the list of film scripts along with some
+meta-data about the film itself such as the year of release and the genre.
+
+```{r load_film_scripts_table}
+#! echo: true
+#! message: false
+
+film_cols <- cols(
+  release_year = col_integer(),
+  genre        = col_character()
+  )
+
+
+films_tbl <- read_csv(
+  file      = "input_data/film_list.csv",
+  col_types = film_cols,
+  progress  = FALSE
+  )
+
+films_tbl %>% glimpse()
+```
+
+We now want to set up some base parameters for this worksheet.
+
+
+```{r setup_scraping_parameters}
+#| echo: true
+
+base_url <- "https://imsdb.com/scripts"
+
+scraped_raw_dir   <- "scraped_files/scraped_raw"
+parsed_script_dir <- "scraped_files/scraped_script"
+```
+
+
+# Scrape Film Script HTML
+
+```{r setup_film_script_scraping}
+#| echo: true
+
+films_scraped_tbl <- films_tbl %>%
+  mutate(
+    title_cleaned = film_title %>% to_snake_case(),
+    retrieve_url  = glue("{base_url}/{script_filename}.html"),
+    output_file   = glue("{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds")
+    )
+
+films_scraped_tbl
+```
+
+
+
+```{r scraping_new_film_scripts}
+#| echo: true
+
+scrape_session <- bow(base_url, force = TRUE)
+
+scrape_film_scripts <- function(script_url, output_file, use_session) {
+  message(glue("Scraping URL {script_url}"))
+
+  scrape_data <- nod(use_session, script_url, verbose = TRUE) %>%
+    scrape(verbose = TRUE, content = "text/html;charset=iso-8859-1") %>%
+    as.character()
+
+  scrape_data %>% write_rds(output_file)
+  
+  return(scrape_data)
+}
+
+
+prescraped_tbl <- dir_ls(scraped_raw_dir) %>%
+  vec_cast(to = character()) %>%
+  enframe(name = NULL, value = "output_file")
+
+
+new_scraped_tbl <- films_scraped_tbl %>%
+  anti_join(prescraped_tbl, by = "output_file") %>%
+  mutate(
+    scrape_data = map2(retrieve_url, output_file, scrape_film_scripts, use_session = scrape_session)
+    )
+
+
+films_scraped_tbl %>% glimpse()
+```
+
+
+We now should have all the film scripts scraped and stored as a file on the
+file system.
+
+```{r load_film_scraped_files}
+#| echo: true
+
+parse_script_text <- function(film_title, scraped_data) {
+  message(glue("Scraping script text for {film_title}"))
+  
+  scraped_text <- scraped_data %>%
+    html_elements("pre") %>%
+    html_text2() %>%
+    tail(n = 1)
+
+  return(scraped_text)
+}
+
+write_script_text <- function(script_text, script_file) {
+  message(glue("Writing file {script_file}"))
+  
+  script_text %>% write_lines(file = script_file)
+  
+  return(TRUE)
+}
+
+
+films_scraped_tbl <- films_scraped_tbl %>%
+  mutate(
+    scraped_html = map_chr(output_file, read_rds),
+    parsed_data  = map(scraped_html, read_html),
+    script_text  = map2_chr(title_cleaned, parsed_data, parse_script_text),
+    script_output = glue("{parsed_script_dir}/script_{title_cleaned}.txt"),
+    write_file    = map2_lgl(script_text, script_output, write_script_text)
+    )
+
+films_scraped_tbl %>% glimpse()
+```
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: true
+#| message: true
+
+
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
