@@ -39,6 +39,7 @@ RUN apt-get update \
     cleannlp \
     spacy \
     stanfordnlp \
+    stanza \
   && ln -s /usr/bin/python3 /usr/bin/python \
   && install2.r --error \
     anytime \
@@ -65,6 +66,7 @@ RUN apt-get update \
     pryr \
     qdap \
     quanteda \
+    quarto \
     rvest \
     sessioninfo \
     snakecase \

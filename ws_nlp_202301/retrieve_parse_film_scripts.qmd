@@ -10,8 +10,8 @@ execute:
 format:
   html:
     theme:
-      light: sandstone
-      dark: darkly
+      light: cerulean
+      dark: cyborg
     anchor-sections: true
     embed-resources: true
     number-sections: true
@@ -36,6 +36,7 @@ library(cowplot)
 library(directlabels)
 library(magrittr)
 library(rlang)
+library(vctrs)
 library(fs)
 library(purrr)
 library(furrr)
@@ -122,9 +123,9 @@ parsed_script_dir <- "scraped_files/scraped_script"
 
 films_scraped_tbl <- films_tbl %>%
   mutate(
-    title_cleaned = film_title %>% to_snake_case(),
-    retrieve_url  = glue("{base_url}/{script_filename}.html"),
-    output_file   = glue("{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds")
+    title_cleaned   = film_title %>% to_snake_case(),
+    retrieve_url    = glue("{base_url}/{script_filename}.html"),
+    cached_htmlfile = glue("{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds")
     )
 
 films_scraped_tbl
@@ -137,14 +138,14 @@ films_scraped_tbl
 
 scrape_session <- bow(base_url, force = TRUE)
 
-scrape_film_scripts <- function(script_url, output_file, use_session) {
+scrape_film_scripts <- function(script_url, cached_htmlfile, use_session) {
   message(glue("Scraping URL {script_url}"))
 
   scrape_data <- nod(use_session, script_url, verbose = TRUE) %>%
     scrape(verbose = TRUE, content = "text/html;charset=iso-8859-1") %>%
     as.character()
 
-  scrape_data %>% write_rds(output_file)
+  scrape_data %>% write_rds(cached_htmlfile)
   
   return(scrape_data)
 }
@@ -152,13 +153,13 @@ scrape_film_scripts <- function(script_url, output_file, use_session) {
 
 prescraped_tbl <- dir_ls(scraped_raw_dir) %>%
   vec_cast(to = character()) %>%
-  enframe(name = NULL, value = "output_file")
+  enframe(name = NULL, value = "cached_htmlfile")
 
 
 new_scraped_tbl <- films_scraped_tbl %>%
-  anti_join(prescraped_tbl, by = "output_file") %>%
+  anti_join(prescraped_tbl, by = "cached_htmlfile") %>%
   mutate(
-    scrape_data = map2(retrieve_url, output_file, scrape_film_scripts, use_session = scrape_session)
+    scrape_data = map2(retrieve_url, cached_htmlfile, scrape_film_scripts, use_session = scrape_session)
     )
 
 
@@ -194,11 +195,11 @@ write_script_text <- function(script_text, script_file) {
 
 films_scraped_tbl <- films_scraped_tbl %>%
   mutate(
-    scraped_html = map_chr(output_file, read_rds),
-    parsed_data  = map(scraped_html, read_html),
-    script_text  = map2_chr(title_cleaned, parsed_data, parse_script_text),
-    script_output = glue("{parsed_script_dir}/script_{title_cleaned}.txt"),
-    write_file    = map2_lgl(script_text, script_output, write_script_text)
+    scraped_html   = map_chr(cached_htmlfile, read_rds),
+    parsed_data    = map(scraped_html, read_html),
+    script_text    = map2_chr(title_cleaned, parsed_data, parse_script_text),
+    script_txtfile = glue("{parsed_script_dir}/script_{title_cleaned}.txt"),
+    write_file     = map2_lgl(script_text, script_txtfile, write_script_text)
     )
 
 films_scraped_tbl %>% glimpse()
@@ -209,12 +210,26 @@ films_scraped_tbl %>% glimpse()
 
 
 
+# Write to Disk
+
+We now write this data out to disk.
+
+```{r write_data_disk}
+#| echo: false
+
+films_scraped_tbl %>%
+  select(
+    film_title, release_year, genre, title_cleaned, cached_htmlfile, script_txtfile
+    ) %>%
+  write_rds("data/films_scraped_tbl.rds")
+```
+
 
 # R Environment
 
 ```{r show_session_info}
-#| echo: true
-#| message: true
+#| echo: false
+#| message: false
 
 
 options(width = 120L)
