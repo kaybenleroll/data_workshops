@@ -4,6 +4,11 @@ remotes::install_github(
   upgrade = "never"
 )
 
+install.packages("StanfordCoreNLP",
+  dependencies = TRUE,
+  repos        = "http://datacube.wu.ac.at/"
+)
+
 install.packages("openNLPmodels.en",
   dependencies = TRUE,
   repos        = "http://datacube.wu.ac.at/"
