@@ -157,10 +157,9 @@ file system.
 
 ```{r load_film_scraped_files}
 #| echo: true
+#| message: true
 
 parse_script_text <- function(film_title, scraped_data) {
-  message(glue("Scraping script text for {film_title}"))
-  
   scraped_text <- scraped_data %>%
     html_elements("pre") %>%
     html_text2() %>%
@@ -197,7 +196,10 @@ films_scraped_tbl %>% glimpse()
 In this section we make some manual edits to our scripts. We load each script
 individually and manually perform any required edits.
 
-```{r manually_edit_script_text, echo=TRUE}
+```{r manually_edit_script_text}
+#| echo: true
+#| message: true
+
 films_scraped_tbl <- films_scraped_tbl %>%
   mutate(
     flag_cleaned = pmap_lgl(
