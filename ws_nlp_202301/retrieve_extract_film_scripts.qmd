@@ -1,5 +1,5 @@
 ---
-title: "Retrieve and Parse Selected Film Scripts"
+title: "Retrieve and Extract Selected Film Scripts"
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 editor: source
@@ -31,9 +31,6 @@ format:
 
 library(conflicted)
 library(tidyverse)
-library(scales)
-library(cowplot)
-library(directlabels)
 library(magrittr)
 library(rlang)
 library(vctrs)
@@ -47,33 +44,20 @@ library(snakecase)
 
 
 source("lib_utils.R")
+source("lib_manual_script_cleaners.R")
 
 
 conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
   )
 
-
-knitr::opts_chunk$set(
-  tidy       = FALSE,
-  cache      = FALSE,
-  warning    = FALSE,
-  message    = FALSE,
-  fig.height =     8,
-  fig.width  =    11
-  )
-
 options(
   width = 80L,
   warn  = 1,
-  mc.cores = parallel::detectCores()
+  mc.cores = parallelly::availableCores()
   )
 
-theme_set(theme_cowplot())
-
 set.seed(42)
-
-plan(multisession)
 ```
 
 In this workbook we first retrieve the list of film scripts from a input table
@@ -111,8 +95,9 @@ We now want to set up some base parameters for this worksheet.
 
 base_url <- "https://imsdb.com/scripts"
 
-scraped_raw_dir   <- "scraped_files/scraped_raw"
-parsed_script_dir <- "scraped_files/scraped_script"
+scraped_raw_dir    <- "scraped_files/scraped_raw"
+raw_script_dir     <- "scraped_files/scraped_raw"
+cleaned_script_dir <- "scraped_files/cleaned_script"
 ```
 
 
@@ -195,18 +180,38 @@ write_script_text <- function(script_text, script_file) {
 
 films_scraped_tbl <- films_scraped_tbl %>%
   mutate(
-    scraped_html   = map_chr(cached_htmlfile, read_rds),
-    parsed_data    = map(scraped_html, read_html),
-    script_text    = map2_chr(title_cleaned, parsed_data, parse_script_text),
-    script_txtfile = glue("{parsed_script_dir}/script_{title_cleaned}.txt"),
-    write_file     = map2_lgl(script_text, script_txtfile, write_script_text)
+    scraped_html    = map_chr(cached_htmlfile, read_rds),
+    parsed_data     = map(scraped_html, read_html),
+    script_text     = map2_chr(title_cleaned, parsed_data, parse_script_text),
+    script_txtfile  = glue("{raw_script_dir}/script_{title_cleaned}.txt"),
+    cleaned_txtfile = glue("{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt"),
+    write_file      = map2_lgl(script_text, script_txtfile, write_script_text)
     )
 
 films_scraped_tbl %>% glimpse()
 ```
 
 
+# Make Manual Edits to Scripts
 
+In this section we make some manual edits to our scripts. We load each script
+individually and manually perform any required edits.
+
+```{r manually_edit_script_text, echo=TRUE}
+films_scraped_tbl <- films_scraped_tbl %>%
+  mutate(
+    flag_cleaned = pmap_lgl(
+      list(
+        input_file  = script_txtfile,
+        output_file = cleaned_txtfile,
+        film_key    = title_cleaned 
+        ),
+      manually_clean_scripts
+      )
+    )
+
+films_scraped_tbl %>% glimpse()
+```
 
 
 
@@ -215,14 +220,16 @@ films_scraped_tbl %>% glimpse()
 We now write this data out to disk.
 
 ```{r write_data_disk}
-#| echo: false
+#| echo: true
 
 films_scraped_tbl %>%
   select(
-    film_title, release_year, genre, title_cleaned, cached_htmlfile, script_txtfile
+    film_title, release_year, genre, title_cleaned, cached_htmlfile,
+    script_txtfile, cleaned_txtfile, flag_cleaned
     ) %>%
   write_rds("data/films_scraped_tbl.rds")
 ```
+
 
 
 # R Environment
