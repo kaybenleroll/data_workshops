@@ -8,9 +8,13 @@ manually_clean_scripts <- function(input_file, output_file, film_key) {
   if(exists(clean_funcname)) {
     flag_edited <- TRUE
 
+    message(glue("Manually cleaning {input_file}..."))
+
     cleaned_text <- get(clean_funcname)(orig_text)
 
   } else {
+    message(glue("No cleaning function found for {input_file} - skipping..."))
+
     cleaned_text <- orig_text
   }
 

@@ -77,9 +77,26 @@ film_master_tbl <- read_rds("data/films_scraped_tbl.rds")
 film_master_tbl %>% glimpse()
 ```
 
+We also want to load the list of script parsers, which links each film script
+to a parsing routine that will allow us to parse the script.
 
 
+```{r film_script_parsers, echo=TRUE}
+parser_cols <- cols(
+  title_cleaned = col_character(),
+  script_parser = col_character()
+  )
 
+film_parser_tbl <- read_csv(
+    "input_data/film_script_parser_lookup.csv",
+    col_types = parser_cols
+    ) %>%
+  mutate(
+    parser_func = map(script_parser, get)
+    )
+
+film_parser_tbl %>% glimpse()
+```
 
 
 
