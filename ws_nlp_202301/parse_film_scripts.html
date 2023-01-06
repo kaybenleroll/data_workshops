@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Mick Cooney mickcooney@gmail.com">
-<meta name="dcterms.date" content="2023-01-04">
+<meta name="dcterms.date" content="2023-01-06">
 
-<title>Retrieve and Parse Selected Film Scripts</title>
+<title>Parse Film Scripts</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -2602,9 +2602,8 @@ vertical-align: -.125em;
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#set-up-input-data" id="toc-set-up-input-data" class="nav-link active" data-scroll-target="#set-up-input-data"><span class="toc-section-number">1</span>  Set Up Input Data</a></li>
-  <li><a href="#scrape-film-script-html" id="toc-scrape-film-script-html" class="nav-link" data-scroll-target="#scrape-film-script-html"><span class="toc-section-number">2</span>  Scrape Film Script HTML</a></li>
-  <li><a href="#r-environment" id="toc-r-environment" class="nav-link" data-scroll-target="#r-environment"><span class="toc-section-number">3</span>  R Environment</a></li>
+  <li><a href="#load-master-data" id="toc-load-master-data" class="nav-link active" data-scroll-target="#load-master-data"><span class="toc-section-number">1</span>  Load Master Data</a></li>
+  <li><a href="#r-environment" id="toc-r-environment" class="nav-link" data-scroll-target="#r-environment"><span class="toc-section-number">2</span>  R Environment</a></li>
   </ul>
 </nav>
 </div>
@@ -2614,7 +2613,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Retrieve and Parse Selected Film Scripts</h1>
+<h1 class="title">Parse Film Scripts</h1>
 </div>
 
 
@@ -2631,7 +2630,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">January 4, 2023</p>
+      <p class="date">January 6, 2023</p>
     </div>
   </div>
     
@@ -2640,189 +2639,34 @@ vertical-align: -.125em;
 
 </header>
 
-<p>In this workbook we first retrieve the list of film scripts from a input table provided and then we parse out the retrieved HTML files.</p>
-<section id="set-up-input-data" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> Set Up Input Data</h1>
-<p>We have a CSV file that contains the list of film scripts along with some meta-data about the film itself such as the year of release and the genre.</p>
+<p>In this workbook we work on parsing the film scripts to extract both dialogue and other narration such as the descriptions of settings.</p>
+<section id="load-master-data" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Load Master Data</h1>
+<p>We want to load up the master table containing all the metadata on the different film scripts we intend to parse.</p>
 <div class="cell">
 <details>
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#! echo: true</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co">#! message: false</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>film_cols <span class="ot">&lt;-</span> <span class="fu">cols</span>(</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">release_year =</span> <span class="fu">col_integer</span>(),</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">genre        =</span> <span class="fu">col_character</span>()</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>films_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">file      =</span> <span class="st">&quot;input_data/film_list.csv&quot;</span>,</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">col_types =</span> film_cols,</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">progress  =</span> <span class="cn">FALSE</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>films_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>film_master_tbl <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(<span class="st">&quot;data/films_scraped_tbl.rds&quot;</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>film_master_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 18
-Columns: 4
+Columns: 6
 $ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 1990, 1977, 1980, 1983, 1974, NA, NA…
+$ release_year    &lt;int&gt; 1997, 1972, 1974, 1990, 1977, 1980, 1983, 1974, 1999, …
 $ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Science Fiction&quot;…
-$ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery&quot;, &quot;Godfa…</code></pre>
-</div>
-</div>
-<p>We now want to set up some base parameters for this worksheet.</p>
-<div class="cell">
-<details>
-<summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>base_url <span class="ot">&lt;-</span> <span class="st">&quot;https://imsdb.com/scripts&quot;</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>scraped_raw_dir   <span class="ot">&lt;-</span> <span class="st">&quot;scraped_files/scraped_raw&quot;</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>parsed_script_dir <span class="ot">&lt;-</span> <span class="st">&quot;scraped_files/scraped_script&quot;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-</div>
-</section>
-<section id="scrape-film-script-html" class="level1" data-number="2">
-<h1 data-number="2"><span class="header-section-number">2</span> Scrape Film Script HTML</h1>
-<div class="cell">
-<details>
-<summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">title_cleaned =</span> film_title <span class="sc">%&gt;%</span> <span class="fu">to_snake_case</span>(),</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">retrieve_url  =</span> <span class="fu">glue</span>(<span class="st">&quot;{base_url}/{script_filename}.html&quot;</span>),</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">output_file   =</span> <span class="fu">glue</span>(<span class="st">&quot;{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds&quot;</span>)</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 18 × 7
-   film_title                      relea…¹ genre scrip…² title…³ retri…⁴ outpu…⁵
-   &lt;chr&gt;                             &lt;int&gt; &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   &lt;glue&gt;  &lt;glue&gt; 
- 1 Austin Powers - International …    1997 Come… Austin… austin… https:… scrape…
- 2 The Godfather                      1972 Crime Godfat… the_go… https:… scrape…
- 3 The Godfather Part II              1974 Crime Godfat… the_go… https:… scrape…
- 4 The Godfather Part III             1990 Crime Godfat… the_go… https:… scrape…
- 5 Star Wars: A New Hope              1977 Scie… Star-W… star_w… https:… scrape…
- 6 Star Wars: The Empire Strikes …    1980 Scie… Star-W… star_w… https:… scrape…
- 7 Star Wars: Return of the Jedi      1983 Scie… Star-W… star_w… https:… scrape…
- 8 Chinatown                          1974 Crime Chinat… chinat… https:… scrape…
- 9 The Green Mile                       NA &lt;NA&gt;  Green-… the_gr… https:… scrape…
-10 12 Years a Slave                     NA Drama 12-Yea… 12_yea… https:… scrape…
-11 Reservoir Dogs                       NA Crime Reserv… reserv… https:… scrape…
-12 Dances With Wolves                   NA West… Dances… dances… https:… scrape…
-13 Django Unchained                     NA West… Django… django… https:… scrape…
-14 Tombstone                            NA West… Tombst… tombst… https:… scrape…
-15 Apocalypse Now                       NA &lt;NA&gt;  Apocal… apocal… https:… scrape…
-16 2001 A Space Odyssey                 NA Scie… 2001-A… 2001_a… https:… scrape…
-17 The Shining                          NA Horr… Shinin… the_sh… https:… scrape…
-18 Office Space                         NA Come… Office… office… https:… scrape…
-# … with abbreviated variable names ¹​release_year, ²​script_filename,
-#   ³​title_cleaned, ⁴​retrieve_url, ⁵​output_file</code></pre>
-</div>
-</div>
-<div class="cell">
-<details>
-<summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>scrape_session <span class="ot">&lt;-</span> <span class="fu">bow</span>(base_url, <span class="at">force =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>scrape_film_scripts <span class="ot">&lt;-</span> <span class="cf">function</span>(script_url, output_file, use_session) {</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Scraping URL {script_url}&quot;</span>))</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  scrape_data <span class="ot">&lt;-</span> <span class="fu">nod</span>(use_session, script_url, <span class="at">verbose =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scrape</span>(<span class="at">verbose =</span> <span class="cn">TRUE</span>, <span class="at">content =</span> <span class="st">&quot;text/html;charset=iso-8859-1&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.character</span>()</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  scrape_data <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(output_file)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(scrape_data)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>prescraped_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(scraped_raw_dir) <span class="sc">%&gt;%</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vec_cast</span>(<span class="at">to =</span> <span class="fu">character</span>()) <span class="sc">%&gt;%</span></span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;output_file&quot;</span>)</span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>new_scraped_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(prescraped_tbl, <span class="at">by =</span> <span class="st">&quot;output_file&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">scrape_data =</span> <span class="fu">map2</span>(retrieve_url, output_file, scrape_film_scripts, <span class="at">use_session =</span> scrape_session)</span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Rows: 18
-Columns: 7
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 1990, 1977, 1980, 1983, 1974, NA, NA…
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Science Fiction&quot;…
-$ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery&quot;, &quot;Godfa…
 $ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/Austin-Powers---Internatio…
-$ output_file     &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…</code></pre>
-</div>
-</div>
-<p>We now should have all the film scripts scraped and stored as a file on the file system.</p>
-<div class="cell">
-<details>
-<summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>parse_script_text <span class="ot">&lt;-</span> <span class="cf">function</span>(film_title, scraped_data) {</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Scraping script text for {film_title}&quot;</span>))</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  scraped_text <span class="ot">&lt;-</span> scraped_data <span class="sc">%&gt;%</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_elements</span>(<span class="st">&quot;pre&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_text2</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tail</span>(<span class="at">n =</span> <span class="dv">1</span>)</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(scraped_text)</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>write_script_text <span class="ot">&lt;-</span> <span class="cf">function</span>(script_text, script_file) {</span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Writing file {script_file}&quot;</span>))</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  script_text <span class="sc">%&gt;%</span> <span class="fu">write_lines</span>(<span class="at">file =</span> script_file)</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">TRUE</span>)</span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">scraped_html =</span> <span class="fu">map_chr</span>(output_file, read_rds),</span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_data  =</span> <span class="fu">map</span>(scraped_html, read_html),</span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">script_text  =</span> <span class="fu">map2_chr</span>(title_cleaned, parsed_data, parse_script_text),</span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">script_output =</span> <span class="fu">glue</span>(<span class="st">&quot;{parsed_script_dir}/script_{title_cleaned}.txt&quot;</span>),</span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">write_file    =</span> <span class="fu">map2_lgl</span>(script_text, script_output, write_script_text)</span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code>Rows: 18
-Columns: 12
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 1990, 1977, 1980, 1983, 1974, NA, NA…
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Science Fiction&quot;…
-$ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery&quot;, &quot;Godfa…
-$ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/Austin-Powers---Internatio…
-$ output_file     &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
-$ scraped_html    &lt;chr&gt; &quot;&lt;!DOCTYPE html PUBLIC \&quot;-//W3C//DTD HTML 4.0 Transiti…
-$ parsed_data     &lt;list&gt; [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;h…
-$ script_text     &lt;chr&gt; &quot;\r\n\r\n\t\t       AUSTIN POWERS: INTERNATIONAL MAN O…
-$ script_output   &lt;glue&gt; &quot;scraped_files/scraped_script/script_austin_powers_in…
-$ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, …</code></pre>
+$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
+$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_inter…</code></pre>
 </div>
 </div>
 </section>
-<section id="r-environment" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> R Environment</h1>
+<section id="r-environment" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> R Environment</h1>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
 <pre><code>─ Session info ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2835,97 +2679,83 @@ $ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TR
  collate  en_US.UTF-8
  ctype    en_US.UTF-8
  tz       Etc/UTC
- date     2023-01-04
+ date     2023-01-06
  pandoc   2.19.2 @ /usr/lib/rstudio-server/bin/quarto/bin/tools/ (via rmarkdown)
 
 ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
- package       * version   date (UTC) lib source
- assertthat      0.2.1     2019-03-21 [1] RSPM (R 4.2.0)
- backports       1.4.1     2021-12-13 [1] RSPM (R 4.2.0)
- bit             4.0.4     2020-08-04 [1] RSPM (R 4.2.0)
- bit64           4.0.5     2020-08-30 [1] RSPM (R 4.2.0)
- broom           1.0.1     2022-08-29 [1] RSPM (R 4.2.0)
- cachem          1.0.6     2021-08-19 [1] RSPM (R 4.2.0)
- cellranger      1.1.0     2016-07-27 [1] RSPM (R 4.2.0)
- cli             3.4.1     2022-09-23 [1] RSPM (R 4.2.0)
- codetools       0.2-18    2020-11-04 [2] CRAN (R 4.2.1)
- colorspace      2.0-3     2022-02-21 [1] RSPM (R 4.2.0)
- conflicted    * 1.1.0     2021-11-26 [1] RSPM (R 4.2.0)
- cowplot       * 1.1.1     2020-12-30 [1] RSPM (R 4.2.0)
- crayon          1.5.2     2022-09-29 [1] RSPM (R 4.2.0)
- curl            4.3.3     2022-10-06 [1] RSPM (R 4.2.0)
- DBI             1.1.3     2022-06-18 [1] RSPM (R 4.2.0)
- dbplyr          2.2.1     2022-06-27 [1] RSPM (R 4.2.0)
- digest          0.6.30    2022-10-18 [1] RSPM (R 4.2.0)
- directlabels  * 2021.1.13 2021-01-16 [1] RSPM (R 4.2.0)
- dplyr         * 1.0.10    2022-09-01 [1] RSPM (R 4.2.0)
- ellipsis        0.3.2     2021-04-29 [1] RSPM (R 4.2.0)
- evaluate        0.17      2022-10-07 [1] RSPM (R 4.2.0)
- fansi           1.0.3     2022-03-24 [1] RSPM (R 4.2.0)
- fastmap         1.1.0     2021-01-25 [1] RSPM (R 4.2.0)
- forcats       * 0.5.2     2022-08-19 [1] RSPM (R 4.2.0)
- fs            * 1.5.2     2021-12-08 [1] RSPM (R 4.2.0)
- furrr         * 0.3.1     2022-08-15 [1] RSPM (R 4.2.0)
- future        * 1.28.0    2022-09-02 [1] RSPM (R 4.2.0)
- gargle          1.2.1     2022-09-08 [1] RSPM (R 4.2.0)
- generics        0.1.3     2022-07-05 [1] RSPM (R 4.2.0)
- ggplot2       * 3.3.6     2022-05-03 [1] RSPM (R 4.2.0)
- globals         0.16.1    2022-08-28 [1] RSPM (R 4.2.0)
- glue          * 1.6.2     2022-02-24 [1] RSPM (R 4.2.0)
- googledrive     2.0.0     2021-07-08 [1] RSPM (R 4.2.0)
- googlesheets4   1.0.1     2022-08-13 [1] RSPM (R 4.2.0)
- gtable          0.3.1     2022-09-01 [1] RSPM (R 4.2.0)
- haven           2.5.1     2022-08-22 [1] RSPM (R 4.2.0)
- hms             1.1.2     2022-08-19 [1] RSPM (R 4.2.0)
- htmltools       0.5.3     2022-07-18 [1] RSPM (R 4.2.0)
- htmlwidgets     1.5.4     2021-09-08 [1] RSPM (R 4.2.0)
- httr            1.4.4     2022-08-17 [1] RSPM (R 4.2.0)
- jsonlite        1.8.3     2022-10-21 [1] RSPM (R 4.2.0)
- knitr           1.40      2022-08-24 [1] RSPM (R 4.2.0)
- lifecycle       1.0.3     2022-10-07 [1] RSPM (R 4.2.0)
- listenv         0.8.0     2019-12-05 [1] RSPM (R 4.2.0)
- lubridate       1.8.0     2021-10-07 [1] RSPM (R 4.2.0)
- magrittr      * 2.0.3     2022-03-30 [1] RSPM (R 4.2.0)
- memoise         2.0.1     2021-11-26 [1] RSPM (R 4.2.0)
- modelr          0.1.9     2022-08-19 [1] RSPM (R 4.2.0)
- munsell         0.5.0     2018-06-12 [1] RSPM (R 4.2.0)
- parallelly      1.32.1    2022-07-21 [1] RSPM (R 4.2.0)
- pillar          1.8.1     2022-08-19 [1] RSPM (R 4.2.0)
- pkgconfig       2.0.3     2019-09-22 [1] RSPM (R 4.2.0)
- polite        * 0.1.2     2022-08-09 [1] RSPM (R 4.2.0)
- purrr         * 0.3.5     2022-10-06 [1] RSPM (R 4.2.0)
- quadprog        1.5-8     2019-11-20 [1] RSPM (R 4.2.0)
- R6              2.5.1     2021-08-19 [1] RSPM (R 4.2.0)
- ratelimitr      0.4.1     2018-10-07 [1] RSPM (R 4.2.0)
- Rcpp            1.0.9     2022-07-08 [1] RSPM (R 4.2.0)
- readr         * 2.1.3     2022-10-01 [1] RSPM (R 4.2.0)
- readxl          1.4.1     2022-08-17 [1] RSPM (R 4.2.0)
- reprex          2.0.2     2022-08-17 [1] RSPM (R 4.2.0)
- rlang         * 1.0.6     2022-09-24 [1] RSPM (R 4.2.0)
- rmarkdown       2.17      2022-10-07 [1] RSPM (R 4.2.0)
- robotstxt       0.7.13    2020-09-03 [1] RSPM (R 4.2.0)
- rstudioapi      0.14      2022-08-22 [1] RSPM (R 4.2.0)
- rvest         * 1.0.3     2022-08-19 [1] RSPM (R 4.2.0)
- scales        * 1.2.1     2022-08-20 [1] RSPM (R 4.2.0)
- selectr         0.4-2     2019-11-20 [1] RSPM (R 4.2.0)
- sessioninfo     1.2.2     2021-12-06 [1] RSPM (R 4.2.0)
- snakecase     * 0.11.0    2019-05-25 [1] RSPM (R 4.2.0)
- spiderbar       0.2.4     2021-05-16 [1] RSPM (R 4.2.0)
- stringi         1.7.8     2022-07-11 [1] RSPM (R 4.2.0)
- stringr       * 1.4.1     2022-08-20 [1] RSPM (R 4.2.0)
- tibble        * 3.1.8     2022-07-22 [1] RSPM (R 4.2.0)
- tidyr         * 1.2.1     2022-09-08 [1] RSPM (R 4.2.0)
- tidyselect      1.2.0     2022-10-10 [1] RSPM (R 4.2.0)
- tidyverse     * 1.3.2     2022-07-18 [1] RSPM (R 4.2.0)
- tzdb            0.3.0     2022-03-28 [1] RSPM (R 4.2.0)
- usethis         2.1.6     2022-05-25 [1] RSPM (R 4.2.0)
- utf8            1.2.2     2021-07-24 [1] RSPM (R 4.2.0)
- vctrs         * 0.5.0     2022-10-22 [1] RSPM (R 4.2.0)
- vroom           1.6.0     2022-09-30 [1] RSPM (R 4.2.0)
- withr           2.5.0     2022-03-03 [1] RSPM (R 4.2.0)
- xfun            0.34      2022-10-18 [1] RSPM (R 4.2.0)
- xml2            1.3.3     2021-11-30 [1] RSPM (R 4.2.0)
- yaml            2.3.6     2022-10-18 [1] RSPM (R 4.2.0)
+ package       * version date (UTC) lib source
+ assertthat      0.2.1   2019-03-21 [1] RSPM (R 4.2.0)
+ backports       1.4.1   2021-12-13 [1] RSPM (R 4.2.0)
+ broom           1.0.1   2022-08-29 [1] RSPM (R 4.2.0)
+ cachem          1.0.6   2021-08-19 [1] RSPM (R 4.2.0)
+ cellranger      1.1.0   2016-07-27 [1] RSPM (R 4.2.0)
+ cli             3.4.1   2022-09-23 [1] RSPM (R 4.2.0)
+ codetools       0.2-18  2020-11-04 [2] CRAN (R 4.2.1)
+ colorspace      2.0-3   2022-02-21 [1] RSPM (R 4.2.0)
+ conflicted    * 1.1.0   2021-11-26 [1] RSPM (R 4.2.0)
+ crayon          1.5.2   2022-09-29 [1] RSPM (R 4.2.0)
+ DBI             1.1.3   2022-06-18 [1] RSPM (R 4.2.0)
+ dbplyr          2.2.1   2022-06-27 [1] RSPM (R 4.2.0)
+ digest          0.6.30  2022-10-18 [1] RSPM (R 4.2.0)
+ dplyr         * 1.0.10  2022-09-01 [1] RSPM (R 4.2.0)
+ ellipsis        0.3.2   2021-04-29 [1] RSPM (R 4.2.0)
+ evaluate        0.17    2022-10-07 [1] RSPM (R 4.2.0)
+ fansi           1.0.3   2022-03-24 [1] RSPM (R 4.2.0)
+ fastmap         1.1.0   2021-01-25 [1] RSPM (R 4.2.0)
+ forcats       * 0.5.2   2022-08-19 [1] RSPM (R 4.2.0)
+ fs            * 1.5.2   2021-12-08 [1] RSPM (R 4.2.0)
+ furrr         * 0.3.1   2022-08-15 [1] RSPM (R 4.2.0)
+ future        * 1.28.0  2022-09-02 [1] RSPM (R 4.2.0)
+ gargle          1.2.1   2022-09-08 [1] RSPM (R 4.2.0)
+ generics        0.1.3   2022-07-05 [1] RSPM (R 4.2.0)
+ ggplot2       * 3.3.6   2022-05-03 [1] RSPM (R 4.2.0)
+ globals         0.16.1  2022-08-28 [1] RSPM (R 4.2.0)
+ glue          * 1.6.2   2022-02-24 [1] RSPM (R 4.2.0)
+ googledrive     2.0.0   2021-07-08 [1] RSPM (R 4.2.0)
+ googlesheets4   1.0.1   2022-08-13 [1] RSPM (R 4.2.0)
+ gtable          0.3.1   2022-09-01 [1] RSPM (R 4.2.0)
+ haven           2.5.1   2022-08-22 [1] RSPM (R 4.2.0)
+ hms             1.1.2   2022-08-19 [1] RSPM (R 4.2.0)
+ htmltools       0.5.3   2022-07-18 [1] RSPM (R 4.2.0)
+ htmlwidgets     1.5.4   2021-09-08 [1] RSPM (R 4.2.0)
+ httr            1.4.4   2022-08-17 [1] RSPM (R 4.2.0)
+ jsonlite        1.8.3   2022-10-21 [1] RSPM (R 4.2.0)
+ knitr           1.40    2022-08-24 [1] RSPM (R 4.2.0)
+ lifecycle       1.0.3   2022-10-07 [1] RSPM (R 4.2.0)
+ listenv         0.8.0   2019-12-05 [1] RSPM (R 4.2.0)
+ lubridate       1.8.0   2021-10-07 [1] RSPM (R 4.2.0)
+ magrittr      * 2.0.3   2022-03-30 [1] RSPM (R 4.2.0)
+ memoise         2.0.1   2021-11-26 [1] RSPM (R 4.2.0)
+ modelr          0.1.9   2022-08-19 [1] RSPM (R 4.2.0)
+ munsell         0.5.0   2018-06-12 [1] RSPM (R 4.2.0)
+ parallelly      1.32.1  2022-07-21 [1] RSPM (R 4.2.0)
+ pillar          1.8.1   2022-08-19 [1] RSPM (R 4.2.0)
+ pkgconfig       2.0.3   2019-09-22 [1] RSPM (R 4.2.0)
+ purrr         * 0.3.5   2022-10-06 [1] RSPM (R 4.2.0)
+ R6              2.5.1   2021-08-19 [1] RSPM (R 4.2.0)
+ readr         * 2.1.3   2022-10-01 [1] RSPM (R 4.2.0)
+ readxl          1.4.1   2022-08-17 [1] RSPM (R 4.2.0)
+ reprex          2.0.2   2022-08-17 [1] RSPM (R 4.2.0)
+ rlang         * 1.0.6   2022-09-24 [1] RSPM (R 4.2.0)
+ rmarkdown       2.17    2022-10-07 [1] RSPM (R 4.2.0)
+ rstudioapi      0.14    2022-08-22 [1] RSPM (R 4.2.0)
+ rvest           1.0.3   2022-08-19 [1] RSPM (R 4.2.0)
+ scales        * 1.2.1   2022-08-20 [1] RSPM (R 4.2.0)
+ sessioninfo     1.2.2   2021-12-06 [1] RSPM (R 4.2.0)
+ snakecase     * 0.11.0  2019-05-25 [1] RSPM (R 4.2.0)
+ stringi         1.7.8   2022-07-11 [1] RSPM (R 4.2.0)
+ stringr       * 1.4.1   2022-08-20 [1] RSPM (R 4.2.0)
+ tibble        * 3.1.8   2022-07-22 [1] RSPM (R 4.2.0)
+ tidyr         * 1.2.1   2022-09-08 [1] RSPM (R 4.2.0)
+ tidyselect      1.2.0   2022-10-10 [1] RSPM (R 4.2.0)
+ tidyverse     * 1.3.2   2022-07-18 [1] RSPM (R 4.2.0)
+ tzdb            0.3.0   2022-03-28 [1] RSPM (R 4.2.0)
+ utf8            1.2.2   2021-07-24 [1] RSPM (R 4.2.0)
+ vctrs         * 0.5.0   2022-10-22 [1] RSPM (R 4.2.0)
+ withr           2.5.0   2022-03-03 [1] RSPM (R 4.2.0)
+ xfun            0.34    2022-10-18 [1] RSPM (R 4.2.0)
+ xml2            1.3.3   2021-11-30 [1] RSPM (R 4.2.0)
+ yaml            2.3.6   2022-10-18 [1] RSPM (R 4.2.0)
 
  [1] /usr/local/lib/R/site-library
  [2] /usr/local/lib/R/library

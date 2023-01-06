@@ -1,0 +1,97 @@
+---
+title: "Parse Film Scripts"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: cerulean
+      dark: cyborg
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r import_libraries}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(magrittr)
+library(rlang)
+library(vctrs)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(snakecase)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+```
+
+In this workbook we work on parsing the film scripts to extract both dialogue
+and other narration such as the descriptions of settings.
+
+
+# Load Master Data
+
+We want to load up the master table containing all the metadata on the
+different film scripts we intend to parse.
+
+```{r load_film_scripts_table}
+#! echo: true
+#! message: false
+
+film_master_tbl <- read_rds("data/films_scraped_tbl.rds")
+
+film_master_tbl %>% glimpse()
+```
+
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: false
+#| message: false
+
+
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
