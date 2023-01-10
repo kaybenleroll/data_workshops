@@ -56,4 +56,14 @@ clean_austin_powers_international_man_of_mystery <- function(orig_text) {
 }
 
 
+clean_gone_baby_gone <- function(orig_text) {
 
+  dialogue_str <- rep(" ", 50) %>%
+    str_c(collapse = "") %>%
+    str_c(., "\\1")
+
+  clean_text <- orig_text %>%
+    str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) %>% str_c(collapse = "") %>% str_c(., "\\1"))
+
+  return(clean_text)
+}
