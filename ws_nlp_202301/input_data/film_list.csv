@@ -2,7 +2,9 @@ film_title,release_year,genre,script_filename
 Austin Powers - International Man of Mystery,1997,Comedy,Austin-Powers---International-Man-of-Mystery
 The Godfather,1972,Crime,Godfather
 The Godfather Part II,1974,Crime,Godfather-Part-II
-The Godfather Part III,1990,Crime,"Godfather-Part-III,-The"
+Gone Baby Gone,2013,Drama,Gone-Baby-Gone
+Gran Torino,2008,Drama,Gran-Torino
+Good Will Hunting,1997,Drama,Good-Will-Hunting
 Star Wars: A New Hope,1977,Science Fiction,Star-Wars-A-New-Hope
 Star Wars: The Empire Strikes Back,1980,Science Fiction,Star-Wars-The-Empire-Strikes-Back
 Star Wars: Return of the Jedi,1983,Science Fiction,Star-Wars-Return-of-the-Jedi
@@ -17,3 +19,6 @@ Apocalypse Now,1979,War,Apocalypse-Now
 2001 A Space Odyssey,1968,Science Fiction,2001-A-Space-Odyssey
 The Shining,1980,Horror,"Shining,-The"
 Office Space,1999,Comedy,Office-Space
+Airplane,1977,Comedy,Airplane
+Do the Right Thing,1988,Drama,Do-The-Right-Thing
+The Hangover,2007,Comedy,"Hangover,-The"

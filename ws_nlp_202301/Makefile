@@ -45,24 +45,23 @@ depgraph: full_deps.png
 
 
 
-mrproper: clean-cache clean-data clean-html clean-models
-	rm -fv data/*.xlsx
+mrproper: clean-data clean-scraped clean-scripts
 	rm -fv *.dot
 	rm -fv output.log
 
 clean-data:
-	rm -fv data/*.rds
-	rm -fv data/*.csv
+	rm -rfv data/*.rds
 
-clean-html:
-	rm -fv *.html
+clean-scraped: clean-scripts
+	rm -fv scraped_files/scraped_raw/*.rds
+
+clean-scripts: clean-data
+	rm -fv scraped_files/cleaned_script/*.txt
 
 clean-cache:
 	rm -rfv *_cache
 	rm -rfv *_files
 
-clean-models:
-	rm -fv stan_models/*
 
 
 ### Docker targets

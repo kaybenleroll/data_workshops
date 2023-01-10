@@ -1,0 +1,30 @@
+{
+  ".default_parser": {
+    "parser_label":             "default_parser",
+    "direction_line_regex":     "^[ ]{15}\\S",
+    "character_line_regex":     "^[ ]{37}\\S",
+    "dialogue_direction_regex": "^[ ]{30}\\S",
+    "dialogue_line_regex":      "^[ ]{25}\\S"
+  },
+  "the_godfather": {
+    "parser_label":             "godfather",
+    "direction_line_regex":     "^[\\t]{1}\\S",
+    "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{4}\\(",
+    "dialogue_line_regex":      "^[\\t]{2}\\S"
+  },
+  "the_godfather_part_ii": {
+    "parser_label":             "godfather_ii",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{3} ",
+    "dialogue_line_regex":      "^[\\t]{2}\\S"
+  },
+  "gone_baby_gone": {
+    "parser_label":             "gone_baby_gone",
+    "direction_line_regex":     "^[ ]{10}\\S",
+    "character_line_regex":     "^[ ]{50}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{50}\\(",
+    "dialogue_line_regex":      "^[ ]{21}\\S"
+  }
+}

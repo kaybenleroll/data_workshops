@@ -45,6 +45,7 @@ library(snakecase)
 
 source("lib_utils.R")
 source("lib_manual_script_cleaners.R")
+source("lib_script_parsers.R")
 
 
 conflict_lst <- resolve_conflicts(
@@ -87,6 +88,24 @@ films_tbl <- read_csv(
 films_tbl %>% glimpse()
 ```
 
+Each film script may require different parsing routines to convert it to a
+common format so we can run our usual NLP preprocessing etc.
+
+
+```{r load_film_script_parser_data, echo=TRUE}
+#| echo: true
+#| message: false
+
+film_parser_loaded_tbl <- read_json(
+    "input_data/script_parser_data.json"
+    ) %>%
+  enframe(name = "title_cleaned", value = "parser_conf")
+
+film_parser_loaded_tbl %>% glimpse()
+```
+
+
+
 We now want to set up some base parameters for this worksheet.
 
 
@@ -98,6 +117,7 @@ base_url <- "https://imsdb.com/scripts"
 scraped_raw_dir    <- "scraped_files/scraped_raw"
 raw_script_dir     <- "scraped_files/scraped_raw"
 cleaned_script_dir <- "scraped_files/cleaned_script"
+parsed_script_dir  <- "data/parsed_scripts"
 ```
 
 
@@ -106,14 +126,17 @@ cleaned_script_dir <- "scraped_files/cleaned_script"
 ```{r setup_film_script_scraping}
 #| echo: true
 
-films_scraped_tbl <- films_tbl %>%
+films_master_tbl <- films_tbl %>%
   mutate(
     title_cleaned   = film_title %>% to_snake_case(),
     retrieve_url    = glue("{base_url}/{script_filename}.html"),
-    cached_htmlfile = glue("{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds")
+    cached_htmlfile = glue("{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds"),
+    script_txtfile  = glue("{raw_script_dir}/script_{title_cleaned}.txt"),
+    cleaned_txtfile = glue("{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt"),
+    parsed_file     = glue("{parsed_script_dir}/parsedscript_{title_cleaned}.rds")
     )
 
-films_scraped_tbl
+films_master_tbl %>% glimpse()
 ```
 
 
@@ -141,14 +164,18 @@ prescraped_tbl <- dir_ls(scraped_raw_dir) %>%
   enframe(name = NULL, value = "cached_htmlfile")
 
 
-new_scraped_tbl <- films_scraped_tbl %>%
+new_scraped_tbl <- films_master_tbl %>%
   anti_join(prescraped_tbl, by = "cached_htmlfile") %>%
   mutate(
-    scrape_data = map2(retrieve_url, cached_htmlfile, scrape_film_scripts, use_session = scrape_session)
+    scrape_data = map2(
+      retrieve_url, cached_htmlfile,
+      scrape_film_scripts,
+      use_session = scrape_session
+      )
     )
 
 
-films_scraped_tbl %>% glimpse()
+new_scraped_tbl %>% glimpse()
 ```
 
 
@@ -177,13 +204,11 @@ write_script_text <- function(script_text, script_file) {
 }
 
 
-films_scraped_tbl <- films_scraped_tbl %>%
+films_scraped_tbl <- films_master_tbl %>%
   mutate(
     scraped_html    = map_chr(cached_htmlfile, read_rds),
     parsed_data     = map(scraped_html, read_html),
     script_text     = map2_chr(title_cleaned, parsed_data, parse_script_text),
-    script_txtfile  = glue("{raw_script_dir}/script_{title_cleaned}.txt"),
-    cleaned_txtfile = glue("{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt"),
     write_file      = map2_lgl(script_text, script_txtfile, write_script_text)
     )
 
@@ -216,6 +241,108 @@ films_scraped_tbl %>% glimpse()
 ```
 
 
+We want to keep a cut down version of this file for ongoing processing.
+
+```{r construct_films_master_table}
+#| echo: true
+
+films_master_tbl <- films_scraped_tbl %>%
+  select(
+    film_title, release_year, genre, title_cleaned, cached_htmlfile,
+    script_txtfile, cleaned_txtfile, flag_cleaned, parsed_file
+    )
+
+films_master_tbl %>% glimpse()
+```
+
+
+
+# Parse the Scripts
+
+
+We now combine the tables to set up the film scripts parsing.
+
+```{r combine_script_master_with_parser}
+#| echo: true
+#| message: false
+
+default_parser_conf <- film_parser_loaded_tbl %>%
+  filter(title_cleaned == ".default_parser") %>%
+  pull(parser_conf) %>%
+  extract2(1)
+
+film_parsers_tbl <- films_master_tbl %>%
+  left_join(film_parser_loaded_tbl, by = "title_cleaned") %>%
+  replace_na(
+    list(parser_conf = list(default_parser_conf))
+    ) %>%
+  mutate(
+    parser_func = map(parser_conf, construct_film_script_parser)
+    )
+
+film_parsers_tbl %>% glimpse()
+```
+
+
+As before, we expect to be running this code multiple times if we want to
+add multiple film scripts so we only run the parser on scripts that do not
+have a pre-parsed file in the 
+
+
+```{r parse_film_scripts}
+#! echo: true
+#! message: false
+
+read_parse_write_script <- function(parser_func, input_file, output_file) {
+  
+  message(glue("Parsing script {input_file}..."))
+  
+  parsed_lst <- parser_func(input_file)
+  
+  message(glue("Writing parsed data to {output_file}..."))
+  
+  parsed_lst %>% write_rds(file = output_file)
+  
+  return(TRUE)
+}
+
+
+parsed_scripts_tbl <- dir_ls(parsed_script_dir, regexp = "\\.rds$") %>%
+  as.character() %>%
+  enframe(name = NULL, value = "parsed_file")
+
+run_parsers_tbl <- film_parsers_tbl %>%
+  anti_join(parsed_scripts_tbl, by = "parsed_file") %>%
+  mutate(
+    write_file = pmap_lgl(
+      list(
+        parser_func = parser_func,
+        input_file  = cleaned_txtfile,
+        output_file = parsed_file
+        ),
+      read_parse_write_script
+      )
+    )
+
+run_parsers_tbl %>% glimpse()
+```
+
+We now load up all our parsed data.
+
+```{r loading_parsed_scripts}
+#| echo: true
+#| message: false
+
+films_parsed_tbl <- films_master_tbl %>%
+  mutate(
+    parsed_data = map(parsed_file, read_rds)    
+    ) %>%
+  unnest(parsed_data)
+
+films_parsed_tbl %>% glimpse()
+```
+
+
 
 # Write to Disk
 
@@ -224,12 +351,7 @@ We now write this data out to disk.
 ```{r write_data_disk}
 #| echo: true
 
-films_scraped_tbl %>%
-  select(
-    film_title, release_year, genre, title_cleaned, cached_htmlfile,
-    script_txtfile, cleaned_txtfile, flag_cleaned
-    ) %>%
-  write_rds("data/films_scraped_tbl.rds")
+films_master_tbl %>% write_rds("data/films_master_tbl.rds")
 ```
 
 
