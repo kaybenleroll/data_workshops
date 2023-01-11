@@ -6,6 +6,146 @@
     "dialogue_direction_regex": "^[ ]{30}\\S",
     "dialogue_line_regex":      "^[ ]{25}\\S"
   },
+  "airplane": {
+    "parser_label":             "airplane",
+    "direction_line_regex":     "^[ ]{10}\\S",
+    "character_line_regex":     "^[ ]{34}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{31}\\(",
+    "dialogue_line_regex":      "^[ ]{24}\\S"
+  },
+  "apocalypse_now": {
+    "parser_label":             "apocalypse_now",
+    "direction_line_regex":     "^[\\t]{1}\\S",
+    "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{3}\\(",
+    "dialogue_line_regex":      "^[\\t]{2}\\S"
+  },
+  "do_the_right_thing": {
+    "parser_label":             "do_the_right_thing",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[\\t]{5}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{3}    ",
+    "dialogue_line_regex":      "^[\\t]{2}  \\S"
+  },
+  "donnie_brasco": {
+    "parser_label":             "donnie_brasco",
+    "direction_line_regex":     "^[ ]{4}\\S",
+    "character_line_regex":     "^[ ]{26}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{19}\\(",
+    "dialogue_line_regex":      "^[ ]{16}\\S"
+  },
+  "drive": {
+    "parser_label":             "drive",
+    "direction_line_regex":     "^[ ]{11}\\S",
+    "character_line_regex":     "^[ ]{26}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{13}\\(",
+    "dialogue_line_regex":      "^[ ]{13}\\S"
+  },
+  "go": {
+    "parser_label":             "go",
+    "direction_line_regex":     "^[ ]{13}\\S",
+    "character_line_regex":     "^[ ]{42}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{19}\\(",
+    "dialogue_line_regex":      "^[ ]{31}\\S"
+  },
+  "gone_baby_gone": {
+    "parser_label":             "gone_baby_gone",
+    "direction_line_regex":     "^[ ]{10}\\S",
+    "character_line_regex":     "^[ ]{50}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{50}\\(",
+    "dialogue_line_regex":      "^[ ]{20,30}\\S"
+  },
+  "grosse_point_blank": {
+    "parser_label":             "grosse_point_blank",
+    "direction_line_regex":     "^[\\t]{1}\\S",
+    "character_line_regex":     "^[\\t]{4}  \\S",
+    "dialogue_direction_regex": "^[\\t]{3}\\(",
+    "dialogue_line_regex":      "^[\\t]{2}\\S"
+  },
+  "groundhog_day": {
+    "parser_label":             "groundhog_day",
+    "direction_line_regex":     "^[ ]{10}\\S",
+    "character_line_regex":     "^[ ]{11}[A-Z\\.]+",
+    "dialogue_direction_regex": "^[ ]{11}\\(",
+    "dialogue_line_regex":      "^[ ]{11}\\S"
+  },
+  "killing_zoe": {
+    "parser_label":             "killing_zoe",
+    "direction_line_regex":     "^[ ]{7}\\S",
+    "character_line_regex":     "^[ ]{27}\\S",
+    "dialogue_direction_regex": "^[ ]{21}\\(",
+    "dialogue_line_regex":      "^[ ]{17}\\S"
+  },
+  "legally_blonde": {
+    "parser_label":             "legally_blonde",
+    "direction_line_regex":     "^[ ]{4}\\S",
+    "character_line_regex":     "^[ ]{24}\\S",
+    "dialogue_direction_regex": "^[ ]{18}\\(",
+    "dialogue_line_regex":      "^[ ]{14}\\S"
+  },
+  "margin_call": {
+    "parser_label":             "margin_call",
+    "direction_line_regex":     "^[ ]{4}\\S",
+    "character_line_regex":     "^[ ]{24,30}\\S",
+    "dialogue_direction_regex": "^[ ]{18}\\(",
+    "dialogue_line_regex":      "^[ ]{14}\\S"
+  },
+  "mean_streets": {
+    "parser_label":             "mean_streets",
+    "direction_line_regex":     "^[ ]{10}\\S",
+    "character_line_regex":     "^[ ]{26}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{26}\\(",
+    "dialogue_line_regex":      "^[ ]{11}\\S"
+  },
+  "mulholland_drive": {
+    "parser_label":             "mulholland_drive",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{3}\\(",
+    "dialogue_line_regex":      "^[\\t]{2}\\S"
+  },
+  "psycho": {
+    "parser_label":             "psycho",
+    "direction_line_regex":     "^[\\t]{1}\\S",
+    "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{3}\\(",
+    "dialogue_line_regex":      "^[\\t]{2}\\S"
+  },
+  "reservoir_dogs": {
+    "parser_label":             "reservoir_dogs",
+    "direction_line_regex":     "^[ ]{7}\\S",
+    "character_line_regex":     "^[ ]{30}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{25}\\(",
+    "dialogue_line_regex":      "^[ ]{17}\\S"
+  },
+  "scream": {
+    "parser_label":             "scream",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[ ]{12}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{25}\\(",
+    "dialogue_line_regex":      "^[ ]{8}\\S"
+  },
+  "snatch": {
+    "parser_label":             "snatch",
+    "direction_line_regex":     "^[ ]{5}\\S",
+    "character_line_regex":     "^[ ]{25,35}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{25}\\(",
+    "dialogue_line_regex":      "^[ ]{15}\\S"
+  },
+  "star_wars_the_empire_strikes_back": {
+    "parser_label":             "star_wars_the_empire_strikes_back",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{3} ",
+    "dialogue_line_regex":      "^[\\t]{2}\\S"
+  },
+  "strangers_on_a_train": {
+    "parser_label":             "strangers_on_a_train",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[ ]{22}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{14}\\(",
+    "dialogue_line_regex":      "^[ ]{10}\\S"
+  },
   "the_godfather": {
     "parser_label":             "godfather",
     "direction_line_regex":     "^[\\t]{1}\\S",
@@ -20,11 +160,67 @@
     "dialogue_direction_regex": "^[\\t]{3} ",
     "dialogue_line_regex":      "^[\\t]{2}\\S"
   },
-  "gone_baby_gone": {
-    "parser_label":             "gone_baby_gone",
+  "the_hangover": {
+    "parser_label":             "the_hangover",
     "direction_line_regex":     "^[ ]{10}\\S",
-    "character_line_regex":     "^[ ]{50}[^\\(]",
-    "dialogue_direction_regex": "^[ ]{50}\\(",
-    "dialogue_line_regex":      "^[ ]{21}\\S"
+    "character_line_regex":     "^[ ]{24}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{31}\\(",
+    "dialogue_line_regex":      "^[ ]{20}\\S"
+  },
+  "the_princess_bride": {
+    "parser_label":             "the_princess_bride",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[ ]{25}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{18}\\(",
+    "dialogue_line_regex":      "^[ ]{13}\\S"
+  },
+  "the_shining": {
+    "parser_label":             "the_shining",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[ ]{25}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{19}\\(",
+    "dialogue_line_regex":      "^[ ]{12}\\S"
+  },
+  "the_king_of_comedy": {
+    "parser_label":             "the_king_of_comedy",
+    "direction_line_regex":     "^[ ]{4}\\S",
+    "character_line_regex":     "^[ ]{23}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{17}\\(",
+    "dialogue_line_regex":      "^[ ]{11}\\S"
+  },
+  "the_king_s_speech": {
+    "parser_label":             "the_king_s_speech",
+    "direction_line_regex":     "^[ ]{4}\\S",
+    "character_line_regex":     "^[ ]{29}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{23}\\(",
+    "dialogue_line_regex":      "^[ ]{19}\\S"
+  },
+  "the_last_boy_scout": {
+    "parser_label":             "the_last_boy_scout",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[ ]{25}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{16}\\(",
+    "dialogue_line_regex":      "^[ ]{11}\\S"
+  },
+  "the_last_samurai": {
+    "parser_label":             "the_last_samurai",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[ ]{47}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{38}\\(",
+    "dialogue_line_regex":      "^[ ]{27}\\S"
+  },
+  "the_matrix": {
+    "parser_label":             "the_matrix",
+    "direction_line_regex":     "^[\\t]{1}\\S",
+    "character_line_regex":     "^[\\t]{5}[^\\(]\\S",
+    "dialogue_direction_regex": "^[\\t]{3}\\(",
+    "dialogue_line_regex":      "^[\\t]{3}\\S"
+  },
+  "tombstone": {
+    "parser_label":             "tombstone",
+    "direction_line_regex":     "^[^\\s]",
+    "character_line_regex":     "^[ ]{21}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{15}\\(",
+    "dialogue_line_regex":      "^[ ]{10}\\S"
   }
 }

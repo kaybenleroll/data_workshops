@@ -49,14 +49,21 @@ mrproper: clean-data clean-scraped clean-scripts
 	rm -fv *.dot
 	rm -fv output.log
 
+
+
 clean-data:
 	rm -rfv data/*.rds
 
-clean-scraped: clean-scripts
-	rm -fv scraped_files/scraped_raw/*.rds
+clean-parsed: clean-data
+	rm -fv data/parsed_scripts/*.rds
 
-clean-scripts: clean-data
+clean-scripts: clean-parsed
 	rm -fv scraped_files/cleaned_script/*.txt
+
+clean-scraped: clean-scripts
+	rm -fv scraped_files/scraped_raw/scraped_*.rds
+	rm -fv scraped_files/scraped_raw/script_*.txt
+
 
 clean-cache:
 	rm -rfv *_cache
