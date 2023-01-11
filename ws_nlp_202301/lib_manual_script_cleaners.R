@@ -65,5 +65,37 @@ clean_gone_baby_gone <- function(orig_text) {
   clean_text <- orig_text %>%
     str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) %>% str_c(collapse = "") %>% str_c(., "\\1"))
 
+  prepend_whitespace <- function(prefix_len, text_str) {
+    prep_str <- rep(" ", prefix_len) %>% str_c(collapse = "")
+
+    return(str_c(prep_str, text_str))
+  }
+
+  clean_text[302] <- prepend_whitespace(30, "Dot Avenue, where are you?")
+  clean_text[307] <- prepend_whitespace(30, "Nguyen's nail salon.")
+  clean_text[312] <- prepend_whitespace(30, "That's where she went?")
+  clean_text[317] <- prepend_whitespace(30, "Yup. I'm getting my nails done. You still")
+  clean_text[318] <- prepend_whitespace(30, "with the father?")
+  clean_text[323] <- prepend_whitespace(30, "I lost him.")
+  clean_text[328] <- prepend_whitespace(30, "You did?")
+  clean_text[333] <- prepend_whitespace(30, "Lincoln Mercury Cougar, ninety-eight.")
+  clean_text[334] <- prepend_whitespace(30, "Broadway and L St. Field Sobriety...")
+  clean_text[339] <- prepend_whitespace(30, "Whoops, there he is.")
+  clean_text[342] <- prepend_whitespace(10, "And he pulls out.")
+  clean_text[352] <- prepend_whitespace(10, "On the side of the road, several OFFICERS administer a FIELD")
+  clean_text[353] <- prepend_whitespace(10, "SOBRIETY TEST to the MAN.")
+  clean_text[356] <- prepend_whitespace(10, "The Man is upset. He gestures at the Police.")
+  clean_text[359] <- prepend_whitespace(10, "Patrick pulls up across the street, watching.")
+  clean_text[362] <- prepend_whitespace(10, "They let the man go.")
+  clean_text[365] <- prepend_whitespace(10, "Patrick eases out after him. He WAVES to the cops, who stare")
+  clean_text[367] <- ""
+  clean_text[368] <- prepend_whitespace(10, "back, not knowing him or why he is waving.")
+  clean_text[376] <- prepend_whitespace(10, "From Patrick's car, we see the Father get out of his car and")
+  clean_text[377] <- prepend_whitespace(10, "head in the door, holding his bag.")
+  clean_text[380] <- prepend_whitespace(10, "Patrick watches from across the street, in his car.")
+
+
+
+
   return(clean_text)
 }
