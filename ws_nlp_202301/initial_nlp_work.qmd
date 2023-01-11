@@ -1,0 +1,109 @@
+---
+title: "Initial NLP Work on Film Scripts"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: cerulean
+      dark: cyborg
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r import_libraries}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(tidytext)
+library(quanteda)
+
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+```
+
+In this workbook we perform the initial NLP pre-processing and simple
+explorations and visualisations of the data.
+
+# Load Data
+
+```{r load_films_master_data}
+#| echo: true
+
+films_master_tbl <- read_rds("data/films_master_tbl.rds")
+
+films_master_tbl %>% glimpse()
+```
+
+The parsed data is stored in the file listed in the column `parsed_file` and
+contains to separate tibbles, one with the detailed parsing of the script and
+the second which aggregates all the text for both scene directions and
+dialogue.
+
+```{r load_parsed_script_data}
+#| echo: true
+
+films_parsed_tbl <- films_master_tbl %>%
+  mutate(
+    parsed_data = map(parsed_file, read_rds)
+    ) %>%
+  unnest(parsed_data) %>%
+  select(
+    film_title, release_year, genre, title_cleaned, parsing_detailed,
+    parsing_aggregated
+    )
+
+films_parsed_tbl %>% glimpse()
+```
+
+
+
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: false
+#| message: false
+
+
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
