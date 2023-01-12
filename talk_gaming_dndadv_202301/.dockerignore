@@ -1,0 +1,12 @@
+README.md
+
+data/*
+
+scraped_files/*
+
+.Rproj.user/*
+
+nlp_workshop.Rproj
+
+*.qmd
+*.html

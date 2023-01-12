@@ -1,0 +1,226 @@
+---
+title: "Taking Advantage"
+subtitle: "An Analysis of Advantage/Disadvantage in the D20 System"
+author: "Mick Cooney <mickcooney@gmail.com>"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(scales)
+library(cowplot)
+
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+
+# Background
+
+---
+
+
+
+
+
+
+
+## Dublin Data Science
+
+![](img/dds_pedro.png)
+
+
+
+## Goals
+
+
+
+# Setting Up
+
+---
+
+
+Discrete space
+
+\
+
+No need for simulation
+
+---
+
+\
+
+
+\begin{eqnarray*}
+1d20 &\rightarrow&  20 \text{ possible outcomes} \\
+2d20 &\rightarrow& 400 \text{ possible outcomes}
+\end{eqnarray*}
+
+---
+
+Create table of outcomes for 2d20.
+
+\
+
+\begin{eqnarray*}
+\text{Straight: }   &\rightarrow& \text{ use first die} \\
+\text{Adv/Disadv: } &\rightarrow& \text{ use max/min of two dice}
+\end{eqnarray*}
+
+
+---
+
+```{r construct_full_outcomes_table}
+#| echo: false
+
+outcomes_tbl <- expand_grid(
+    d1 = 1:20,
+    d2 = 1:20
+    ) %>%
+  mutate(
+    Straight     = d1,
+    Advantage    = pmax(d1, d2),
+    Disadvantage = pmin(d1, d2)
+    )
+
+outcomes_tbl %>%
+  head(7) %>%
+  knitr::kable()
+```
+
+---
+
+```{r plot_histograms_roll}
+#| echo: false
+
+outcomes_long_tbl <- outcomes_tbl %>%
+  pivot_longer(
+    cols      = !c(d1, d2),
+    names_to  = "roll_type",
+    values_to = "outcome"
+    )
+
+ggplot(outcomes_long_tbl) +
+  geom_histogram(
+    aes(x = outcome, fill = roll_type),
+    position = "dodge", binwidth = 1) +
+  scale_fill_brewer(type = "qual", palette = "Set2") +
+  labs(
+    x = "Outcome",
+    y = "Count",
+    fill = "Roll Type",
+    title = "Histogram of Dice-roll Outcomes"
+    )
+```
+
+---
+
+```{r plot_props_comparison}
+#| echo: false
+
+outcomes_prop_tbl <- outcomes_long_tbl %>%
+  group_by(roll_type) %>%
+  count(outcome) %>%
+  mutate(
+    prop = n / sum(n)
+    ) %>%
+  ungroup()
+
+
+ggplot(outcomes_prop_tbl) +
+  geom_col(aes(x = outcome, y = prop, fill = roll_type), position = "dodge") +
+  scale_fill_brewer(type = "qual", palette = "Set2") +
+  labs(
+    x = "Outcome",
+    y = "Proportion",
+    fill = "Roll Type",
+    title = "Probabilities of Dice Roll Outcome"
+    )
+```
+
+---
+
+```{r }
+calculate_cumulative_probabilities <- function(outcomes_tbl) {
+  dice_roll <- 1:20
+  
+  cuml_prob <- outcomes_tbl %>%
+    pull(outcome) %>%
+    ecdf() %>% 
+    exec(dice_roll)
+  
+  cuml_prob_tbl <- tibble(
+    dice_roll = dice_roll,
+    cuml_prob = cuml_prob
+    )
+  
+  return(cuml_prob_tbl)
+}
+
+```
+
+
+
+
+# Thank You!
+
+\
+
+
+This talk...
+
+[https://github.com/kaybenleroll/data_workshops/talk_bm_btydbayes_202211]()
+
+\
+
+
+
+
+
+
+
+
+
+
+
+
