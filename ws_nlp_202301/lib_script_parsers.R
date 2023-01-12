@@ -53,7 +53,10 @@ construct_film_script_parser <- function(parser_conf) {
           str_trim(line_text) %>% tail(n = -1) %>% str_c(collapse = " ")
         )
       ) %>%
-      arrange(grouping_id)
+      arrange(grouping_id) %>%
+      mutate(
+        flag_dialogue = !(section_title == "Direction")
+        )
 
 
     script_parsing_tbl <- tibble(
