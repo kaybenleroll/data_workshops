@@ -39,6 +39,7 @@ library(furrr)
 library(glue)
 library(tidytext)
 library(quanteda)
+library(ggwordcloud)
 
 
 
@@ -76,10 +77,33 @@ contains to separate tibbles, one with the detailed parsing of the script and
 the second which aggregates all the text for both scene directions and
 dialogue.
 
+Also, a number of film scripts have not parsed properly, so we also want to
+create a list of those films and exclude them from the analysis.
+
+We may go back later to improve the parsing and if this happens we will updated
+this list.
+
+```{r create_film_exclusion_list}
+#| echo: true
+
+films_exclude_tbl <- c(
+    "12_years_a_slave", "2001_a_space_odyssey", "django_unchained",
+    "gran_torino", "leaving_las_vegas", "lock_stock_and_two_smoking_barrels", 
+    "moneyball", "office_space", "star_wars_return_of_the_jedi",
+    "the_green_mile"
+    ) %>%
+  enframe(name = NULL, value = "title_cleaned")
+
+films_exclude_tbl %>% glimpse()
+```
+
+
+
 ```{r load_parsed_script_data}
 #| echo: true
 
 films_parsed_tbl <- films_master_tbl %>%
+  anti_join(films_exclude_tbl, by = "title_cleaned") %>%
   mutate(
     parsed_data = map(parsed_file, read_rds)
     ) %>%
@@ -94,6 +118,83 @@ films_parsed_tbl %>% glimpse()
 
 
 
+# Initial NLP Processing
+
+We now want to perform some very basic NLP processing such as *tokenisation*.
+
+Once we have tokenised the script, we also remove "stop words" - that is, common
+words that do not convey meaning, such as "and", "to", "the" and so on.
+
+
+
+```{r process_text_initial_nlp}
+#| echo: true
+data(stop_words)
+
+films_tokens_tbl <- films_parsed_tbl %>%
+  mutate(
+    wordtoken_data = map(
+      parsing_aggregated, unnest_tokens,
+      output = word, input = full_text
+      ),
+    ngramtoken_data = map(
+      parsing_aggregated, unnest_tokens,
+      output = word, input = full_text, token = "ngrams", n = 2, n_min = 1
+      )
+    ) %>%
+  select(-parsing_detailed, -parsing_aggregated)
+
+films_wordtoken_unstopped_tbl <- films_tokens_tbl %>%
+  select(-ngramtoken_data) %>%
+  unnest(wordtoken_data)
+
+films_wordtoken_tbl <- films_wordtoken_unstopped_tbl %>%
+  anti_join(stop_words, by = "word")
+```
+
+
+## Show Initial Wordclouds
+
+We now want to create some word clouds as a quick initial visualisation of the
+data.
+
+```{r plot_data_wordclouds_unstopped}
+#| echo: true
+
+plot_unstopped_tbl <- films_wordtoken_unstopped_tbl %>%
+  count(word) %>%
+  slice_max(order_by = n, n = 500)
+
+ggwordcloud2(plot_unstopped_tbl, seed = 421)
+```
+
+
+```{r plot_data_wordclouds_stopped}
+#| echo: false
+
+plot_stopped_tbl <- films_wordtoken_tbl %>%
+  count(word) %>%
+  slice_max(order_by = n, n = 500)
+
+ggwordcloud2(plot_stopped_tbl, seed = 422)
+```
+
+
+## Word-stemming
+
+We also want to look at stemming our words.
+
+```{r add_word_stems}
+#| echo: true
+
+films_stems_tbl <- films_wordtoken_tbl %>%
+  mutate(
+    snowball_stem = wordStem(word),
+    hunspell_stem = hunspell_stem(word)
+    )
+
+
+```
 
 
 # R Environment

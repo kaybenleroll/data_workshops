@@ -52,6 +52,7 @@ RUN apt-get update \
     directlabels \
     fs \
     furrr \
+    ggwordcloud \
     kernlab \
     lda \
     lobstr \
