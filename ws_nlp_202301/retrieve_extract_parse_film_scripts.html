@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Mick Cooney mickcooney@gmail.com">
-<meta name="dcterms.date" content="2023-01-12">
+<meta name="dcterms.date" content="2023-01-13">
 
 <title>Retrieve and Extract Selected Film Scripts</title>
 <style>
@@ -2633,7 +2633,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">January 12, 2023</p>
+      <p class="date">January 13, 2023</p>
     </div>
   </div>
     
@@ -2664,7 +2664,7 @@ vertical-align: -.125em;
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">progress  =</span> <span class="cn">FALSE</span></span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>films_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>films_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
@@ -2681,10 +2681,10 @@ $ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>film_parser_loaded_tbl <span class="ot">&lt;-</span> <span class="fu">read_json</span>(</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;input_data/script_parser_data.json&quot;</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="st">&quot;title_cleaned&quot;</span>, <span class="at">value =</span> <span class="st">&quot;parser_conf&quot;</span>)</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>film_parser_loaded_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>film_parser_loaded_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 32
@@ -2711,18 +2711,18 @@ $ parser_conf   &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="ot">&lt;-</span> films_tbl <span class="sc">%&gt;%</span></span>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="ot">&lt;-</span> films_tbl <span class="sc">|&gt;</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">title_cleaned   =</span> film_title <span class="sc">%&gt;%</span> <span class="fu">to_snake_case</span>(),</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">title_cleaned   =</span> film_title <span class="sc">|&gt;</span> <span class="fu">to_snake_case</span>(),</span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">retrieve_url    =</span> <span class="fu">glue</span>(<span class="st">&quot;{base_url}/{script_filename}.html&quot;</span>),</span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">cached_htmlfile =</span> <span class="fu">glue</span>(<span class="st">&quot;{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds&quot;</span>),</span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">script_txtfile  =</span> <span class="fu">glue</span>(<span class="st">&quot;{raw_script_dir}/script_{title_cleaned}.txt&quot;</span>),</span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">cleaned_txtfile =</span> <span class="fu">glue</span>(<span class="st">&quot;{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt&quot;</span>),</span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_file     =</span> <span class="fu">glue</span>(<span class="st">&quot;{parsed_script_dir}/parsedscript_{title_cleaned}.rds&quot;</span>)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
 <span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(title_cleaned)</span>
 <span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
@@ -2747,23 +2747,23 @@ $ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>scrape_film_scripts <span class="ot">&lt;-</span> <span class="cf">function</span>(script_url, cached_htmlfile, use_session) {</span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Scraping URL {script_url}&quot;</span>))</span>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  scrape_data <span class="ot">&lt;-</span> <span class="fu">nod</span>(use_session, script_url, <span class="at">verbose =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scrape</span>(<span class="at">verbose =</span> <span class="cn">TRUE</span>, <span class="at">content =</span> <span class="st">&quot;text/html;charset=iso-8859-1&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  scrape_data <span class="ot">&lt;-</span> <span class="fu">nod</span>(use_session, script_url, <span class="at">verbose =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scrape</span>(<span class="at">verbose =</span> <span class="cn">TRUE</span>, <span class="at">content =</span> <span class="st">&quot;text/html;charset=iso-8859-1&quot;</span>) <span class="sc">|&gt;</span></span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.character</span>()</span>
 <span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  scrape_data <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(cached_htmlfile)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  scrape_data <span class="sc">|&gt;</span> <span class="fu">write_rds</span>(cached_htmlfile)</span>
 <span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(scrape_data)</span>
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>prescraped_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(scraped_raw_dir) <span class="sc">%&gt;%</span></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vec_cast</span>(<span class="at">to =</span> <span class="fu">character</span>()) <span class="sc">%&gt;%</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>prescraped_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(scraped_raw_dir) <span class="sc">|&gt;</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vec_cast</span>(<span class="at">to =</span> <span class="fu">character</span>()) <span class="sc">|&gt;</span></span>
 <span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;cached_htmlfile&quot;</span>)</span>
 <span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>new_scraped_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(prescraped_tbl, <span class="at">by =</span> <span class="st">&quot;cached_htmlfile&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>new_scraped_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">|&gt;</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(prescraped_tbl, <span class="at">by =</span> <span class="st">&quot;cached_htmlfile&quot;</span>) <span class="sc">|&gt;</span></span>
 <span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">scrape_data =</span> <span class="fu">map2</span>(</span>
 <span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>      retrieve_url, cached_htmlfile,</span>
@@ -2773,7 +2773,7 @@ $ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a
 <span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>new_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>new_scraped_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 0
@@ -2796,9 +2796,9 @@ $ scrape_data     &lt;list&gt; list()</code></pre>
 <details>
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>parse_script_text <span class="ot">&lt;-</span> <span class="cf">function</span>(film_title, scraped_data) {</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  scraped_text <span class="ot">&lt;-</span> scraped_data <span class="sc">%&gt;%</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_elements</span>(<span class="st">&quot;pre&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_text2</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  scraped_text <span class="ot">&lt;-</span> scraped_data <span class="sc">|&gt;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_elements</span>(<span class="st">&quot;pre&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_text2</span>() <span class="sc">|&gt;</span></span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tail</span>(<span class="at">n =</span> <span class="dv">1</span>)</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(scraped_text)</span>
@@ -2807,13 +2807,13 @@ $ scrape_data     &lt;list&gt; list()</code></pre>
 <span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>write_script_text <span class="ot">&lt;-</span> <span class="cf">function</span>(script_text, script_file) {</span>
 <span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Writing file {script_file}&quot;</span>))</span>
 <span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  script_text <span class="sc">%&gt;%</span> <span class="fu">write_lines</span>(<span class="at">file =</span> script_file)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  script_text <span class="sc">|&gt;</span> <span class="fu">write_lines</span>(<span class="at">file =</span> script_file)</span>
 <span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">TRUE</span>)</span>
 <span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">|&gt;</span></span>
 <span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">scraped_html    =</span> <span class="fu">map_chr</span>(cached_htmlfile, read_rds),</span>
 <span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_data     =</span> <span class="fu">map</span>(scraped_html, read_html),</span>
@@ -2967,7 +2967,7 @@ $ scrape_data     &lt;list&gt; list()</code></pre>
 </div>
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
@@ -2995,7 +2995,7 @@ $ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TR
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">|&gt;</span></span>
 <span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">flag_cleaned =</span> <span class="fu">pmap_lgl</span>(</span>
 <span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
@@ -3153,7 +3153,7 @@ $ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TR
 </div>
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb110"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb110"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
@@ -3179,13 +3179,13 @@ $ flag_cleaned    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FA
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb112"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
+<div class="sourceCode cell-code" id="cb112"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">|&gt;</span></span>
 <span id="cb112-2"><a href="#cb112-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
 <span id="cb112-3"><a href="#cb112-3" aria-hidden="true" tabindex="-1"></a>    film_title, release_year, genre, title_cleaned, cached_htmlfile,</span>
 <span id="cb112-4"><a href="#cb112-4" aria-hidden="true" tabindex="-1"></a>    script_txtfile, cleaned_txtfile, flag_cleaned, parsed_file</span>
 <span id="cb112-5"><a href="#cb112-5" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb112-6"><a href="#cb112-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb112-7"><a href="#cb112-7" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb112-7"><a href="#cb112-7" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
@@ -3206,21 +3206,21 @@ $ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb114"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a>default_parser_conf <span class="ot">&lt;-</span> film_parser_loaded_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(title_cleaned <span class="sc">==</span> <span class="st">&quot;.default_parser&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb114-3"><a href="#cb114-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(parser_conf) <span class="sc">%&gt;%</span></span>
+<div class="sourceCode cell-code" id="cb114"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a>default_parser_conf <span class="ot">&lt;-</span> film_parser_loaded_tbl <span class="sc">|&gt;</span></span>
+<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(title_cleaned <span class="sc">==</span> <span class="st">&quot;.default_parser&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb114-3"><a href="#cb114-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(parser_conf) <span class="sc">|&gt;</span></span>
 <span id="cb114-4"><a href="#cb114-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">extract2</span>(<span class="dv">1</span>)</span>
 <span id="cb114-5"><a href="#cb114-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb114-6"><a href="#cb114-6" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb114-7"><a href="#cb114-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(film_parser_loaded_tbl, <span class="at">by =</span> <span class="st">&quot;title_cleaned&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb114-6"><a href="#cb114-6" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">|&gt;</span></span>
+<span id="cb114-7"><a href="#cb114-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(film_parser_loaded_tbl, <span class="at">by =</span> <span class="st">&quot;title_cleaned&quot;</span>) <span class="sc">|&gt;</span></span>
 <span id="cb114-8"><a href="#cb114-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">replace_na</span>(</span>
 <span id="cb114-9"><a href="#cb114-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">parser_conf =</span> <span class="fu">list</span>(default_parser_conf))</span>
-<span id="cb114-10"><a href="#cb114-10" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb114-10"><a href="#cb114-10" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
 <span id="cb114-11"><a href="#cb114-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb114-12"><a href="#cb114-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">parser_func =</span> <span class="fu">map</span>(parser_conf, construct_film_script_parser)</span>
 <span id="cb114-13"><a href="#cb114-13" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb114-14"><a href="#cb114-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb114-15"><a href="#cb114-15" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb114-15"><a href="#cb114-15" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
@@ -3253,18 +3253,18 @@ $ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quo
 <span id="cb116-9"><a href="#cb116-9" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb116-10"><a href="#cb116-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Writing parsed data to {output_file}...&quot;</span>))</span>
 <span id="cb116-11"><a href="#cb116-11" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb116-12"><a href="#cb116-12" aria-hidden="true" tabindex="-1"></a>  parsed_lst <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="at">file =</span> output_file)</span>
+<span id="cb116-12"><a href="#cb116-12" aria-hidden="true" tabindex="-1"></a>  parsed_lst <span class="sc">|&gt;</span> <span class="fu">write_rds</span>(<span class="at">file =</span> output_file)</span>
 <span id="cb116-13"><a href="#cb116-13" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb116-14"><a href="#cb116-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">TRUE</span>)</span>
 <span id="cb116-15"><a href="#cb116-15" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb116-16"><a href="#cb116-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb116-17"><a href="#cb116-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb116-18"><a href="#cb116-18" aria-hidden="true" tabindex="-1"></a>parsed_scripts_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(parsed_script_dir, <span class="at">regexp =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.rds$&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb116-19"><a href="#cb116-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.character</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb116-18"><a href="#cb116-18" aria-hidden="true" tabindex="-1"></a>parsed_scripts_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(parsed_script_dir, <span class="at">regexp =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.rds$&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb116-19"><a href="#cb116-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.character</span>() <span class="sc">|&gt;</span></span>
 <span id="cb116-20"><a href="#cb116-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;parsed_file&quot;</span>)</span>
 <span id="cb116-21"><a href="#cb116-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb116-22"><a href="#cb116-22" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="ot">&lt;-</span> film_parsers_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb116-23"><a href="#cb116-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(parsed_scripts_tbl, <span class="at">by =</span> <span class="st">&quot;parsed_file&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb116-22"><a href="#cb116-22" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="ot">&lt;-</span> film_parsers_tbl <span class="sc">|&gt;</span></span>
+<span id="cb116-23"><a href="#cb116-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(parsed_scripts_tbl, <span class="at">by =</span> <span class="st">&quot;parsed_file&quot;</span>) <span class="sc">|&gt;</span></span>
 <span id="cb116-24"><a href="#cb116-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb116-25"><a href="#cb116-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">write_file =</span> <span class="fu">pmap_lgl</span>(</span>
 <span id="cb116-26"><a href="#cb116-26" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
@@ -3276,36 +3276,36 @@ $ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quo
 <span id="cb116-32"><a href="#cb116-32" aria-hidden="true" tabindex="-1"></a>      )</span>
 <span id="cb116-33"><a href="#cb116-33" aria-hidden="true" tabindex="-1"></a>    )</span>
 <span id="cb116-34"><a href="#cb116-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb116-35"><a href="#cb116-35" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb116-35"><a href="#cb116-35" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 48
+<pre><code>Rows: 0
 Columns: 12
-$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
-$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
-$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
-$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
-$ flag_cleaned    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE,…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…
-$ parser_conf     &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot;, &quot;^[ ]{37}\\S&quot;, &quot;^[ …
-$ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quot;{parser…
-$ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, …</code></pre>
+$ film_title      &lt;chr&gt; 
+$ release_year    &lt;int&gt; 
+$ genre           &lt;chr&gt; 
+$ title_cleaned   &lt;chr&gt; 
+$ cached_htmlfile &lt;glue&gt; 
+$ script_txtfile  &lt;glue&gt; 
+$ cleaned_txtfile &lt;glue&gt; 
+$ flag_cleaned    &lt;lgl&gt; 
+$ parsed_file     &lt;glue&gt; 
+$ parser_conf     &lt;list&gt; list()
+$ parser_func     &lt;list&gt; list()
+$ write_file      &lt;lgl&gt; </code></pre>
 </div>
 </div>
 <p>We now load up all our parsed data.</p>
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb118"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
+<div class="sourceCode cell-code" id="cb118"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">|&gt;</span></span>
 <span id="cb118-2"><a href="#cb118-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb118-3"><a href="#cb118-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_data =</span> <span class="fu">map</span>(parsed_file, read_rds)    </span>
-<span id="cb118-4"><a href="#cb118-4" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb118-4"><a href="#cb118-4" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
 <span id="cb118-5"><a href="#cb118-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(parsed_data)</span>
 <span id="cb118-6"><a href="#cb118-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb118-7"><a href="#cb118-7" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb118-7"><a href="#cb118-7" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 48
@@ -3330,7 +3330,7 @@ $ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 4]&gt;], [&lt;tbl_df[0 x 4]&gt
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb120"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb120-1"><a href="#cb120-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/films_master_tbl.rds&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb120"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb120-1"><a href="#cb120-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">|&gt;</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/films_master_tbl.rds&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>
@@ -3348,8 +3348,8 @@ $ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 4]&gt;], [&lt;tbl_df[0 x 4]&gt
  collate  en_US.UTF-8
  ctype    en_US.UTF-8
  tz       Etc/UTC
- date     2023-01-12
- pandoc   2.19.2 @ /usr/local/bin/ (via rmarkdown)
+ date     2023-01-13
+ pandoc   2.19.2 @ /usr/lib/rstudio-server/bin/quarto/bin/tools/ (via rmarkdown)
 
 ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
  package       * version date (UTC) lib source
@@ -3414,6 +3414,7 @@ $ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 4]&gt;], [&lt;tbl_df[0 x 4]&gt
  rlang         * 1.0.6   2022-09-24 [1] RSPM (R 4.2.0)
  rmarkdown       2.17    2022-10-07 [1] RSPM (R 4.2.0)
  robotstxt       0.7.13  2020-09-03 [1] RSPM (R 4.2.0)
+ rstudioapi      0.14    2022-08-22 [1] RSPM (R 4.2.0)
  rvest         * 1.0.3   2022-08-19 [1] RSPM (R 4.2.0)
  scales          1.2.1   2022-08-20 [1] RSPM (R 4.2.0)
  selectr         0.4-2   2019-11-20 [1] RSPM (R 4.2.0)
