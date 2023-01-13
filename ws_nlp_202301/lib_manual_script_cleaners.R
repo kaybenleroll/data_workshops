@@ -18,7 +18,7 @@ manually_clean_scripts <- function(input_file, output_file, film_key) {
     cleaned_text <- orig_text
   }
 
-  cleaned_text %>% write_lines(file = output_file)
+  cleaned_text |> write_lines(file = output_file)
 
   return(flag_edited)
 }
@@ -58,15 +58,15 @@ clean_austin_powers_international_man_of_mystery <- function(orig_text) {
 
 clean_gone_baby_gone <- function(orig_text) {
 
-  dialogue_str <- rep(" ", 50) %>%
-    str_c(collapse = "") %>%
+  dialogue_str <- rep(" ", 50) |>
+    str_c(collapse = "") |>
     str_c(., "\\1")
 
-  clean_text <- orig_text %>%
-    str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) %>% str_c(collapse = "") %>% str_c(., "\\1"))
+  clean_text <- orig_text |>
+    str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) |> str_c(collapse = "") |> str_c(., "\\1"))
 
   prepend_whitespace <- function(prefix_len, text_str) {
-    prep_str <- rep(" ", prefix_len) %>% str_c(collapse = "")
+    prep_str <- rep(" ", prefix_len) |> str_c(collapse = "")
 
     return(str_c(prep_str, text_str))
   }

@@ -40,6 +40,8 @@ library(glue)
 library(tidytext)
 library(quanteda)
 library(ggwordcloud)
+library(SnowballC)
+library(hunspell)
 
 
 
@@ -69,7 +71,7 @@ explorations and visualisations of the data.
 
 films_master_tbl <- read_rds("data/films_master_tbl.rds")
 
-films_master_tbl %>% glimpse()
+films_master_tbl |> glimpse()
 ```
 
 The parsed data is stored in the file listed in the column `parsed_file` and
@@ -91,10 +93,10 @@ films_exclude_tbl <- c(
     "gran_torino", "leaving_las_vegas", "lock_stock_and_two_smoking_barrels", 
     "moneyball", "office_space", "star_wars_return_of_the_jedi",
     "the_green_mile"
-    ) %>%
+    ) |>
   enframe(name = NULL, value = "title_cleaned")
 
-films_exclude_tbl %>% glimpse()
+films_exclude_tbl |> glimpse()
 ```
 
 
@@ -102,18 +104,18 @@ films_exclude_tbl %>% glimpse()
 ```{r load_parsed_script_data}
 #| echo: true
 
-films_parsed_tbl <- films_master_tbl %>%
-  anti_join(films_exclude_tbl, by = "title_cleaned") %>%
+films_parsed_tbl <- films_master_tbl |>
+  anti_join(films_exclude_tbl, by = "title_cleaned") |>
   mutate(
     parsed_data = map(parsed_file, read_rds)
-    ) %>%
-  unnest(parsed_data) %>%
+    ) |>
+  unnest(parsed_data) |>
   select(
     film_title, release_year, genre, title_cleaned, parsing_detailed,
     parsing_aggregated
     )
 
-films_parsed_tbl %>% glimpse()
+films_parsed_tbl |> glimpse()
 ```
 
 
@@ -131,7 +133,7 @@ words that do not convey meaning, such as "and", "to", "the" and so on.
 #| echo: true
 data(stop_words)
 
-films_tokens_tbl <- films_parsed_tbl %>%
+films_tokens_tbl <- films_parsed_tbl |>
   mutate(
     wordtoken_data = map(
       parsing_aggregated, unnest_tokens,
@@ -141,14 +143,14 @@ films_tokens_tbl <- films_parsed_tbl %>%
       parsing_aggregated, unnest_tokens,
       output = word, input = full_text, token = "ngrams", n = 2, n_min = 1
       )
-    ) %>%
+    ) |>
   select(-parsing_detailed, -parsing_aggregated)
 
-films_wordtoken_unstopped_tbl <- films_tokens_tbl %>%
-  select(-ngramtoken_data) %>%
+films_wordtoken_unstopped_tbl <- films_tokens_tbl |>
+  select(-ngramtoken_data) |>
   unnest(wordtoken_data)
 
-films_wordtoken_tbl <- films_wordtoken_unstopped_tbl %>%
+films_wordtoken_tbl <- films_wordtoken_unstopped_tbl |>
   anti_join(stop_words, by = "word")
 ```
 
@@ -161,8 +163,8 @@ data.
 ```{r plot_data_wordclouds_unstopped}
 #| echo: true
 
-plot_unstopped_tbl <- films_wordtoken_unstopped_tbl %>%
-  count(word) %>%
+plot_unstopped_tbl <- films_wordtoken_unstopped_tbl |>
+  count(word) |>
   slice_max(order_by = n, n = 500)
 
 ggwordcloud2(plot_unstopped_tbl, seed = 421)
@@ -172,8 +174,8 @@ ggwordcloud2(plot_unstopped_tbl, seed = 421)
 ```{r plot_data_wordclouds_stopped}
 #| echo: false
 
-plot_stopped_tbl <- films_wordtoken_tbl %>%
-  count(word) %>%
+plot_stopped_tbl <- films_wordtoken_tbl |>
+  count(word) |>
   slice_max(order_by = n, n = 500)
 
 ggwordcloud2(plot_stopped_tbl, seed = 422)
@@ -187,7 +189,7 @@ We also want to look at stemming our words.
 ```{r add_word_stems}
 #| echo: true
 
-films_stems_tbl <- films_wordtoken_tbl %>%
+films_stems_tbl <- films_wordtoken_tbl |>
   mutate(
     snowball_stem = wordStem(word),
     hunspell_stem = hunspell_stem(word)
