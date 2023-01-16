@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Mick Cooney mickcooney@gmail.com">
-<meta name="dcterms.date" content="2023-01-10">
+<meta name="dcterms.date" content="2023-01-11">
 
 <title>Retrieve and Extract Selected Film Scripts</title>
 <style>
@@ -2605,9 +2605,8 @@ vertical-align: -.125em;
   <li><a href="#set-up-input-data" id="toc-set-up-input-data" class="nav-link active" data-scroll-target="#set-up-input-data"><span class="toc-section-number">1</span>  Set Up Input Data</a></li>
   <li><a href="#scrape-film-script-html" id="toc-scrape-film-script-html" class="nav-link" data-scroll-target="#scrape-film-script-html"><span class="toc-section-number">2</span>  Scrape Film Script HTML</a></li>
   <li><a href="#make-manual-edits-to-scripts" id="toc-make-manual-edits-to-scripts" class="nav-link" data-scroll-target="#make-manual-edits-to-scripts"><span class="toc-section-number">3</span>  Make Manual Edits to Scripts</a></li>
-  <li><a href="#parse-the-scripts" id="toc-parse-the-scripts" class="nav-link" data-scroll-target="#parse-the-scripts"><span class="toc-section-number">4</span>  Parse the Scripts</a></li>
-  <li><a href="#write-to-disk" id="toc-write-to-disk" class="nav-link" data-scroll-target="#write-to-disk"><span class="toc-section-number">5</span>  Write to Disk</a></li>
-  <li><a href="#r-environment" id="toc-r-environment" class="nav-link" data-scroll-target="#r-environment"><span class="toc-section-number">6</span>  R Environment</a></li>
+  <li><a href="#write-to-disk" id="toc-write-to-disk" class="nav-link" data-scroll-target="#write-to-disk"><span class="toc-section-number">4</span>  Write to Disk</a></li>
+  <li><a href="#r-environment" id="toc-r-environment" class="nav-link" data-scroll-target="#r-environment"><span class="toc-section-number">5</span>  R Environment</a></li>
   </ul>
 </nav>
 </div>
@@ -2634,7 +2633,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">January 10, 2023</p>
+      <p class="date">January 11, 2023</p>
     </div>
   </div>
     
@@ -2668,7 +2667,7 @@ vertical-align: -.125em;
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>films_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 48
 Columns: 4
 $ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
 $ release_year    &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 1983, …
@@ -2680,23 +2679,18 @@ $ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>parser_cols <span class="ot">&lt;-</span> <span class="fu">cols</span>(</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">title_cleaned =</span> <span class="fu">col_character</span>(),</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">script_parser =</span> <span class="fu">col_character</span>()</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  )</span>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>film_parser_loaded_tbl <span class="ot">&lt;-</span> <span class="fu">read_json</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;input_data/script_parser_data.json&quot;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="st">&quot;title_cleaned&quot;</span>, <span class="at">value =</span> <span class="st">&quot;parser_conf&quot;</span>)</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>film_parser_lookup_tbl <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;input_data/film_script_parser_lookup.csv&quot;</span>,</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">col_types =</span> parser_cols</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>film_parser_lookup_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>film_parser_loaded_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 2
+<pre><code>Rows: 32
 Columns: 2
-$ title_cleaned &lt;chr&gt; &quot;the_godfather&quot;, &quot;the_godfather_part_ii&quot;
-$ script_parser &lt;chr&gt; &quot;parse_film_script_two&quot;, &quot;parse_film_script_three&quot;</code></pre>
+$ title_cleaned &lt;chr&gt; &quot;.default_parser&quot;, &quot;airplane&quot;, &quot;apocalypse_now&quot;, &quot;do_the…
+$ parser_conf   &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot;, &quot;^[ ]{37}\\S&quot;, &quot;^[ ]{…</code></pre>
 </div>
 </div>
 <p>We now want to set up some base parameters for this worksheet.</p>
@@ -2725,23 +2719,24 @@ $ script_parser &lt;chr&gt; &quot;parse_film_script_two&quot;, &quot;parse_film_
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">script_txtfile  =</span> <span class="fu">glue</span>(<span class="st">&quot;{raw_script_dir}/script_{title_cleaned}.txt&quot;</span>),</span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">cleaned_txtfile =</span> <span class="fu">glue</span>(<span class="st">&quot;{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt&quot;</span>),</span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_file     =</span> <span class="fu">glue</span>(<span class="st">&quot;{parsed_script_dir}/parsedscript_{title_cleaned}.rds&quot;</span>)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(title_cleaned)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 48
 Columns: 10
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 1983, …
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Drama&quot;, &quot;Drama&quot;, &quot;Drama&quot;,…
-$ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery&quot;, &quot;Godfa…
-$ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/Austin-Powers---Internatio…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_inter…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_austin_po…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_austin_powers_inter…</code></pre>
+$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
+$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
+$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
+$ script_filename &lt;chr&gt; &quot;12-Years-a-Slave&quot;, &quot;2001-A-Space-Odyssey&quot;, &quot;Airplane&quot;…
+$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
+$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/12-Years-a-Slave.html&quot;, &quot;h…
+$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
+$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
+$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
+$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -2827,43 +2822,25 @@ $ scrape_data     &lt;list&gt; list()</code></pre>
 <span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_austin_powers_international_man_of_mystery.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_the_godfather.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_the_godfather_part_ii.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_gone_baby_gone.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_gran_torino.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_good_will_hunting.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_star_wars_a_new_hope.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_star_wars_the_empire_strikes_back.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_star_wars_return_of_the_jedi.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_chinatown.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_the_green_mile.txt</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
 <pre><code>Writing file scraped_files/scraped_raw/script_12_years_a_slave.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_reservoir_dogs.txt</code></pre>
+<pre><code>Writing file scraped_files/scraped_raw/script_2001_a_space_odyssey.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_airplane.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_apocalypse_now.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_austin_powers_international_man_of_mystery.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_bad_day_at_black_rock.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_chinatown.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Writing file scraped_files/scraped_raw/script_dances_with_wolves.txt</code></pre>
@@ -2872,49 +2849,142 @@ $ scrape_data     &lt;list&gt; list()</code></pre>
 <pre><code>Writing file scraped_files/scraped_raw/script_django_unchained.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_tombstone.txt</code></pre>
+<pre><code>Writing file scraped_files/scraped_raw/script_do_the_right_thing.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_apocalypse_now.txt</code></pre>
+<pre><code>Writing file scraped_files/scraped_raw/script_donnie_brasco.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_2001_a_space_odyssey.txt</code></pre>
+<pre><code>Writing file scraped_files/scraped_raw/script_drive.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_the_shining.txt</code></pre>
+<pre><code>Writing file scraped_files/scraped_raw/script_go.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_gone_baby_gone.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_good_will_hunting.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_gran_torino.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_grosse_point_blank.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_groundhog_day.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_killing_zoe.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_kramer_vs_kramer.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_leaving_las_vegas.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_legally_blonde.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_lock_stock_and_two_smoking_barrels.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_margin_call.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_mean_streets.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_moneyball.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_mulholland_drive.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Writing file scraped_files/scraped_raw/script_office_space.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_airplane.txt</code></pre>
+<pre><code>Writing file scraped_files/scraped_raw/script_psycho.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Writing file scraped_files/scraped_raw/script_do_the_right_thing.txt</code></pre>
+<pre><code>Writing file scraped_files/scraped_raw/script_reservoir_dogs.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_scream.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_snatch.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_star_wars_a_new_hope.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_star_wars_return_of_the_jedi.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_star_wars_the_empire_strikes_back.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_strangers_on_a_train.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_godfather.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_godfather_part_ii.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_green_mile.txt</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Writing file scraped_files/scraped_raw/script_the_hangover.txt</code></pre>
 </div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_king_of_comedy.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_king_s_speech.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_last_boy_scout.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_last_samurai.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_matrix.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_princess_bride.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_the_shining.txt</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Writing file scraped_files/scraped_raw/script_tombstone.txt</code></pre>
+</div>
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 48
 Columns: 14
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 1983, …
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Drama&quot;, &quot;Drama&quot;, &quot;Drama&quot;,…
-$ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery&quot;, &quot;Godfa…
-$ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/Austin-Powers---Internatio…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_inter…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_austin_po…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_austin_powers_inter…
+$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
+$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
+$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
+$ script_filename &lt;chr&gt; &quot;12-Years-a-Slave&quot;, &quot;2001-A-Space-Odyssey&quot;, &quot;Airplane&quot;…
+$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
+$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/12-Years-a-Slave.html&quot;, &quot;h…
+$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
+$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
+$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
+$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…
 $ scraped_html    &lt;chr&gt; &quot;&lt;!DOCTYPE html PUBLIC \&quot;-//W3C//DTD HTML 4.0 Transiti…
 $ parsed_data     &lt;list&gt; [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;h…
-$ script_text     &lt;chr&gt; &quot;\r\n\r\n\t\t       AUSTIN POWERS: INTERNATIONAL MAN O…
+$ script_text     &lt;chr&gt; &quot;\r\n\r\n\r\n                             12 YEARS A S…
 $ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, …</code></pre>
 </div>
 </div>
@@ -2925,56 +2995,38 @@ $ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TR
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">flag_cleaned =</span> <span class="fu">pmap_lgl</span>(</span>
-<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
-<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>        <span class="at">input_file  =</span> script_txtfile,</span>
-<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>        <span class="at">output_file =</span> cleaned_txtfile,</span>
-<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>        <span class="at">film_key    =</span> title_cleaned </span>
-<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>        ),</span>
-<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>      manually_clean_scripts</span>
-<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">flag_cleaned =</span> <span class="fu">pmap_lgl</span>(</span>
+<span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
+<span id="cb61-5"><a href="#cb61-5" aria-hidden="true" tabindex="-1"></a>        <span class="at">input_file  =</span> script_txtfile,</span>
+<span id="cb61-6"><a href="#cb61-6" aria-hidden="true" tabindex="-1"></a>        <span class="at">output_file =</span> cleaned_txtfile,</span>
+<span id="cb61-7"><a href="#cb61-7" aria-hidden="true" tabindex="-1"></a>        <span class="at">film_key    =</span> title_cleaned </span>
+<span id="cb61-8"><a href="#cb61-8" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb61-9"><a href="#cb61-9" aria-hidden="true" tabindex="-1"></a>      manually_clean_scripts</span>
+<span id="cb61-10"><a href="#cb61-10" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb61-11"><a href="#cb61-11" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output cell-output-stderr">
-<pre><code>Manually cleaning scraped_files/scraped_raw/script_austin_powers_international_man_of_mystery.txt...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_godfather.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_godfather_part_ii.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_gone_baby_gone.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_gran_torino.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_good_will_hunting.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_star_wars_a_new_hope.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_star_wars_the_empire_strikes_back.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_star_wars_return_of_the_jedi.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_chinatown.txt - skipping...</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_green_mile.txt - skipping...</code></pre>
-</div>
 <div class="cell-output cell-output-stderr">
 <pre><code>No cleaning function found for scraped_files/scraped_raw/script_12_years_a_slave.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_reservoir_dogs.txt - skipping...</code></pre>
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_2001_a_space_odyssey.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_airplane.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_apocalypse_now.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Manually cleaning scraped_files/scraped_raw/script_austin_powers_international_man_of_mystery.txt...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_bad_day_at_black_rock.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_chinatown.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
 <pre><code>No cleaning function found for scraped_files/scraped_raw/script_dances_with_wolves.txt - skipping...</code></pre>
@@ -2983,211 +3035,307 @@ $ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TR
 <pre><code>No cleaning function found for scraped_files/scraped_raw/script_django_unchained.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_tombstone.txt - skipping...</code></pre>
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_do_the_right_thing.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_apocalypse_now.txt - skipping...</code></pre>
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_donnie_brasco.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_2001_a_space_odyssey.txt - skipping...</code></pre>
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_drive.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_shining.txt - skipping...</code></pre>
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_go.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Manually cleaning scraped_files/scraped_raw/script_gone_baby_gone.txt...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_good_will_hunting.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_gran_torino.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_grosse_point_blank.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_groundhog_day.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_killing_zoe.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_kramer_vs_kramer.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_leaving_las_vegas.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_legally_blonde.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_lock_stock_and_two_smoking_barrels.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_margin_call.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_mean_streets.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_moneyball.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_mulholland_drive.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
 <pre><code>No cleaning function found for scraped_files/scraped_raw/script_office_space.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_airplane.txt - skipping...</code></pre>
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_psycho.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>No cleaning function found for scraped_files/scraped_raw/script_do_the_right_thing.txt - skipping...</code></pre>
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_reservoir_dogs.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_scream.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_snatch.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_star_wars_a_new_hope.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_star_wars_return_of_the_jedi.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_star_wars_the_empire_strikes_back.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_strangers_on_a_train.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_godfather.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_godfather_part_ii.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_green_mile.txt - skipping...</code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
 <pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_hangover.txt - skipping...</code></pre>
 </div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_king_of_comedy.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_king_s_speech.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_last_boy_scout.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_last_samurai.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_matrix.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_princess_bride.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_the_shining.txt - skipping...</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>No cleaning function found for scraped_files/scraped_raw/script_tombstone.txt - skipping...</code></pre>
+</div>
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb110"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a>films_scraped_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 48
 Columns: 15
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 1983, …
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Drama&quot;, &quot;Drama&quot;, &quot;Drama&quot;,…
-$ script_filename &lt;chr&gt; &quot;Austin-Powers---International-Man-of-Mystery&quot;, &quot;Godfa…
-$ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/Austin-Powers---Internatio…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_inter…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_austin_po…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_austin_powers_inter…
+$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
+$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
+$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
+$ script_filename &lt;chr&gt; &quot;12-Years-a-Slave&quot;, &quot;2001-A-Space-Odyssey&quot;, &quot;Airplane&quot;…
+$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
+$ retrieve_url    &lt;glue&gt; &quot;https://imsdb.com/scripts/12-Years-a-Slave.html&quot;, &quot;h…
+$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
+$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
+$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
+$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…
 $ scraped_html    &lt;chr&gt; &quot;&lt;!DOCTYPE html PUBLIC \&quot;-//W3C//DTD HTML 4.0 Transiti…
 $ parsed_data     &lt;list&gt; [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;html&gt;], [&lt;h…
-$ script_text     &lt;chr&gt; &quot;\r\n\r\n\t\t       AUSTIN POWERS: INTERNATIONAL MAN O…
+$ script_text     &lt;chr&gt; &quot;\r\n\r\n\r\n                             12 YEARS A S…
 $ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, …
-$ flag_cleaned    &lt;lgl&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,…</code></pre>
+$ flag_cleaned    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE,…</code></pre>
 </div>
 </div>
 <p>We want to keep a cut down version of this file for ongoing processing.</p>
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
-<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>    film_title, release_year, genre, title_cleaned, cached_htmlfile,</span>
-<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>    script_txtfile, cleaned_txtfile, flag_cleaned, parsed_file</span>
-<span id="cb62-5"><a href="#cb62-5" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb62-6"><a href="#cb62-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb62-7"><a href="#cb62-7" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb112"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="ot">&lt;-</span> films_scraped_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb112-2"><a href="#cb112-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(</span>
+<span id="cb112-3"><a href="#cb112-3" aria-hidden="true" tabindex="-1"></a>    film_title, release_year, genre, title_cleaned, cached_htmlfile,</span>
+<span id="cb112-4"><a href="#cb112-4" aria-hidden="true" tabindex="-1"></a>    script_txtfile, cleaned_txtfile, flag_cleaned, parsed_file</span>
+<span id="cb112-5"><a href="#cb112-5" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb112-6"><a href="#cb112-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb112-7"><a href="#cb112-7" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 48
 Columns: 9
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 1983, …
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Drama&quot;, &quot;Drama&quot;, &quot;Drama&quot;,…
-$ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_inter…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_austin_po…
-$ flag_cleaned    &lt;lgl&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_austin_powers_inter…</code></pre>
+$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
+$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
+$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
+$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
+$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
+$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
+$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
+$ flag_cleaned    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE,…
+$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…</code></pre>
 </div>
 </div>
-</section>
-<section id="parse-the-scripts" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> Parse the Scripts</h1>
+<p>c# Parse the Scripts</p>
 <p>We now combine the tables to set up the film scripts parsing.</p>
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb64"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(film_parser_lookup_tbl, <span class="at">by =</span> <span class="st">&quot;title_cleaned&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">replace_na</span>(</span>
-<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">script_parser =</span> <span class="st">&quot;parse_film_script_one&quot;</span>)</span>
-<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">parser_func =</span> <span class="fu">map</span>(script_parser, get)</span>
-<span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb64-9"><a href="#cb64-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb64-10"><a href="#cb64-10" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb114"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a>default_parser_conf <span class="ot">&lt;-</span> film_parser_loaded_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(title_cleaned <span class="sc">==</span> <span class="st">&quot;.default_parser&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb114-3"><a href="#cb114-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(parser_conf) <span class="sc">%&gt;%</span></span>
+<span id="cb114-4"><a href="#cb114-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">extract2</span>(<span class="dv">1</span>)</span>
+<span id="cb114-5"><a href="#cb114-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb114-6"><a href="#cb114-6" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb114-7"><a href="#cb114-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(film_parser_loaded_tbl, <span class="at">by =</span> <span class="st">&quot;title_cleaned&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb114-8"><a href="#cb114-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">replace_na</span>(</span>
+<span id="cb114-9"><a href="#cb114-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">parser_conf =</span> <span class="fu">list</span>(default_parser_conf))</span>
+<span id="cb114-10"><a href="#cb114-10" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb114-11"><a href="#cb114-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb114-12"><a href="#cb114-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">parser_func =</span> <span class="fu">map</span>(parser_conf, construct_film_script_parser)</span>
+<span id="cb114-13"><a href="#cb114-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb114-14"><a href="#cb114-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb114-15"><a href="#cb114-15" aria-hidden="true" tabindex="-1"></a>film_parsers_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 48
 Columns: 11
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 1983, …
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Drama&quot;, &quot;Drama&quot;, &quot;Drama&quot;,…
-$ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_inter…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_austin_po…
-$ flag_cleaned    &lt;lgl&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_austin_powers_inter…
-$ script_parser   &lt;chr&gt; &quot;parse_film_script_one&quot;, &quot;parse_film_script_two&quot;, &quot;par…
-$ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quot;parse_f…</code></pre>
+$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
+$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
+$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
+$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
+$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
+$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
+$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
+$ flag_cleaned    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE,…
+$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…
+$ parser_conf     &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot;, &quot;^[ ]{37}\\S&quot;, &quot;^[ …
+$ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quot;{parser…</code></pre>
 </div>
 </div>
 <p>As before, we expect to be running this code multiple times if we want to add multiple film scripts so we only run the parser on scripts that do not have a pre-parsed file in the</p>
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="co">#! echo: true</span></span>
-<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a><span class="co">#! message: false</span></span>
-<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a>read_parse_write_script <span class="ot">&lt;-</span> <span class="cf">function</span>(parser_func, input_file, output_file) {</span>
-<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb66-6"><a href="#cb66-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Parsing script {input_file}...&quot;</span>))</span>
-<span id="cb66-7"><a href="#cb66-7" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb66-8"><a href="#cb66-8" aria-hidden="true" tabindex="-1"></a>  parsed_lst <span class="ot">&lt;-</span> <span class="fu">parser_func</span>(input_file)</span>
-<span id="cb66-9"><a href="#cb66-9" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb66-10"><a href="#cb66-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Writing parsed data to {output_file}...&quot;</span>))</span>
-<span id="cb66-11"><a href="#cb66-11" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb66-12"><a href="#cb66-12" aria-hidden="true" tabindex="-1"></a>  parsed_lst <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="at">file =</span> output_file)</span>
-<span id="cb66-13"><a href="#cb66-13" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb66-14"><a href="#cb66-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">TRUE</span>)</span>
-<span id="cb66-15"><a href="#cb66-15" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb66-16"><a href="#cb66-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-17"><a href="#cb66-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-18"><a href="#cb66-18" aria-hidden="true" tabindex="-1"></a>parsed_scripts_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(parsed_script_dir, <span class="at">regexp =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.rds$&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb66-19"><a href="#cb66-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.character</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb66-20"><a href="#cb66-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;parsed_file&quot;</span>)</span>
-<span id="cb66-21"><a href="#cb66-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-22"><a href="#cb66-22" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="ot">&lt;-</span> film_parsers_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb66-23"><a href="#cb66-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(parsed_scripts_tbl, <span class="at">by =</span> <span class="st">&quot;parsed_file&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb66-24"><a href="#cb66-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb66-25"><a href="#cb66-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">write_file =</span> <span class="fu">pmap_lgl</span>(</span>
-<span id="cb66-26"><a href="#cb66-26" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
-<span id="cb66-27"><a href="#cb66-27" aria-hidden="true" tabindex="-1"></a>        <span class="at">parser_func =</span> parser_func,</span>
-<span id="cb66-28"><a href="#cb66-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">input_file  =</span> cleaned_txtfile,</span>
-<span id="cb66-29"><a href="#cb66-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">output_file =</span> parsed_file</span>
-<span id="cb66-30"><a href="#cb66-30" aria-hidden="true" tabindex="-1"></a>        ),</span>
-<span id="cb66-31"><a href="#cb66-31" aria-hidden="true" tabindex="-1"></a>      read_parse_write_script</span>
-<span id="cb66-32"><a href="#cb66-32" aria-hidden="true" tabindex="-1"></a>      )</span>
-<span id="cb66-33"><a href="#cb66-33" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb66-34"><a href="#cb66-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-35"><a href="#cb66-35" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb116"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb116-1"><a href="#cb116-1" aria-hidden="true" tabindex="-1"></a><span class="co">#! echo: true</span></span>
+<span id="cb116-2"><a href="#cb116-2" aria-hidden="true" tabindex="-1"></a><span class="co">#! message: false</span></span>
+<span id="cb116-3"><a href="#cb116-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb116-4"><a href="#cb116-4" aria-hidden="true" tabindex="-1"></a>read_parse_write_script <span class="ot">&lt;-</span> <span class="cf">function</span>(parser_func, input_file, output_file) {</span>
+<span id="cb116-5"><a href="#cb116-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb116-6"><a href="#cb116-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Parsing script {input_file}...&quot;</span>))</span>
+<span id="cb116-7"><a href="#cb116-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb116-8"><a href="#cb116-8" aria-hidden="true" tabindex="-1"></a>  parsed_lst <span class="ot">&lt;-</span> <span class="fu">parser_func</span>(input_file)</span>
+<span id="cb116-9"><a href="#cb116-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb116-10"><a href="#cb116-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="fu">glue</span>(<span class="st">&quot;Writing parsed data to {output_file}...&quot;</span>))</span>
+<span id="cb116-11"><a href="#cb116-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb116-12"><a href="#cb116-12" aria-hidden="true" tabindex="-1"></a>  parsed_lst <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="at">file =</span> output_file)</span>
+<span id="cb116-13"><a href="#cb116-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb116-14"><a href="#cb116-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">TRUE</span>)</span>
+<span id="cb116-15"><a href="#cb116-15" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb116-16"><a href="#cb116-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb116-17"><a href="#cb116-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb116-18"><a href="#cb116-18" aria-hidden="true" tabindex="-1"></a>parsed_scripts_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(parsed_script_dir, <span class="at">regexp =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.rds$&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb116-19"><a href="#cb116-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.character</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb116-20"><a href="#cb116-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;parsed_file&quot;</span>)</span>
+<span id="cb116-21"><a href="#cb116-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb116-22"><a href="#cb116-22" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="ot">&lt;-</span> film_parsers_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb116-23"><a href="#cb116-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">anti_join</span>(parsed_scripts_tbl, <span class="at">by =</span> <span class="st">&quot;parsed_file&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb116-24"><a href="#cb116-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb116-25"><a href="#cb116-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">write_file =</span> <span class="fu">pmap_lgl</span>(</span>
+<span id="cb116-26"><a href="#cb116-26" aria-hidden="true" tabindex="-1"></a>      <span class="fu">list</span>(</span>
+<span id="cb116-27"><a href="#cb116-27" aria-hidden="true" tabindex="-1"></a>        <span class="at">parser_func =</span> parser_func,</span>
+<span id="cb116-28"><a href="#cb116-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">input_file  =</span> cleaned_txtfile,</span>
+<span id="cb116-29"><a href="#cb116-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">output_file =</span> parsed_file</span>
+<span id="cb116-30"><a href="#cb116-30" aria-hidden="true" tabindex="-1"></a>        ),</span>
+<span id="cb116-31"><a href="#cb116-31" aria-hidden="true" tabindex="-1"></a>      read_parse_write_script</span>
+<span id="cb116-32"><a href="#cb116-32" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb116-33"><a href="#cb116-33" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb116-34"><a href="#cb116-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb116-35"><a href="#cb116-35" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 0
 Columns: 12
-$ film_title      &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;The G…
-$ release_year    &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 1983, …
-$ genre           &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Drama&quot;, &quot;Drama&quot;, &quot;Drama&quot;,…
-$ title_cleaned   &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_god…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powers_…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_inter…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_austin_po…
-$ flag_cleaned    &lt;lgl&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE,…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_austin_powers_inter…
-$ script_parser   &lt;chr&gt; &quot;parse_film_script_one&quot;, &quot;parse_film_script_two&quot;, &quot;par…
-$ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quot;parse_f…
-$ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, …</code></pre>
+$ film_title      &lt;chr&gt; 
+$ release_year    &lt;int&gt; 
+$ genre           &lt;chr&gt; 
+$ title_cleaned   &lt;chr&gt; 
+$ cached_htmlfile &lt;glue&gt; 
+$ script_txtfile  &lt;glue&gt; 
+$ cleaned_txtfile &lt;glue&gt; 
+$ flag_cleaned    &lt;lgl&gt; 
+$ parsed_file     &lt;glue&gt; 
+$ parser_conf     &lt;list&gt; list()
+$ parser_func     &lt;list&gt; list()
+$ write_file      &lt;lgl&gt; </code></pre>
 </div>
 </div>
 <p>We now load up all our parsed data.</p>
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb68"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
-<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_data =</span> <span class="fu">map</span>(parsed_file, read_rds)    </span>
-<span id="cb68-4"><a href="#cb68-4" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
-<span id="cb68-5"><a href="#cb68-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(parsed_data)</span>
-<span id="cb68-6"><a href="#cb68-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb68-7"><a href="#cb68-7" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb118"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="ot">&lt;-</span> films_master_tbl <span class="sc">%&gt;%</span></span>
+<span id="cb118-2"><a href="#cb118-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb118-3"><a href="#cb118-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_data =</span> <span class="fu">map</span>(parsed_file, read_rds)    </span>
+<span id="cb118-4"><a href="#cb118-4" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb118-5"><a href="#cb118-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unnest</span>(parsed_data)</span>
+<span id="cb118-6"><a href="#cb118-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb118-7"><a href="#cb118-7" aria-hidden="true" tabindex="-1"></a>films_parsed_tbl <span class="sc">%&gt;%</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 23
+<pre><code>Rows: 48
 Columns: 11
-$ film_title         &lt;chr&gt; &quot;Austin Powers - International Man of Mystery&quot;, &quot;Th…
-$ release_year       &lt;int&gt; 1997, 1972, 1974, 2013, 2008, 1997, 1977, 1980, 198…
-$ genre              &lt;chr&gt; &quot;Comedy&quot;, &quot;Crime&quot;, &quot;Crime&quot;, &quot;Drama&quot;, &quot;Drama&quot;, &quot;Dram…
-$ title_cleaned      &lt;chr&gt; &quot;austin_powers_international_man_of_mystery&quot;, &quot;the_…
-$ cached_htmlfile    &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_austin_powe…
-$ script_txtfile     &lt;glue&gt; &quot;scraped_files/scraped_raw/script_austin_powers_in…
-$ cleaned_txtfile    &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_austin…
-$ flag_cleaned       &lt;lgl&gt; TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FAL…
-$ parsed_file        &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_austin_powers_in…
-$ parsing_detailed   &lt;list&gt; [&lt;tbl_df[5512 x 13]&gt;], [&lt;tbl_df[7825 x 13]&gt;], [&lt;tb…
-$ parsing_aggregated &lt;list&gt; [&lt;tbl_df[1085 x 3]&gt;], [&lt;tbl_df[1296 x 3]&gt;], [&lt;tbl_…</code></pre>
+$ film_title         &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airpla…
+$ release_year       &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 201…
+$ genre              &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comed…
+$ title_cleaned      &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airpla…
+$ cached_htmlfile    &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_…
+$ script_txtfile     &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave…
+$ cleaned_txtfile    &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_yea…
+$ flag_cleaned       &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FAL…
+$ parsed_file        &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave…
+$ parsing_detailed   &lt;list&gt; [&lt;tbl_df[8331 x 13]&gt;], [&lt;tbl_df[5702 x 13]&gt;], [&lt;tb…
+$ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 3]&gt;], [&lt;tbl_df[0 x 3]&gt;], [&lt;tbl_df[124…</code></pre>
 </div>
 </div>
 </section>
-<section id="write-to-disk" class="level1" data-number="5">
-<h1 data-number="5"><span class="header-section-number">5</span> Write to Disk</h1>
+<section id="write-to-disk" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Write to Disk</h1>
 <p>We now write this data out to disk.</p>
 <div class="cell">
 <details>
 <summary>Show code</summary>
-<div class="sourceCode cell-code" id="cb70"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/films_master_tbl.rds&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb120"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb120-1"><a href="#cb120-1" aria-hidden="true" tabindex="-1"></a>films_master_tbl <span class="sc">%&gt;%</span> <span class="fu">write_rds</span>(<span class="st">&quot;data/films_master_tbl.rds&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 </section>
-<section id="r-environment" class="level1" data-number="6">
-<h1 data-number="6"><span class="header-section-number">6</span> R Environment</h1>
+<section id="r-environment" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> R Environment</h1>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
 <pre><code>─ Session info ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -3200,7 +3348,7 @@ $ parsing_aggregated &lt;list&gt; [&lt;tbl_df[1085 x 3]&gt;], [&lt;tbl_df[1296 x
  collate  en_US.UTF-8
  ctype    en_US.UTF-8
  tz       Etc/UTC
- date     2023-01-10
+ date     2023-01-11
  pandoc   2.19.2 @ /usr/lib/rstudio-server/bin/quarto/bin/tools/ (via rmarkdown)
 
 ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -3243,7 +3391,7 @@ $ parsing_aggregated &lt;list&gt; [&lt;tbl_df[1085 x 3]&gt;], [&lt;tbl_df[1296 x
  htmltools       0.5.3   2022-07-18 [1] RSPM (R 4.2.0)
  htmlwidgets     1.5.4   2021-09-08 [1] RSPM (R 4.2.0)
  httr            1.4.4   2022-08-17 [1] RSPM (R 4.2.0)
- jsonlite        1.8.3   2022-10-21 [1] RSPM (R 4.2.0)
+ jsonlite      * 1.8.3   2022-10-21 [1] RSPM (R 4.2.0)
  knitr           1.40    2022-08-24 [1] RSPM (R 4.2.0)
  lifecycle       1.0.3   2022-10-07 [1] RSPM (R 4.2.0)
  listenv         0.8.0   2019-12-05 [1] RSPM (R 4.2.0)
