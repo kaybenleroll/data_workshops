@@ -1,0 +1,17 @@
+---
+title: "Temporary Quarto Document"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "`r Sys.Date()`"
+---
+
+
+```{r knit_opts, include = FALSE}
+library(tidyverse)
+
+options(
+  width = 80L,
+  warn  = 1
+  )
+
+set.seed(42)
+```

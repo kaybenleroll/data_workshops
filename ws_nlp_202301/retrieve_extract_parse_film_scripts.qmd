@@ -34,6 +34,7 @@ library(tidyverse)
 library(magrittr)
 library(rlang)
 library(vctrs)
+library(jsonlite)
 library(fs)
 library(purrr)
 library(furrr)
@@ -134,7 +135,8 @@ films_master_tbl <- films_tbl %>%
     script_txtfile  = glue("{raw_script_dir}/script_{title_cleaned}.txt"),
     cleaned_txtfile = glue("{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt"),
     parsed_file     = glue("{parsed_script_dir}/parsedscript_{title_cleaned}.rds")
-    )
+    ) %>%
+  arrange(title_cleaned)
 
 films_master_tbl %>% glimpse()
 ```
@@ -257,7 +259,7 @@ films_master_tbl %>% glimpse()
 
 
 
-# Parse the Scripts
+c# Parse the Scripts
 
 
 We now combine the tables to set up the film scripts parsing.
