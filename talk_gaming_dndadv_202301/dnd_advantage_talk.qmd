@@ -567,6 +567,14 @@ ggplot(plot_oppprob_data_tbl) +
     )
 ```
 
+
+# Examples
+
+
+## 1st Level Human Fighter vs Orc Warrior
+
+
+
 # Thank You!
 
 \
