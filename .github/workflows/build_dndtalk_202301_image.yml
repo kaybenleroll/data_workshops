@@ -1,4 +1,4 @@
-name: build-ws-nlp-image
+name: build-talk-dndadv-image
 
 on:
   push:
