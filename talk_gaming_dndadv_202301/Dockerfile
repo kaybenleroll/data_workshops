@@ -1,5 +1,21 @@
 FROM rocker/verse:4.2.1
 
+WORKDIR /tmp
+
+COPY build/docker_install_sys_rpkgs.R /tmp
+RUN Rscript /tmp/docker_install_sys_rpkgs.R
+
+COPY build/test_report.qmd /tmp
+RUN quarto render test_report.qmd --to pdf \
+  && rm -fv /tmp/test_report.pdf
+
+
+RUN git clone https://github.com/lindenb/makefile2graph.git \
+  && cd makefile2graph \
+  && make \
+  && make install
+  
+
 RUN apt-get update \
   && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends \
@@ -46,21 +62,6 @@ RUN apt-get update \
     tictoc
 
 
-WORKDIR /tmp
-
-COPY build/docker_install_sys_rpkgs.R /tmp
-RUN Rscript /tmp/docker_install_sys_rpkgs.R
-
-COPY build/test_report.qmd /tmp
-RUN quarto render test_report.qmd --to pdf \
-  && rm -fv /tmp/test_report.pdf
-
-
-RUN git clone https://github.com/lindenb/makefile2graph.git \
-  && cd makefile2graph \
-  && make \
-  && make install
-  
 RUN cp -r $HOME/.R /home/rstudio \
   && chown -R rstudio:rstudio /home/rstudio/.R
 

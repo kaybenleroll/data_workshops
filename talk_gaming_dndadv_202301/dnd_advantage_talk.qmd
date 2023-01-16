@@ -72,6 +72,18 @@ Who Am I?
 
 ## Goals
 
+\
+
+Test Intuition
+
+\
+
+Simulate Mechanisms
+
+\
+
+Illustrate Typical Examples
+
 
 
 # Setting Up
@@ -116,14 +128,14 @@ Create table of outcomes for 2d20.
 outcomes_tbl <- expand_grid(
     d1 = 1:20,
     d2 = 1:20
-    ) %>%
+    ) |>
   mutate(
     Straight     = d1,
     Advantage    = pmax(d1, d2),
     Disadvantage = pmin(d1, d2)
     )
 
-outcomes_extra_tbl <- outcomes_tbl %>%
+outcomes_extra_tbl <- outcomes_tbl |>
   mutate(
     RollP1       = pmin(20, d1 + 1),
     RollP2       = pmin(20, d1 + 2),
@@ -133,8 +145,8 @@ outcomes_extra_tbl <- outcomes_tbl %>%
     RollM3       = pmax(1, d1 - 3)
     )
 
-outcomes_tbl %>%
-  head(7) %>%
+outcomes_tbl |>
+  head(7) |>
   knitr::kable()
 ```
 
@@ -149,12 +161,12 @@ roll_type_levels <- c(
   )
 
 
-outcomes_long_tbl <- outcomes_extra_tbl %>%
+outcomes_long_tbl <- outcomes_extra_tbl |>
   pivot_longer(
     cols      = !c(d1, d2),
     names_to  = "roll_type",
     values_to = "outcome"
-    ) %>%
+    ) |>
   mutate(
     roll_type = factor(
       roll_type,
@@ -162,7 +174,7 @@ outcomes_long_tbl <- outcomes_extra_tbl %>%
       )
     )
 
-plot_tbl <- outcomes_long_tbl %>%
+plot_tbl <- outcomes_long_tbl |>
   filter(
     roll_type %in% c("Straight", "Advantage", "Disadvantage")
     )
@@ -185,15 +197,15 @@ ggplot(plot_tbl) +
 ```{r plot_props_comparison}
 #| echo: false
 
-outcomes_prop_tbl <- outcomes_long_tbl %>%
-  group_by(roll_type) %>%
-  count(outcome) %>%
+outcomes_prop_tbl <- outcomes_long_tbl |>
+  group_by(roll_type) |>
+  count(outcome) |>
   mutate(
     prop = n / sum(n)
-    ) %>%
+    ) |>
   ungroup()
 
-plot_tbl <- outcomes_prop_tbl %>%
+plot_tbl <- outcomes_prop_tbl |>
   filter(
     roll_type %in% c("Straight", "Advantage", "Disadvantage")
     )
@@ -217,9 +229,9 @@ ggplot(plot_tbl) +
 calculate_cumulative_probabilities <- function(outcomes_tbl) {
   dice_roll <- 1:20
   
-  cuml_prob <- outcomes_tbl %>%
-    pull(outcome) %>%
-    ecdf() %>% 
+  cuml_prob <- outcomes_tbl |>
+    pull(outcome) |>
+    ecdf() |> 
     exec(dice_roll - 0.1)
   
   cuml_prob_tbl <- tibble(
@@ -236,15 +248,15 @@ calculate_cumulative_probabilities <- function(outcomes_tbl) {
 ```{r plot_failure_probabilities}
 #| echo: false
 
-outcomes_cumlprob_tbl <- outcomes_long_tbl %>%
-  group_nest(roll_type) %>%
+outcomes_cumlprob_tbl <- outcomes_long_tbl |>
+  group_nest(roll_type) |>
   mutate(
     cuml_data = map(data, calculate_cumulative_probabilities)
-    ) %>%
-  select(-data) %>%
+    ) |>
+  select(-data) |>
   unnest(cuml_data)
 
-plot_tbl <- outcomes_cumlprob_tbl %>%
+plot_tbl <- outcomes_cumlprob_tbl |>
   filter(
     roll_type %in% c("Straight", "Advantage", "Disadvantage")
     )
@@ -270,16 +282,16 @@ ggplot(plot_tbl) +
 ```{r plot_failure_ratios}
 #| echo: false
 
-ref_probs_tbl <- outcomes_cumlprob_tbl %>%
+ref_probs_tbl <- outcomes_cumlprob_tbl |>
   filter(
     roll_type == "Straight"
-    ) %>%
+    ) |>
   transmute(
     target_roll, ref_prob = failure_prob
     )
 
-failure_ratios_tbl <- outcomes_cumlprob_tbl %>%
-  inner_join(ref_probs_tbl, by = "target_roll") %>%
+failure_ratios_tbl <- outcomes_cumlprob_tbl |>
+  inner_join(ref_probs_tbl, by = "target_roll") |>
   mutate(
     failure_ratio = failure_prob / ref_prob,
     failure_perc  = failure_ratio - 1
@@ -305,7 +317,7 @@ ggplot(failure_ratios_tbl, aes(x = target_roll, y = failure_perc, colour = roll_
 ```{r plot_failure_ratios_middle}
 #| echo: false
 
-plot_tbl <- failure_ratios_tbl %>%
+plot_tbl <- failure_ratios_tbl |>
   filter(target_roll >= 5, target_roll <= 15)
 
 ggplot(plot_tbl, aes(x = target_roll, y = failure_perc, colour = roll_type)) +
@@ -313,7 +325,7 @@ ggplot(plot_tbl, aes(x = target_roll, y = failure_perc, colour = roll_type)) +
   geom_point() +
   geom_dl(aes(label = roll_type), method = "angled.boxes") +
   scale_colour_brewer(type = "qual", palette = "Set1") +
-  expand_limits(x = 3) +
+  expand_limits(x = c(4, 16)) +
   labs(
     x = "Target Roll",
     y = "Prob Ratio",
@@ -328,7 +340,7 @@ ggplot(plot_tbl, aes(x = target_roll, y = failure_perc, colour = roll_type)) +
 ```{r plot_failure_ratios_high}
 #| echo: false
 
-plot_tbl <- failure_ratios_tbl %>%
+plot_tbl <- failure_ratios_tbl |>
   filter(target_roll >= 15)
 
 ggplot(plot_tbl, aes(x = target_roll, y = failure_perc, colour = roll_type)) +
@@ -365,17 +377,17 @@ What is the impact of advantage / disadvantage
 ```{r show_champion_crit_probs}
 #| echo: false
 
-outcomes_cumlprob_tbl %>%
+outcomes_cumlprob_tbl |>
   filter(
     target_roll %in% c(19,20),
     roll_type %in% c("Straight", "Advantage", "Disadvantage")
-    ) %>%
+    ) |>
   transmute(
     `Roll Type`    = roll_type,
     `Target`       = target_roll,
-    `Success Prob` = success_prob %>% round(4),
-    `Failure Prob` = failure_prob %>% round(4)
-    ) %>%
+    `Success Prob` = success_prob |> round(4),
+    `Failure Prob` = failure_prob |> round(4)
+    ) |>
   knitr::kable()
 ```
 
@@ -384,14 +396,14 @@ outcomes_cumlprob_tbl %>%
 ```{r heatmap_crit_probs}
 #| echo: false
 
-plot_heatmap_tbl <- outcomes_cumlprob_tbl %>%
+plot_heatmap_tbl <- outcomes_cumlprob_tbl |>
   filter(
     target_roll %in% c(19,20),
     roll_type %in% c("Straight", "Advantage", "Disadvantage")
-    ) %>%
+    ) |>
   transmute(
     roll_type,
-    target_roll  = target_roll %>% as.character(),
+    target_roll  = target_roll |> as.character(),
     success_prob = success_prob,
     prob_label   = sprintf("%6.4f", success_prob)
     )
@@ -431,13 +443,16 @@ Bigger and messier
 
 Use simulation
 
+
+## Probabilities Comparison
+
 ---
 
 ```{r construct_opposed_roll_setups}
 create_opposed_roll <- function(AD1, AD2, diff) {
   
   resolve_func <- function(outcome_data_tbl) {
-    resolve_tbl <- outcome_data_tbl %>%
+    resolve_tbl <- outcome_data_tbl |>
       mutate(
         p1 = case_when(
           AD1 == "A" ~ pmax(P1d1, P1d2),
@@ -465,7 +480,7 @@ create_opposed_roll <- function(AD1, AD2, diff) {
 
 n_sims <- 100000
 
-sims_output_tbl <- tibble(sim_id = 1:n_sims) %>%
+sims_output_tbl <- tibble(sim_id = 1:n_sims) |>
   mutate(
     P1d1 = sample(1:20, size = n(), replace = TRUE),
     P1d2 = sample(1:20, size = n(), replace = TRUE),
@@ -473,16 +488,16 @@ sims_output_tbl <- tibble(sim_id = 1:n_sims) %>%
     P2d2 = sample(1:20, size = n(), replace = TRUE)
     )
 
-calc_success_probs <- ~ .x %>%
+calc_success_probs <- \(x) x |>
   summarise(
     prob = sum(p1_success) / n()
-    ) %>%
+    ) |>
   pull(prob)
 
-calc_failure_probs <- ~ .x %>%
+calc_failure_probs <- \(x) x |>
   summarise(
     prob = sum(p2_success) / n()
-    ) %>%
+    ) |>
   pull(prob)
 
 
@@ -490,7 +505,7 @@ opp_contest_tbl <- expand_grid(
     AD1  = c("A", "D", "S"),
     AD2  = c("A", "D", "S"),
     diff = seq(-8, 8, by = 1)
-    ) %>%
+    ) |>
   mutate(
     contest_key  = str_c(AD1, AD2, sep = ""),
     resolve_func = pmap(
@@ -506,16 +521,39 @@ opp_contest_tbl <- expand_grid(
     )
 ```
 
-```{r plot_opposed_heatmap}
+
+```{r plot_opposed_lineplots}
 #| echo: false
 
-plot_heatmap_tbl <- opp_contest_tbl %>%
+plot_oppprob_data_tbl <- opp_contest_tbl |>
   transmute(
     AD1, AD2, contest_key, diff, p1_success,
     p1_success_lab = sprintf("%4.2f / %4.2f", p1_success, p2_success)
     )
 
-ggplot(plot_heatmap_tbl) +
+ggplot(plot_oppprob_data_tbl, aes(x = diff, y = p1_success, colour = contest_key)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = seq(-8, 8, by = 2)) +
+  expand_limits(y = 0) +
+  geom_dl(aes(label = contest_key), method = "last.bumpup") +
+  labs(
+    x      = "P1 Bonus Difference",
+    y      = "Probability of Success",
+    colour = "Contest Key",
+    title  = "Comparison of Opposed Probabilities"
+    )
+
+```
+
+
+---
+
+
+```{r plot_opposed_heatmap}
+#| echo: false
+
+ggplot(plot_oppprob_data_tbl) +
   geom_tile(aes(x = contest_key, y = diff, fill  = p1_success)) +
   geom_text(aes(x = contest_key, y = diff, label = p1_success_lab), size = 3) +
   expand_limits(fill = 1) +
@@ -527,8 +565,6 @@ ggplot(plot_heatmap_tbl) +
     fill  = "Success Prob",
     title = "Comparison of Opposed Probabilities"
     )
-
-
 ```
 
 # Thank You!
@@ -538,7 +574,7 @@ ggplot(plot_heatmap_tbl) +
 
 This talk...
 
-[https://github.com/kaybenleroll/data_workshops/talk_bm_btydbayes_202211]()
+[https://github.com/kaybenleroll/data_workshops/talk_gaming_dndadv_202301]()
 
 \
 

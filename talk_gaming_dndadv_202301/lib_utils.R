@@ -2,9 +2,7 @@ resolve_conflicts <- function(pkg_priority) {
   get_index <- function(pkg_name) {
     idx <- str_which(pkg_priority, pkg_name)
 
-    if(length(idx) == 0) {
-      idx <- 0L
-    }
+    if(length(idx) == 0) { idx <- 0L }
 
     return(idx)
   }
@@ -19,10 +17,7 @@ resolve_conflicts <- function(pkg_priority) {
     if(length(pkg_index) == 0) {
       pkg_use <- conflict_lst[[func_name]][1]
     } else {
-      pkg_use <- pkg_index %>%
-        min() %>%
-        pkg_priority[.]
-
+      pkg_use <- pkg_priority[pkg_index |> min()]
     }
 
     conflict_prefer(func_name, pkg_use)
@@ -53,5 +48,4 @@ rgamma_mucv <- function(n, mu, cv, ...) {
 
   rgamma(n = n, shape = params[1], rate = params[2], ...)
 }
-
 
