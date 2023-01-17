@@ -42,7 +42,7 @@ construct_film_script_parser <- function(parser_conf) {
 
 
     aggregated_parsing_tbl <- detailed_parsing_tbl |>
-      filter(grouping_id != 0) |>
+      filter((grouping_id != 0) & (flag_other_line == FALSE)) |>
       group_by(section_title, grouping_id) |>
       summarise(
         .groups = "drop",
@@ -51,18 +51,25 @@ construct_film_script_parser <- function(parser_conf) {
           section_title[1] == "Direction",
           str_trim(line_text)                 |> str_c(collapse = " "),
           str_trim(line_text) |> tail(n = -1) |> str_c(collapse = " ")
-        )
-      ) |>
+          ),
+        trimmed_text = full_text |>
+          str_replace_all("\\(.*?\\)", "") |>
+          str_squish()
+
+        ) |>
       arrange(grouping_id) |>
       mutate(
-        flag_nondialogue = section_title %>% str_replace("\\(.*?\\)", "") %>% str_detect("[a-z]+")
+        flag_dialogue = section_title |>
+          str_replace("\\(.*?\\)", "") |>
+          str_detect("[a-z]+") %>%
+          not()
         )
 
 
     script_parsing_tbl <- tibble(
       parsing_detailed   = list(detailed_parsing_tbl),
       parsing_aggregated = list(aggregated_parsing_tbl)
-    )
+      )
 
     return(script_parsing_tbl)
   }
