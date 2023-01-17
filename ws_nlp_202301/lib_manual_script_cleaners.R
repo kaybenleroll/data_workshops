@@ -60,10 +60,10 @@ clean_gone_baby_gone <- function(orig_text) {
 
   dialogue_str <- rep(" ", 50) |>
     str_c(collapse = "") |>
-    str_c(., "\\1")
+    str_c("\\1")
 
   clean_text <- orig_text |>
-    str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) |> str_c(collapse = "") |> str_c(., "\\1"))
+    str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) |> str_c(collapse = "") |> str_c("\\1"))
 
   prepend_whitespace <- function(prefix_len, text_str) {
     prep_str <- rep(" ", prefix_len) |> str_c(collapse = "")

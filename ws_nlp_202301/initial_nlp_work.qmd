@@ -167,7 +167,7 @@ plot_unstopped_tbl <- films_wordtoken_unstopped_tbl |>
   count(word) |>
   slice_max(order_by = n, n = 500)
 
-ggwordcloud2(plot_unstopped_tbl, seed = 421)
+ggwordcloud2(plot_unstopped_tbl, size = 4, seed = 421)
 ```
 
 
@@ -178,7 +178,7 @@ plot_stopped_tbl <- films_wordtoken_tbl |>
   count(word) |>
   slice_max(order_by = n, n = 500)
 
-ggwordcloud2(plot_stopped_tbl, seed = 422)
+ggwordcloud2(plot_stopped_tbl, size = 2, seed = 422)
 ```
 
 
@@ -195,8 +195,24 @@ films_stems_tbl <- films_wordtoken_tbl |>
     hunspell_stem = hunspell_stem(word)
     )
 
-
+films_stems_tbl |> glimpse()
 ```
+
+We also create a word cloud of this stemmed data
+
+```{r create_stemmed_word_cloud}
+#| echo: true
+
+plot_stemmed_tbl <- films_stems_tbl |>
+  count(word = snowball_stem) |>
+  slice_max(order_by = n, n = 500)
+
+ggwordcloud2(plot_stemmed_tbl, size = 2, seed = 422)
+```
+
+
+# Contrasting Dialogue and Direction
+
 
 
 # R Environment

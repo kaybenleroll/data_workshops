@@ -60,6 +60,8 @@ RUN apt-get update \
     broom \
     cleanNLP \
     conflicted \
+    corpora \
+    corporaexplorer \
     corpus \
     cowplot \
     DataExplorer \
@@ -67,6 +69,7 @@ RUN apt-get update \
     fs \
     furrr \
     ggwordcloud \
+    hunspell \
     kernlab \
     lda \
     lobstr \
@@ -88,6 +91,7 @@ RUN apt-get update \
     spacyr \
     tesseract \
     text2vec \
+    textdata \
     textfeatures \
     textplot \
     tidygraph \
@@ -97,6 +101,7 @@ RUN apt-get update \
     topicmodels \
     udpipe \
     wordcloud \
+    word2vec \
     zipfR
 
 
