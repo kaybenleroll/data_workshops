@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Mick Cooney mickcooney@gmail.com">
-<meta name="dcterms.date" content="2023-01-13">
+<meta name="dcterms.date" content="2023-01-16">
 
 <title>Retrieve and Extract Selected Film Scripts</title>
 <style>
@@ -2633,7 +2633,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">January 13, 2023</p>
+      <p class="date">January 16, 2023</p>
     </div>
   </div>
     
@@ -2699,7 +2699,7 @@ $ parser_conf   &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot
 <summary>Show code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>base_url <span class="ot">&lt;-</span> <span class="st">&quot;https://imsdb.com/scripts&quot;</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>scraped_raw_dir    <span class="ot">&lt;-</span> <span class="st">&quot;scraped_files/scraped_raw&quot;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>raw_scraped_dir    <span class="ot">&lt;-</span> <span class="st">&quot;scraped_files/scraped_raw&quot;</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>raw_script_dir     <span class="ot">&lt;-</span> <span class="st">&quot;scraped_files/scraped_raw&quot;</span></span>
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>cleaned_script_dir <span class="ot">&lt;-</span> <span class="st">&quot;scraped_files/cleaned_script&quot;</span></span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>parsed_script_dir  <span class="ot">&lt;-</span> <span class="st">&quot;data/parsed_scripts&quot;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -2715,7 +2715,7 @@ $ parser_conf   &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">title_cleaned   =</span> film_title <span class="sc">|&gt;</span> <span class="fu">to_snake_case</span>(),</span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">retrieve_url    =</span> <span class="fu">glue</span>(<span class="st">&quot;{base_url}/{script_filename}.html&quot;</span>),</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">cached_htmlfile =</span> <span class="fu">glue</span>(<span class="st">&quot;{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds&quot;</span>),</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">cached_htmlfile =</span> <span class="fu">glue</span>(<span class="st">&quot;{raw_scraped_dir}/scraped_raw_{title_cleaned}.rds&quot;</span>),</span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">script_txtfile  =</span> <span class="fu">glue</span>(<span class="st">&quot;{raw_script_dir}/script_{title_cleaned}.txt&quot;</span>),</span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">cleaned_txtfile =</span> <span class="fu">glue</span>(<span class="st">&quot;{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt&quot;</span>),</span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">parsed_file     =</span> <span class="fu">glue</span>(<span class="st">&quot;{parsed_script_dir}/parsedscript_{title_cleaned}.rds&quot;</span>)</span>
@@ -2757,7 +2757,7 @@ $ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a
 <span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>prescraped_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(scraped_raw_dir) <span class="sc">|&gt;</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>prescraped_tbl <span class="ot">&lt;-</span> <span class="fu">dir_ls</span>(raw_scraped_dir) <span class="sc">|&gt;</span></span>
 <span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">vec_cast</span>(<span class="at">to =</span> <span class="fu">character</span>()) <span class="sc">|&gt;</span></span>
 <span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">enframe</span>(<span class="at">name =</span> <span class="cn">NULL</span>, <span class="at">value =</span> <span class="st">&quot;cached_htmlfile&quot;</span>)</span>
 <span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
@@ -3279,20 +3279,20 @@ $ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quo
 <span id="cb116-35"><a href="#cb116-35" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 0
+<pre><code>Rows: 48
 Columns: 12
-$ film_title      &lt;chr&gt; 
-$ release_year    &lt;int&gt; 
-$ genre           &lt;chr&gt; 
-$ title_cleaned   &lt;chr&gt; 
-$ cached_htmlfile &lt;glue&gt; 
-$ script_txtfile  &lt;glue&gt; 
-$ cleaned_txtfile &lt;glue&gt; 
-$ flag_cleaned    &lt;lgl&gt; 
-$ parsed_file     &lt;glue&gt; 
-$ parser_conf     &lt;list&gt; list()
-$ parser_func     &lt;list&gt; list()
-$ write_file      &lt;lgl&gt; </code></pre>
+$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
+$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
+$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
+$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
+$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
+$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
+$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
+$ flag_cleaned    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE,…
+$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…
+$ parser_conf     &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot;, &quot;^[ ]{37}\\S&quot;, &quot;^[ …
+$ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quot;{parser…
+$ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, …</code></pre>
 </div>
 </div>
 <p>We now load up all our parsed data.</p>
@@ -3348,7 +3348,7 @@ $ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 4]&gt;], [&lt;tbl_df[0 x 4]&gt
  collate  en_US.UTF-8
  ctype    en_US.UTF-8
  tz       Etc/UTC
- date     2023-01-13
+ date     2023-01-16
  pandoc   2.19.2 @ /usr/lib/rstudio-server/bin/quarto/bin/tools/ (via rmarkdown)
 
 ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────

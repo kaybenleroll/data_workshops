@@ -55,7 +55,7 @@ construct_film_script_parser <- function(parser_conf) {
       ) |>
       arrange(grouping_id) |>
       mutate(
-        flag_dialogue = !(section_title == "Direction")
+        flag_nondialogue = section_title %>% str_replace("\\(.*?\\)", "") %>% str_detect("[a-z]+")
         )
 
 

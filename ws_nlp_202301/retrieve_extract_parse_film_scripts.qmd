@@ -115,7 +115,7 @@ We now want to set up some base parameters for this worksheet.
 
 base_url <- "https://imsdb.com/scripts"
 
-scraped_raw_dir    <- "scraped_files/scraped_raw"
+raw_scraped_dir    <- "scraped_files/scraped_raw"
 raw_script_dir     <- "scraped_files/scraped_raw"
 cleaned_script_dir <- "scraped_files/cleaned_script"
 parsed_script_dir  <- "data/parsed_scripts"
@@ -131,7 +131,7 @@ films_master_tbl <- films_tbl |>
   mutate(
     title_cleaned   = film_title |> to_snake_case(),
     retrieve_url    = glue("{base_url}/{script_filename}.html"),
-    cached_htmlfile = glue("{scraped_raw_dir}/scraped_raw_{title_cleaned}.rds"),
+    cached_htmlfile = glue("{raw_scraped_dir}/scraped_raw_{title_cleaned}.rds"),
     script_txtfile  = glue("{raw_script_dir}/script_{title_cleaned}.txt"),
     cleaned_txtfile = glue("{cleaned_script_dir}/cleanedscript_{title_cleaned}.txt"),
     parsed_file     = glue("{parsed_script_dir}/parsedscript_{title_cleaned}.rds")
@@ -161,7 +161,7 @@ scrape_film_scripts <- function(script_url, cached_htmlfile, use_session) {
 }
 
 
-prescraped_tbl <- dir_ls(scraped_raw_dir) |>
+prescraped_tbl <- dir_ls(raw_scraped_dir) |>
   vec_cast(to = character()) |>
   enframe(name = NULL, value = "cached_htmlfile")
 
