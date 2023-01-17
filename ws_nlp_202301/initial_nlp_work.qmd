@@ -37,6 +37,7 @@ library(fs)
 library(purrr)
 library(furrr)
 library(glue)
+library(cowplot)
 library(tidytext)
 library(quanteda)
 library(ggwordcloud)
@@ -59,6 +60,8 @@ options(
   )
 
 set.seed(42)
+
+theme_set(theme_cowplot())
 ```
 
 In this workbook we perform the initial NLP pre-processing and simple
@@ -90,9 +93,9 @@ this list.
 
 films_exclude_tbl <- c(
     "12_years_a_slave", "2001_a_space_odyssey", "django_unchained",
-    "gran_torino", "leaving_las_vegas", "lock_stock_and_two_smoking_barrels", 
-    "moneyball", "office_space", "star_wars_return_of_the_jedi",
-    "the_green_mile"
+    "donnie_brasco", "drive", "gran_torino", "leaving_las_vegas",
+    "lock_stock_and_two_smoking_barrels", "moneyball", "office_space",
+    "star_wars_return_of_the_jedi", "the_green_mile"
     ) |>
   enframe(name = NULL, value = "title_cleaned")
 
@@ -137,18 +140,19 @@ films_tokens_tbl <- films_parsed_tbl |>
   mutate(
     wordtoken_data = map(
       parsing_aggregated, unnest_tokens,
-      output = word, input = full_text
+      output = word, input = trimmed_text
       ),
     ngramtoken_data = map(
       parsing_aggregated, unnest_tokens,
-      output = word, input = full_text, token = "ngrams", n = 2, n_min = 1
+      output = word, input = trimmed_text, token = "ngrams", n = 2, n_min = 1
       )
     ) |>
   select(-parsing_detailed, -parsing_aggregated)
 
 films_wordtoken_unstopped_tbl <- films_tokens_tbl |>
   select(-ngramtoken_data) |>
-  unnest(wordtoken_data)
+  unnest(wordtoken_data) |>
+  select(-full_text)
 
 films_wordtoken_tbl <- films_wordtoken_unstopped_tbl |>
   anti_join(stop_words, by = "word")
@@ -211,7 +215,106 @@ ggwordcloud2(plot_stemmed_tbl, size = 2, seed = 422)
 ```
 
 
-# Contrasting Dialogue and Direction
+## Contrasting Dialogue and Direction
+
+Finally we look just at the words in the lines of dialogue and focus on this.
+
+```{r create_dialogue_word_cloud}
+#| echo: true
+
+plot_dialogue_tbl <- films_wordtoken_tbl |>
+  filter(flag_dialogue == TRUE) |>
+  count(word) |>
+  slice_max(order_by = n, n = 500)
+
+ggwordcloud2(plot_stemmed_tbl, size = 2, seed = 422)
+```
+
+
+# Sentiment Analysis
+
+Sentiment analysis takes the simple approach of assigning some kind of measure
+of sentiment or emotion to each word, allowing us to quantify these concepts
+in the text in various ways.
+
+Note that this approach is simplistic: it does not consider context or anything
+beyond the presence of each word, but it is a quick and simple thing to look at.
+
+There are a number of different sets of sentiment data, so we 
+
+```{r retrieve_sentiments}
+#| echo: true
+
+sentiments_afinn_tbl    <- get_sentiments("afinn")
+sentiments_afinn_tbl    |> glimpse()
+
+sentiments_bing_tbl     <- get_sentiments("bing")
+sentiments_bing_tbl     |> glimpse()
+
+sentiments_loughran_tbl <- get_sentiments("loughran")
+sentiments_loughran_tbl |> glimpse()
+
+sentiments_nrc_tbl      <- get_sentiments("nrc")
+sentiments_nrc_tbl      |> glimpse()
+```
+
+
+## Visualising the NRC Sentiments
+
+We use the NRC sentiments and the count the appearance of each emotion in this
+dataset.
+
+```{r plot_nrc_sentiments_raw_count}
+#| echo: true
+
+plot_sentiments_tbl <- films_wordtoken_tbl |>
+  inner_join(sentiments_nrc_tbl, by = "word") |>
+  count(title_cleaned, sentiment)
+
+ggplot(plot_sentiments_tbl) +
+  geom_tile(
+    aes(x = title_cleaned %>% str_trunc(20), y = sentiment, fill = n)
+    ) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  labs(
+    x = "Film Title",
+    y = "Sentiment",
+    fill = "Raw Count",
+    title = "Sentiments in Film Scripts"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+Raw counts are interesting, but it is also worth looking at scaling these
+counts by the total word count of the script, and then plot each of those
+counts as a ratio of the total word count in the script.
+
+```{r plot_nrc_sentiments_ratio}
+#| echo: true
+
+films_wordcount_tbl <- films_wordtoken_tbl |>
+  count(title_cleaned, name = "total_count")
+
+plot_sentiments_ratio_tbl <- films_wordtoken_tbl |>
+  inner_join(sentiments_nrc_tbl, by = "word") |>
+  count(title_cleaned, sentiment, name = "word_count") |>
+  inner_join(films_wordcount_tbl, by = "title_cleaned") |>
+  mutate(word_ratio = word_count / total_count)
+  
+ggplot(plot_sentiments_ratio_tbl) +
+  geom_tile(
+    aes(x = title_cleaned %>% str_trunc(20), y = sentiment, fill = word_ratio)
+    ) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  labs(
+    x = "Film Title",
+    y = "Sentiment",
+    fill = "Ratio",
+    title = "Sentiments in Film Scripts"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+
+```
 
 
 

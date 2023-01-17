@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Mick Cooney mickcooney@gmail.com">
-<meta name="dcterms.date" content="2023-01-16">
+<meta name="dcterms.date" content="2023-01-17">
 
 <title>Retrieve and Extract Selected Film Scripts</title>
 <style>
@@ -2633,7 +2633,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">January 16, 2023</p>
+      <p class="date">January 17, 2023</p>
     </div>
   </div>
     
@@ -3279,20 +3279,20 @@ $ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quo
 <span id="cb116-35"><a href="#cb116-35" aria-hidden="true" tabindex="-1"></a>run_parsers_tbl <span class="sc">|&gt;</span> <span class="fu">glimpse</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>Rows: 48
+<pre><code>Rows: 0
 Columns: 12
-$ film_title      &lt;chr&gt; &quot;12 Years a Slave&quot;, &quot;2001 A Space Odyssey&quot;, &quot;Airplane&quot;…
-$ release_year    &lt;int&gt; 2013, 1968, 1977, 1979, 1997, 1955, 1974, 1990, 2012, …
-$ genre           &lt;chr&gt; &quot;Drama&quot;, &quot;Science Fiction&quot;, &quot;Comedy&quot;, &quot;War&quot;, &quot;Comedy&quot;,…
-$ title_cleaned   &lt;chr&gt; &quot;12_years_a_slave&quot;, &quot;2001_a_space_odyssey&quot;, &quot;airplane&quot;…
-$ cached_htmlfile &lt;glue&gt; &quot;scraped_files/scraped_raw/scraped_raw_12_years_a_sla…
-$ script_txtfile  &lt;glue&gt; &quot;scraped_files/scraped_raw/script_12_years_a_slave.tx…
-$ cleaned_txtfile &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscript_12_years_…
-$ flag_cleaned    &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE,…
-$ parsed_file     &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave.rd…
-$ parser_conf     &lt;list&gt; [&quot;default_parser&quot;, &quot;^[ ]{15}\\S&quot;, &quot;^[ ]{37}\\S&quot;, &quot;^[ …
-$ parser_func     &lt;list&gt; function (script_file) , {,     message(glue(&quot;{parser…
-$ write_file      &lt;lgl&gt; TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, …</code></pre>
+$ film_title      &lt;chr&gt; 
+$ release_year    &lt;int&gt; 
+$ genre           &lt;chr&gt; 
+$ title_cleaned   &lt;chr&gt; 
+$ cached_htmlfile &lt;glue&gt; 
+$ script_txtfile  &lt;glue&gt; 
+$ cleaned_txtfile &lt;glue&gt; 
+$ flag_cleaned    &lt;lgl&gt; 
+$ parsed_file     &lt;glue&gt; 
+$ parser_conf     &lt;list&gt; list()
+$ parser_func     &lt;list&gt; list()
+$ write_file      &lt;lgl&gt; </code></pre>
 </div>
 </div>
 <p>We now load up all our parsed data.</p>
@@ -3320,7 +3320,7 @@ $ cleaned_txtfile    &lt;glue&gt; &quot;scraped_files/cleaned_script/cleanedscri
 $ flag_cleaned       &lt;lgl&gt; FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FAL…
 $ parsed_file        &lt;glue&gt; &quot;data/parsed_scripts/parsedscript_12_years_a_slave…
 $ parsing_detailed   &lt;list&gt; [&lt;tbl_df[8331 x 13]&gt;], [&lt;tbl_df[5702 x 13]&gt;], [&lt;tb…
-$ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 4]&gt;], [&lt;tbl_df[0 x 4]&gt;], [&lt;tbl_df[124…</code></pre>
+$ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 5]&gt;], [&lt;tbl_df[0 x 5]&gt;], [&lt;tbl_df[124…</code></pre>
 </div>
 </div>
 </section>
@@ -3348,7 +3348,7 @@ $ parsing_aggregated &lt;list&gt; [&lt;tbl_df[0 x 4]&gt;], [&lt;tbl_df[0 x 4]&gt
  collate  en_US.UTF-8
  ctype    en_US.UTF-8
  tz       Etc/UTC
- date     2023-01-16
+ date     2023-01-17
  pandoc   2.19.2 @ /usr/lib/rstudio-server/bin/quarto/bin/tools/ (via rmarkdown)
 
 ─ Packages ───────────────────────────────────────────────────────────────────────────────────────────────────────────

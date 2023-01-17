@@ -32,14 +32,14 @@
     "direction_line_regex":     "^[ ]{4}\\S",
     "character_line_regex":     "^[ ]{26}[^\\(]",
     "dialogue_direction_regex": "^[ ]{19}\\(",
-    "dialogue_line_regex":      "^[ ]{16}\\S"
+    "dialogue_line_regex":      "^[ ]{14,23}\\S"
   },
   "drive": {
     "parser_label":             "drive",
-    "direction_line_regex":     "^[ ]{11}\\S",
+    "direction_line_regex":     "^[ ]{10}( \\S|\\d )",
     "character_line_regex":     "^[ ]{26}[^\\(]",
     "dialogue_direction_regex": "^[ ]{13}\\(",
-    "dialogue_line_regex":      "^[ ]{13}\\S"
+    "dialogue_line_regex":      "^[ ]{11,13}[A-Za-z]"
   },
   "go": {
     "parser_label":             "go",
