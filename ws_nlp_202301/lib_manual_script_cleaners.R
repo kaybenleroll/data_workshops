@@ -24,6 +24,13 @@ manually_clean_scripts <- function(input_file, output_file, film_key) {
 }
 
 
+prepend_whitespace <- function(text_str, prefix_len) {
+  prep_str <- rep(" ", prefix_len) |> str_c(collapse = "")
+
+  return(str_c(prep_str, text_str))
+}
+
+
 clean_austin_powers_international_man_of_mystery <- function(orig_text) {
 
   clean_text <- orig_text
@@ -56,6 +63,24 @@ clean_austin_powers_international_man_of_mystery <- function(orig_text) {
 }
 
 
+clean_go <- function(orig_text) {
+
+  clean_text <- orig_text
+
+
+
+  dialogue_idx <- c(41:42, 52:53, 62:64)
+
+  clean_text[dialogue_idx] <- orig_text[dialogue_idx] |>
+    str_trim() |>
+    prepend_whitespace(15)
+
+
+  return(clean_text)
+}
+
+
+
 clean_gone_baby_gone <- function(orig_text) {
 
   dialogue_str <- rep(" ", 50) |>
@@ -65,37 +90,46 @@ clean_gone_baby_gone <- function(orig_text) {
   clean_text <- orig_text |>
     str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) |> str_c(collapse = "") |> str_c("\\1"))
 
-  prepend_whitespace <- function(prefix_len, text_str) {
-    prep_str <- rep(" ", prefix_len) |> str_c(collapse = "")
-
-    return(str_c(prep_str, text_str))
-  }
-
-  clean_text[302] <- prepend_whitespace(30, "Dot Avenue, where are you?")
-  clean_text[307] <- prepend_whitespace(30, "Nguyen's nail salon.")
-  clean_text[312] <- prepend_whitespace(30, "That's where she went?")
-  clean_text[317] <- prepend_whitespace(30, "Yup. I'm getting my nails done. You still")
-  clean_text[318] <- prepend_whitespace(30, "with the father?")
-  clean_text[323] <- prepend_whitespace(30, "I lost him.")
-  clean_text[328] <- prepend_whitespace(30, "You did?")
-  clean_text[333] <- prepend_whitespace(30, "Lincoln Mercury Cougar, ninety-eight.")
-  clean_text[334] <- prepend_whitespace(30, "Broadway and L St. Field Sobriety...")
-  clean_text[339] <- prepend_whitespace(30, "Whoops, there he is.")
-  clean_text[342] <- prepend_whitespace(10, "And he pulls out.")
-  clean_text[352] <- prepend_whitespace(10, "On the side of the road, several OFFICERS administer a FIELD")
-  clean_text[353] <- prepend_whitespace(10, "SOBRIETY TEST to the MAN.")
-  clean_text[356] <- prepend_whitespace(10, "The Man is upset. He gestures at the Police.")
-  clean_text[359] <- prepend_whitespace(10, "Patrick pulls up across the street, watching.")
-  clean_text[362] <- prepend_whitespace(10, "They let the man go.")
-  clean_text[365] <- prepend_whitespace(10, "Patrick eases out after him. He WAVES to the cops, who stare")
+  clean_text[302] <- prepend_whitespace("Dot Avenue, where are you?", 30)
+  clean_text[307] <- prepend_whitespace("Nguyen's nail salon.", 30)
+  clean_text[312] <- prepend_whitespace("That's where she went?", 30)
+  clean_text[317] <- prepend_whitespace("Yup. I'm getting my nails done. You still", 30)
+  clean_text[318] <- prepend_whitespace("with the father?", 30)
+  clean_text[323] <- prepend_whitespace("I lost him.", 30)
+  clean_text[328] <- prepend_whitespace("You did?", 30)
+  clean_text[333] <- prepend_whitespace("Lincoln Mercury Cougar, ninety-eight.", 30)
+  clean_text[334] <- prepend_whitespace("Broadway and L St. Field Sobriety...", 30)
+  clean_text[339] <- prepend_whitespace("Whoops, there he is.", 30)
+  clean_text[342] <- prepend_whitespace("And he pulls out.", 10)
+  clean_text[352] <- prepend_whitespace("On the side of the road, several OFFICERS administer a FIELD", 10)
+  clean_text[353] <- prepend_whitespace("SOBRIETY TEST to the MAN.", 10)
+  clean_text[356] <- prepend_whitespace("The Man is upset. He gestures at the Police.", 10)
+  clean_text[359] <- prepend_whitespace("Patrick pulls up across the street, watching.", 10)
+  clean_text[362] <- prepend_whitespace("They let the man go.", 10)
+  clean_text[365] <- prepend_whitespace("Patrick eases out after him. He WAVES to the cops, who stare", 10)
   clean_text[367] <- ""
-  clean_text[368] <- prepend_whitespace(10, "back, not knowing him or why he is waving.")
-  clean_text[376] <- prepend_whitespace(10, "From Patrick's car, we see the Father get out of his car and")
-  clean_text[377] <- prepend_whitespace(10, "head in the door, holding his bag.")
-  clean_text[380] <- prepend_whitespace(10, "Patrick watches from across the street, in his car.")
+  clean_text[368] <- prepend_whitespace("back, not knowing him or why he is waving.", 10)
+  clean_text[376] <- prepend_whitespace("From Patrick's car, we see the Father get out of his car and", 10)
+  clean_text[377] <- prepend_whitespace("head in the door, holding his bag.", 10)
+  clean_text[380] <- prepend_whitespace("Patrick watches from across the street, in his car.", 10)
+
+  return(clean_text)
+}
 
 
+clean_legally_blonde <- function(orig_text) {
 
+  clean_text <- orig_text
+
+  dialogue_idx <- c(407:413, 421, 431:432, 450, 463, 468)
+
+  clean_text[dialogue_idx] <- orig_text[dialogue_idx] |>
+    str_trim() |>
+    prepend_whitespace(14)
+
+  clean_text[172] <- "SERENA" |> prepend_whitespace(24)
+
+  clean_text[598] <- "(tearing up)" |> prepend_whitespace(18)
 
   return(clean_text)
 }

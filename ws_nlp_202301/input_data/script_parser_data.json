@@ -43,10 +43,10 @@
   },
   "go": {
     "parser_label":             "go",
-    "direction_line_regex":     "^[ ]{13}\\S",
-    "character_line_regex":     "^[ ]{42}[^\\(]",
-    "dialogue_direction_regex": "^[ ]{19}\\(",
-    "dialogue_line_regex":      "^[ ]{31}\\S"
+    "direction_line_regex":     "^[ ]{1,13}\\S",
+    "character_line_regex":     "^[ ]{25,30}[^\\(]",
+    "dialogue_direction_regex": "^[ ]{1,19}\\(",
+    "dialogue_line_regex":      "^[ ]{15,20}\\S"
   },
   "gone_baby_gone": {
     "parser_label":             "gone_baby_gone",
@@ -78,10 +78,10 @@
   },
   "legally_blonde": {
     "parser_label":             "legally_blonde",
-    "direction_line_regex":     "^[ ]{4}\\S",
-    "character_line_regex":     "^[ ]{24}\\S",
+    "direction_line_regex":     "^[ ]{0,4}\\S",
+    "character_line_regex":     "^[ ]{20,35}\\S",
     "dialogue_direction_regex": "^[ ]{18}\\(",
-    "dialogue_line_regex":      "^[ ]{14}\\S"
+    "dialogue_line_regex":      "^[ ]{10,15}\\S"
   },
   "margin_call": {
     "parser_label":             "margin_call",
@@ -183,17 +183,17 @@
   },
   "the_king_of_comedy": {
     "parser_label":             "the_king_of_comedy",
-    "direction_line_regex":     "^[ ]{4}\\S",
+    "direction_line_regex":     "^[ ]{0,4}\\S",
     "character_line_regex":     "^[ ]{23}[^\\(]",
     "dialogue_direction_regex": "^[ ]{17}\\(",
     "dialogue_line_regex":      "^[ ]{11}\\S"
   },
   "the_king_s_speech": {
     "parser_label":             "the_king_s_speech",
-    "direction_line_regex":     "^[ ]{4}\\S",
-    "character_line_regex":     "^[ ]{29}[^\\(]",
+    "direction_line_regex":     "^[ ]{4,5}\\S",
+    "character_line_regex":     "^[ ]{29,31}[^\\(]",
     "dialogue_direction_regex": "^[ ]{23}\\(",
-    "dialogue_line_regex":      "^[ ]{19}\\S"
+    "dialogue_line_regex":      "^[ ]{16,21}\\S"
   },
   "the_last_boy_scout": {
     "parser_label":             "the_last_boy_scout",

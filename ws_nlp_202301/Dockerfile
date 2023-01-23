@@ -65,6 +65,7 @@ RUN apt-get update \
     corpus \
     cowplot \
     DataExplorer \
+    DT \
     directlabels \
     fs \
     furrr \
