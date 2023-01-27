@@ -1,0 +1,102 @@
+---
+title: "Exploring Text Annotation and Politeness"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: cerulean
+      dark: cyborg
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r import_libraries}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cowplot)
+library(tidytext)
+library(quanteda)
+library(DT)
+library(politeness)
+library(cleanNLP)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "tidygraph")
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+In this workbook we explore the ability to perform word annotations and other
+sentence construction via politeness heuristics.
+
+
+
+# Load Data
+
+```{r load_script_files_data}
+#| echo: true
+
+films_parsed_tbl <- read_rds("data/films_parsed_tbl.rds")
+films_parsed_tbl |> glimpse()
+
+films_tokens_tbl <- read_rds("data/films_tokens_tbl.rds")
+films_tokens_tbl |> glimpse()
+
+films_dialogue_text_tbl <- read_rds("data/film_dialogue_text_tbl.rds")
+films_dialogue_text_tbl |> glimpse()
+```
+
+
+
+
+
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: false
+#| message: false
+
+
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
