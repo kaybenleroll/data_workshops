@@ -770,10 +770,46 @@ bigram_tblgraph <- bigram_tblgraph |>
   convert(to_subgraph, comp_id == 1) |>
   mutate(
     clust_id = group_walktrap(weights = bigram_count)
-    )
+    ) |>
+  group_by(clust_id) |>
+  mutate(
+    clust_size = n()
+    ) |>
+  ungroup()
 
 bigram_tblgraph |> print()
 ```
+
+We now want to look at a sample of these communities to get an idea of what
+words are bring connected.
+
+```{r plot_sample_walktrap_communities}
+#| echo: true
+
+bigram_tblgraph |>
+  filter(clust_id %in% c(16, 18, 22)) |>
+  plot()
+
+```
+
+
+
+# Write to Disk
+
+We now want to write a number of of datasets to disk for future analysis.
+
+```{r write_to_disk}
+#| echo: true
+
+films_parsed_tbl |> write_rds("data/films_parsed_tbl.rds")
+
+films_tokens_tbl |> write_rds("data/films_tokens_tbl.rds")
+
+films_dialogue_text_tbl |> write_rds("data/film_dialogue_text_tbl.rds")
+```
+
+
+
 
 
 
