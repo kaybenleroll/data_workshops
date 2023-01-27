@@ -69,6 +69,12 @@ clean_go <- function(orig_text) {
 
 
 
+  clean_text <- orig_text |>
+    str_replace("^\\s+CUT TO:",         "") |>
+    str_replace("^\\s+\\(CONTINUED\\)", "") |>
+    str_replace(".*GO.*Revisions.*",    "")
+
+
   dialogue_idx <- c(41:42, 52:53, 62:64)
 
   clean_text[dialogue_idx] <- orig_text[dialogue_idx] |>
@@ -88,7 +94,10 @@ clean_gone_baby_gone <- function(orig_text) {
     str_c("\\1")
 
   clean_text <- orig_text |>
-    str_replace("^[ ]{30}[ ]*(\\S+)", rep(" ", 50) |> str_c(collapse = "") |> str_c("\\1"))
+    str_replace(
+      "^[ ]{30}[ ]*(\\S+)",
+      rep(" ", 50) |> str_c(collapse = "") |> str_c("\\1")
+      )
 
   clean_text[302] <- prepend_whitespace("Dot Avenue, where are you?", 30)
   clean_text[307] <- prepend_whitespace("Nguyen's nail salon.", 30)

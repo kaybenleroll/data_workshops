@@ -44,13 +44,17 @@ library(ggwordcloud)
 library(SnowballC)
 library(hunspell)
 library(DT)
+library(igraph)
+library(tidygraph)
+library(ggraph)
+library(ggnetwork)
 
 
 source("lib_utils.R")
 
 
 conflict_lst <- resolve_conflicts(
-  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "tidygraph")
   )
 
 options(
@@ -624,6 +628,7 @@ films_dialogue_text_tbl <- films_parsed_tbl |>
     )
 
 films_dialogue_text_tbl |>
+  slice_head(n = 100) |>
   datatable(
     rownames = FALSE,
     caption  = "Film Dialogue Compressed - Character as Document"
@@ -668,6 +673,8 @@ films_ngrams_tbl <- films_tokens_tbl |>
   unnest(ngramtoken_data)
 
 films_ngrams_tbl |>
+  drop_na(word) |>
+  select(-full_text) |>
   slice_head(n = 500) |>
   datatable(
     rownames = FALSE,
@@ -679,7 +686,7 @@ We now want to look at the data and remove the stopwords where either of the
 words in the n-gram is on the list.
 
 
-```{r}
+```{r create_ngrams_stop_words_data}
 #| echo: true
 
 films_ngrams_stopped_tbl <- films_ngrams_tbl |>
@@ -692,21 +699,81 @@ films_ngrams_stopped_tbl <- films_ngrams_tbl |>
   anti_join(stop_words, by = c("word2" = "word")) |>
   select(-word1, -word2)
 
+films_ngrams_tfidf_tbl <- films_ngrams_stopped_tbl |>
+  count(title_cleaned, word, name = "word_count") |>
+  bind_tf_idf(word, title_cleaned, word_count)
 
-
+films_ngrams_tfidf_tbl |>
+  slice_max(order_by = tf_idf, n = 500) |>
+  datatable(
+    rownames = FALSE,
+    caption  = "Film Dialogue - TF-IDF Words"
+    )
 ```
 
 
 
+## Construct Graph Based on Bi-Grams
+
+An alternative approach to looking at this data is to construct a directed
+graph of words with the edges being determined by the first and second word of
+the bi-gram.
 
 
+```{r construct_bigram_graph}
+#| echo: true
 
+bigram_graph_edges_tbl <- films_ngrams_stopped_tbl |>
+  filter(flag_dialogue == TRUE) |>
+  separate(word, c("word1", "word2"), sep = " ") |>
+  drop_na(word2) |>
+  count(word1, word2, name = "bigram_count", sort = TRUE) |>
+  filter(word1 != word2)
 
+bigram_graph <- bigram_graph_edges_tbl |>
+  graph_from_data_frame()
 
+bigram_tblgraph <- bigram_graph |>
+  as_tbl_graph() |>
+  activate(nodes) |>
+  mutate(
+    comp_id = group_components()
+    ) |>
+  group_by(comp_id) |>
+  mutate(
+    comp_size = n()
+    ) |>
+  ungroup()
 
+bigram_tblgraph |> print()
+```
 
+To help visualise this graph, we will look at a few of the smaller disjoint
+components of this chart.
 
+```{r plot_word_graph_components}
+#| echo: true
 
+bigram_tblgraph |>
+  filter(comp_id %in% c(2, 3, 4, 5, 6, 7)) |>
+  plot()
+```
+
+We now want to run some community detection routines on that largest component
+of the graph, so we run this now.
+
+```{r wordgraph_determine_communities}
+#| echo: true
+#| cache: true
+
+bigram_tblgraph <- bigram_tblgraph |>
+  convert(to_subgraph, comp_id == 1) |>
+  mutate(
+    clust_id = group_walktrap(weights = bigram_count)
+    )
+
+bigram_tblgraph |> print()
+```
 
 
 

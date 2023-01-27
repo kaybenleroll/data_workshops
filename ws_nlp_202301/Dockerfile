@@ -69,6 +69,8 @@ RUN apt-get update \
     directlabels \
     fs \
     furrr \
+    ggnetwork \
+    ggraph \
     ggwordcloud \
     hunspell \
     kernlab \
@@ -88,6 +90,7 @@ RUN apt-get update \
     quarto \
     rvest \
     sessioninfo \
+    sna \
     snakecase \
     spacyr \
     tesseract \
