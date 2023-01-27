@@ -3,3 +3,6 @@
 output.log
 
 temp*.R
+
+*_cache/*
+*_files/*
