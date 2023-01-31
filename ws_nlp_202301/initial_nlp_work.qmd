@@ -37,6 +37,7 @@ library(fs)
 library(purrr)
 library(furrr)
 library(glue)
+library(scales)
 library(cowplot)
 library(tidytext)
 library(quanteda)
@@ -589,6 +590,11 @@ total_film_tfidf_tbl <- films_wordtoken_unstopped_tbl |>
 
 total_film_tfidf_tbl |>
   slice_max(order_by = tf_idf, n = 500) |>
+  mutate(
+    tf     = tf     |> round(4),
+    idf    = idf    |> round(4),
+    tf_idf = tf_idf |> round(4)
+    ) |>
   datatable(
     rownames = FALSE,
     caption  = "TF-IDF Statistics for Words"
@@ -601,6 +607,7 @@ at the dialogue text.
 
 This requires a bit of processing of the data, as we want to collapse all
 the dialogue for a given character into a single document.
+
 
 ```{r collapse_script_text_to_character_dialogue}
 #| echo: true
@@ -619,13 +626,37 @@ films_dialogue_text_tbl <- films_parsed_tbl |>
     trimmed_text
     ) |>
   filter(flag_dialogue == TRUE) |>
-  group_by(film_title, release_year, genre, title_cleaned, section_cleaned) |>
+  group_by(
+    film_title, release_year, genre, title_cleaned, character = section_cleaned
+    ) |>
   arrange(grouping_id) |>
   summarise(
     .groups = "drop",
     
     dialogue_text = str_c(trimmed_text, collapse = " ") |> str_squish()
     )
+
+films_dialogue_counts_tbl <- films_dialogue_text_tbl |>
+  unnest_tokens(word, dialogue_text) |>
+  count(
+    film_title, release_year, genre, title_cleaned, character,
+    name = "dialogue_count"
+    )
+
+films_dialogue_text_tbl <- films_dialogue_text_tbl |>
+  inner_join(
+    films_dialogue_counts_tbl,
+    by = c("film_title", "release_year", "genre", "title_cleaned", "character")
+    )
+
+films_dialogue_text_tbl |> glimpse()
+```
+
+
+
+
+```{r view_films_dialogue_text}
+#| echo: true
 
 films_dialogue_text_tbl |>
   slice_head(n = 100) |>
@@ -634,6 +665,9 @@ films_dialogue_text_tbl |>
     caption  = "Film Dialogue Compressed - Character as Document"
   )
 ```
+
+
+
 
 
 We first want to create a token table from this new format of data.
@@ -650,6 +684,11 @@ films_dialogue_wordtoken_tfidf_tbl <- films_dialogue_wordtoken_tbl |>
 
 films_dialogue_wordtoken_tfidf_tbl |>
   slice_max(order_by = tf_idf, n = 500) |>
+  mutate(
+    tf     = tf     |> round(4),
+    idf    = idf    |> round(4),
+    tf_idf = tf_idf |> round(4)
+    ) |>
   datatable(
     rownames = FALSE,
     caption  = "Film Dialogue - TF-IDF Words"
@@ -705,6 +744,11 @@ films_ngrams_tfidf_tbl <- films_ngrams_stopped_tbl |>
 
 films_ngrams_tfidf_tbl |>
   slice_max(order_by = tf_idf, n = 500) |>
+  mutate(
+    tf     = tf     |> round(4),
+    idf    = idf    |> round(4),
+    tf_idf = tf_idf |> round(4)
+    ) |>
   datatable(
     rownames = FALSE,
     caption  = "Film Dialogue - TF-IDF Words"
@@ -791,6 +835,68 @@ bigram_tblgraph |>
   plot()
 
 ```
+
+
+# Analysing Dialogue Text
+
+We return to the dialogue text data, we want to explore this data a little
+more, in particular looking at the characters with the most dialogue.
+
+```{r plot_films_dialogue_count}
+#| echo: true
+
+plot_tbl <- films_dialogue_text_tbl |>
+  transmute(
+    character_label = glue("{character} ({film_title})"),
+    dialogue_count
+    ) |>
+  slice_max(order_by = dialogue_count, n = 30)
+
+ggplot(plot_tbl) +
+  geom_col(aes(x = character_label, y = dialogue_count)) +
+  scale_y_continuous(labels = label_comma()) +
+  coord_flip() +
+  labs(
+    x = "Character",
+    y = "Word Count",
+    title = "Word Count by Character (Film Title in Parentheses)"
+    ) +
+  theme(axis.text.y = element_text(size = 10))
+
+```
+
+We see that most of the films in this plot appear once, with a small number of
+films appearing twice.
+
+It is worth checking the distribution of word counts in these films as well.
+
+```{r plot_dialogue_counts_films}
+#| echo: true
+
+plot_tbl <- films_dialogue_text_tbl |>
+  group_by(film_title, title_cleaned) |>
+  slice_max(order_by = dialogue_count, n = 3) |>
+  mutate(char_rank = min_rank(-dialogue_count) |> as.character()) |>
+  ungroup() |>
+  mutate(title_trunc = str_trunc(film_title, width = 20))
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = title_trunc, y = dialogue_count, fill = char_rank),
+    position = "dodge"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  coord_flip() +
+  labs(
+    x = "Film Title",
+    y = "Word Count",
+    fill = "Rank",
+    title = "Distribution of Word Counts by Film Title"
+    )
+
+```
+
 
 
 

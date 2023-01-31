@@ -43,6 +43,7 @@ library(quanteda)
 library(DT)
 library(politeness)
 library(cleanNLP)
+library(snakecase)
 
 
 source("lib_utils.R")
@@ -61,6 +62,8 @@ options(
 set.seed(42)
 
 theme_set(theme_cowplot())
+
+spacyr::spacy_initialize(python_executable = "/usr/bin/python3")
 ```
 
 In this workbook we explore the ability to perform word annotations and other
@@ -69,6 +72,8 @@ sentence construction via politeness heuristics.
 
 
 # Load Data
+
+We start by loading up previously constructed data sources.
 
 ```{r load_script_files_data}
 #| echo: true
@@ -84,6 +89,30 @@ films_dialogue_text_tbl |> glimpse()
 ```
 
 
+
+# Calculate Politeness Metrics
+
+The `politeness` package contains methods for counting the presence of various
+patterns for politeness in the speech.
+
+We start by analysing this on a per-character basis, using the
+combined-dialogue table, that aggregated all the lines of dialogue spoken by
+a character.
+
+
+```{r calculate_politeness_counts}
+#| echo: true
+
+polite_tbl <- films_dialogue_text_tbl |>
+  pull(dialogue_text) |>
+  politeness(parser = "spacy")
+
+films_dialogue_polite_tbl <- films_dialogue_text_tbl |>
+  bind_cols(polite_tbl) %>%    # Have to use %>% here for the . functionality
+  set_colnames(names(.) |> to_snake_case())
+
+films_dialogue_polite_tbl |> glimpse()
+```
 
 
 

@@ -97,12 +97,14 @@ common format so we can run our usual NLP preprocessing etc.
 #| echo: true
 #| message: false
 
-film_parser_loaded_tbl <- read_json(
-    "input_data/script_parser_data.json"
-    ) |>
+film_parser_loaded_lst <- read_json(
+  "input_data/script_parser_data.json"
+  )
+
+whitespace_parser_tbl <- film_parser_loaded_lst$whitespace_parser |>
   enframe(name = "title_cleaned", value = "parser_conf")
 
-film_parser_loaded_tbl |> glimpse()
+whitespace_parser_tbl |> glimpse()
 ```
 
 
@@ -259,22 +261,23 @@ films_master_tbl |> glimpse()
 
 
 
-c# Parse the Scripts
+# Parse the Scripts
 
 
-We now combine the tables to set up the film scripts parsing.
+We now combine the tables to set up the film scripts parsing for the
+whitespace-based film parsing logic.
 
 ```{r combine_script_master_with_parser}
 #| echo: true
 #| message: false
 
-default_parser_conf <- film_parser_loaded_tbl |>
+default_parser_conf <- whitespace_parser_tbl |>
   filter(title_cleaned == ".default_parser") |>
   pull(parser_conf) |>
   extract2(1)
 
-film_parsers_tbl <- films_master_tbl |>
-  left_join(film_parser_loaded_tbl, by = "title_cleaned") |>
+film_parsers_whitespace_tbl <- films_master_tbl |>
+  left_join(whitespace_parser_tbl, by = "title_cleaned") |>
   replace_na(
     list(parser_conf = list(default_parser_conf))
     ) |>
@@ -282,8 +285,22 @@ film_parsers_tbl <- films_master_tbl |>
     parser_func = map(parser_conf, construct_film_script_parser)
     )
 
+film_parsers_whitespace_tbl |> glimpse()
+```
+
+
+
+We now combine these film parsers into a single table so that each film script
+can now be parsed.
+
+```{r combine_film_parsers}
+#| echo: true
+
+film_parsers_tbl <- film_parsers_whitespace_tbl
+
 film_parsers_tbl |> glimpse()
 ```
+
 
 
 As before, we expect to be running this code multiple times if we want to

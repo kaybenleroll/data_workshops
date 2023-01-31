@@ -73,6 +73,7 @@ RUN apt-get update \
     ggraph \
     ggwordcloud \
     hunspell \
+    ineq \
     kernlab \
     lda \
     lobstr \
@@ -87,7 +88,11 @@ RUN apt-get update \
     pryr \
     qdap \
     quanteda \
+    quanteda.textmodels \
+    quanteda.textplots \
+    quanteda.textstats \
     quarto \
+    readtext \
     rvest \
     sessioninfo \
     sna \
