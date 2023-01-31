@@ -43,6 +43,7 @@ full_deps.dot:
 depgraph: full_deps.png
 
 initial_nlp_work.html: retrieve_extract_parse_film_scripts.html
+text_annotation_politeness.html: initial_nlp_work.html
 
 
 
