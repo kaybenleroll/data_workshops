@@ -113,20 +113,20 @@
       "dialogue_line_regex":      "^[ ]{14,20}\\S"
     },
     "mean_streets": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "mean_streets",
-      "direction_line_regex": "^[ ]{10}\\S",
-      "character_line_regex": "^[ ]{26}[^\\(]",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "mean_streets",
+      "direction_line_regex":     "^[ ]{10}\\S",
+      "character_line_regex":     "^[ ]{26}[^\\(]",
       "dialogue_direction_regex": "^[ ]{26}\\(",
-      "dialogue_line_regex": "^[ ]{11}\\S"
+      "dialogue_line_regex":      "^[ ]{11}\\S"
     },
     "mulholland_drive": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "mulholland_drive",
-      "direction_line_regex": "^[^\\s]",
-      "character_line_regex": "^[\\t]{4}[^\\(]\\S",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "mulholland_drive",
+      "direction_line_regex":     "^[^\\s]",
+      "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
       "dialogue_direction_regex": "^[\\t]{3}\\(",
-      "dialogue_line_regex": "^[\\t]{2}\\S"
+      "dialogue_line_regex":      "^[\\t]{2}\\S"
     },
     "psycho": {
       "parser_type": "whitespace_parser",
@@ -145,60 +145,60 @@
       "dialogue_line_regex": "^[ ]{17}\\S"
     },
     "scream": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "scream",
-      "direction_line_regex": "^[^\\s]",
-      "character_line_regex": "^[ ]{12}[^\\(]",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "scream",
+      "direction_line_regex":     "^[^\\s]",
+      "character_line_regex":     "^[ ]{12}[^\\(]",
       "dialogue_direction_regex": "^[ ]{25}\\(",
-      "dialogue_line_regex": "^[ ]{8}\\S"
+      "dialogue_line_regex":      "^[ ]{8}\\S"
     },
     "snatch": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "snatch",
-      "direction_line_regex": "^[ ]{5}\\S",
-      "character_line_regex": "^[ ]{25,35}[^\\(]",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "snatch",
+      "direction_line_regex":     "^[ ]{0,10}\\S",
+      "character_line_regex":     "^[ ]{24,35}[A-Z ]+",
       "dialogue_direction_regex": "^[ ]{25}\\(",
-      "dialogue_line_regex": "^[ ]{15}\\S"
+      "dialogue_line_regex":      "^[ ]{15,20}\\S"
     },
     "star_wars_the_empire_strikes_back": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "star_wars_the_empire_strikes_back",
-      "direction_line_regex": "^[^\\s]",
-      "character_line_regex": "^[\\t]{4}[^\\(]\\S",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "star_wars_the_empire_strikes_back",
+      "direction_line_regex":     "^[^\\s]",
+      "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
       "dialogue_direction_regex": "^[\\t]{3} ",
-      "dialogue_line_regex": "^[\\t]{2}\\S"
+      "dialogue_line_regex":      "^[\\t]{2}\\S"
     },
     "strangers_on_a_train": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "strangers_on_a_train",
-      "direction_line_regex": "^[^\\s]",
-      "character_line_regex": "^[ ]{22}[^\\(]",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "strangers_on_a_train",
+      "direction_line_regex":     "^[^\\s]",
+      "character_line_regex":     "^[ ]{15,25}[A-Z]",
       "dialogue_direction_regex": "^[ ]{14}\\(",
-      "dialogue_line_regex": "^[ ]{10}\\S"
+      "dialogue_line_regex":      "^[ ]{10}\\S"
     },
     "ten_things_i_hate_about_you": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "ten_things_i_hate_about_you",
-      "direction_line_regex": "^[ ]{10}\\S",
-      "character_line_regex": "^[ ]{27}[^\\(]",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "ten_things_i_hate_about_you",
+      "direction_line_regex":     "^[ ]{10}\\S",
+      "character_line_regex":     "^[ ]{27}[^\\(]",
       "dialogue_direction_regex": "^[ ]{31}\\(",
-      "dialogue_line_regex": "^[ ]{20}\\S"
+      "dialogue_line_regex":      "^[ ]{20}\\S"
     },
     "the_godfather": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "godfather",
-      "direction_line_regex": "^[\\t]{1}\\S",
-      "character_line_regex": "^[\\t]{4}[^\\(]\\S",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "godfather",
+      "direction_line_regex":     "^[\\t]{1}\\S",
+      "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
       "dialogue_direction_regex": "^[\\t]{4}\\(",
-      "dialogue_line_regex": "^[\\t]{2}\\S"
+      "dialogue_line_regex":      "^[\\t]{2}\\S"
     },
     "the_godfather_part_ii": {
-      "parser_type": "whitespace_parser",
-      "parser_label": "godfather_ii",
-      "direction_line_regex": "^[^\\s]",
-      "character_line_regex": "^[\\t]{4}[^\\(]\\S",
+      "parser_type":              "whitespace_parser",
+      "parser_label":             "godfather_ii",
+      "direction_line_regex":     "^[^\\s]",
+      "character_line_regex":     "^[\\t]{4}[^\\(]\\S",
       "dialogue_direction_regex": "^[\\t]{3} ",
-      "dialogue_line_regex": "^[\\t]{2}\\S"
+      "dialogue_line_regex":      "^[\\t]{2}\\S"
     },
     "the_hangover": {
       "parser_type": "whitespace_parser",
@@ -227,8 +227,8 @@
     "the_king_of_comedy": {
       "parser_type":              "whitespace_parser",
       "parser_label":             "the_king_of_comedy",
-      "direction_line_regex":     "^[ ]{0,5}\\S",
-      "character_line_regex":     "^[ ]{6,}[A-Z]{2}",
+      "direction_line_regex":     "^[ ]{0,4}\\S",
+      "character_line_regex":     "^[ ]{6,}[A-Z][ A-Z'-]+$",
       "dialogue_direction_regex": "^[ ]{35}\\S",
       "dialogue_line_regex":      "^[ ]{5,11}\\S"
     },

@@ -139,6 +139,40 @@ clean_legally_blonde <- function(orig_text) {
 }
 
 
+clean_snatch <- function(orig_text) {
+  clean_text <- orig_text |>
+    str_replace("^\\s+\\(CONTINUED\\)",  "") |>
+    str_replace("^\\s+\\(MORE\\)",       "") |>
+    str_replace("^\\s+CUT TO.*",         "")
+
+
+  clean_text[36]   <- ""
+  clean_text[126]  <- "                                FRANKY FOUR FINGERS"
+  clean_text[276]  <- "                                FRANKY FOUR FINGERS"
+  clean_text[540]  <- ""
+  clean_text[912]  <- "                                ALEX"
+  clean_text[998]  <- "                                BAD BOY LINCOLN"
+  clean_text[1067] <- "                                SOL"
+  clean_text[1360] <- "                                MICKY"
+  clean_text[2253] <- "                                MICKY"
+  clean_text[2425] <- "                                TURKISH"
+  clean_text[2981] <- ""
+  clean_text[3124] <- "              Vince? Vince??"
+  clean_text[8633] <- "                                KID 1"
+
+  return(clean_text)
+}
+
+
+clean_strangers_on_a_train <- function(orig_text) {
+  clean_text <- orig_text |>
+    str_replace("^\\s+\\(MORE\\)",               "") |>
+    str_replace("^\\s+DISSOLVE TO:",             "") |>
+    str_replace(".*PDF by www.screentalk.org.*", "")
+
+  return(clean_text)
+}
+
 clean_the_king_of_comedy <- function(orig_text) {
 
   clean_text <- orig_text |>
@@ -148,12 +182,47 @@ clean_the_king_of_comedy <- function(orig_text) {
 
   ### Fix direction lines
   direction_idx <- c(
-    2657:2659
+    821, 822, 828:830, 836, 837, 843:848, 854, 859, 870, 871, 1193:1195, 1223,
+    1382, 1394, 1892:1895, 2063, 2109, 2139, 2144, 2196, 2213, 2230, 2278,
+    2335, 2343, 2397:2401, 2418, 2419, 2428, 2429, 2449, 2542, 2549, 2558,
+    2559, 2596, 2657:2659, 2688, 2713, 2714, 2722, 2723, 2729, 2730, 2738,
+    2743:2746, 2925:2927, 2935, 2945, 2963:2972, 3146, 3180, 3181, 3230:3233,
+    3348:3351, 3376, 3377, 3415, 3416, 3694, 3695, 3704, 3705, 3780, 3781,
+    3811:3822, 3838, 3858, 3859, 3877, 3965, 3976, 4006, 4019, 4097, 4098,
+    4161, 4178, 4179, 4193, 4194, 4206, 4224, 4225, 4231, 4232, 4254,
+    4286:4288, 4479, 4480, 4485, 4493:4495, 4505, 4506, 4512:4516, 4526, 4576,
+    4589, 4590, 4595, 4600, 4611, 4612, 4617, 4643, 4653, 4654, 4672:4674,
+    4679, 4684, 4689:4694, 4712:4716, 4721, 4722, 4728, 4729, 4982, 5105,
+    5110:5112, 5164, 5165, 5181:5184, 5196, 5207, 5208, 5242, 5263, 5264,
+    5270, 5340, 5341, 5377, 5383, 5576, 5577, 5583, 5584, 5591:5594, 5657,
+    5686, 5694, 5736, 5737, 5743:5746, 5754, 5781, 5803, 5817, 5828, 5829,
+    5858, 5859, 6042, 6043, 6074, 6087, 6119, 6120, 6175, 6249, 6250, 6277,
+    6286, 6287, 6293, 6299:6302, 6330, 6331, 6549, 6585:6587, 6611:6613, 6619,
+    6620, 6625, 6666, 6667, 6684, 6701, 6717, 6739, 6858, 6868:6873,
+    6900:6902, 6907, 6908, 6913:6915, 6940:6945, 7105:7112
     )
 
   clean_text[direction_idx] <- orig_text[direction_idx] |>
     str_trim() |>
     prepend_whitespace(2)
+
+
+  ### Fix dialogue lines
+  dialogue_idx <- c(
+    3512, 3513, 3517, 3520, 3521, 3524, 3527, 3530, 3531, 3534, 3537:3542,
+    3545:3548, 3551, 3554, 3555, 3558, 3559, 3562:3567
+    )
+
+  clean_text[dialogue_idx] <- orig_text[dialogue_idx] |>
+    str_trim() |>
+    prepend_whitespace(8)
+
+
+
+  ### Make some manual edits
+  clean_text[2719] <- "            Langford    asked him to call. (To PUPKIN)"
+  clean_text[2720] <- "            Mr. Langford's secretary wants"
+  clean_text[6933] <- "                         PUPKIN"
 
 
   return(clean_text)
