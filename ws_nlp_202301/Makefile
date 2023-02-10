@@ -49,14 +49,15 @@ text_annotation_politeness.html: initial_nlp_work.html
 
 
 
-mrproper: clean-data clean-scraped clean-scripts
+mrproper: clean-html clean-data clean-scraped clean-scripts
 	rm -fv *.dot
 	rm -fv output.log
 
-
+clean-html:
+	rm -fv ${HTML_FILES}
 
 clean-data:
-	rm -rfv data/*.rds
+	rm -fv data/*.rds
 
 clean-parsed: clean-data
 	rm -fv data/parsed_scripts/*.rds

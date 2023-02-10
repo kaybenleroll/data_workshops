@@ -23,7 +23,9 @@ construct_film_script_parser <- function(parser_conf) {
         flag_direction_line     = str_detect(line_text, direction_line_regex),
         flag_character_line     = str_detect(line_text, character_line_regex),
         flag_dialogue_direction = str_detect(line_text, dialogue_direction_regex),
-        flag_dialogue_line      = str_detect(line_text, dialogue_line_regex)
+        flag_dialogue_line      = str_detect(line_text, dialogue_line_regex),
+
+        flag_dialogue_line      = if_else(flag_character_line == TRUE, FALSE, flag_dialogue_line)
       ) |>
       rowwise() |>
       mutate(

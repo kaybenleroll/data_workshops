@@ -31,6 +31,17 @@ prepend_whitespace <- function(text_str, prefix_len) {
 }
 
 
+clean_airplane <- function(orig_text) {
+  clean_text <- orig_text
+
+  clean_text[1:20] <- orig_text[1:20] |>
+    str_trim() |>
+    prepend_whitespace(10)
+
+  return(clean_text)
+}
+
+
 clean_austin_powers_international_man_of_mystery <- function(orig_text) {
 
   clean_text <- orig_text
@@ -63,12 +74,40 @@ clean_austin_powers_international_man_of_mystery <- function(orig_text) {
 }
 
 
+clean_donnie_brasco <- function(orig_text) {
+
+  clean_text <- orig_text |>
+    str_replace("^\\s+CUT TO:",           "") |>
+    str_replace("^\\s+DISSOLVE TO:",      "") |>
+    str_replace("^\\s+\\(CONTINUED\\)",   "") |>
+    str_replace("^\\s+\\(C ONTINUED\\)",  "") |>
+    str_replace("^\\s+\\(CO NTINUED\\)",  "") |>
+    str_replace("^\\s+\\(more\\)",        "") |>
+    str_replace("^[ ]+(\\d+\\.)",         "\\1") |>
+    str_replace("^([ ]+)J OE",            "\\1JOE") |>
+    str_replace("^([ ]+)MA GGIE",         "\\1MAGGIE")
+
+
+  clean_text[142]  <- "                             JULES"
+  clean_text[476]  <- "                             BERADA (V.O.)"
+  clean_text[2516] <- "                             DONNIE"
+
+  clean_text[1878] <- "              An argument don't count."
+
+  clean_text[5915:5948] <- ""
+  clean_text[5953:5955] <- ""
+
+  return(clean_text)
+}
+
+
 clean_go <- function(orig_text) {
 
   clean_text <- orig_text |>
     str_replace("^\\s+CUT TO:",         "") |>
     str_replace("^\\s+\\(CONTINUED\\)", "") |>
-    str_replace(".*GO.*Revisions.*",    "")
+    str_replace(".*GO.*Revisions.*",    "") |>
+    str_replace("(\\s+)\\*$", "\\1")
 
   dialogue_idx <- c(41:42, 52:53, 62:64)
 
@@ -81,7 +120,6 @@ clean_go <- function(orig_text) {
 }
 
 
-
 clean_gone_baby_gone <- function(orig_text) {
 
   dialogue_str <- rep(" ", 50) |>
@@ -92,7 +130,8 @@ clean_gone_baby_gone <- function(orig_text) {
     str_replace(
       "^[ ]{30}[ ]*(\\S+)",
       rep(" ", 50) |> str_c(collapse = "") |> str_c("\\1")
-      )
+      ) |>
+    str_replace("^\\s+\\-$", "")
 
   clean_text[302] <- prepend_whitespace("Dot Avenue, where are you?", 30)
   clean_text[307] <- prepend_whitespace("Nguyen's nail salon.", 30)
@@ -117,23 +156,92 @@ clean_gone_baby_gone <- function(orig_text) {
   clean_text[377] <- prepend_whitespace("head in the door, holding his bag.", 10)
   clean_text[380] <- prepend_whitespace("Patrick watches from across the street, in his car.", 10)
 
+  clean_text[1399] <- ""
+  clean_text[1622] <- "Big Dave laughs. A hint of fear betrays Lenny." |>
+    prepend_whitespace(10)
+  clean_text[1644] <- "Open the door , Rummy." |>
+    prepend_whitespace(25)
+
+  return(clean_text)
+}
+
+
+clean_groundhog_day <- function(orig_text) {
+
+  clean_text <- orig_text |>
+    str_replace("^\\s+CUT TO:",         "") |>
+    str_replace("^\\s+DISSOLVE TO:",    "") |>
+    str_replace("^\\s+\\-\\d+\\-",      "")
+
+
   return(clean_text)
 }
 
 
 clean_legally_blonde <- function(orig_text) {
 
-  clean_text <- orig_text
+  clean_text <- orig_text |>
+    str_replace("^\\s+\\(CONTINUED\\)", "") |>
+    str_replace("^\\s+\\d+\\.*",        "")
 
-  dialogue_idx <- c(407:413, 421, 431:432, 450, 463, 468)
+
+  dialogue_idx <- c(
+    407:413, 421, 431:432, 450, 463, 468
+    )
 
   clean_text[dialogue_idx] <- orig_text[dialogue_idx] |>
     str_trim() |>
     prepend_whitespace(14)
 
-  clean_text[172] <- "SERENA" |> prepend_whitespace(24)
+
+  clean_text[5108] <- "BROOKE" |> prepend_whitespace(24)
+  clean_text[5197] <- "BROOKE" |> prepend_whitespace(24)
+
+  clean_text[1190] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[1673] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[2138] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[3040] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[4761] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[5256] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[6599] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[9070] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[9082] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[9148] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[9163] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[9190] <- "ELLE" |> prepend_whitespace(24)
+  clean_text[9258] <- "ELLE" |> prepend_whitespace(24)
+
+  clean_text[172]  <- "SERENA" |> prepend_whitespace(24)
+  clean_text[334]  <- "SERENA" |> prepend_whitespace(24)
+  clean_text[899]  <- "SERENA" |> prepend_whitespace(24)
+  clean_text[1420] <- "SERENA" |> prepend_whitespace(24)
+
+  clean_text[4176] <- "DONOVAN" |> prepend_whitespace(24)
+  clean_text[4953] <- "DONOVAN" |> prepend_whitespace(24)
+  clean_text[4965] <- "DONOVAN" |> prepend_whitespace(24)
+  clean_text[4984] <- "DONOVAN" |> prepend_whitespace(24)
+  clean_text[5112] <- "DONOVAN" |> prepend_whitespace(24)
+  clean_text[8135] <- "DONOVAN" |> prepend_whitespace(24)
+  clean_text[8145] <- "DONOVAN" |> prepend_whitespace(24)
+
+  clean_text[907]  <- "MARGOT" |> prepend_whitespace(24)
+  clean_text[4938] <- "SARAH"  |> prepend_whitespace(24)
+
+  clean_text[4972] <- "EMMETT" |> prepend_whitespace(24)
+  clean_text[6629] <- "EMMETT" |> prepend_whitespace(24)
+
+  clean_text[4744] <- "ARROGANT AARON"    |> prepend_whitespace(24)
+  clean_text[6869] <- "DA JOYCE RAFFERTY" |> prepend_whitespace(24)
+
+  clean_text[6890] <- "CHUTNEY" |> prepend_whitespace(24)
+
 
   clean_text[598] <- "(tearing up)" |> prepend_whitespace(18)
+
+  clean_text[397] <- ""
+
+  clean_text <- clean_text |>
+    str_replace("(\\s+)PROFESSOR DONOVAN", "\\1DONOVAN")
 
   return(clean_text)
 }
@@ -145,19 +253,41 @@ clean_snatch <- function(orig_text) {
     str_replace("^\\s+\\(MORE\\)",       "") |>
     str_replace("^\\s+CUT TO.*",         "")
 
+  char_spacecount <- 30
+
+  sol_idx <- c(
+    1067, 1091, 3882, 6666
+    )
+
+  clean_text[sol_idx] <- "SOL" |> prepend_whitespace(char_spacecount)
+
+
+  btt_idx <- c(
+    5672, 7213, 8417
+    )
+
+  clean_text[btt_idx] <- "BTT" |> prepend_whitespace(char_spacecount)
+
+
+
+  clean_text[c(126, 276)] <- "FRANKY FOUR FINGERS" |>
+    prepend_whitespace(30)
 
   clean_text[36]   <- ""
-  clean_text[126]  <- "                                FRANKY FOUR FINGERS"
-  clean_text[276]  <- "                                FRANKY FOUR FINGERS"
   clean_text[540]  <- ""
   clean_text[912]  <- "                                ALEX"
   clean_text[998]  <- "                                BAD BOY LINCOLN"
-  clean_text[1067] <- "                                SOL"
   clean_text[1360] <- "                                MICKY"
+  clean_text[1713] <- "                                GORGEOUS GEORGE"
+  clean_text[1964] <- "                                TURKISH"
   clean_text[2253] <- "                                MICKY"
+  clean_text[2945] <- "                                HANDS"
   clean_text[2425] <- "                                TURKISH"
   clean_text[2981] <- ""
   clean_text[3124] <- "              Vince? Vince??"
+  clean_text[5196] <- "                                ERROL"
+  clean_text[5558] <- "                                LINCOLN"
+  clean_text[6796] <- "                                HANDS"
   clean_text[8633] <- "                                KID 1"
 
   return(clean_text)
