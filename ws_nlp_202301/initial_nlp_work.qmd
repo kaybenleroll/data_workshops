@@ -49,6 +49,7 @@ library(igraph)
 library(tidygraph)
 library(ggraph)
 library(ggnetwork)
+library(ineq)
 
 
 source("lib_utils.R")
@@ -122,9 +123,9 @@ this list.
 
 films_exclude_tbl <- c(
     "12_years_a_slave", "2001_a_space_odyssey", "django_unchained",
-    "donnie_brasco", "drive", "gran_torino", "leaving_las_vegas",
-    "lock_stock_and_two_smoking_barrels", "moneyball", "office_space",
-    "star_wars_return_of_the_jedi", "the_green_mile"
+    "donnie_brasco", "drive", "gone_baby_gone", "gran_torino",
+    "leaving_las_vegas", "lock_stock_and_two_smoking_barrels", "moneyball",
+    "office_space", "snatch", "star_wars_return_of_the_jedi", "the_green_mile"
     ) |>
   enframe(name = NULL, value = "title_cleaned")
 
@@ -567,6 +568,7 @@ ggplot(total_film_wordfreq_tbl) +
   theme(legend.position = "none")
 ```
 
+
 ## Calculate Term Frequency - Inverse Document Frequency
 
 We now want to look at the statistic known as the
@@ -620,6 +622,7 @@ films_dialogue_text_tbl <- films_parsed_tbl |>
     film_title, release_year, genre, title_cleaned,
     section_cleaned = section_title |>
       str_replace_all("\\(.*?\\)", "") |>
+      str_replace_all("\\[.*?\\]", "") |>
       str_squish(),
     flag_dialogue,
     grouping_id,
@@ -659,6 +662,7 @@ films_dialogue_text_tbl |> glimpse()
 #| echo: true
 
 films_dialogue_text_tbl |>
+  mutate(dialogue_text = str_trunc(dialogue_text, width = 100)) |>
   slice_head(n = 100) |>
   datatable(
     rownames = FALSE,
@@ -897,6 +901,34 @@ ggplot(plot_tbl) +
 
 ```
 
+It is worth exploring a few additional features of this data, such as looking
+at the total word count and perhaps the Gini coefficient of the word count by
+different character.
+
+```{r calculate_word_count_statistics}
+#| echo: true
+
+films_dialogue_stats_tbl <- films_dialogue_text_tbl |>
+  group_by(film_title, release_year, genre, title_cleaned) |>
+  summarise(
+    .groups = "drop",
+    
+    character_count = n(),
+    total_words     = sum(dialogue_count),
+    gini_coeff      = Gini(dialogue_count) |> round(4)
+    )
+
+films_dialogue_stats_tbl |>
+  select(
+    film_title, release_year, genre, gini_coeff, total_words, character_count
+    ) |>
+  datatable(
+    rownames = FALSE,
+    caption  = "Character Dialogue Statistics"
+    )
+
+```
+
 
 
 
@@ -907,9 +939,9 @@ We now want to write a number of of datasets to disk for future analysis.
 ```{r write_to_disk}
 #| echo: true
 
-films_parsed_tbl |> write_rds("data/films_parsed_tbl.rds")
+films_parsed_tbl        |> write_rds("data/films_parsed_tbl.rds")
 
-films_tokens_tbl |> write_rds("data/films_tokens_tbl.rds")
+films_tokens_tbl        |> write_rds("data/films_tokens_tbl.rds")
 
 films_dialogue_text_tbl |> write_rds("data/film_dialogue_text_tbl.rds")
 ```
