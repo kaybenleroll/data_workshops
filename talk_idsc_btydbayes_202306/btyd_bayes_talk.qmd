@@ -1,0 +1,318 @@
+---
+title: "BTYD Modelling with Stan"
+author: "Mick Cooney <mcooney@describedata.com>"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(scales)
+library(cowplot)
+library(rfm)
+library(CLVTools)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+
+source("lib_utils.R")
+source("lib_btyd.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+```{r load_data}
+#| include: false
+
+tnx_onlineretail_tbl <- read_rds("data/onlineretail_transactions_tbl.rds")
+tnx_longsynth_tbl    <- read_rds("data/longsynth_transaction_data_tbl.rds")
+
+obs_validdata_tbl            <- read_rds("data/onlineretail_obs_validdata_tbl.rds")
+onlineretail_assess_data_tbl <- read_rds("data/assess_data_pnbd_onlineretail_onehier_tbl.rds")
+
+pnbd_posterior_params_tbl <- read_rds("data/pnbd_posterior_parameters.rds")
+```
+
+
+# Customer Lifetime Value
+
+---
+
+Non-Contractual Transactions
+
+\
+
+
+Retail
+
+
+## Transaction Data
+
+\
+
+
+
+```{r show_customer_transactions}
+#| echo: false
+
+tnx_onlineretail_tbl %>% head(5)
+```
+
+---
+
+```{r visualise_transaction_data}
+#| echo: false
+
+plot_tbl <- tnx_onlineretail_tbl %>%
+  group_nest(customer_id) %>%
+  slice_sample(n = 30) %>%
+  unnest(data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Date",
+    y = "Customer ID",
+    title = "Visualisation of Transaction Times for 30 Customers"
+    ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 10)
+    )
+```
+
+---
+
+```{r visualise_transaction_data_more}
+#| echo: false
+
+plot_tbl <- tnx_onlineretail_tbl %>%
+  group_nest(customer_id) %>%
+  mutate(tnx_count = map_int(data, nrow)) %>%
+  filter(tnx_count > 2, tnx_count < 100) %>%
+  slice_sample(n = 30) %>%
+  unnest(data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point(aes(colour = tnx_amount)) +
+  scale_colour_gradient(low = "blue", high = "red", labels = label_comma()) +
+  labs(
+    x      = "Transaction Date",
+    y      = "Customer ID",
+    colour = "Amt",
+    title  = "Visualisation of Transaction Times for Second Sample"
+    ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 10)
+    )
+```
+
+
+
+
+
+# Buy Till You Die
+
+
+---
+
+Statistical distributions of transactions
+
+\
+
+
+![](img/clv_pnbd_arrow.png)
+
+
+## P/NBD Models
+
+
+$$
+\begin{eqnarray*}
+x &\sim& \text{Poisson}(\lambda)          \\
+\tau &\sim& \text{Exponential}(\mu)       \\
+\\
+\lambda &\sim& \text{Gamma}(\alpha, r)    \\
+\mu &\sim& \text{Gamma}(s, \beta)         \\
+\end{eqnarray*}
+$$
+
+
+---
+
+$$
+\text{Data: } (x, t_x, T)
+$$
+
+
+
+$$
+\begin{eqnarray*}
+x &=& \text{count of transactions}         \\
+t_x &=& \text{time from birth to last transaction}    \\
+T   &=& \text{time from birth to observation time}
+\end{eqnarray*}
+$$
+
+
+
+# Bayesian Modelling
+
+
+---
+
+```{r construct_assessment_validation_plots}
+#| echo: FALSE
+
+obs_tnx_count <- obs_validdata_tbl |> pull(tnx_count) |> sum()
+
+assess_data_tbl <- onlineretail_assess_data_tbl |>
+  filter(assess_type == "valid") |>
+  unnest(sim_data)
+
+assess_summstat_tbl <- assess_data_tbl |>
+  group_by(model_label) |>
+  summarise(
+    .groups = "drop",
+
+    sim_multicust_count_p10 = quantile(multicust_count, 0.10),
+    sim_multicust_count_p25 = quantile(multicust_count, 0.25),
+    sim_multicust_count_p75 = quantile(multicust_count, 0.75),
+    sim_multicust_count_p90 = quantile(multicust_count, 0.90),
+    
+    sim_tnx_count_p10 = quantile(simtnx_count, 0.10),
+    sim_tnx_count_p25 = quantile(simtnx_count, 0.25),
+    sim_tnx_count_p75 = quantile(simtnx_count, 0.75),
+    sim_tnx_count_p90 = quantile(simtnx_count, 0.90)
+    )
+
+ggplot(assess_summstat_tbl) +
+  geom_errorbar(
+    aes(x = model_label, ymin = sim_tnx_count_p10, ymax = sim_tnx_count_p90),
+    width = 0,
+    linewidth = 1
+    ) +
+  geom_errorbar(
+    aes(x = model_label, ymin = sim_tnx_count_p25, ymax = sim_tnx_count_p75),
+    width = 0,
+    linewidth = 3
+    ) +
+  geom_hline(aes(yintercept = obs_tnx_count), colour = "red") +
+  expand_limits(y = 0) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Model",
+    y = "Total Transactions",
+    title = "Comparison of Total Simulations Against Observed"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+
+
+---
+
+```{r plot_posterior_customer_parameters}
+#| echo: FALSE
+
+cust_params_summstats_tbl <- pnbd_posterior_params_tbl |>
+  group_by(customer_id) |>
+  summarise(
+    .groups = "drop",
+    
+    post_lambda_p10 = quantile(post_lambda, 0.10),
+    post_lambda_p25 = quantile(post_lambda, 0.25),
+    post_lambda_p75 = quantile(post_lambda, 0.75),
+    post_lambda_p90 = quantile(post_lambda, 0.90),
+    
+    post_palive_p10 = quantile(p_alive, 0.10),
+    post_palive_p25 = quantile(p_alive, 0.25),
+    post_palive_p75 = quantile(p_alive, 0.75),
+    post_palive_p90 = quantile(p_alive, 0.90)
+    )
+
+
+ggplot(cust_params_summstats_tbl) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = post_palive_p10, ymax = post_palive_p90),
+    width = 0, linewidth = 1
+    ) +
+  geom_errorbar(
+    aes(x = customer_id, ymin = post_palive_p25, ymax = post_palive_p75),
+    width = 0, linewidth = 3
+    ) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Customer ID",
+    y = "Probability Still Active",
+    title = "Posterior Distributions for p_alive"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+  
+  
+```
+
+# Thank You!
+
+\
+
+
+[Slides for Talk](https://kaybenleroll.github.io/data_workshops/talk_idsc_btydbayes_202306/btyd_bayes_talk.html)
+
+\
+
+
+[Detailed Work](https://github.com/kaybenleroll/btydbayes_investigation)
+
+
+
+
+
+
+
+
+
+
