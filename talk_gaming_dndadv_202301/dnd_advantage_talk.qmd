@@ -567,25 +567,50 @@ ggplot(plot_oppprob_data_tbl) +
     )
 ```
 
+
+# Examples
+
+
+## 1st Level Human Fighter vs Orc Warrior
+
+\
+
+16 STR / Prof (+5 to roll) -> AC 13
+
+\
+
+Need 8 or higher
+
+---
+
+
+
 # Thank You!
+
+
+## Other Resources
+
+\
+
+
+Stand-Up Maths YouTube Channel
+
+\
+
+
+[https://www.youtube.com/watch?v=X_DdGRjtwAo]()
+
+---
 
 \
 
 
 This talk...
 
-[https://github.com/kaybenleroll/data_workshops/talk_gaming_dndadv_202301]()
-
 \
 
 
-
-
-
-
-
-
-
+[https://github.com/kaybenleroll/data_workshops/talk_gaming_dndadv_202301]()
 
 
 
