@@ -1,0 +1,103 @@
+---
+title: "Fraud Modelling with Probabilistic Graphical Models"
+author: "Mick Cooney <mcooney@describedata.com>"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(scales)
+library(cowplot)
+library(gRain)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+# Probabilistic Graphical Models
+
+---
+
+Probabilistic Graphical Models represent structural dependence amongst
+variables
+
+
+
+# Sprinkler Network
+
+---
+
+```{r show_sprinkler_network}
+#| echo: FALSE
+
+dag(~Sprinkler:Rain + Wet:Sprinkler + Wet:Rain) |>
+  plot()
+
+```
+
+
+
+# Conclusion
+
+
+
+
+# Thank You!
+
+\
+
+
+This talk...
+
+[https://github.com/kaybenleroll/data_workshops/talk_citi_pgmfraud_202305]()
+
+
+
+
+
+
+
+
+
+
+
