@@ -9,7 +9,11 @@ give at various meetups and conferences.
 
 [talk_gaming_dndadv_202301/dnd_advantage_talk.html]
 
+talk_gaming_dndadv_202301/dnd_advantage_talk.html
+
 [talk_bm_btydbayes_202211/btyd_bayes_talk.html]
+
+talk_bm_btydbayes_202211/btyd_bayes_talk.html
 
 [talk_sai_bondcashflow_202202/calculate_bond_portfolio_cashflows.html]
 
