@@ -1,6 +1,6 @@
 ---
-title: "__TITLE__"
-author: "__AUTHOR__"
+title: "Exploring the MTPL1 Frequency Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 editor: source
 execute:
@@ -202,6 +202,7 @@ First we load the dataset.
 #                        col_types = data_col_types,
 #                        progress  = FALSE
 #                       )
+rawdata_tbl <- read_rds("data/modelling1_data_tbl.rds") |> select(-sev_data)
 
 glimpse(rawdata_tbl)
 ```
