@@ -1,0 +1,899 @@
+---
+title: "Exploring the MTPL1 Frequency Dataset"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: sandstone
+      dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r resolve_conflicts}
+#| echo: false
+
+resolve_conflicts <- function(pkg_priority) {
+  get_index <- function(pkg_name) {
+    idx <- str_which(pkg_priority, pkg_name)
+
+    if(length(idx) == 0) {
+      idx <- 0L
+    }
+
+    return(idx)
+  }
+
+  conflict_lst <- conflict_scout()
+
+  for(func_name in names(conflict_lst)) {
+    pkg_index <- map_int(conflict_lst[[func_name]], get_index)
+
+    pkg_index <- pkg_index[pkg_index > 0]
+
+    if(length(pkg_index) == 0) {
+      pkg_use <- conflict_lst[[func_name]][1]
+    } else {
+      pkg_use <- pkg_index %>%
+        min() %>%
+        pkg_priority[.]
+    }
+
+    conflict_prefer(func_name, pkg_use)
+  }
+
+  return(conflict_lst)
+}
+```
+
+```{r create_chunk_timing}
+#| echo: false
+
+knitr::knit_hooks$set(timeit = local({
+  now <- NULL
+
+  function(before, options) {
+    if(before) {
+      now <<- Sys.time()
+    } else {
+      res <- Sys.time() %>% difftime(now) %>% round(2)
+      now <<- NULL
+
+      # use options$label if you want the chunk label as well
+      message(glue("Time for code chunk: {options$label} is {res} secs"))
+    }
+
+  }})
+)
+```
+
+```{r import_libraries}
+#| echo: false
+#| message: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(vctrs)
+library(fs)
+library(glue)
+library(forcats)
+library(snakecase)
+library(DataExplorer)
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+```{r custom_functions}
+#| echo: false
+
+### Checks if variable is a date/time
+is_date <- function(x)
+  x %>% inherits(c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
+
+
+### Returns the category of data type passed to it
+categorise_datatype <- function (x) {
+  if(all(are_na(x))) return("na")
+
+  if(is_date(x))                          "datetime"
+  else if (!is_null(attributes(x)) ||
+           all(is_character(x)))          "discrete"
+  else if (all(is_logical(x)))            "logical"
+  else                                    "continuous"
+}
+
+
+### create_coltype_list() splits columns into various types
+create_coltype_list <- function(data_tbl) {
+  coltypes  <- data_tbl %>% map_chr(categorise_datatype)
+  cat_types <- coltypes %>% unique() %>% sort()
+
+  split_lst <- cat_types %>%
+    map(function(x) { coltypes[coltypes %in% x] %>% names() })
+
+  names(split_lst) <- coltypes %>% unique() %>% sort()
+
+  coltype_lst <- list(
+    split   = split_lst
+   ,columns = coltypes
+  )
+
+  return(coltype_lst)
+}
+
+```
+
+
+This workbook was created using the 'dataexpks' template:
+
+https://github.com/DublinLearningGroup/dataexpks
+
+
+
+# Introduction
+
+This workbook performs the basic data exploration of the dataset.
+
+```{r set_exploration_params}
+#| echo: true
+
+dataexp_level_exclusion_threshold <- 100
+
+dataexp_cat_level_count <- 40
+dataexp_hist_bins_count <- 50
+```
+
+
+# Load Data
+
+First we load the dataset.
+
+```{r load_dataset}
+#| echo: true
+
+### _TEMPLATE_
+### Data is loaded into dataset rawdata_tbl here
+
+### We may wish to set column typs
+#data_col_types <- cols(
+#  VAR1 = col_character(),
+#  VAR2 = col_date(),
+#  VAR3 = col_number()
+#)
+
+### Data is loaded into dataset rawdata_tbl here
+#rawdata_tbl <- read_csv(DATAFILE,
+#                        locale    = locale(),
+#                        col_types = data_col_types,
+#                        progress  = FALSE
+#                       )
+rawdata_tbl <- read_rds("data/modelling1_data_tbl.rds") |> select(-sev_data)
+
+glimpse(rawdata_tbl)
+```
+
+
+## Perform Quick Data Cleaning
+
+
+```{r perform_simple_datatype_transforms}
+#| echo: true
+
+### _TEMPLATE_
+### Do simple datatype transforms and save output in data_tbl
+data_tbl <- rawdata_tbl %>% set_colnames(names(.) %>% to_snake_case())
+
+glimpse(data_tbl)
+```
+
+
+
+```{r}
+#| echo: false
+
+knitr::knit_exit()
+```
+
+
+## Create Derived Variables
+
+We now create derived features useful for modelling. These values are
+new variables calculated from existing variables in the data.
+
+```{r create_derived_variables}
+#| echo: true
+
+data_tbl <- data_tbl
+
+glimpse(data_tbl)
+```
+
+
+
+```{r}
+#| echo: false
+
+knitr::knit_exit()
+```
+
+
+# Perform Basic Checks on Data
+
+We now want to look at some very high level checks on the data, and we leverage
+some of the functionality provided by `DataExplorer`.
+
+## Create High-Level Visualisations
+
+We first want to look at a visualisation of some high-level summarys of the
+meta-data on this dataset. This gives us a quick view of the categorical and
+1numeric values in the dataset, as well as the proportions of missing values.
+
+```{r plot_dataexp_introduce}
+#| echo: true
+
+data_tbl %>%
+  plot_intro(
+    title   = "High Level Table Summary",
+    ggtheme = theme_cowplot()
+    )
+```
+
+
+## Check Missing Values
+
+Before we do anything with the data, we first check for missing values
+in the dataset. In some cases, missing data is coded by a special
+character rather than as a blank, so we first correct for this.
+
+```{r replace_missing_character}
+#| echo: true
+
+### _TEMPLATE_
+### ADD CODE TO CORRECT FOR DATA ENCODING HERE
+```
+
+With missing data properly encoded, we now visualise the missing data in a
+number of different ways.
+
+### Univariate Missing Data
+
+```{r plot_univariate_missing_data}
+#| echo: true
+
+data_tbl %>%
+  plot_missing(
+    title   = "Summary of Data Missingness",
+    group   = list(Good = 0.05, Acceptable = 0.2, Bad = 0.8, Remove = 1),
+    ggtheme = theme_cowplot()
+    )
+```
+
+We now want to repeat this plot but only for those columns that have some
+missing values.
+
+```{r plot_univariate_missing_only_data}
+#| echo: true
+
+data_tbl %>%
+  plot_missing(
+    title        = "Summary of Data Missingness (missing variables only)",
+    missing_only = TRUE,
+    group        = list(Good = 0.05, Acceptable = 0.2, Bad = 0.8, Remove = 1),
+    ggtheme      = theme_cowplot()
+    )
+```
+
+
+
+### Multivariate Missing Data
+
+It is useful to get an idea of what combinations of variables tend to have
+variables with missing values simultaneously, so to construct a visualisation
+for this we create a count of all the times given combinations of variables
+have missing values, producing a heat map for these combination counts.
+
+```{r missing_data_matrix}
+#| echo: true
+
+dataexp_missing_group_count <- 20
+
+row_count <- rawdata_tbl %>% nrow()
+
+count_nas <- ~ .x %>% are_na() %>% vec_cast(integer())
+
+missing_vizdata_tbl <- rawdata_tbl %>%
+  mutate(across(everything(), count_nas)) %>%
+  mutate(label = pmap_chr(., str_c)) %>%
+  group_by(label) %>%
+  mutate(
+    miss_count = n(),
+    miss_prop  = miss_count / row_count
+    ) %>%
+  slice_max(order_by = miss_prop, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  pivot_longer(
+    !c(label, miss_count, miss_prop),
+    names_to = "variable_name",
+    values_to = "presence"
+    ) %>%
+  mutate(
+    prop_label = sprintf("%6.4f", miss_prop)
+    )
+
+top10_data_tbl <- missing_vizdata_tbl %>%
+  select(label, miss_prop) %>%
+  distinct() %>%
+  slice_max(order_by = miss_prop, n = dataexp_missing_group_count)
+
+missing_plot_tbl <- missing_vizdata_tbl %>%
+  semi_join(top10_data_tbl, by = "label")
+
+ggplot(missing_plot_tbl) +
+  geom_tile(aes(x = variable_name, y = prop_label, fill = presence), height = 0.8) +
+  scale_fill_continuous() +
+  scale_x_discrete(position = "top", labels = ~ abbreviate(.x, minlength = 10)) +
+  xlab("Variable") +
+  ylab("Proportion of Rows") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 90, vjust = 0.5)
+    )
+```
+
+This visualisation takes a little explaining.
+
+Each row represents a combination of variables with simultaneous missing
+values. For each row in the graphic, the coloured entries show which particular
+variables are missing in that combination. The proportion of rows with that
+combination is displayed in both the label for the row and the colouring for
+the cells in the row.
+
+
+## Inspect High-level-count Categorical Variables
+
+With the raw data loaded up we now remove obvious unique or near-unique
+variables that are not amenable to basic exploration and plotting.
+
+```{r find_highlevelcount_categorical_variables}
+#| echo: true
+
+coltype_lst <- create_coltype_list(data_tbl)
+
+count_levels <- ~ .x %>% unique() %>% length()
+
+catvar_valuecount_tbl <- data_tbl %>%
+  summarise(
+    .groups = "drop",
+
+    across(coltype_lst$split$discrete, count_levels)
+    ) %>%
+  pivot_longer(
+    cols      = everything(),
+    names_to  = "var_name",
+    values_to = "level_count"
+    ) %>%
+  arrange(desc(level_count))
+
+print(catvar_valuecount_tbl)
+
+row_count <- data_tbl %>% nrow()
+
+cat(glue("Dataset has {row_count} rows\n"))
+```
+
+Now that we a table of the counts of all the categorical variables we can
+automatically exclude unique variables from the exploration, as the level
+count will match the row count.
+
+```{r remove_id_variables}
+#| echo: true
+
+unique_vars <- catvar_valuecount_tbl %>%
+  filter(level_count == row_count) %>%
+  pull(var_name)
+
+print(unique_vars)
+
+explore_data_tbl <- data_tbl %>%
+  select(-one_of(unique_vars))
+```
+
+Having removed the unique identifier variables from the dataset, we
+may also wish to exclude categoricals with high level counts also, so
+we create a vector of those variable names.
+
+```{r collect_highcount_variables}
+#| echo: true
+
+highcount_vars <- catvar_valuecount_tbl %>%
+  filter(level_count >= dataexp_level_exclusion_threshold,
+         level_count < row_count) %>%
+  pull(var_name)
+
+cat(str_c(highcount_vars, collapse = ", "))
+```
+
+We now can continue doing some basic exploration of the data. We may
+also choose to remove some extra columns from the dataset.
+
+```{r drop_variables}
+#| echo: true
+
+### You may want to comment out these next few lines to customise which
+### categoricals are kept in the exploration.
+drop_vars <- c(highcount_vars)
+
+if (length(drop_vars) > 0) {
+  explore_data_tbl <- explore_data_tbl %>%
+      select(-one_of(drop_vars))
+
+  cat(str_c(drop_vars, collapse = ", "))
+}
+```
+
+
+```{r}
+#| echo: false
+
+knitr::knit_exit()
+```
+
+
+# Univariate Data Exploration
+
+Now that we have loaded the data we can prepare it for some basic data
+exploration.
+
+
+## Quick Univariate Data Summaries
+
+We use a number of summary visualisations provided by `DataExplorer`: a
+facet plot across each variable with categorical variables getting bar plots
+and numerical plots getting histograms.
+
+We first look at the barplots of categorical variables.
+
+```{r plot_dataexp_bar, message=TRUE, echo=TRUE}
+#| echo: true
+
+plot_bar(
+    data_tbl,
+    ncol    = 2,
+    nrow    = 2,
+    title   = "Barplots of Data",
+    ggtheme = theme_cowplot()
+    )
+```
+
+
+We then have a quick look at histograms of the numeric variables.
+
+```{r plot_dataexp_hist, message=TRUE, echo=TRUE}
+#| echo: true
+
+plot_histogram(
+    data_tbl,
+    ncol    = 2,
+    nrow    = 2,
+    title   = "Histograms of Data",
+    ggtheme = theme_cowplot()
+    )
+```
+
+
+Finally, we split the remaining variables into different categories and then
+produce a sequence of plots for each variable.
+
+
+```{r separate_exploration_cols, echo=TRUE}
+#| echo: true
+
+coltype_lst <- create_coltype_list(explore_data_tbl)
+
+print(coltype_lst)
+```
+
+
+## Logical Variables
+
+Logical variables only take two values: TRUE or FALSE. It is useful to see
+missing data as well though, so we also plot the count of those.
+
+```{r create_univariate_logical_plots}
+#| echo: true
+#| warning: false
+
+logical_vars <- coltype_lst$split$logical %>% sort()
+
+for (plot_varname in logical_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  na_count <- explore_data_tbl %>% pull(.data[[plot_varname]]) %>% are_na() %>% sum()
+
+  plot_title <- glue("Barplot of Counts for Variable: {plot_varname} ({na_count} missing values)")
+
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_bar(aes(x = .data[[plot_varname]])) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Numeric Variables
+
+Numeric variables are usually continuous in nature, though we also have
+integer data.
+
+```{r create_univariate_numeric_plots}
+#| echo: true
+#| warning: false
+
+numeric_vars <- coltype_lst$split$continuous %>% sort()
+
+for (plot_varname in numeric_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  plot_var <- explore_data_tbl %>% pull(.data[[plot_varname]])
+  na_count <- plot_var %>% are_na() %>% sum()
+
+  plot_var %>% summary() %>% print()
+
+  plot_title <- glue("Histogram Plot for Variable: {plot_varname} ({na_count} missing values)")
+
+
+  all_plot <- ggplot() +
+    geom_histogram(aes(x = plot_var), bins = dataexp_hist_bins_count) +
+    geom_vline(xintercept = mean(plot_var, na.rm = TRUE),
+               colour = "red", size = 1.5) +
+    geom_vline(xintercept = median(plot_var, na.rm = TRUE),
+               colour = "green", size = 1.5) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_continuous(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(
+      plot_title,
+      subtitle = "(red line is mean, green line is median)"
+      )
+
+  pos_data_tbl <- explore_data_tbl %>%
+    filter(.data[[plot_varname]] >= 0) %>%
+    mutate(var_val = abs(.data[[plot_varname]]))
+
+  pos_log_plot <- ggplot(pos_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = dataexp_hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle("Positive Values")
+
+  
+  neg_data_tbl <- explore_data_tbl %>%
+    filter(.data[[plot_varname]] < 0) %>%
+    mutate(var_val = abs(.data[[plot_varname]]))
+
+  neg_log_plot <- ggplot(neg_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = dataexp_hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle("Negative Values")
+
+
+  plot_grid(
+      all_plot,
+      NULL,
+      pos_log_plot,
+      neg_log_plot,
+      nrow = 2
+      ) %>%
+    print()
+}
+```
+
+
+## Categorical Variables
+
+Categorical variables only have values from a limited, and usually fixed,
+number of possible values
+
+```{r create_univariate_categorical_plots}
+#| echo: true
+#| warning: false
+
+categorical_vars <- coltype_lst$split$discrete %>% sort()
+
+for (plot_varname in categorical_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  na_count <- explore_data_tbl %>% pull(.data[[plot_varname]]) %>% are_na() %>% sum()
+
+  plot_title <- glue("Barplot of Counts for Variable: {plot_varname} ({na_count} missing values)")
+
+  standard_plot_tbl <- explore_data_tbl %>%
+    count(.data[[plot_varname]])
+
+  standard_plot <- ggplot(standard_plot_tbl) +
+    geom_bar(aes(x = .data[[plot_varname]], weight = n)) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_discrete(labels = ~ abbreviate(.x, minlength = 10)) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  standard_plot %>% print()
+
+
+  desc_plot_tbl <- explore_data_tbl %>%
+    pull(.data[[plot_varname]]) %>%
+    fct_lump(n = dataexp_cat_level_count) %>%
+    fct_count() %>%
+    mutate(f = fct_relabel(f, str_trunc, width = 15))
+
+  desc_plot <- ggplot(desc_plot_tbl) +
+    geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_discrete(labels = ~ abbreviate(.x, minlength = 10)) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  desc_plot %>% print()
+}
+```
+
+
+## Date/Time Variables
+
+Date/Time variables represent calendar or time-based data should as time of the
+day, a date, or a timestamp.
+
+```{r create_univariate_datetime_plots}
+#| echo: true
+#| warning: false
+
+datetime_vars <- coltype_lst$split$datetime %>% sort()
+
+for (plot_varname in datetime_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  plot_var <- explore_data_tbl %>% pull(.data[[plot_varname]])
+  na_count <- plot_var %>% are_na() %>% sum()
+
+  plot_var %>% summary() %>% print()
+
+  plot_title <- glue("Barplot of Dates/Times in Variable: {plot_varname} ({na_count} missing values)")
+
+
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = .data[[plot_varname]]), bins = dataexp_hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title)
+
+  plot(explore_plot)
+}
+```
+
+
+```{r}
+#| echo: false
+
+knitr::knit_exit()
+```
+
+
+# Bivariate Facet Plots
+
+We now move on to looking at bivariate plots of the data set.
+
+A natural way to explore relationships in data is to create univariate
+visualisations facetted by a categorical value.
+
+```{r bivariate_facet_data}
+#| echo: true
+
+### _TEMPLATE_
+### facet_varname <- ''
+facet_varname <- coltype_lst$split$discrete[1]
+
+dataexp_facet_count_max <- 3
+```
+
+
+## Logical Variables
+
+For logical variables we facet on barplots of the levels, comparing TRUE,
+FALSE and missing data.
+
+```{r create_bivariate_logical_plots}
+#| echo: true
+
+logical_vars <- logical_vars[!logical_vars %in% facet_varname] %>% sort()
+
+
+for (plot_varname in logical_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl %>% filter(!are_na(.data[[plot_varname]]))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = .data[[plot_varname]])) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Numeric Variables
+
+For numeric variables, we facet on histograms of the data.
+
+```{r create_bivariate_numeric_plots}
+#| echo: true
+
+for (plot_varname in numeric_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl %>% filter(!are_na(.data[[plot_varname]]))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = .data[[plot_varname]]), bins = dataexp_hist_bins_count) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_continuous(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  print(explore_plot)
+}
+```
+
+## Categorical Variables
+
+We treat categorical variables like logical variables, faceting the barplots
+of the different levels of the data.
+
+```{r create_bivariate_categorical_plots}
+#| echo: true
+
+categorical_vars <- categorical_vars[!categorical_vars %in% facet_varname] %>% sort()
+
+for (plot_varname in categorical_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl %>%
+    filter(!are_na(.data[[plot_varname]])) %>%
+    mutate(
+      varname_trunc = fct_relabel(.data[[plot_varname]], str_trunc, width = 10)
+      )
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = varname_trunc)) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_discrete(labels = ~ abbreviate(.x, minlength = 10)) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Date/Time Variables
+
+Like the univariate plots, we facet on histograms of the years in the dates.
+
+```{r create_bivariate_datetime_plots}
+#| echo: true
+
+for (plot_varname in datetime_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl %>% filter(!are_na(.data[[plot_varname]]))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = .data[[plot_varname]]), bins = dataexp_hist_bins_count) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+```{r free_memory_facetplot}
+#| echo: false
+
+rm(plot_var, plot_tbl)
+```
+
+
+```{r}
+#| echo: false
+
+knitr::knit_exit()
+```
+
+
+# Custom Explorations
+
+In this section we perform various data explorations.
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: true
+#| message: true
+
+sessioninfo::session_info()
+```
