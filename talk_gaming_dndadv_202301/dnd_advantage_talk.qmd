@@ -20,6 +20,7 @@ format:
     show-slide-number: all
     navigation-mode: vertical
     progress: true
+    css: styles.css
 
 ---
 
@@ -579,9 +580,111 @@ ggplot(plot_oppprob_data_tbl) +
 
 \
 
-Need 8 or higher
+Needs 8 or higher on attack roll
 
 ---
+
+```{r show_human_fighter_roll_8}
+#| echo: false
+
+outcomes_cumlprob_tbl |>
+  filter(
+    target_roll == 8,
+    roll_type %in% c("Straight", "Disadvantage", "Advantage")
+    ) |>
+  mutate(
+    failure_ratio = failure_prob / failure_prob[which(roll_type == "Straight")]
+    ) |>
+  transmute(
+    `Roll Type`     = roll_type,
+    `Success`       = success_prob |> round(4),
+    `Failure`       = failure_prob |> round(4),
+    `Failure Ratio` = failure_ratio
+    ) |>
+  knitr::kable()
+```
+
+
+## 5th Level Half-Orc Fighter vs Peasant
+
+\
+
+18 STR / Prof (+7 to roll) -> AC 10
+
+\
+
+Needs 3 or higher on attack roll
+
+---
+
+```{r show_halforc_fighter_roll_3}
+#| echo: false
+
+outcomes_cumlprob_tbl |>
+  filter(
+    target_roll == 3,
+    roll_type %in% c("Straight", "Disadvantage", "Advantage")
+    ) |>
+  mutate(
+    failure_ratio = failure_prob / failure_prob[which(roll_type == "Straight")]
+    ) |>
+  transmute(
+    `Roll Type`     = roll_type,
+    `Success`       = success_prob |> round(4),
+    `Failure`       = failure_prob |> round(4),
+    `Failure Ratio` = failure_ratio
+    ) |>
+  knitr::kable()
+```
+
+
+## Unskilled Merchant vs Armored Knight with Shield
+
+\
+
+10 STR / Not proficient (+0 to roll) -> AC 18
+
+\
+
+Needs 18 or higher on attack roll
+
+---
+
+```{r show_merchant_roll_18}
+#| echo: false
+
+outcomes_cumlprob_tbl |>
+  filter(
+    target_roll == 18,
+    roll_type %in% c("Straight", "Disadvantage", "Advantage")
+    ) |>
+  mutate(
+    failure_ratio = failure_prob / failure_prob[which(roll_type == "Straight")]
+    ) |>
+  transmute(
+    `Roll Type`     = roll_type,
+    `Success`       = success_prob |> round(4),
+    `Failure`       = failure_prob |> round(4),
+    `Failure Ratio` = failure_ratio
+    ) |>
+  knitr::kable()
+```
+
+
+# Summary
+
+---
+
++/- 3 on average
+
+\
+
+Non-linearity
+
+\
+
+Effects non-intuitive
+
 
 
 
