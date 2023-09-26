@@ -1,14 +1,9 @@
-FROM rocker/verse:4.2.1
+FROM rocker/tidyverse:4.3.0
 
 WORKDIR /tmp
 
 COPY build/docker_install_sys_rpkgs.R /tmp
 RUN Rscript /tmp/docker_install_sys_rpkgs.R
-
-COPY build/test_report.qmd /tmp
-RUN quarto render test_report.qmd --to pdf \
-  && rm -fv /tmp/test_report.pdf
-
 
 RUN git clone https://github.com/lindenb/makefile2graph.git \
   && cd makefile2graph \
@@ -52,9 +47,9 @@ RUN apt-get update \
     DataExplorer \
     directlabels \
     fs \
-    furrr \
     loo \
     markdown \
+    parallelly \
     pryr \
     quarto \
     sessioninfo \
