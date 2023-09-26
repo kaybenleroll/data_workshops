@@ -3,7 +3,8 @@ PROJECT_USER=kaybenleroll
 PROJECT_NAME=ws_reproresearch_202307
 PROJECT_TAG=latest
 
-IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}:${PROJECT_TAG}
+TIDYVERSE_IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}-tidyverse:${PROJECT_TAG}
+ANACONDA_IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}-anaconda:${PROJECT_TAG}
 
 DOCKER_USER=rstudio
 DOCKER_PASS=CHANGEME
@@ -63,10 +64,20 @@ mrproper: clean-html clean-cache clean-data clean-precompute
 
 
 ### Docker targets
-docker-build-image: Dockerfile
-	docker build -t ${IMAGE_TAG} -f Dockerfile .
+docker-build-tidyverse-image: Dockerfile.tidyverse
+	docker build -t ${TIDYVERSE_IMAGE_TAG} \
+	  --build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
+	  -f Dockerfile.tidyverse .
 
-docker-run:
+
+docker-build-anaconda-image: Dockerfile.anaconda
+	docker build -t ${ANACONDA_IMAGE_TAG} \
+	  --build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
+	  -f Dockerfile.anaconda .
+
+
+
+docker-run-tidyverse:
 	docker run --rm -d \
 	  -p ${RSTUDIO_PORT}:8787 \
 	  -e USER=${DOCKER_USER} \
@@ -75,7 +86,22 @@ docker-run:
 	  -e GROUPID=${DOCKER_GID} \
 	  -v "${PWD}":"/home/${DOCKER_USER}/${PROJECT_FOLDER}":rw \
 	  --name ${CONTAINER_NAME} \
-	  ${IMAGE_TAG}
+	  ${TIDYVERSE_IMAGE_TAG}
+
+
+docker-run-python:
+	docker run --rm -i -t \
+	  -v "${PWD}":"/opt/notebooks":rw \
+	  -p 8888:8888 \
+	  --name anaconda_workspace \
+	  ${PYTHON_IMAGE_TAG} \
+	  /bin/bash -c "\
+	    jupyter notebook \
+	    --notebook-dir=/opt/notebooks --ip='*' --port=8888 \
+	    --no-browser --allow-root"
+
+
+
 
 docker-bash:
 	docker exec -it -u ${DOCKER_USER} ${CONTAINER_NAME} bash

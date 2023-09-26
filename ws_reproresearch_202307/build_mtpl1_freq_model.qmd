@@ -1,0 +1,776 @@
+---
+title: "Build the MTPL1 Frequency Model"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+    fig_caption: yes
+    toc_depth: 3
+    use_bookdown: yes
+
+  html_document:
+    fig_caption: yes
+    theme: spacelab
+    highlight: pygments
+    number_sections: TRUE
+    toc: TRUE
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: FALSE
+
+  pdf_document: default
+---
+
+
+```{r import_libraries}
+#| label = "import_libraries",
+#| echo = FALSE,
+#| message = FALSE
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(glue)
+library(purrr)
+library(furrr)
+library(fs)
+library(rsample)
+library(rstan)
+library(rstanarm)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+library(DT)
+
+
+source("custom_functions.R")
+
+resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "rsample")
+  )
+
+
+knitr::opts_chunk$set(
+  tidy       = FALSE,
+  cache      = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.height =     8,
+  fig.width  =    11
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+rstan_options(auto_write = TRUE)
+
+set.seed(42)
+stan_seed <- 4242
+```
+
+In this workbook we switch our attention to building a frequency model for the
+claims data. We build a number of different models and compare them in terms of
+both accuracy (estimate of the mean), and precision (estimate of the
+variance/dispersion).
+
+All of our modelling is done within a Bayesian context, so rather than
+estimating a single set of parameters for our model we instead estimate the
+posterior distribution of the joint distribution of the parameters given the
+observed data.
+
+We use prior predictive checks to set our priors and then use Monte Carlo
+simulation and posterior predictive checks to assess the quality of the various
+models.
+
+
+# Data and Setup
+
+Before we do any modelling we need to load our data. Data exploration and
+various data cleaning etc has been performed in a previous workbook, so we
+simply load the data as-is.
+
+It may be necessary to perform some simple feature engineering, but this is
+part of the modelling process so we will instead do that here as it is an
+intrinsic part of the modelling process in most cases.
+
+```{r}
+#| label = "load_mtpl1_dataset",
+#| echo = TRUE
+modelling1_data_tbl <- read_rds("data/modelling1_data_tbl.rds")
+
+modelling1_data_tbl %>% glimpse()
+```
+
+This dataset will be the basis for all our subsequent work with the MTPL1 data.
+
+For the purposes of effective model validation we need to construct a
+"hold out" or *testing* set. We subset the data now and do not investigate or
+check this data till we have final models we wish to work with.
+
+The size of this hold-out set is a matter of discussion, and is a trade-off
+between ensuring enough data for modelling, but also ensuring the test set is
+large enough to test the final models.
+
+We sample this data at random for now, and take hold out 20% of it.
+
+```{r}
+#| label = "construct_mtpl1_train_holdout",
+#| echo = TRUE
+mtpl1_split <- modelling1_data_tbl %>% initial_split(prop = 0.8)
+
+mtpl1_training_tbl <- mtpl1_split %>% training()
+mtpl1_training_tbl %>% glimpse()
+
+mtpl1_testing_tbl  <- mtpl1_split %>% testing()
+mtpl1_testing_tbl %>% glimpse()
+```
+
+
+
+# Constructing the Frequency Model
+
+We start with a simple frequency model for the car insurance data, using prior
+predictive checks to the set our prior parameters. The first time we do this
+we will discuss this in more detail to explain the method and what we are
+trying to achieve. Once we are happy with our prior model we then switch to
+conditioning it on the data - check the *posterior shrinkage* and estimation
+of how informative our data has been on the model, and then use the output to
+guide our work.
+
+
+## Constructing Our Prior Model
+
+We start by building a simple model with a small number of parameters. Going
+by our previous data exploration, we use `gas` and `cat_driver_age`. Later
+models will use a smoothed predictor for our continuous variables where there
+is a nonlinear effect, but for now we focus on the discretisations of those
+variables for simplicity.
+
+In formula notation, our model will look something like this:
+
+```
+claim_count ~ gas + cat_driver_age
+```
+
+Since `claim_count` is a count variable we will use some form of count
+regression: either Poisson or Negative Binomial, and will will try both.
+
+Our idea is to have our parameters vary on a unit scale, and so Normal priors
+should be fine. This leaves the intercept, so we start with a Normal prior here
+also and see what the effect is.
+
+For the purposes of creating some summary information on the mean frequency for
+our frequency model, we create a simple summary function that calculates this
+summary information in a standard way.
+
+```{r}
+#| label = "calculate_mean_freq_summary",
+#| echo = TRUE
+calculate_mean_freq_summary <- function(data_tbl) {
+  summary_tbl <- data_tbl %>%
+    summarise(
+      .groups = "drop",
+  
+      freqmean_min  = min(freq_mean) %>% round(4),
+      freqmean_p10  = quantile(freq_mean, 0.10) %>% round(4),
+      freqmean_p25  = quantile(freq_mean, 0.25) %>% round(4),
+      freqmean_p50  = quantile(freq_mean, 0.50) %>% round(4),
+      freqmean_p75  = quantile(freq_mean, 0.75) %>% round(4),
+      freqmean_p90  = quantile(freq_mean, 0.90) %>% round(4),
+      freqmean_max  = max(freq_mean) %>% round(4),
+
+      freqmean_mean = mean(freq_mean) %>% round(4),
+      freqmean_sd   = sd(freq_mean) %>% round(4)
+      )
+
+  return(summary_tbl)
+}
+
+
+```
+
+
+### Our First Prior Model
+
+We use the `rstanarm` package to fit this model - this allow us to use standard
+R model notation and formula in a Bayesian context, and avoids us the tedious
+of work of having to write out the full Stan code for this problem.
+
+To fit from the prior predictive rather than conditioning on the data, the
+model will not add the observed data and simply fit from the priors.
+
+```{r}
+#| label = "fit_first_prior_model",
+#| echo = TRUE
+fit_data_tbl <- mtpl1_training_tbl %>% select(-sev_data)
+
+mtpl1_freq1_prior_stanreg <- stan_glm(
+    claim_count ~ gas + cat_driver_age,
+    family   = poisson(),
+    data     = fit_data_tbl,
+    offset   = log(exposure),
+    iter     = 500,
+    chains   = 4,
+    QR       = TRUE,
+    prior    = normal(location = 0, scale = 1),
+    prior_PD = TRUE,
+    seed     = stan_seed
+    )
+
+mtpl1_freq1_prior_stanreg %>% summary()
+```
+
+We do not need to look at the whole dataset for the purposes of calibrating
+our priors, so we take a subsample of that data to help us build our priors
+using the `generated quantities` feature in Stan to generate a sample count of
+policies for each of the iterations in the posterior sample.
+
+```{r}
+#| label = "construct_prior_predictive_data",
+#| echo = TRUE
+n_sample <- 250
+
+priorpred_input_tbl <- fit_data_tbl %>%
+  slice_sample(n = n_sample) %>%
+  arrange(policy_id)
+
+priorpred_input_tbl %>% glimpse()
+```
+
+We now use this data to generate simulations of counts.
+
+```{r}
+#| label = "construct_prior_predictive_sample",
+#| echo = TRUE
+priorpred_freq1_tbl <- priorpred_input_tbl %>%
+  add_linpred_draws(
+    model  = mtpl1_freq1_prior_stanreg,
+    offset = rep(1, n_sample),
+    value  = "freq_mean"
+    ) %>%
+  ungroup()
+
+priorpred_freq1_tbl %>% glimpse()
+```
+
+We then produce some summary statistics of these count frequencies, comparing
+those to our domain knowledge of what is possible in the real world. We use
+this to tweak our priors in a principled way.
+
+#### Grouping By Sample Iteration
+
+```{r}
+#| label = "freq1_calculate_prior_predict_summaries",
+#| echo = TRUE
+priorpred_freq1_summary_tbl <- priorpred_freq1_tbl %>%
+  group_by(.row) %>%
+  calculate_mean_freq_summary()
+
+priorpred_freq1_summary_tbl %>% glimpse()
+```
+
+We will output this as a table to HTML to allow for proper inspection.
+
+```{r}
+#| label = "plot_table_as_dt",
+#| echo = TRUE
+priorpred_freq1_summary_tbl %>% datatable(rownames = FALSE)
+```
+
+#### Grouping By Policy
+
+Another way to investigate this dispersion is to group by policy and then
+check the variation of the frequency mean across the prior sample.
+
+```{r}
+#| label = "freq1_calculate_prior_predict_policy_summaries",
+#| echo = TRUE
+priorpred_freq1_policy_tbl <- priorpred_freq1_tbl %>%
+  group_by(policy_id) %>%
+  calculate_mean_freq_summary()
+
+priorpred_freq1_policy_tbl %>% datatable(rownames = FALSE)
+```
+
+It is also worth constructing a boxplot of 25 of these policies and plotting
+the frequency mean of these policies.
+
+```{r}
+#| label = "freq1_mean_freq_boxplots",
+#| echo = TRUE
+boxplot_sample_tbl <- priorpred_input_tbl %>%
+  slice_sample(n = 25)
+
+boxplot_meanfreq1_plot_tbl <- priorpred_freq1_tbl %>%
+  semi_join(boxplot_sample_tbl, by = "policy_id")
+
+ggplot(boxplot_meanfreq1_plot_tbl) +
+  geom_boxplot(aes(x = policy_id, y = freq_mean)) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Policy ID") +
+  ylab("Frequency Mean") +
+  ggtitle("Boxplot of Prior Predicitive Mean Frequencies") +
+  theme(axis.text.x = element_text(size = 8, angle = 90, vjust = 0.5))
+```
+
+
+We see we need to make changes to these priors as we end up with claim counts
+that are massively in excess of any feasible number. We expect inputs to the
+model to have both positive and negative effects on the claim count, and so
+we focus on the prior for the intercept - shifting the mean much lower.
+
+
+
+### A Second Prior Model
+
+Our second prior model is similar to the first one, but with the prior on the
+intercept set at a mean of -4 - thus reducing the 'baseline' claim rate.
+
+```{r}
+#| label = "fit_second_prior_model",
+#| echo = TRUE
+mtpl1_freq1_prior2_stanreg <- stan_glm(
+    claim_count ~ gas + cat_driver_age,
+    family   = poisson(),
+    data     = fit_data_tbl,
+    offset   = log(exposure),
+    iter     = 500,
+    chains   = 4,
+    QR       = TRUE,
+    prior_PD = TRUE,
+    seed     = stan_seed,
+    prior_intercept = normal(location = -4, scale = 1),
+    prior           = normal(location =  0, scale = 1)
+    )
+
+priorpred_freq2_tbl <- priorpred_input_tbl %>%
+  add_linpred_draws(
+    model  = mtpl1_freq1_prior2_stanreg,
+    offset = rep(1, n_sample),
+    value  = "freq_mean"
+    ) %>%
+  ungroup()
+
+priorpred_freq2_tbl %>% glimpse()  
+```
+
+We look at these summaries as before.
+
+```{r}
+#| label = "plot_new_table_as_dt",
+#| echo = TRUE
+priorpred_freq2_summary_tbl <- priorpred_freq2_tbl %>%
+  group_by(.row) %>%
+  calculate_mean_freq_summary()
+
+priorpred_freq2_summary_tbl %>% datatable(rownames = FALSE)
+```
+
+This looks much better - though the values of `freqmean_max` may be a little
+small, so we produce a histogram of those values as a check.
+
+```{r}
+#| label = "plot_priorpred_freqmean_max_histogram",
+#| echo = TRUE
+ggplot(priorpred_freq2_summary_tbl) +
+  geom_histogram(aes(x = freqmean_max), bins = 25) +
+  xlab("Maximum Number of Claims") +
+  ylab("Count Frequency") +
+  ggtitle("Histogram of Maximum Counts of Claims")
+```
+
+As suspected, these numbers as a bit of the low side - individual policies
+could have claim counts in the double digits. High risk policies sometimes
+have 20 or even 30 claims on them in a given year. These counts are unlikely
+but certainly possible, so our priors should allow for this.
+
+
+#### Per-Policy Inspection
+
+Like we did before, we now calculate some summary statistics when aggregating
+by policy.
+
+```{r}
+#| label = "freq2_calculate_prior_predict_summaries",
+#| echo = TRUE
+priorpred_freq2_policy_tbl <- priorpred_freq2_tbl %>%
+  group_by(policy_id) %>%
+  calculate_mean_freq_summary()
+
+priorpred_freq1_policy_tbl %>% datatable(rownames = FALSE)
+```
+
+
+We also produce a boxplot of the prior frequencies for the same sample of
+policies.
+
+```{r}
+#| label = "freq2_mean_freq_boxplots",
+#| echo = TRUE
+boxplot_meanfreq2_plot_tbl <- priorpred_freq2_tbl %>%
+  semi_join(boxplot_sample_tbl, by = "policy_id")
+
+plot_tbl <- list(
+    prior1 = boxplot_meanfreq1_plot_tbl,
+    prior2 = boxplot_meanfreq2_plot_tbl
+    ) %>%
+  bind_rows(.id = "prior_model")
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = policy_id, y = freq_mean, colour = prior_model),
+               position = position_dodge(width = 0.4)) +
+  scale_y_log10(labels = label_comma()) +
+  xlab("Policy ID") +
+  ylab("Frequency Mean") +
+  ggtitle("Boxplot of Prior Predicitive Mean Frequencies") +
+  theme(axis.text.x = element_text(size = 8, angle = 90, vjust = 0.5))
+```
+
+
+
+### Add Prior Autoscaling
+
+We also need to investigate the use of the `autoscale` option in setting our
+priors, which scales the parameters of the prior in line with the data. We
+are unsure of the effect of this autoscaling so it is worth some investigation.
+
+
+```{r}
+#| label = "fit_third_prior_model",
+#| echo = TRUE
+mtpl1_freq1_prior3_stanreg <- stan_glm(
+    claim_count ~ gas + cat_driver_age,
+    family   = poisson(),
+    data     = fit_data_tbl,
+    offset   = log(exposure),
+    iter     = 500,
+    chains   = 4,
+    QR       = TRUE,
+    prior_PD = TRUE,
+    seed     = stan_seed,
+    prior_intercept = normal(location = -4, scale = 1, autoscale = TRUE),
+    prior           = normal(location =  0, scale = 1, autoscale = TRUE)
+    )
+
+priorpred_freq3_tbl <- priorpred_input_tbl %>%
+  add_linpred_draws(
+    model  = mtpl1_freq1_prior3_stanreg,
+    offset = rep(1, n_sample),
+    value  = "freq_mean"
+    ) %>%
+  ungroup()
+
+priorpred_freq3_summary_tbl <- priorpred_freq3_tbl %>%
+  group_by(.row) %>%
+  calculate_mean_freq_summary()
+
+priorpred_freq3_summary_tbl %>% glimpse()
+```
+
+The values with autoscaling seem ludicrous, so it is worth doing a side-by-side
+comparison of the values to see how the two sets of priors compare.
+
+```{r}
+#| label = "compare_nonscaled_autoscaled_prior_params",
+#| echo = TRUE
+compare_params_tbl <- list(
+    no_scale   = mtpl1_freq1_prior2_stanreg %>% tidy_draws(),
+    auto_scale = mtpl1_freq1_prior3_stanreg %>% tidy_draws()
+    ) %>%
+  bind_rows(.id = "prior_model") %>%
+  pivot_longer(
+    !c(prior_model, .chain, .iteration, .draw),
+    names_to  = "parameter",
+    values_to = "value"
+    )
+
+plot_tbl <- compare_params_tbl %>%
+  filter(str_detect(parameter, "__$", negate = TRUE))
+
+ggplot(plot_tbl) +
+  geom_boxplot(aes(x = parameter, y = value, colour = prior_model), position = "dodge") +
+  labs(x = "Parameter", y = "Value", colour = "Scaling") +
+  ggtitle("Auto-Scaling Comparison of Prior Parameters") +
+  theme(axis.text.x = element_text(size = 8, angle = 90, vjust = 0.5))
+```
+
+Autoscaling seems to cause our regression parameters to be much too large, so
+we will probably not spend too much time with autoscaling enabled for the
+parameters, but it does raise questions once we add data to these models, so
+we will not ignore them completely for now, and will probably return to them
+a little later once we start conditioning our models with data.
+
+For the moment though, while we will include them in the iterative search, we
+will exclude them from the data visualisations.
+
+
+### Building a Better Approach
+
+We can see that this approach to getting suitable priors might take a number
+of different attempts, so rather than build it piece by piece we instead
+construct a function that sets the priors and calculates the summary statistics
+of interesting from the prior predictive distribution. This should help us
+decide on the priors we use for the model.
+
+```{r}
+#| label = "construct_prior_model_functions",
+#| echo = TRUE
+calculate_priorpred_output_data <- function(prior_mean, prior_sd,
+                                            incpt_mean, incpt_sd,
+                                            autoscale,
+                                            dist_family,
+                                            fit_formula,
+                                            fit_data_tbl,
+                                            priorpred_input_tbl) {
+
+  n_sample <- priorpred_input_tbl %>% nrow()
+  
+  priorpred_stanreg <- stan_glm(
+      fit_formula,
+      family   = dist_family %>% get() %>% exec(),
+      data     = fit_data_tbl,
+      offset   = log(exposure),
+      iter     = 500,
+      chains   = 4,
+      QR       = TRUE,
+      prior_PD = TRUE,
+      seed     = stan_seed,
+      prior_intercept = normal(location = incpt_mean, scale = incpt_sd, autoscale = autoscale),
+      prior           = normal(location = prior_mean, scale = prior_sd, autoscale = autoscale)
+      )
+
+  priorpred_freqmean_tbl <- priorpred_stanreg %>%
+    add_fitted_draws(
+      newdata = priorpred_input_tbl,
+      offset  = rep(1, n_sample),
+      value   = "freq_mean"
+      ) %>%
+    ungroup() %>%
+    select(policy_id, .draw, freq_mean)
+
+  priorpred_sampcount_tbl <- priorpred_stanreg %>%
+    add_predicted_draws(
+      newdata    = priorpred_input_tbl,
+      offset     = rep(1, n_sample),
+      prediction = "sample_count"
+      ) %>%
+    ungroup() %>%
+    select(policy_id, .draw, sample_count)
+
+  priorpred_data_tbl <- priorpred_freqmean_tbl %>%
+    inner_join(priorpred_sampcount_tbl, by = c("policy_id", ".draw"))
+
+  priorpred_params_tbl <- priorpred_stanreg %>%
+    tidy_draws()
+  
+  priorpred_lst <- list(
+    prior_params = priorpred_params_tbl,
+    prior_output = priorpred_data_tbl
+    )
+  
+  return(priorpred_lst)
+}
+```
+
+
+We want to construct a set of parameters for our priors so that we can run the
+calculation for the prior predictive distribution for each of them.
+
+
+```{r}
+#| label = "construct_prior_setup_table",
+#| echo = TRUE
+i_m <- c(-3.0, -4.0, -5.0, -6.0)
+p_s <- c( 1.0,  2.0)
+i_s <- c( 1.0,  2.0)
+a_s <- c(TRUE, FALSE)
+
+priorpred_priorparams_tbl <- expand_grid(
+    p_m = 0,
+    p_s = p_s,
+    i_m = i_m,
+    i_s = i_s,
+    a_s = a_s
+    ) %>%
+  mutate(prior_id = 1:n(), .before = 1)
+
+priorpred_priorparams_tbl %>% glimpse()
+```
+
+
+We now run the prior predictive distribution for the set of parameters.
+
+```{r}
+#| label = "construct_prior_first_model_system",
+#| echo = TRUE,
+#| cache = TRUE
+priorpred1_pois_data_tbl <- priorpred_priorparams_tbl %>%
+  mutate(
+    prior_lst = pmap(
+        list(prior_mean = p_m,
+             prior_sd   = p_s,
+             incpt_mean = i_m,
+             incpt_sd   = i_s,
+             autoscale  = a_s),
+        calculate_priorpred_output_data,
+        dist_family         = "poisson",
+        fit_formula         = formula(claim_count ~ gas + cat_driver_age),
+        fit_data_tbl        = fit_data_tbl,
+        priorpred_input_tbl = priorpred_input_tbl
+        )
+    ) %>%
+  unnest_wider(prior_lst)
+
+priorpred1_pois_data_tbl %>% glimpse()
+```
+
+We now plot for `freq_mean` for each of the sample policies in our dataset and
+also include the largest observed count of claims in the sample. This allows
+us to calibrate our expections.
+
+```{r}
+#| label = "plot_priorpred1_pois_output_sample",
+#| echo = TRUE
+ref_mean <- 1
+
+prior_freqmodel1_freqmean_pois_plot_tbl <- priorpred1_pois_data_tbl %>%
+  select(prior_id, a_s, prior_output) %>%
+  unnest(prior_output)
+
+max_count_pois_tbl <- prior_freqmodel1_freqmean_pois_plot_tbl %>%
+  group_by(prior_id, a_s) %>%
+  summarise(
+    .groups = "drop",
+    
+    max_count = max(sample_count)
+  )
+
+ggplot(prior_freqmodel1_freqmean_pois_plot_tbl %>% filter(a_s == FALSE)) +
+  geom_boxplot(aes(x = prior_id, group = prior_id, y = freq_mean)) +
+  geom_hline(aes(yintercept = ref_mean), colour = "red") +
+  geom_text(aes(x = prior_id, y = 1e-7, label = prior_id), angle = 90) +
+  geom_text(aes(x = prior_id, y = max_count, label = max_count),
+            data = max_count_pois_tbl %>% filter(a_s == FALSE), colour = "red") +
+  scale_y_log10(labels = label_scientific()) +
+  xlab("Prior Params ID") +
+  ylab("Mean of Claim Frequency") +
+  ggtitle("Prior Predictive Distribution Plot for Simple Frequency Model (Non-scaled)")
+
+
+ggplot(prior_freqmodel1_freqmean_pois_plot_tbl %>% filter(a_s == TRUE)) +
+  geom_boxplot(aes(x = prior_id, group = prior_id, y = freq_mean)) +
+  geom_hline(aes(yintercept = ref_mean), colour = "red") +
+  geom_text(aes(x = prior_id, y = 1e-12, label = prior_id), angle = 90) +
+  geom_text(aes(x = prior_id, y = max_count, label = label_scientific()(max_count)),
+            data = max_count_pois_tbl %>% filter(a_s == TRUE), colour = "red") +
+  scale_y_log10(labels = label_scientific()) +
+  xlab("Prior Params ID") +
+  ylab("Mean of Claim Frequency") +
+  ggtitle("Prior Predictive Distribution Plot for Simple Frequency Model (Scaled)")
+
+```
+
+
+
+
+
+## Negative Binomial Model
+
+We now want to repeat this exercise, but using a Negative Binomial model rather
+than a Poisson model for the counting process. We keep the rest of the sets of
+parameters the same, and compare the two.
+
+```{r}
+#| label = "calculate_priorpred1_negbin",
+#| echo = TRUE,
+#| cache = TRUE
+priorpred1_negbin_data_tbl <- priorpred_priorparams_tbl %>%
+  mutate(
+    prior_lst = pmap(
+      list(prior_mean = p_m,
+           prior_sd   = p_s,
+           incpt_mean = i_m,
+           incpt_sd   = i_s,
+           autoscale  = a_s),
+      calculate_priorpred_output_data,
+      dist_family         = "neg_binomial_2",
+      fit_formula         = formula(claim_count ~ gas + cat_driver_age),
+      fit_data_tbl        = fit_data_tbl,
+      priorpred_input_tbl = priorpred_input_tbl
+      )
+    ) %>%
+  unnest_wider(prior_lst)
+
+priorpred1_negbin_data_tbl %>% glimpse()
+```
+
+We now have set up our calculations for the Negative Binomial distribution so
+we repeat the exercise with this distribution go.
+
+```{r}
+#| label = "plot_priorpred1_negbin_output_sample",
+#| echo = TRUE
+prior_freqmodel1_freqmean_negbin_plot_tbl <- priorpred1_negbin_data_tbl %>%
+  select(prior_id, a_s, prior_output) %>%
+  unnest(prior_output)
+
+max_count_negbin_tbl <- prior_freqmodel1_freqmean_negbin_plot_tbl %>%
+  group_by(prior_id, a_s) %>%
+  summarise(
+    .groups = "drop",
+    
+    max_count = max(sample_count)
+  )
+
+ggplot(prior_freqmodel1_freqmean_negbin_plot_tbl %>% filter(a_s == FALSE)) +
+  geom_boxplot(aes(x = prior_id, group = prior_id, y = freq_mean)) +
+  geom_hline(aes(yintercept = ref_mean), colour = "red") +
+  geom_text(aes(x = prior_id, y = 1e-7, label = prior_id), angle = 90) +
+  geom_text(aes(x = prior_id, y = max_count, label = max_count),
+            data = max_count_negbin_tbl %>% filter(a_s == FALSE), colour = "red") +
+  scale_y_log10(labels = label_scientific()) +
+  xlab("Prior Params ID") +
+  ylab("Mean of Claim Frequency") +
+  ggtitle("Prior Predictive Distribution Plot for Simple Frequency Model (Non-scaled)")
+
+
+ggplot(prior_freqmodel1_freqmean_negbin_plot_tbl %>% filter(a_s == TRUE)) +
+  geom_boxplot(aes(x = prior_id, group = prior_id, y = freq_mean)) +
+  geom_hline(aes(yintercept = ref_mean), colour = "red") +
+  geom_text(aes(x = prior_id, y = 1e-12, label = prior_id), angle = 90) +
+  geom_text(aes(x = prior_id, y = max_count, label = label_scientific()(max_count)),
+            data = max_count_negbin_tbl %>% filter(a_s == TRUE), colour = "red") +
+  scale_y_log10(labels = label_scientific()) +
+  xlab("Prior Params ID") +
+  ylab("Mean of Claim Frequency") +
+  ggtitle("Prior Predictive Distribution Plot for Simple Frequency Model (Scaled)")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# R Environment
+
+```{r}
+#| label = "show_session_info",
+#| echo = TRUE,
+#| message = TRUE
+sessioninfo::session_info()
+```

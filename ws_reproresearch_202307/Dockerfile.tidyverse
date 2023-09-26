@@ -65,3 +65,12 @@ USER root
 
 RUN chown -R rstudio:rstudio /home/rstudio \
   && chmod ugo+rx /home/rstudio
+
+
+ARG BUILD_DATE
+
+LABEL org.opencontainers.image.source="https://github.com/Sea3R-Analytics/sea3r_repo" \
+      org.opencontainers.image.authors="Mick Cooney <mcooney@describedata.com>" \
+      org.label-schema.build-date=$BUILD_DATE
+
+
