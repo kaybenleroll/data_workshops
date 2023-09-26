@@ -12,6 +12,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     htop \
     less \
     libgdal-dev \
+    libglpk-dev \
     libproj-dev \
     libudunits2-dev \
     libxml2-dev \
