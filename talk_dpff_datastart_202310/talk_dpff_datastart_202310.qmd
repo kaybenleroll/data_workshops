@@ -1,0 +1,124 @@
+---
+title: "Data Do's and Don'ts"
+author: "Mick Cooney <mcooney@describedata.com>"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(scales)
+library(cowplot)
+library(directlabels)
+
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+
+# Background
+
+---
+
+Who Am I?
+
+---
+
+![](img/describe_bezier_background.png)
+
+
+## Dublin Data Science
+
+\
+
+
+![](img/dds_pedro.png)
+
+
+# Captain Hindsight
+
+
+![](img/captain_hindsight_sidekicks.png)
+
+# What To Do
+
+## DO Number 1
+
+\
+
+
+Think About Data From the Start
+
+
+## DO Number 2
+
+\
+
+
+Maintain Skepticism
+
+
+## DO Number 3
+
+\
+
+
+Keep Things Simple
+
+
+
+# Thank You!
+
+\
+
+
+This talk...
+
+\
+
+
+[https://github.com/kaybenleroll/data_workshops/talk_dpff_datastart_202310]()
+
+
+
