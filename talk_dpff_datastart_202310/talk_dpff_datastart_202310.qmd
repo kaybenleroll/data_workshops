@@ -1,5 +1,6 @@
 ---
 title: "Data Do's and Don'ts"
+subtitle: "Advice for Startups"
 author: "Mick Cooney <mcooney@describedata.com>"
 editor: source
 execute:
@@ -95,11 +96,24 @@ Think About Data From the Start
 
 \
 
-
-Maintain Skepticism
+Use the Data for Something / Anything
 
 
 ## DO Number 3
+
+\
+
+
+Healthy Skepticism
+
+
+
+
+
+---
+
+
+BONUS:
 
 \
 
