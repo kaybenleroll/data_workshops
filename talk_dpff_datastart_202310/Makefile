@@ -21,7 +21,7 @@ GITHUB_USER=$(shell gh config get gh_user)
 CONTAINER_NAME=dpff-talk
 
 ### Project build targets
-.SUFFIXES: .qmd .html .dot .png
+.SUFFIXES: .qmd .html .dot .png .pdf
 
 QMD_FILES  := $(wildcard *.qmd)
 HTML_FILES := $(patsubst %.qmd,%.html,$(QMD_FILES))
@@ -33,6 +33,13 @@ all-html: $(HTML_FILES)
 	quarto render $< --to pdf                         >> output.log 2>&1
 	echo "TIMESTAMP:" `date` "- Finished $*.html"     >> output.log 2>&1
 
+.html.pdf:
+	echo "TIMESTAMP:" `date` "- Rendering script $<"  >> output.log 2>&1
+
+	docker run --rm -t -v `pwd`:/slides astefanutti/decktape:3.7.0 \
+	  --size 1920x1080 /slides/$< $*.pdf
+
+	echo "TIMESTAMP:" `date` "- Finished $*.html"     >> output.log 2>&1
 
 .dot.png:
 	dot -Tpng -o$*.png $<
