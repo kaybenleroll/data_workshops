@@ -28,4 +28,4 @@ jobs:
         with:
           context: "{{defaultContext}}:talk_cirdas_master_202311"
           push: true
-          tags: kaybenleroll/talk_cirdas_master_2023:latest
+          tags: kaybenleroll/talk_cirdas_master_202311:latest
