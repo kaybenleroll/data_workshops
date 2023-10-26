@@ -1,6 +1,6 @@
 ### repo variables
 PROJECT_USER=kaybenleroll
-PROJECT_NAME=talk_cirdas_master
+PROJECT_NAME=talk_cirdas_master_202311
 PROJECT_TAG=latest
 
 IMAGE_TAG=${PROJECT_USER}/${PROJECT_NAME}:${PROJECT_TAG}
@@ -9,27 +9,31 @@ DOCKER_USER=rstudio
 DOCKER_PASS=CHANGEME
 DOCKER_UID=$(shell id -u)
 DOCKER_GID=$(shell id -g)
+DOCKER_BUILD_ARGS=
 
 RSTUDIO_PORT=8787
 
-PROJECT_FOLDER=workshop
+PROJECT_FOLDER=dndtalk
 
 
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
 GITHUB_USER=$(shell gh config get gh_user)
 
-CONTAINER_NAME=cirdas-talk
+CONTAINER_NAME=dnd-talk
 
 ### Project build targets
-.SUFFIXES: .Rmd .html .dot .png
+.SUFFIXES: .qmd .html .dot .png
 
-RMD_FILES  := $(wildcard *.Rmd)
-HTML_FILES := $(patsubst %.Rmd,%.html,$(RMD_FILES))
+QMD_FILES  := $(wildcard *.qmd)
+HTML_FILES := $(patsubst %.qmd,%.html,$(RMD_FILES))
 
 all-html: $(HTML_FILES)
 
-.Rmd.html:
-	Rscript -e 'rmarkdown::render("$<")'
+.qmd.html:
+	echo "TIMESTAMP:" `date` "- Rendering script $<"  >> output.log 2>&1
+	Rscript -e 'quarto::quarto_render("$<")'          >> output.log 2>&1
+	echo "TIMESTAMP:" `date` "- Finished $*.html"     >> output.log 2>&1
+
 
 .dot.png:
 	dot -Tpng -o$*.png $<
@@ -41,28 +45,16 @@ depgraph: full_deps.png
 
 
 
-mrproper: 
-	rm -fv data/*.xlsx
-	rm -fv *.dot
-
-clean-data:
-	rm -fv data/*.rds
-	rm -fv data/*.csv
-
 clean-html:
-	rm -fv *.html
-
-clean-cache:
-	rm -rfv *_cache
-	rm -rfv *_files
-
-clean-models:
-	rm -fv stan_models/*
+	rm -fv ws*.html
 
 
 ### Docker targets
 docker-build-image: Dockerfile
-	docker build -t ${IMAGE_TAG} -f Dockerfile .
+	docker build -t ${IMAGE_TAG} \
+	  ${DOCKER_BUILD_ARGS} \
+	  --build-arg BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ') \
+	  -f Dockerfile . 2>&1 | tee -a docker_build.log
 
 docker-run:
 	docker run --rm -d \
