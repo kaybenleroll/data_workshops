@@ -64,11 +64,14 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     gganimate \
     gifski \
     ISLR \
+    kableExtra \
     loo \
     markdown \
+    NeuralNetTools \
     parallelly \
     pryr \
     quarto \
+    rattle \
     rsample \
     sessioninfo \
     sf \

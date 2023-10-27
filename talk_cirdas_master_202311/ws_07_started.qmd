@@ -1,0 +1,171 @@
+---
+title: "Demystifying Data"
+subtitle: "07 - So You Want to Data?"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: ""
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+
+---
+
+
+```{r}
+#| label: knit_opts
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+
+# Set the Scene
+
+---
+
+![](img/data_new_oil.png)
+
+---
+
+![](img/leeroy.png)
+
+---
+
+![](img/bacon_studio.jpg)
+
+---
+
+![](img/churchill_planning.png)
+
+---
+
+![](img/chemical_brothers.png)
+
+
+# Assessment
+
+## Current State
+
+\
+
+Data
+
+\
+
+Capability
+
+\
+
+Current BAU
+
+
+## Good to Go?
+
+\
+
+Known Outcomes
+
+\
+
+IT Project
+
+
+## Data Science
+
+---
+
+SCIENCE
+
+---
+
+Research
+
+---
+
+Unknown Outcomes
+
+---
+
+Risk
+
+
+# Getting Started
+
+---
+
+Start Small
+
+---
+
+Limited Scope
+
+\
+
+Data Extracts
+
+\
+
+Experiment
+
+---
+
+Small team
+
+\
+
+Flexible Goals
+
+
+
+# Example
+
+
+# Summary
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+<https://kaybenleroll.github.io/data_workshops/talk_cirdas_master_202311/>
