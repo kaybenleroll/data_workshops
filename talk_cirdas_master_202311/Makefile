@@ -13,25 +13,25 @@ DOCKER_BUILD_ARGS=
 
 RSTUDIO_PORT=8787
 
-PROJECT_FOLDER=dndtalk
+PROJECT_FOLDER=datatalk
 
 
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
 GITHUB_USER=$(shell gh config get gh_user)
 
-CONTAINER_NAME=dnd-talk
+CONTAINER_NAME=cirdas-talk
 
 ### Project build targets
 .SUFFIXES: .qmd .html .dot .png
 
 QMD_FILES  := $(wildcard *.qmd)
-HTML_FILES := $(patsubst %.qmd,%.html,$(RMD_FILES))
+HTML_FILES := $(patsubst %.qmd,%.html,$(QMD_FILES))
 
 all-html: $(HTML_FILES)
 
 .qmd.html:
 	echo "TIMESTAMP:" `date` "- Rendering script $<"  >> output.log 2>&1
-	Rscript -e 'quarto::quarto_render("$<")'          >> output.log 2>&1
+	quarto render $< --to revealjs     >> output.log 2>&1
 	echo "TIMESTAMP:" `date` "- Finished $*.html"     >> output.log 2>&1
 
 
@@ -46,7 +46,7 @@ depgraph: full_deps.png
 
 
 clean-html:
-	rm -fv ws*.html
+	rm -fv $(HTML_FILES)
 
 
 ### Docker targets
