@@ -31,7 +31,7 @@ all-html: $(HTML_FILES)
 
 .qmd.html:
 	echo "TIMESTAMP:" `date` "- Rendering script $<"  >> output.log 2>&1
-	quarto render $< --to html     >> output.log 2>&1
+	quarto render $< --to revealjs     >> output.log 2>&1
 	echo "TIMESTAMP:" `date` "- Finished $*.html"     >> output.log 2>&1
 
 
@@ -46,7 +46,7 @@ depgraph: full_deps.png
 
 
 clean-html:
-	rm -fv ws*.html
+	rm -fv $(HTML_FILES)
 
 
 ### Docker targets
