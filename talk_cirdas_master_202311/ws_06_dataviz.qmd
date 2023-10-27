@@ -1,0 +1,791 @@
+---
+title: "Demystifying Data"
+subtitle: "06 - Data Visualisation"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: ""
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+
+---
+
+
+```{r}
+#| label: knit_opts
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+library(CASdatasets)
+library(rsample)
+library(scales)
+library(sf)
+library(tmap)
+library(kableExtra)
+library(gganimate)
+library(gifski)
+library(av)
+library(transformr)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+data(freMTPL2freq)
+data(freMTPL2sev)
+```
+
+
+```{r}
+#| label: prepare_datasets
+#| echo: false
+
+freq_tbl <- freMTPL2freq |> as_tibble()
+sev_tbl  <- freMTPL2sev  |> as_tibble()
+
+combined_tbl <- freq_tbl |>
+  nest_join(sev_tbl, by = "IDpol", name = "claim_data")
+```
+
+
+# Purpose
+
+---
+
+Tell A Story
+
+---
+
+Total Exposure of MTPL Data by Region
+
+\
+
+
+```{r}
+#| label: tell_story_data
+#| echo: false
+
+story_data_tbl <- freq_tbl |>
+  mutate(Region = fct_lump_prop(Region, prop = 0.1)) |>
+  count(Region, wt = Exposure, name = "Total Exposure")
+```
+
+```{r}
+#| label: tell_story_table
+#| echo: false
+
+story_data_tbl |>
+  knitr::kable()
+```
+
+---
+
+Total Exposure of MTPL Data by Region
+
+\
+
+
+```{r}
+#| label: tell_story_table_formatted
+#| echo: false
+
+story_data_tbl |>
+  mutate(`Total Exposure` = label_comma(accuracy = 0.01)(`Total Exposure`)) |>
+  knitr::kable(align = "lr")
+```
+
+---
+
+```{r}
+#| label: tell_story_plot
+#| echo: false
+
+ggplot(story_data_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`)
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    title = "Total Exposure of MTPL Data by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 12))
+```
+
+
+
+
+## Chart Types
+
+---
+
+Line plots
+
+\
+
+Scatter plots
+
+---
+
+Histograms
+
+\
+
+Error lines
+
+
+
+# French Motor Third-Party Liability
+
+---
+
+CASdatasets
+
+\
+
+<http://cas.uqam.ca/>
+
+\
+
+<https://github.com/dutangc/CASdatasets>
+
+
+---
+
+Policy
+
+```{r}
+#| label: show_mtpl_data_freq
+#| echo: false
+
+freq_tbl |>
+  head(5) |>
+  knitr::kable() |>
+  kable_styling(font_size = 14)
+```
+
+\
+
+
+Claims
+
+```{r}
+#| label: show_mtpl_data_sev
+#| echo: false
+
+sev_tbl |>
+  head(5) |>
+  knitr::kable() |>
+  kable_styling(font_size = 14)
+```
+
+```{r}
+#| label: calculate_region_frequency_bootstrap_data
+#| echo: false
+#| cache: true
+
+calc_region_rate <- function(bootstrap_split) {
+  bootstrap_tbl <- bootstrap_split |>
+    as_tibble() |>
+    group_by(Region) |>
+    summarise(
+      .groups = "drop",
+      
+      claim_rate = sum(ClaimNb) / sum(Exposure)
+      )
+  
+  return(bootstrap_tbl)
+}
+
+
+bootstrap_freq_tbl <- freq_tbl |>
+  bootstraps(times = 200) |>
+  mutate(
+    freq_data = map(
+      splits, calc_region_rate,
+      .progress = "calc_region_rate"
+      )
+    ) |>
+  select(id, freq_data) |>
+  unnest(freq_data)
+```
+
+---
+
+`r freq_tbl |> nrow() %>% label_comma()(.)` Policy Rows
+
+\
+
+`r sev_tbl |> nrow() %>% label_comma()(.)` Claim Rows
+
+
+# Visualisation and Exploration
+
+## Claim Rates
+
+---
+
+```{r}
+#| label: load_mtpl_data
+#| echo: false
+
+region_rate_tbl <- freq_tbl |>
+  group_by(Region) |>
+  summarise(
+    .groups = "drop",
+    
+    claim_rate = sum(ClaimNb) / sum(Exposure)
+    )
+
+
+ggplot(region_rate_tbl) +
+  geom_point(aes(x = Region, y = claim_rate), size = 3) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Exploratory Plot of Claim Rate by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+
+---
+
+```{r}
+#| label: plot_bootstrapped_claim_rates
+#| echo: false
+#| cache: true
+
+bootstrap_freq_summ_tbl <- bootstrap_freq_tbl |>
+  group_by(Region) |>
+  summarise(
+    .groups = "drop",
+    
+    mean   = mean(claim_rate),
+    median = median(claim_rate),
+    
+    p10    = quantile(claim_rate, probs = 0.10),
+    p25    = quantile(claim_rate, probs = 0.25),
+    p75    = quantile(claim_rate, probs = 0.75),
+    p90    = quantile(claim_rate, probs = 0.90)
+    )
+
+ggplot(bootstrap_freq_summ_tbl) +
+  geom_errorbar(aes(x = Region, ymin = p10, ymax = p90), width = 0, size = 1) +
+  geom_errorbar(aes(x = Region, ymin = p25, ymax = p75), width = 0, size = 3) +
+  geom_point(aes(x = Region, y = median), size = 3) +
+  geom_point(aes(x = Region, y = mean), colour = 'red', size = 2) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Uncertainty Estimates for Claim Rates by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+
+## Geospatial Data
+
+---
+
+```{r}
+#| label: load_shapefile_data
+#| echo: false
+#| results: hide
+
+fra_adm_sf <- st_read("geospatial_data/", layer = "FRA_adm1")
+```
+
+```{r}
+#| label: construct_geospatial_claim_rate_plot
+#| echo: false
+
+region_rate_tbl <- freq_tbl |>
+  group_by(Region) |>
+  summarise(
+    .groups = "drop",
+    
+    claim_rate = sum(ClaimNb) / sum(Exposure)
+    )
+
+plot_sf <- fra_adm_sf |>
+  select(Region = NAME_1, geometry) |>
+  left_join(region_rate_tbl, by = "Region")
+
+ggplot(plot_sf) +
+  geom_sf(aes(fill = claim_rate)) +
+  geom_sf_text(aes(label = Region)) +
+  scale_fill_gradient(low = "yellow", high = "red") +
+  labs(
+    fill = "Claim Rate",
+    title = "Visualisation of Claim Rate by Region"
+    ) +
+  theme_void()
+```
+
+---
+
+```{r}
+#| label: construct_geospatial_claim_rate_plot_zerofill
+#| echo: false
+
+region_rate_tbl <- freq_tbl %>%
+  group_by(Region) %>%
+  summarise(
+    .groups = "drop",
+    
+    total_claim    = sum(ClaimNb),
+    total_exposure = sum(Exposure),
+    claim_rate     = sum(ClaimNb) / sum(Exposure)
+  )
+
+plot_sf <- fra_adm_sf %>%
+  select(Region = NAME_1, geometry) %>%
+  left_join(region_rate_tbl, by = "Region")
+
+ggplot(plot_sf) +
+  geom_sf(aes(fill = claim_rate)) +
+  geom_sf_text(aes(label = Region)) +
+  scale_fill_gradient(low = "yellow", high = "red") +
+  expand_limits(fill = 0) +
+  labs(
+    fill = "Claim Rate",
+    title = "Visualisation of Claim Rate by Region (Zero Fill Value)"
+  ) +
+  theme_void()
+```
+
+
+
+# Visualise Comparisons
+
+```{r}
+#| label: construct_region_comparisons
+#| echo: false
+
+region_exposure_tbl <- freq_tbl |>
+  count(Region, wt = Exposure, name = "Exposure Total") |>
+  mutate(
+    `Exposure Proportion` = `Exposure Total` / sum(`Exposure Total`)
+    )
+
+region_claims_tbl <- combined_tbl |>
+  unnest(claim_data) |>
+  count(Region, wt = ClaimAmount, name = "Claims Total") |>
+  mutate(
+    `Claims Proportion` = `Claims Total` / sum(`Claims Total`)
+    )
+
+region_data_tbl <- region_exposure_tbl |>
+  inner_join(region_claims_tbl, by = "Region")
+```
+
+---
+
+```{r}
+#| label: construct_comparison_plot_data
+#| echo: false
+
+comparison_data_tbl <- region_data_tbl |>
+  pivot_longer(
+    !Region,
+    names_to  = "field",
+    values_to = "value"
+    ) |>
+  mutate(
+    class = str_replace(field, "(.*?) (.*)", "\\1"),
+    type  = str_replace(field, "(.*?) (.*)", "\\2")
+    )
+
+plot_tbl <- comparison_data_tbl |>
+  select(Region, class, type, value) |>
+  filter(type == "Proportion")
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = Region, y = value, fill = class),
+    position = "dodge"
+    ) +
+  labs(
+    x = "Region",
+    y = "Proportion",
+    fill = "Type",
+    title = "Comparison of Proportions of Total Claims and Exposure"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 10)
+    )
+```
+
+
+## Compare Region by Fuel Type
+
+---
+
+```{r}
+#| label: plot_exposure_region_fueltype_stacked
+#| echo: false
+
+plot_tbl <- freq_tbl |>
+  count(Region, VehGas, wt = Exposure, name = "Total Exposure")
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`, fill = VehGas)
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    fill = "Fuel Type",
+    title = "Total Exposure by Region (Stacked Bars)"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 10)
+    )
+```
+
+---
+
+```{r}
+#| label: plot_exposure_region_fueltype
+#| echo: false
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`, fill = VehGas),
+    position = "dodge"
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    fill = "Fuel Type",
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 10)
+    )
+```
+
+
+
+## Compare Region by Vehicle Brand
+
+---
+
+```{r}
+#| label: plot_exposure_region_brand_stacked
+#| echo: false
+
+plot_tbl <- freq_tbl |>
+  count(Region, VehBrand, wt = Exposure, name = "Total Exposure")
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`, fill = VehBrand)
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    fill = "Brand",
+    title = "Total Exposure by Region (Stacked Bars)"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 10)
+    )
+```
+
+---
+
+```{r}
+#| label: plot_exposure_region_brand
+#| echo: false
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`, fill = VehBrand),
+    position = "dodge"
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    fill = "Brand",
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(
+    axis.text.x = element_text(angle = 20, vjust = 0.5, size = 10)
+    )
+```
+
+---
+
+```{r}
+#| label: plot_exposure_region_brand_facet
+#| echo: false
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`, fill = VehBrand),
+    position = "dodge"
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    fill = "Brand",
+    title = "Total Exposure by Region"
+    ) +
+  facet_wrap(vars(VehBrand), scales = "free_y") +
+  scale_y_continuous(labels = label_comma()) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 30, vjust = 0.5, size = 6)
+    )
+```
+
+---
+
+```{r}
+#| label: plot_exposure_region_brand_facet_fixedscale
+#| echo: false
+
+ggplot(plot_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`, fill = VehBrand),
+    position = "dodge"
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    fill = "Brand",
+    title = "Total Exposure by Region"
+    ) +
+  facet_wrap(vars(VehBrand)) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 30, vjust = 0.5, size = 6)
+    )
+```
+
+
+
+# Pie Charts
+
+## Exposure by Region
+
+---
+
+```{r}
+#| label: construct_exposure_agg
+#| echo: false
+
+exposure_agg_tbl <- freq_tbl |>
+  count(Region, wt = Exposure, name = "Total Exposure")
+
+exposure_agg_tbl |>
+  mutate(`Total Exposure` = label_comma(accuracy = 0.01)(`Total Exposure`)) |>
+  knitr::kable(align = "lr") |>
+  kable_styling(font_size = 14)
+```
+
+---
+
+
+```{r}
+#| label: plot_bar_chart_exposure
+#| echo: false
+
+ggplot(exposure_agg_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`)
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+---
+
+```{r}
+#| label: plot_pie_chart_exposure
+#| echo: false
+
+ggplot(exposure_agg_tbl) +
+  geom_bar(
+    aes(x = "", y = `Total Exposure`, fill = Region),
+    stat = "identity", width = 1
+    ) +
+  labs(
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  coord_polar("y", start = 0) +
+  theme_void()
+```
+
+
+## Aggregate Under 10%
+
+---
+
+```{r}
+#| label: construct_exposure_agg_010_lumped
+#| echo: false
+
+exposure_agg_tbl <- freq_tbl |>
+  mutate(Region = fct_lump_prop(Region, prop = 0.1)) |>
+  count(Region, wt = Exposure, name = "Total Exposure")
+```
+
+```{r}
+#| label: plot_bar_chart_exposure_010_lumped
+#| echo: false
+
+ggplot(exposure_agg_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`)
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+---
+
+```{r}
+#| label: plot_pie_chart_exposure_010_lumped
+#| echo: false
+
+ggplot(exposure_agg_tbl) +
+  geom_bar(
+    aes(x = "", y = `Total Exposure`, fill = Region),
+    stat = "identity", width = 1
+    ) +
+  labs(
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  coord_polar("y", start = 0) +
+  theme_void()
+```
+
+
+## Aggregate Under 5%
+
+---
+
+```{r}
+#| label: construct_exposure_agg_005_lumped
+#| echo: false
+
+exposure_agg_tbl <- freq_tbl |>
+  mutate(Region = fct_lump_prop(Region, prop = 0.05)) |>
+  count(Region, wt = Exposure, name = "Total Exposure")
+```
+
+```{r}
+#| label: plot_bar_chart_exposure_005_lumped
+#| echo: false
+
+ggplot(exposure_agg_tbl) +
+  geom_col(
+    aes(x = Region, y = `Total Exposure`)
+    ) +
+  labs(
+    x = "Region",
+    y = "Total Exposure",
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5, size = 8))
+```
+
+---
+
+```{r}
+#| label: plot_pie_chart_exposure_005_lumped
+#| echo: false
+
+ggplot(exposure_agg_tbl) +
+  geom_bar(
+    aes(x = "", y = `Total Exposure`, fill = Region),
+    stat = "identity", width = 1
+    ) +
+  labs(
+    title = "Total Exposure by Region"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  coord_polar("y", start = 0) +
+  theme_void()
+```
+
+
+# Summary
+
+## Book Suggestions
+
+---
+
+![](img/tufte_cover.png)
+
+---
+
+![](img/visualise_this.png)
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+<https://kaybenleroll.github.io/data_workshops/talk_cirdas_master_202311/>

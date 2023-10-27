@@ -1,0 +1,306 @@
+---
+title: "Demystifying Data"
+subtitle: "02 - The Virtues of Simplicity"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "November 30 2023"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+
+---
+
+
+```{r}
+#| label: knit_opts
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+library(CASdatasets)
+library(rsample)
+library(sf)
+library(tmap)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+data(freMTPLfreq)
+data(freMTPL2freq)
+```
+
+
+# Introduction
+
+
+
+
+## Layout
+
+\
+
+The KISS Principle
+
+\
+
+Data Quality
+
+
+
+# The KISS Principle
+
+---
+
+![](img/kiss_band.png)
+
+---
+
+Keep It Simple, Stupid
+
+---
+
+![](img/einstein.png)
+
+\
+
+*"Everything should be made as simple as possible, but no simpler."*
+
+
+## Benefits
+
+---
+
+Easier to understand
+
+---
+
+Robust
+
+
+## Drawbacks
+
+---
+
+Oversimplification
+
+---
+
+Performance
+
+
+
+# Data Quality
+
+---
+
+EVERYONE thinks they have good data
+
+---
+
+Rarely true...
+
+
+## Simple Test
+
+---
+
+Is it being used?
+
+
+# Visualisation and Exploration
+
+## Claim Rates
+
+---
+
+```{r}
+#| label: load_mtpl_data
+#| echo: false
+
+freq_tbl <- freMTPLfreq |>
+  as_tibble()
+
+region_rate_tbl <- freq_tbl |>
+  group_by(Region) |>
+  summarise(
+    .groups = "drop",
+    
+    claim_rate = sum(ClaimNb) / sum(Exposure)
+    )
+
+
+ggplot(region_rate_tbl) +
+  geom_point(aes(x = Region, y = claim_rate), size = 3) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Exploratory Plot of Claim Rate by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+
+---
+
+```{r}
+#| label: plot_bootstrapped_claim_rates
+#| echo: false
+
+calc_region_rate <- function(bootstrap_split) {
+  bootstrap_tbl <- bootstrap_split |>
+    as_tibble() |>
+    group_by(Region) |>
+    summarise(
+      .groups = "drop",
+      
+      claim_rate = sum(ClaimNb) / sum(Exposure)
+      )
+  
+  return(bootstrap_tbl)
+}
+
+bootstrap_freq_tbl <- freq_tbl |>
+  bootstraps(times = 100) |>
+  mutate(
+    freq_data = map(
+      splits, calc_region_rate,
+      .progress = "calc_region_rate"
+      )
+    ) |>
+  select(id, freq_data) |>
+  unnest(freq_data) |>
+  group_by(Region) |>
+  summarise(
+    .groups = "drop",
+    
+    mean   = mean(claim_rate),
+    median = median(claim_rate),
+    
+    p10    = quantile(claim_rate, probs = 0.10),
+    p25    = quantile(claim_rate, probs = 0.25),
+    p75    = quantile(claim_rate, probs = 0.75),
+    p90    = quantile(claim_rate, probs = 0.90)
+    )
+
+ggplot(bootstrap_freq_tbl) +
+  geom_errorbar(aes(x = Region, ymin = p10, ymax = p90), width = 0, size = 1) +
+  geom_errorbar(aes(x = Region, ymin = p25, ymax = p75), width = 0, size = 3) +
+  geom_point(aes(x = Region, y = median), size = 3) +
+  geom_point(aes(x = Region, y = mean), colour = 'red', size = 2) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Region",
+    y = "Claim Rate",
+    title = "Uncertainty Estimates for Claim Rates by Region"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, vjust = 0.5))
+```
+
+## Geospatial Data
+
+---
+
+```{r}
+#| label: load_shapefile_data
+#| echo: false
+#| results: hide
+
+fra_adm_sf <- st_read("geospatial_data/", layer = "FRA_adm1")
+```
+
+```{r}
+#| label: construct_geospatial_claim_rate_plot
+#| echo: false
+
+plot_sf <- fra_adm_sf |>
+  left_join(region_rate_tbl, by = c("NAME_1" = "Region"))
+
+ggplot(plot_sf) +
+  geom_sf(aes(fill = claim_rate)) +
+  geom_sf_text(aes(label = NAME_1)) +
+  scale_fill_gradient(low = "yellow", high = "red") +
+  labs(
+    fill = "Claim Rate",
+    title = "Visualisation of Claim Rate by Region"
+    ) +
+  theme_void()
+```
+
+---
+
+```{r}
+#| label: construct_data2_geospatial_claim_rate_plot
+#| echo: false
+
+freq2_region_tbl <- freMTPL2freq |>
+  as_tibble() |>
+  group_by(Region) |>
+  summarise(
+    .groups = "drop",
+    
+    claim_rate = sum(ClaimNb) / sum(Exposure)
+    )
+
+plot_sf <- fra_adm_sf |>
+  left_join(freq2_region_tbl, by = c("NAME_1" = "Region"))
+
+ggplot(plot_sf) +
+  geom_sf(aes(fill = claim_rate)) +
+  geom_sf_text(aes(label = NAME_1)) +
+  scale_fill_gradient(low = "yellow", high = "red") +
+  labs(
+    fill = "Claim Rate",
+    title = "Claim Rates by Region (Second Dataset)"
+    ) +
+  theme_void()
+```
+
+
+
+# Summary
+
+
+---
+
+Thank You
+
+\
+
+mcooney@describedata.com
+
+\
+
+<https://kaybenleroll.github.io/data_workshops/talk_cirdas_master_202311/>

@@ -1,0 +1,200 @@
+---
+title: "Demystifying Data"
+subtitle: "01 - Introduction"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "November 23 2023"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+
+---
+
+```{r}
+#| label: knit_opts
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(rlang)
+library(cowplot)
+
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+```
+
+# Introduction
+
+## Who Am I?
+
+\
+
+Former quant
+
+\
+
+Insurance
+
+\
+
+Specialty risks
+
+---
+
+![](img/maurice_moss.png)
+
+---
+
+Nerd
+
+# Key Concepts
+
+## The Big Short
+
+![](img/the_big_short.png)
+
+---
+
+\
+
+"The truth is like poetry--
+
+\
+
+-- and most people f\*\*king hate poetry,"
+
+---
+
+Change
+
+\
+
+Uncertainty
+
+# Three Ideas
+
+---
+
+\
+
+Uncertainty
+
+\
+
+Simplicity
+
+\
+
+Culture
+
+## Uncertainty
+
+---
+
+![](img/rounders.png)
+
+---
+
+![](img/crossroads.png)
+
+---
+
+![](img/scary_cave.png)
+
+## Culture
+
+---
+
+![](img/hippo_cartoon.png)
+
+## Simplicity
+
+---
+
+![](img/maradona_goal.png)
+
+---
+
+![](img/denis_irwin.png)
+
+---
+
+Great Goalscorer
+
+\
+
+vs
+
+\
+
+Scorer of Great Goals
+
+# Why Bother?
+
+---
+
+Great Question!
+
+---
+
+![](img/data_new_oil.png)
+
+---
+
+Jack of all trades and master of none...
+
+---
+
+... is oftentimes better than master of one
+
+---
+
+Data is the new oil. It's valuable, but if unrefined it cannot really be used. It has to be changed into gas, plastic, chemicals, etc to create a valuable entity that drives profitable activity; so data must be broken down, analyzed for it to have value.
+
+# Summary
+
+---
+
+Culture
+
+---
+
+Thank You
+
+\
+
+mcooney\@describedata.com
+
+\
+
+<https://kaybenleroll.github.io/data_workshops/talk_cirdas_master_202311/>

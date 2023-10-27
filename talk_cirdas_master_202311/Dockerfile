@@ -13,10 +13,14 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     graphviz \
     htop \
     less \
+    libavfilter-dev \
     libclang-dev \
+    libgdal-dev \
     libglpk-dev \
     libgsl-dev \
     libnlopt-dev \
+    libproj-dev \
+    libudunits2-dev \
     p7zip-full \
     pbzip2 \
   && apt-get clean \
@@ -49,19 +53,31 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
   && echo ""                                                       >> $HOME/.R/Makevars \
   && install2.r --error \
     anytime \
+    av \
+    cleanNLP \
     conflicted \
     cowplot \
     DataExplorer \
     directlabels \
+    e1071 \
     fs \
+    gganimate \
+    gifski \
+    ISLR \
+    kableExtra \
     loo \
     markdown \
+    NeuralNetTools \
     parallelly \
     pryr \
     quarto \
+    rattle \
+    rsample \
     sessioninfo \
+    sf \
     snakecase \
-    tictoc
+    tictoc \
+    tmap
 
 
 WORKDIR /tmp
@@ -73,7 +89,7 @@ RUN git clone https://github.com/lindenb/makefile2graph.git \
   && cd makefile2graph \
   && make \
   && make install
-  
+
 RUN cp -r $HOME/.R /home/rstudio \
   && chown -R rstudio:rstudio /home/rstudio/.R
 
@@ -99,9 +115,7 @@ RUN Rscript /tmp/docker_install_user_rpkgs.R
 USER root
 
 RUN chown -R rstudio:rstudio /home/rstudio \
-  && chmod ugo+rx /home/rstudio \
-  && chown -R rstudio:rstudio /home/rstudio/.cmdstan
-
+  && chmod ugo+rx /home/rstudio
 
 ARG BUILD_DATE
 
