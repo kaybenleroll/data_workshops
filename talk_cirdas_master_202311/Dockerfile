@@ -1,4 +1,4 @@
-FROM rocker/tidyverse:4.3.0
+FROM rocker/tidyverse:4.3.1
 
 ENV TZ=Europe/Dublin
 

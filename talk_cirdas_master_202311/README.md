@@ -1,11 +1,10 @@
 This folder contains the code and slides for the "Demystifying Data"
-masterclass given by CIRDAS (part of SETU) in May/June 2022.
+masterclass given by CIRDAS (part of SETU) from November 
 
-Eight classes were given, and the recorded videos can be found at the following
-YouTube channel:
+A previous version of the class is available on YouTube at the following link.
 
 
-https://www.youtube.com/watch?v=sueqCmOo84Y
+[https://www.youtube.com/watch?v=sueqCmOo84Y](Demystifying Data)
 
 
 
