@@ -111,11 +111,12 @@ Uncertainty
 
 \
 
-Simplicity
+Culture
 
 \
 
-Culture
+Simplicity
+
 
 ## Uncertainty
 
@@ -136,6 +137,7 @@ Culture
 ---
 
 ![](img/hippo_cartoon.png)
+
 
 ## Simplicity
 
