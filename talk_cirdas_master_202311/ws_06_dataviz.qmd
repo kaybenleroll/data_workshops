@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "06 - Data Visualisation"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: ""
+date: "January 18 2024"
 editor: source
 execute:
   message: false
