@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "07 - So You Want to Data?"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: ""
+date: "January 25 2024"
 editor: source
 execute:
   message: false
