@@ -7,7 +7,7 @@ remotes::install_github(
 
 remotes::install_github(
   "dutangc/CASdatasets",
-  ref     = "cc69b33959a42f24b8aaaf732e7c3d623896eeea",
+  ref     = "8c085e5f71e0a1f4099a69c95988b35828edd875",
   subdir  = "pkg",
   upgrade = "never"
 )

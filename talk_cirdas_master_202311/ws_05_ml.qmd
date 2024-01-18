@@ -2,7 +2,7 @@
 title: "Demystifying Data"
 subtitle: "05 - ML and Models and Data - Oh My!!!"
 author: "Mick Cooney <mcooney@describedata.com>"
-date: ""
+date: "January 11 2024"
 editor: source
 execute:
   message: false
