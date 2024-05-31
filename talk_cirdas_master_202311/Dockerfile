@@ -77,7 +77,9 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     sf \
     snakecase \
     tictoc \
-    tmap
+    tmap \
+    xts \
+    zoo
 
 
 WORKDIR /tmp
