@@ -1,0 +1,167 @@
+---
+title: "Exploring Text Annotation and Politeness"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: cerulean
+      dark: cyborg
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r import_libraries}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(cowplot)
+library(tidytext)
+library(quanteda)
+library(DT)
+library(politeness)
+library(cleanNLP)
+library(snakecase)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "tidygraph")
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+spacyr::spacy_initialize(python_executable = "/usr/bin/python3")
+```
+
+In this workbook we explore the ability to perform word annotations and other
+sentence construction via politeness heuristics.
+
+
+
+# Load Data
+
+We start by loading up previously constructed data sources.
+
+```{r load_script_files_data}
+#| echo: true
+
+films_parsed_tbl <- read_rds("data/films_parsed_tbl.rds")
+films_parsed_tbl |> glimpse()
+
+films_tokens_tbl <- read_rds("data/films_tokens_tbl.rds")
+films_tokens_tbl |> glimpse()
+
+films_dialogue_text_tbl <- read_rds("data/film_dialogue_text_tbl.rds")
+films_dialogue_text_tbl |> glimpse()
+```
+
+
+
+# Calculate Politeness Metrics
+
+The `politeness` package contains methods for counting the presence of various
+patterns for politeness in the speech.
+
+We start by analysing this on a per-character basis, using the
+combined-dialogue table, that aggregated all the lines of dialogue spoken by
+a character.
+
+
+```{r calculate_politeness_counts}
+#| echo: true
+
+polite_tbl <- films_dialogue_text_tbl |>
+  pull(dialogue_text) |>
+  politeness(parser = "spacy")
+
+films_dialogue_polite_count_tbl <- films_dialogue_text_tbl |>
+  bind_cols(polite_tbl) %>%    # Have to use %>% here for the . functionality
+  set_colnames(names(.) |> to_snake_case()) |>
+  rename_with(
+    ~ str_c("polite_", .x),
+    hedges:conjunction_start
+    )
+
+films_dialogue_polite_count_tbl |> glimpse()
+```
+
+We now want to append the word count also, so we can treat this numbers as a
+proportion. Note that this output is available as an output from `politeness`
+but this way we can use both raw counts and proportions, depending on what we
+want to do.
+
+```{r add_word_count_create proportions}
+#| echo: true
+
+films_dialogue_polite_prop_tbl <- films_dialogue_polite_count_tbl |>
+  mutate(
+    across(starts_with("polite_"), \(x) { x / dialogue_count })
+    ) |>
+  rename_with(
+    ~ str_replace(.x, "polite_", "politeprop_"),
+    starts_with("polite")
+    ) |>
+  select(title_cleaned, character, starts_with("politeprop_"))
+
+films_dialogue_polite_prop_tbl |> glimpse()
+```
+
+We now can join these two tables together.
+
+```{r construct_politeness_table}
+#| echo: true
+
+films_dialogue_polite_tbl <- films_dialogue_polite_count_tbl |>
+  inner_join(
+    films_dialogue_polite_prop_tbl, by = c("title_cleaned", "character")
+    )
+
+films_dialogue_polite_tbl |> glimpse()
+```
+
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: false
+#| message: false
+
+
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
