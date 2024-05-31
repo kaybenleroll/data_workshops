@@ -4,6 +4,18 @@ remotes::install_github(
   upgrade = "never"
 )
 
+remotes::install_github(
+  "quanteda/quanteda.corpora",
+  ref     = "ec4b76d841afc9a734cc0351b1fa87236c83b456",
+  upgrade = "never"
+)
+
+remotes::install_github(
+  "kbenoit/quanteda.dictionaries",
+  ref     = "b3c91606afad56603915fd622ef0aba4cc95135f",
+  upgrade = "never"
+)
+
 install.packages("StanfordCoreNLP",
   dependencies = TRUE,
   repos        = "http://datacube.wu.ac.at/"

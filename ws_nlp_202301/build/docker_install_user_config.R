@@ -11,3 +11,4 @@ cnlp_download_corenlp(lang = "en")
 cnlp_init_corenlp(lang = "en")
 
 cnlp_init_udpipe(model_name = "english")
+
