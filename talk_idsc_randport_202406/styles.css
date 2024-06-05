@@ -1,0 +1,11 @@
+* {
+text-align: center;
+}
+
+.reveal table {
+  font-size: smaller;
+}
+
+.custom-small table {
+  font-size: .5em
+}
