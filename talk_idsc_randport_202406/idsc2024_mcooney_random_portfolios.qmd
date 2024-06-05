@@ -1,0 +1,253 @@
+---
+title: "Randomised Portfolios in Insurance"
+author: "Mick Cooney <mcooney@describedata.com>"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(scales)
+library(cowplot)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+# Introduction
+
+---
+
+Basic Concept
+
+\
+
+
+Insurance Use Cases
+
+
+# Random Portfolios
+
+---
+
+Risk/Reward Tradeoff
+
+\
+
+
+Risk Tolerance
+
+
+## Risk Limits
+
+\
+
+Only NASDAQ, NYSE listed stocks
+
+\
+
+No single stock greater than 5\% of portfolio
+
+\
+
+Market Cap greater than 100M USD
+
+\
+
+No sector greater than 25\% of portfolio
+
+
+## Key Finding
+
+\
+
+Portfolio performance is highly dependent on risk limits
+
+
+---
+
+Separate returns based on ability ("alpha") from the market ("beta")?
+
+---
+
+$$
+r = \alpha + \beta \, m
+$$
+
+
+
+
+## Basic Approach
+
+\
+
+  1. Generate random portfolios obeying risk limits
+  1. Measure performance of random portfolios
+  1. Compare actual with simulated returns
+
+---
+
+```{r show_random_portfolio_return_plot}
+#| echo: false
+
+read_rds("data/random_portfolio_return_plot.rds") |> print()
+```
+
+---
+
+```{r show_random_portfolio_ecdf_plot}
+#| echo: false
+
+read_rds("data/random_portfolio_ecdf_plot.rds") |> print()
+```
+
+---
+
+But what about insurance???
+
+---
+
+Steal the simple idea...
+
+---
+
+Use random portfolios of policies to do stuff
+
+---
+
+What sort of stuff?
+
+
+
+# Insurance Use Cases
+
+
+## Premium Planning
+
+\
+
+
+Lloyd's Underwriter
+
+\
+
+Premium Planning
+
+\
+
+Knows the Market
+
+---
+
+::: custom-small
+
+```{r show_lloyds_underwriter_policies}
+#| echo: false
+
+lloyds_underwriter_portfolio_tbl <- read_rds("data/lloyds_underwriter_portfolio.rds")
+
+lloyds_underwriter_portfolio_tbl |>
+  head(10) |>
+  transmute(
+    Policy_Number, Company_Sector, Company_Name,
+    Premium = label_comma(prefix = "$")(Premium_Amount),
+    Retention
+    ) |>
+  knitr::kable(align = "lllrl")
+```
+
+:::
+
+---
+
+Assigned High, Medium, Low chances of the retaining policy
+
+\
+
+Assign probability for policy
+
+\
+
+Run simulations
+
+---
+
+```{r show_sim_planning_renewed_premium_plot}
+#| echo: false
+
+read_rds("data/sim_planning_portfolio_plot.rds") |> print()
+```
+
+
+
+
+
+
+
+
+# Thank You!
+
+\
+
+
+[Slides for Talk](https://kaybenleroll.github.io/data_workshops/talk_idsc_randport_202406/idsc2024_mcooney_random_portfolios.html)
+
+\
+
+
+[Detailed Work](https://github.com/data_workshops/talk_idsc_randport_202406/)
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,8 @@
+.vscode/*
+
+*_cache/*
+*_files/*
+
+temp*
+
+*.log

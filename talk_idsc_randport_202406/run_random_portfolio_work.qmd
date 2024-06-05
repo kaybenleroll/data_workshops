@@ -1,0 +1,582 @@
+---
+title: "Run Random Portfolio Data Processing and Analysis"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+---
+
+
+```{r import_libraries}
+#| echo: FALSE
+#| message: FALSE
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(fs)
+library(purrr)
+library(furrr)
+library(glue)
+library(tidyquant)
+library(snakecase)
+library(brms)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus", "brms")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+
+set.seed(42)
+stanfit_seed <- 4000
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+
+# Load Data
+
+We first want to load the various pieces of data needed to run this workbook.
+
+This data is saved in the repo, but is available online and was retrieved using
+the code in the `retrieve_data.R` script. It is not necessary to run this
+script as the data is already saved.
+
+```{r load_sp500_wikipedia_data}
+#| echo: true
+
+sp500_wikipedia_tbl <- read_rds("retrieved_data/sp500_wikipedia_tbl.rds")
+
+sp500_wikipedia_tbl |> glimpse()
+```
+
+
+We now want to retrieve the S&P 500 data obtained from tidyquant.
+
+```{r load_sp500_tidyquant_data}
+#| echo: true
+
+sp500_tidyquant_tbl <- read_rds("retrieved_data/sp500_tidyquant_tbl.rds")
+
+sp500_tidyquant_tbl |> glimpse()
+```
+
+
+Finally, we load the price data retrieved using tidyquant.
+
+```{r load_sp500_price_data}
+#| echo: true
+
+sp500_pricedata_tbl <- read_rds("retrieved_data/sp500_pricedata_tbl.rds")
+
+sp500_pricedata_tbl |> glimpse()
+```
+
+We want to pull out the starting price of each company, as this is used as
+part of the company weighting.
+
+```{r determine_company_first_prices}
+#| echo: true
+
+company_first_price_tbl <- sp500_pricedata_tbl |>
+  mutate(
+    first_price = map_dbl(
+      price_data,
+      \(x) x |> arrange(date) |> pull(adjusted) |> extract2(1) |> round(2)
+      )
+    ) |>
+  select(symbol, first_price)
+
+company_first_price_tbl |> glimpse()
+```
+
+
+We now want to use the sector weight as a proxy for market cap so we can split
+the list of companies by size, using 5 quantiles.
+
+```{r construct_company_size_quantiles}
+#| echo: true
+
+sp500_companies_tbl <- sp500_wikipedia_tbl |>
+  left_join(sp500_tidyquant_tbl, by = "symbol") |>
+  mutate(
+    company_size = ntile(weight, n = 5)
+    ) |>
+  filter(
+    !(symbol %in% c("GOOG", "FOX", "NWS"))
+    ) |>
+  left_join(company_first_price_tbl, by = "symbol") |>
+  left_join(sp500_pricedata_tbl |> select(symbol, price_data), by = "symbol") |>
+  filter(map_int(price_data, nrow) >= 857)
+
+sp500_companies_tbl |> glimpse()
+```
+
+
+## Calculate Price Returns
+
+We now want to calculate both the daily and cumulative returns for each of the
+symbols.
+
+```{r calculate_symbol_returns}
+#| echo: true
+
+company_returns_tbl <- sp500_companies_tbl |>
+  select(price_data) |>
+  unnest(price_data) |>
+  mutate(
+    symbol, date,
+    daily_return = adjusted / lag(adjusted),
+    
+    .by = symbol
+    ) |>
+  replace_na(list(daily_return = 1)) |>
+  select(symbol, date, daily_return) |>
+  arrange(symbol, date) |>
+  mutate(
+    cuml_return = cumprod(daily_return),
+    
+    .by = symbol
+    )
+
+company_returns_tbl |> glimpse()
+```
+
+
+# Calculate Random Portfolio Returns
+
+We now need to set up some basic risk limits to our portfolios.
+
+Our invested amount is $100 million, and we set the following risk limits:
+
+  1. The portfolio should contain a minimum of 100 separate positions.
+  1. To keep transaction size to a minimum, the portfolio is limited to a maximum of 300 separate positions.
+  1. The minimum investment any one symbol is $100,000.00
+  1. No more than 30\% can be allocated to any sector.
+  1. No more than 20\% can be allocated to any sub-industry.
+  1. No more than 40\% of the portfolio can be allocated to any one size category
+  
+  
+```{r determine_portfolio_within_risk_limits}
+#| echo: true
+
+
+determine_portfolio_within_risk_limits <- function(portfolio_tbl) {
+  
+  check_min_symbol_count <- portfolio_tbl |>
+    nrow() |>
+    is_weakly_greater_than(100)
+
+
+  check_max_symbol_count <- portfolio_tbl |>
+    nrow() |>
+    is_weakly_less_than(300)
+
+
+  check_minimum_amount <- portfolio_tbl |>
+    pull(component_amount) |>
+    min() |>
+    is_weakly_greater_than(100e3)
+
+
+  check_sector_allocation <- portfolio_tbl |>
+    summarise(
+      sector_amount = sum(component_amount),
+      
+      .by = gics_sector
+      ) |>
+    mutate(
+      sector_weight = sector_amount / sum(sector_amount)
+      ) |>
+    filter(sector_weight > 0.3) |>
+    nrow() |>
+    equals(0)
+  
+
+  check_subindustry_allocation <- portfolio_tbl |>
+    summarise(
+      sub_industry_amount = sum(component_amount),
+      
+      .by = gics_sub_industry
+      ) |>
+    mutate(
+      sub_industry_weight = sub_industry_amount / sum(sub_industry_amount)
+      ) |>
+    filter(sub_industry_weight > 0.2) |>
+    nrow() |>
+    equals(0)
+
+
+  check_company_size_allocation <- portfolio_tbl |>
+    summarise(
+      size_amount = sum(component_amount),
+      
+      .by = company_size
+      ) |>
+    mutate(
+      size_weight = size_amount / sum(size_amount)
+      ) |>
+    filter(
+      size_weight > 0.40
+      ) |>
+    nrow() |>
+    equals(0)
+
+
+  return(
+    check_min_symbol_count & check_max_symbol_count & check_minimum_amount &
+    check_sector_allocation & check_subindustry_allocation &
+    check_company_size_allocation
+    )  
+}
+```
+
+We now want to use this validation function to check our generated portfolios
+to ensure they 
+
+
+```{r generate_random_portfolio}
+#| echo: true
+
+generate_random_portfolio <- function(symbol_data_tbl, portfolio_size = 100e6,
+                                      min_count = 100, max_count = 300, attempt_count = 500) {
+  
+  portfolio_is_valid <- FALSE
+  iter_count <- 1
+
+  symbol_count <- sample(min_count:max_count, size = 1, replace = FALSE)
+  
+  subportfolio_tbl <- symbol_data_tbl |>
+    select(-price_data) |>
+    slice_sample(n = symbol_count, replace = FALSE)
+  
+  while(!portfolio_is_valid & iter_count <= attempt_count) {
+    
+    positions_tbl <- subportfolio_tbl |>    
+      mutate(
+        portfolio_weight = rdirichlet(n = 1, alpha = rep(3, n()))[1,] |> pmax(100e3 / 100e6),
+        portfolio_weight = portfolio_weight / sum(portfolio_weight),
+        component_amount = portfolio_size * portfolio_weight,
+        share_count      = round(portfolio_size * portfolio_weight / first_price, 0)
+        )
+
+    portfolio_is_valid <- positions_tbl |>
+      determine_portfolio_within_risk_limits()
+    
+    if(!portfolio_is_valid) iter_count <- iter_count + 1
+  }
+
+  return(list(
+    iter_count    = iter_count,
+    portfolio_data = positions_tbl |> arrange(symbol)
+    ))  
+  
+  return(positions_tbl)
+}
+```
+
+
+## Generate Random Portfolios
+
+We now want to generate 1,000 random portfolios that fit within the risk
+profiles.
+
+
+```{r generate_random_portfolio_sims}
+#| echo: true
+
+n_portfolio <- 1000
+n_attempt   <-  200
+
+run_portfolio_sim <- function(output_file) {
+  sim_lst <- generate_random_portfolio(sp500_companies_tbl, attempt_count = n_attempt)
+  
+  sim_lst |> write_rds(output_file)
+  
+  return(sim_lst$iter_count)
+}
+
+sim_data_tbl <- tibble(
+    sim_id = sprintf("PORT%04d", 1:(2 * n_portfolio))
+    ) |>
+  mutate(
+    cached_file = glue("precomputed_data/portfolio_{sim_id}.rds") |> as.character()
+    )
+
+existing_tbl <- dir_ls("precomputed_data", regexp = "\\.rds") |>
+  enframe(name = NULL, value = "cached_file")
+
+
+run_code_tbl <- sim_data_tbl |>
+  anti_join(existing_tbl, by = "cached_file") |>
+  mutate(
+    iter_count = future_map_int(
+      cached_file, run_portfolio_sim,
+
+      .options = furrr_options(
+        globals    = TRUE,
+        seed       = 421,
+        scheduling = Inf
+        ),
+
+      .progress = TRUE
+      )
+    )
+
+sim_portfolio_tbl <- sim_data_tbl |>
+  mutate(
+    data           = map(cached_file, read_rds),
+    iter_count     = map_int(data, 'iter_count'),
+    portfolio_data = map(data, "portfolio_data")
+    ) |>
+  filter(iter_count < n_attempt + 1) |>
+  head(n_portfolio) |>
+  select(sim_id, cached_file, iter_count, portfolio_data)
+
+sim_portfolio_tbl |> glimpse()
+```
+
+
+## Combine Portfolio Data with Returns Data
+
+Now that we have portfolio data for our simulations we combine this with the
+daily return data to calculate the overall return for each portfolio.
+
+
+```{r calculate_sim_portfolio_navs}
+#| echo: true
+
+sim_portfolio_nav_tbl <- sim_portfolio_tbl |>
+  select(sim_id, portfolio_data) |>
+  unnest(portfolio_data) |>
+  select(sim_id, symbol, gics_sector, gics_sub_industry, component_amount) |>
+  inner_join(
+    company_returns_tbl, by = "symbol",
+    relationship = "many-to-many"
+    ) |>
+  summarise(
+    portfolio_value = sum(component_amount * cuml_return),
+    .by = c(sim_id, date)
+    )
+
+sim_portfolio_nav_tbl |> glimpse()
+```
+
+We now take the final NAV for each portfolio and calculate an annualised
+return for that portfolio (based on 252 trading days in the year). This gives
+us a distribution of returns based on the chosen risk profile
+
+```{r calculate_final_portfolio_nav}
+#| echo: true
+
+sim_portfolio_return_tbl <- sim_portfolio_nav_tbl |>
+  slice_max(order_by = date, n = 1, with_ties = FALSE, by = sim_id) |>
+  mutate(
+    annual_return = (portfolio_value / 100e6) ^ (252 / 857) - 1
+    ) |>
+  select(sim_id, final_nav = portfolio_value, annual_return)
+
+sim_portfolio_return_tbl |> glimpse()
+```
+
+
+```{r display_portfolio_annualised_returns}
+#| echo: true
+
+random_portfolio_return_plot <- ggplot(sim_portfolio_return_tbl) +
+  geom_histogram(aes(x = annual_return), bins = 50) +
+  labs(
+    x = "Portfolio Annualised Return",
+    y = "Frequency",
+    title = "Histogram of Risk Profile Return Distribution"
+    )
+
+random_portfolio_return_plot |> print()
+random_portfolio_return_plot |>
+  write_rds("data/random_portfolio_return_plot.rds")
+random_portfolio_return_plot |>
+  ggsave(
+    filename = "img/random_portfolio_return_plot.png",
+    height   = 14,
+    width    = 20
+    )
+```
+
+We also might want to look at an empirical ECDF of this.
+
+```{r plot_random_portfolio_returns_ecdf}
+#| echo: true
+
+returns_ecdf <- sim_portfolio_return_tbl |>
+  pull(annual_return) |>
+  ecdf()
+
+
+plot_data_tbl <- tibble(return = seq(0.08, 0.25, by = 0.001)) |>
+  mutate(
+    cuml_prob = returns_ecdf(return)
+    )
+
+random_portfolio_ecdf_plot <- ggplot(plot_data_tbl) +
+  geom_line(aes(x = return, y = cuml_prob)) +
+  labs(
+    x = "Portfolio Return",
+    y = "Cumulative Probability",
+    title = "ECDF of the Simulated Returns"
+    )
+
+random_portfolio_ecdf_plot |> print()
+random_portfolio_ecdf_plot |>
+  write_rds("data/random_portfolio_ecdf_plot.rds")
+random_portfolio_return_plot |>
+  ggsave(
+    filename = "img/random_portfolio_ecdf_plot.png",
+    height   = 14,
+    width    = 20
+    )
+
+```
+
+
+# Premium Planning: Lloyd's Underwriter
+
+We now want to generate a synthetic portfolio of a Lloyd's Underwriter with
+an existing book. For the purposes of illustration, we want to load up a sample
+portfolio that was generated with the help of ChatGPT.
+
+We assume the underwriter is working on a US General Liability book.
+
+```{r load_lloyds_underwriter_book}
+#| echo: true
+
+lloyds_cols <- cols(
+  Employee_Headcount  = col_integer(),
+  Number_of_Locations = col_integer()
+  )
+
+lloyds_underwriter_portfolio_tbl <- read_csv(
+  file = "data/lloyds_underwriter_portfolio.csv",
+  col_types = lloyds_cols
+  )
+
+lloyds_underwriter_tbl |> glimpse()
+```
+
+We write this data to disk so it can be loaded by the slides.
+
+```{r write_lloyds_underwriter_disk}
+#| echo: true
+
+lloyds_underwriter_portfolio_tbl |> write_rds("data/lloyds_underwriter_portfolio.rds")
+```
+
+
+We now want to construct some sample portfolios based on the retention of the
+existing book.
+
+```{r construct_new_portfolio_simulations}
+#| echo: true
+
+retention_tbl <- tribble(
+  ~Retention, ~renewal_prob,
+       "Low",        0.2,
+    "Medium",        0.5,
+      "High",        0.8
+  )
+
+construct_new_portfolio <- function(portfolio_tbl) {
+  new_portfolio_tbl <- portfolio_tbl |>
+    inner_join(retention_tbl, by = "Retention") |>
+    mutate(
+      renewed = (runif(n(), 0, 1) <= renewal_prob) 
+      ) |>
+    filter(renewed == TRUE)
+  
+  return(new_portfolio_tbl)
+}
+
+
+sim_planning_portfolio_tbl <- tibble(sim_id = 1:1000) |>
+  mutate(
+    renewal_data = map(
+      sim_id, \(x) construct_new_portfolio(lloyds_underwriter_tbl),
+      
+      .progress = "planning_portfolios"
+      ),
+    
+    renewed_premium = map_dbl(renewal_data, \(x) x |> pull(Premium_Amount) |> sum())
+    )
+
+sim_planning_portfolio_tbl |> glimpse()
+```
+
+
+```{r show_planning_portfolio_histogram}
+#| echo: true
+
+sim_planning_portfolio_plot <- ggplot(sim_planning_portfolio_tbl) +
+  geom_histogram(aes(x = kept_premium), bins = 50) +
+  scale_x_continuous(labels = label_comma(prefix = "$")) +
+  labs(
+    x = "Renewed Premium",
+    y = "Frequency",
+    title = "Histogram of Total Renewed Premium for Planning"
+    )
+
+sim_planning_portfolio_plot |> print()
+sim_planning_portfolio_plot |>
+  write_rds("data/sim_planning_portfolio_plot.rds")
+sim_planning_portfolio_plot |>
+  ggsave(
+    filename = "img/sim_planning_portfolio_plot.png",
+    height   = 14,
+    width    = 20
+    )
+```
+
+
+
+
+# R Environment {.unnumbered}
+
+```{r show_session_info}
+#| echo: TRUE
+#| message: TRUE
+
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
