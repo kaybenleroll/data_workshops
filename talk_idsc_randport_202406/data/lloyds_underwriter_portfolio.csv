@@ -1,0 +1,374 @@
+Policy_Number,Company_Sector,Company_Name,Employee_Headcount,Number_of_Locations,Annual_Revenue,Risk_Exposure_Level,Premium_Amount,Retention
+GL00001,Technology,Technology Co 2,412,3,40404428,Medium,40404.428,Medium
+GL00002,Technology,Technology Co 3,613,3,52440311,Low,41952.2488,Low
+GL00005,Healthcare,Healthcare Co 6,415,4,41067985,Low,32854.388,Medium
+GL00007,Construction,Construction Co 8,218,2,21742012,High,26090.414399999998,High
+GL00008,Healthcare,Healthcare Co 9,370,4,21222460,High,25466.951999999997,Medium
+GL00009,Renewable Energy,Renewable Energy Co 10,856,1,67775512,High,81330.6144,Medium
+GL00012,Technology,Technology Co 13,914,4,46345284,Low,37076.2272,High
+GL00013,Renewable Energy,Renewable Energy Co 14,919,1,57354790,High,68825.74799999999,Low
+GL00014,Renewable Energy,Renewable Energy Co 15,473,1,41880839,High,50257.006799999996,High
+GL00015,Renewable Energy,Renewable Energy Co 16,507,5,34535319,Medium,34535.319,High
+GL00016,Technology,Technology Co 17,877,1,78835284,Medium,78835.284,Low
+GL00019,Transportation,Transportation Co 20,493,5,31708774,High,38050.5288,Medium
+GL00030,Renewable Energy,Renewable Energy Co 31,730,3,68298070,High,81957.68400000001,High
+GL00034,Transportation,Transportation Co 35,493,5,28043812,High,33652.5744,Medium
+GL00042,Manufacturing,Manufacturing Co 43,372,2,30501024,High,36601.2288,Medium
+GL00044,Renewable Energy,Renewable Energy Co 45,477,4,30708306,High,36849.9672,Medium
+GL00049,Construction,Construction Co 50,405,5,25548615,Medium,25548.615,High
+GL00050,Healthcare,Healthcare Co 51,455,5,23854285,Medium,23854.285,Medium
+GL00053,Healthcare,Healthcare Co 54,301,4,24603138,Medium,24603.138,Low
+GL00054,Transportation,Transportation Co 55,439,2,27294825,High,32753.79,High
+GL00055,Manufacturing,Manufacturing Co 56,280,5,20233920,High,24280.704,High
+GL00056,Healthcare,Healthcare Co 57,277,2,18167876,High,21801.4512,Low
+GL00060,Construction,Construction Co 61,334,1,20725702,High,24870.8424,High
+GL00063,Technology,Technology Co 64,438,4,30670512,High,36804.6144,Low
+GL00064,Renewable Energy,Renewable Energy Co 65,673,2,63455824,Low,50764.6592,Low
+GL00066,Healthcare,Healthcare Co 67,300,5,29831400,Medium,29831.4,High
+GL00067,Renewable Energy,Renewable Energy Co 68,668,3,63453988,High,76144.7856,High
+GL00068,Renewable Energy,Renewable Energy Co 69,929,3,91548305,Medium,91548.30500000001,Medium
+GL00069,Transportation,Transportation Co 70,186,2,18370290,High,22044.348,Medium
+GL00070,Technology,Technology Co 71,388,5,20443720,Medium,20443.72,High
+GL00072,Renewable Energy,Renewable Energy Co 73,832,4,58799104,Medium,58799.104,High
+GL00073,Technology,Technology Co 74,621,1,58506894,Low,46805.5152,High
+GL00074,Transportation,Transportation Co 75,252,3,21799008,High,26158.8096,Low
+GL00075,Technology,Technology Co 76,270,2,26084970,Medium,26084.97,Low
+GL00077,Healthcare,Healthcare Co 78,494,1,33065396,Medium,33065.396,High
+GL00081,Education,Education Co 82,294,1,24575166,Medium,24575.166,Low
+GL00088,Healthcare,Healthcare Co 89,388,4,22777152,High,27332.582400000003,Medium
+GL00092,Technology,Technology Co 93,840,5,47210520,High,56652.624,Medium
+GL00097,Transportation,Transportation Co 98,457,2,33501299,Medium,33501.299,High
+GL00099,Transportation,Transportation Co 100,394,3,35954864,Low,28763.891200000002,High
+GL00102,Transportation,Transportation Co 103,408,2,28107120,Low,22485.696,Medium
+GL00108,Transportation,Transportation Co 109,287,3,19992707,High,23991.2484,Medium
+GL00109,Construction,Construction Co 110,367,4,25469066,High,30562.879199999996,High
+GL00110,Technology,Technology Co 111,723,2,39595818,Low,31676.6544,Low
+GL00112,Transportation,Transportation Co 113,469,5,37793896,Low,30235.116800000003,Low
+GL00118,Technology,Technology Co 119,425,3,36572100,Low,29257.68,High
+GL00120,Construction,Construction Co 121,212,5,20796140,High,24955.368,Medium
+GL00123,Manufacturing,Manufacturing Co 124,298,1,23901984,High,28682.3808,Medium
+GL00125,Construction,Construction Co 126,355,4,24853905,Medium,24853.905,High
+GL00126,Renewable Energy,Renewable Energy Co 127,594,4,35730288,Medium,35730.288,Low
+GL00131,Technology,Technology Co 132,433,3,28423852,Medium,28423.852,Medium
+GL00132,Construction,Construction Co 133,336,4,25967760,Low,20774.208000000002,Medium
+GL00138,Renewable Energy,Renewable Energy Co 139,982,5,49240426,Medium,49240.426,Medium
+GL00140,Education,Education Co 141,190,5,17638080,High,21165.696,Medium
+GL00143,Healthcare,Healthcare Co 144,288,4,26421408,High,31705.689599999998,Medium
+GL00144,Renewable Energy,Renewable Energy Co 145,216,4,19142568,High,22971.081599999998,Medium
+GL00147,Construction,Construction Co 148,452,4,34048708,Low,27238.9664,High
+GL00149,Transportation,Transportation Co 150,228,4,22408524,High,26890.2288,Medium
+GL00152,Education,Education Co 153,249,4,16992507,High,20391.008400000002,Low
+GL00154,Renewable Energy,Renewable Energy Co 155,906,5,90478596,Low,72382.87680000001,High
+GL00158,Renewable Energy,Renewable Energy Co 159,694,5,57026674,Medium,57026.674,High
+GL00159,Transportation,Transportation Co 160,310,4,26868630,High,32242.356,High
+GL00160,Transportation,Transportation Co 161,399,2,20224911,High,24269.8932,Medium
+GL00167,Manufacturing,Manufacturing Co 168,316,4,28838792,Medium,28838.792,Low
+GL00169,Technology,Technology Co 170,409,1,21882318,Medium,21882.318,Medium
+GL00172,Healthcare,Healthcare Co 173,497,2,38520979,Medium,38520.979,High
+GL00174,Construction,Construction Co 175,275,1,23309000,Medium,23309,High
+GL00177,Renewable Energy,Renewable Energy Co 178,829,2,81523031,Medium,81523.031,High
+GL00178,Transportation,Transportation Co 179,340,3,20269100,Medium,20269.100000000002,High
+GL00182,Renewable Energy,Renewable Energy Co 183,988,1,97743828,Low,78195.06240000001,Medium
+GL00184,Renewable Energy,Renewable Energy Co 185,828,3,48007440,High,57608.928,High
+GL00187,Healthcare,Healthcare Co 188,309,4,24057504,High,28869.0048,Medium
+GL00196,Transportation,Transportation Co 197,462,3,43879374,Low,35103.499200000006,Medium
+GL00199,Renewable Energy,Renewable Energy Co 200,326,3,25088960,High,30106.751999999997,Low
+GL00201,Healthcare,Healthcare Co 202,311,3,16751082,High,20101.298400000003,Medium
+GL00203,Manufacturing,Manufacturing Co 204,290,4,20255630,Medium,20255.63,Low
+GL00205,Renewable Energy,Renewable Energy Co 206,303,5,21896901,High,26276.2812,High
+GL00206,Construction,Construction Co 207,193,4,17808882,High,21370.6584,Medium
+GL00207,Technology,Technology Co 208,506,2,43100068,Medium,43100.068,High
+GL00208,Renewable Energy,Renewable Energy Co 209,924,4,91979580,High,110375.496,High
+GL00216,Renewable Energy,Renewable Energy Co 217,990,3,71841330,Low,57473.064000000006,Medium
+GL00219,Renewable Energy,Renewable Energy Co 220,629,2,52235934,Low,41788.747200000005,High
+GL00225,Renewable Energy,Renewable Energy Co 226,812,3,69635496,Low,55708.3968,Medium
+GL00229,Education,Education Co 230,248,4,24417584,Medium,24417.584,High
+GL00240,Manufacturing,Manufacturing Co 241,305,3,29007330,Medium,29007.33,Low
+GL00241,Technology,Technology Co 242,651,5,45683274,Low,36546.6192,Low
+GL00247,Healthcare,Healthcare Co 248,262,5,18657282,High,22388.7384,Low
+GL00250,Healthcare,Healthcare Co 251,472,5,29289488,High,35147.3856,High
+GL00251,Technology,Technology Co 252,298,5,21843996,High,26212.795199999997,High
+GL00253,Technology,Technology Co 254,630,5,42654150,Medium,42654.15,High
+GL00257,Transportation,Transportation Co 258,247,3,21323757,High,25588.508400000002,Low
+GL00259,Renewable Energy,Renewable Energy Co 260,464,4,23467728,High,28161.273599999997,High
+GL00262,Construction,Construction Co 263,354,4,20801040,Medium,20801.04,High
+GL00266,Renewable Energy,Renewable Energy Co 267,382,2,19571770,High,23486.124,High
+GL00267,Transportation,Transportation Co 268,413,2,36289484,Low,29031.587200000005,Medium
+GL00274,Technology,Technology Co 275,396,4,33121440,Medium,33121.44,Low
+GL00277,Healthcare,Healthcare Co 278,370,4,27286390,High,32743.667999999998,High
+GL00278,Technology,Technology Co 279,263,5,25232220,Low,20185.776,Medium
+GL00279,Technology,Technology Co 280,247,2,22831198,High,27397.4376,High
+GL00280,Renewable Energy,Renewable Energy Co 281,822,2,55498152,Medium,55498.152,High
+GL00283,Healthcare,Healthcare Co 284,336,3,22572816,Medium,22572.816,Low
+GL00289,Healthcare,Healthcare Co 290,363,5,24699972,Medium,24699.972,Medium
+GL00290,Construction,Construction Co 291,456,4,25952328,Medium,25952.328,High
+GL00292,Renewable Energy,Renewable Energy Co 293,842,3,59983238,Medium,59983.238000000005,Medium
+GL00296,Manufacturing,Manufacturing Co 297,258,2,25727502,Medium,25727.502,Medium
+GL00304,Technology,Technology Co 305,380,5,20075020,High,24090.024,Low
+GL00305,Technology,Technology Co 306,710,5,65217760,Low,52174.208000000006,High
+GL00306,Healthcare,Healthcare Co 307,402,1,34375824,Medium,34375.824,Medium
+GL00309,Construction,Construction Co 310,429,5,29280108,Medium,29280.108,High
+GL00311,Manufacturing,Manufacturing Co 312,457,2,40650150,High,48780.18,Low
+GL00316,Technology,Technology Co 317,256,2,24368896,Medium,24368.896,Low
+GL00318,Healthcare,Healthcare Co 319,329,4,25259633,Low,20207.706400000003,Low
+GL00320,Technology,Technology Co 321,938,1,67423440,High,80908.128,Low
+GL00325,Construction,Construction Co 326,274,3,24921944,High,29906.332799999996,Medium
+GL00334,Renewable Energy,Renewable Energy Co 335,233,5,19625357,High,23550.4284,High
+GL00336,Education,Education Co 337,227,4,21649898,High,25979.8776,Medium
+GL00343,Renewable Energy,Renewable Energy Co 344,626,3,54045084,Medium,54045.084,High
+GL00344,Transportation,Transportation Co 345,403,4,39783354,High,47740.0248,High
+GL00345,Healthcare,Healthcare Co 346,252,2,18686052,High,22423.2624,High
+GL00346,Technology,Technology Co 347,522,3,42690726,Low,34152.5808,Medium
+GL00348,Transportation,Transportation Co 349,367,2,29420555,Low,23536.444000000003,Medium
+GL00349,Construction,Construction Co 350,291,4,27376407,High,32851.6884,High
+GL00350,Education,Education Co 351,242,2,20410522,High,24492.6264,Low
+GL00351,Technology,Technology Co 352,575,5,29736700,Medium,29736.7,Low
+GL00352,Education,Education Co 353,251,1,20806394,Medium,20806.394,Medium
+GL00355,Transportation,Transportation Co 356,410,4,24598360,Medium,24598.36,High
+GL00360,Renewable Energy,Renewable Energy Co 361,711,2,47314206,Low,37851.3648,Low
+GL00362,Technology,Technology Co 363,816,2,56950272,Medium,56950.272000000004,Medium
+GL00363,Construction,Construction Co 364,316,4,18298612,High,21958.3344,High
+GL00365,Renewable Energy,Renewable Energy Co 366,688,2,47874480,High,57449.376000000004,High
+GL00368,Healthcare,Healthcare Co 369,436,2,36413412,Low,29130.729600000006,Medium
+GL00372,Transportation,Transportation Co 373,417,2,41651628,High,49981.9536,High
+GL00374,Healthcare,Healthcare Co 375,375,3,33441750,Low,26753.4,High
+GL00380,Construction,Construction Co 381,342,3,28169514,High,33803.4168,High
+GL00382,Technology,Technology Co 383,927,4,77847606,Medium,77847.606,Medium
+GL00387,Healthcare,Healthcare Co 388,495,1,32933340,Low,26346.672000000006,Medium
+GL00389,Healthcare,Healthcare Co 390,462,3,29685348,Low,23748.278400000003,Medium
+GL00393,Education,Education Co 394,226,2,20641032,High,24769.2384,High
+GL00395,Renewable Energy,Renewable Energy Co 396,886,5,86312348,High,103574.8176,Low
+GL00396,Transportation,Transportation Co 397,310,1,17870570,High,21444.683999999997,Medium
+GL00403,Transportation,Transportation Co 404,367,3,36394289,Medium,36394.289000000004,Medium
+GL00407,Healthcare,Healthcare Co 408,496,1,38287232,Low,30629.785600000003,High
+GL00408,Manufacturing,Manufacturing Co 409,287,2,20366094,Medium,20366.094,Low
+GL00410,Construction,Construction Co 411,475,1,36402575,Low,29122.060000000005,Low
+GL00411,Manufacturing,Manufacturing Co 412,446,3,22590346,Medium,22590.346,High
+GL00416,Technology,Technology Co 417,787,3,46158337,High,55390.0044,Low
+GL00418,Technology,Technology Co 419,506,2,40240662,High,48288.794400000006,High
+GL00420,Transportation,Transportation Co 421,483,5,29576022,High,35491.2264,Medium
+GL00421,Healthcare,Healthcare Co 422,378,4,19145700,High,22974.84,High
+GL00422,Construction,Construction Co 423,367,5,24588633,High,29506.3596,High
+GL00425,Technology,Technology Co 426,647,2,48985664,Medium,48985.664000000004,Medium
+GL00432,Healthcare,Healthcare Co 433,451,2,37630538,Low,30104.4304,Medium
+GL00434,Healthcare,Healthcare Co 435,396,4,28730592,Low,22984.4736,Medium
+GL00436,Technology,Technology Co 437,597,1,50500230,Medium,50500.23,Low
+GL00438,Technology,Technology Co 439,636,4,49712940,High,59655.528,Low
+GL00439,Manufacturing,Manufacturing Co 440,432,2,40866768,High,49040.121600000006,Low
+GL00445,Renewable Energy,Renewable Energy Co 446,940,1,79073740,Low,63258.992000000006,High
+GL00448,Technology,Technology Co 449,298,5,27791778,Low,22233.422400000003,High
+GL00449,Healthcare,Healthcare Co 450,392,3,26559176,High,31871.011199999997,Low
+GL00452,Manufacturing,Manufacturing Co 453,470,1,40995280,High,49194.335999999996,Low
+GL00457,Transportation,Transportation Co 458,319,2,29635738,High,35562.8856,High
+GL00459,Manufacturing,Manufacturing Co 460,353,4,26666326,Low,21333.060800000003,Medium
+GL00461,Renewable Energy,Renewable Energy Co 462,308,5,27030080,High,32436.096,High
+GL00462,Renewable Energy,Renewable Energy Co 463,935,2,70990810,Medium,70990.81,Low
+GL00463,Transportation,Transportation Co 464,328,4,23021664,Medium,23021.664,Medium
+GL00465,Construction,Construction Co 466,366,2,31642530,High,37971.036,Low
+GL00467,Construction,Construction Co 468,400,1,31696400,High,38035.68,High
+GL00468,Technology,Technology Co 469,367,3,28384881,Low,22707.904800000004,High
+GL00470,Manufacturing,Manufacturing Co 471,441,3,35264565,High,42317.478,High
+GL00474,Manufacturing,Manufacturing Co 475,396,3,26294400,High,31553.28,High
+GL00480,Renewable Energy,Renewable Energy Co 481,766,4,58880122,Medium,58880.122,High
+GL00482,Manufacturing,Manufacturing Co 483,484,5,31582452,Medium,31582.452,High
+GL00483,Healthcare,Healthcare Co 484,356,5,31831740,High,38198.088,High
+GL00488,Renewable Energy,Renewable Energy Co 489,746,4,68512640,Low,54810.112,High
+GL00490,Renewable Energy,Renewable Energy Co 491,356,1,28216204,High,33859.4448,High
+GL00491,Renewable Energy,Renewable Energy Co 492,621,2,41628735,High,49954.481999999996,Medium
+GL00493,Manufacturing,Manufacturing Co 494,422,2,38617642,High,46341.170399999995,Low
+GL00494,Technology,Technology Co 495,872,4,70359064,High,84430.8768,High
+GL00497,Manufacturing,Manufacturing Co 498,457,3,30076084,Medium,30076.084,High
+GL00498,Renewable Energy,Renewable Energy Co 499,806,2,80172014,Low,64137.6112,Medium
+GL00500,Transportation,Transportation Co 501,420,5,37771860,High,45326.231999999996,Medium
+GL00502,Transportation,Transportation Co 503,453,2,36497757,Low,29198.2056,Medium
+GL00503,Construction,Construction Co 504,405,2,28951020,Low,23160.816000000003,Low
+GL00504,Renewable Energy,Renewable Energy Co 505,878,3,70912548,Low,56730.0384,High
+GL00511,Technology,Technology Co 512,324,4,30921264,Low,24737.0112,Medium
+GL00517,Technology,Technology Co 518,193,3,18919983,High,22703.9796,High
+GL00525,Technology,Technology Co 526,571,3,31932604,Low,25546.0832,High
+GL00528,Healthcare,Healthcare Co 529,356,2,33322668,Medium,33322.668,High
+GL00529,Renewable Energy,Renewable Energy Co 530,974,1,69171532,Medium,69171.532,Low
+GL00532,Technology,Technology Co 533,902,3,46626184,Low,37300.9472,Medium
+GL00535,Manufacturing,Manufacturing Co 536,497,1,37374400,Medium,37374.4,Medium
+GL00536,Construction,Construction Co 537,452,2,27272776,High,32727.3312,Low
+GL00544,Technology,Technology Co 545,587,3,47466581,Low,37973.2648,Low
+GL00550,Renewable Energy,Renewable Energy Co 551,606,5,55518084,High,66621.7008,High
+GL00552,Manufacturing,Manufacturing Co 553,402,2,24606018,High,29527.221599999997,Low
+GL00559,Construction,Construction Co 560,489,3,29369829,Low,23495.863200000003,High
+GL00561,Transportation,Transportation Co 562,359,4,27880299,High,33456.358799999995,High
+GL00564,Manufacturing,Manufacturing Co 565,213,1,16883445,High,20260.134,Medium
+GL00567,Renewable Energy,Renewable Energy Co 568,265,3,25103980,Medium,25103.98,High
+GL00570,Construction,Construction Co 571,303,2,26983665,Low,21586.932,Medium
+GL00571,Renewable Energy,Renewable Energy Co 572,265,5,18425980,High,22111.176,High
+GL00572,Renewable Energy,Renewable Energy Co 573,834,2,56561046,High,67873.2552,Low
+GL00573,Construction,Construction Co 574,456,4,30349536,High,36419.4432,High
+GL00574,Technology,Technology Co 575,531,5,33777972,High,40533.5664,Medium
+GL00576,Construction,Construction Co 577,359,2,32246098,Low,25796.8784,Medium
+GL00583,Construction,Construction Co 584,425,3,29084450,Medium,29084.45,Medium
+GL00584,Technology,Technology Co 585,609,3,33616800,Medium,33616.8,Medium
+GL00586,Transportation,Transportation Co 587,304,2,22148832,Medium,22148.832000000002,Low
+GL00589,Renewable Energy,Renewable Energy Co 590,457,5,31825023,Low,25460.0184,Medium
+GL00591,Technology,Technology Co 592,905,3,60283860,Low,48227.088,Low
+GL00593,Education,Education Co 594,211,3,18033115,High,21639.738,Low
+GL00594,Technology,Technology Co 595,877,2,76962889,Medium,76962.889,Low
+GL00601,Healthcare,Healthcare Co 602,374,4,29490648,High,35388.7776,Low
+GL00602,Manufacturing,Manufacturing Co 603,328,2,24386472,Medium,24386.472,Low
+GL00609,Transportation,Transportation Co 610,274,3,19217264,High,23060.7168,Medium
+GL00611,Technology,Technology Co 612,377,5,28881970,Low,23105.576,Low
+GL00614,Technology,Technology Co 615,660,4,48723840,High,58468.608,High
+GL00616,Transportation,Transportation Co 617,305,1,26408730,Medium,26408.73,Low
+GL00618,Healthcare,Healthcare Co 619,389,3,27566874,Low,22053.499200000002,Low
+GL00622,Transportation,Transportation Co 623,298,5,29380416,Medium,29380.416,Low
+GL00623,Renewable Energy,Renewable Energy Co 624,920,3,59456840,Medium,59456.840000000004,Low
+GL00626,Renewable Energy,Renewable Energy Co 627,810,4,43711650,High,52453.98,Low
+GL00627,Education,Education Co 628,266,5,26530840,High,31837.007999999998,High
+GL00628,Construction,Construction Co 629,469,1,45493469,Low,36394.7752,High
+GL00633,Manufacturing,Manufacturing Co 634,418,1,39027824,High,46833.3888,Medium
+GL00635,Healthcare,Healthcare Co 636,447,2,24815652,Medium,24815.652000000002,Medium
+GL00638,Renewable Energy,Renewable Energy Co 639,659,3,52667939,Medium,52667.939,High
+GL00641,Technology,Technology Co 642,243,5,21112569,Medium,21112.569,Low
+GL00644,Education,Education Co 645,226,2,17771510,High,21325.812,High
+GL00649,Manufacturing,Manufacturing Co 650,495,5,25279650,High,30335.58,High
+GL00650,Transportation,Transportation Co 651,397,2,32534547,Medium,32534.547000000002,Low
+GL00655,Transportation,Transportation Co 656,376,4,23429312,Medium,23429.312,High
+GL00656,Transportation,Transportation Co 657,253,1,25191463,High,30229.755599999997,Low
+GL00657,Technology,Technology Co 658,499,1,46415483,Medium,46415.483,Low
+GL00658,Manufacturing,Manufacturing Co 659,451,2,30689648,Low,24551.7184,Low
+GL00661,Manufacturing,Manufacturing Co 662,418,4,37886266,Medium,37886.266,Medium
+GL00662,Manufacturing,Manufacturing Co 663,188,4,17855676,High,21426.8112,Low
+GL00670,Technology,Technology Co 671,391,5,30016679,Medium,30016.679,Medium
+GL00671,Transportation,Transportation Co 672,330,3,17352390,High,20822.868,High
+GL00672,Transportation,Transportation Co 673,488,3,32753584,High,39304.3008,Medium
+GL00679,Transportation,Transportation Co 680,475,5,38421800,Medium,38421.8,Medium
+GL00685,Healthcare,Healthcare Co 686,474,4,25008714,High,30010.4568,Medium
+GL00688,Renewable Energy,Renewable Energy Co 689,642,1,62504478,High,75005.3736,Medium
+GL00689,Technology,Technology Co 690,435,3,32454045,Low,25963.236000000004,High
+GL00691,Technology,Technology Co 692,918,3,51056406,Medium,51056.406,High
+GL00698,Transportation,Transportation Co 699,267,2,24277509,Medium,24277.509000000002,Low
+GL00699,Technology,Technology Co 700,392,3,37736664,Medium,37736.664000000004,Low
+GL00709,Renewable Energy,Renewable Energy Co 710,980,4,61324480,Low,49059.584,Medium
+GL00710,Manufacturing,Manufacturing Co 711,313,4,22956985,Medium,22956.985,High
+GL00713,Manufacturing,Manufacturing Co 714,353,4,26902836,Low,21522.2688,Medium
+GL00714,Renewable Energy,Renewable Energy Co 715,435,5,23360370,High,28032.444,Low
+GL00715,Technology,Technology Co 716,815,2,69816975,Medium,69816.975,High
+GL00716,Renewable Energy,Renewable Energy Co 717,894,3,87836394,High,105403.6728,Medium
+GL00718,Construction,Construction Co 719,407,3,22452155,High,26942.586,Low
+GL00720,Construction,Construction Co 721,252,5,21207816,High,25449.3792,Low
+GL00723,Technology,Technology Co 724,594,2,49742154,Medium,49742.154,Low
+GL00726,Transportation,Transportation Co 727,377,2,27873872,High,33448.6464,Medium
+GL00727,Transportation,Transportation Co 728,397,2,29596350,High,35515.62,Low
+GL00729,Transportation,Transportation Co 730,345,5,29399865,High,35279.838,High
+GL00732,Manufacturing,Manufacturing Co 733,315,5,28898100,Medium,28898.100000000002,High
+GL00734,Renewable Energy,Renewable Energy Co 735,859,1,79864666,Low,63891.7328,Medium
+GL00737,Renewable Energy,Renewable Energy Co 738,397,3,23983167,Medium,23983.167,High
+GL00744,Manufacturing,Manufacturing Co 745,493,5,35232245,High,42278.694,High
+GL00746,Renewable Energy,Renewable Energy Co 747,801,4,46162431,Medium,46162.431000000004,Medium
+GL00748,Technology,Technology Co 749,682,5,65545656,High,78654.7872,Low
+GL00749,Education,Education Co 750,234,5,23186592,Medium,23186.592,Medium
+GL00750,Healthcare,Healthcare Co 751,310,3,23255270,High,27906.324,High
+GL00752,Construction,Construction Co 753,311,3,27778209,Medium,27778.209,Low
+GL00753,Technology,Technology Co 754,675,2,37191150,Medium,37191.15,Low
+GL00759,Construction,Construction Co 760,385,1,37486680,Medium,37486.68,High
+GL00762,Healthcare,Healthcare Co 763,428,3,35304008,High,42364.8096,Low
+GL00764,Manufacturing,Manufacturing Co 765,436,4,35396224,Medium,35396.224,High
+GL00765,Renewable Energy,Renewable Energy Co 766,851,2,53692994,Medium,53692.994,Low
+GL00766,Technology,Technology Co 767,860,4,73467220,Medium,73467.22,Low
+GL00772,Technology,Technology Co 773,874,2,82937356,Low,66349.8848,Medium
+GL00776,Construction,Construction Co 777,488,2,42880560,Low,34304.448,High
+GL00777,Transportation,Transportation Co 778,396,3,38488428,High,46186.1136,High
+GL00778,Renewable Energy,Renewable Energy Co 779,771,1,76054524,High,91265.42880000001,High
+GL00779,Technology,Technology Co 780,672,1,58437792,Low,46750.23360000001,Low
+GL00780,Healthcare,Healthcare Co 781,349,2,26412320,High,31694.784,High
+GL00782,Renewable Energy,Renewable Energy Co 783,302,1,25308808,High,30370.5696,Medium
+GL00783,Construction,Construction Co 784,276,3,18524016,High,22228.819199999998,Medium
+GL00784,Technology,Technology Co 785,542,2,37333502,Medium,37333.502,Medium
+GL00785,Transportation,Transportation Co 786,363,3,26737854,High,32085.424799999997,High
+GL00786,Construction,Construction Co 787,303,1,24915084,High,29898.100799999997,Low
+GL00789,Transportation,Transportation Co 790,269,3,20517975,Medium,20517.975000000002,High
+GL00791,Healthcare,Healthcare Co 792,439,2,32906123,Low,26324.898400000002,Medium
+GL00794,Manufacturing,Manufacturing Co 795,301,5,24262406,High,29114.887199999997,Medium
+GL00795,Healthcare,Healthcare Co 796,395,1,25027595,High,30033.114,Medium
+GL00797,Healthcare,Healthcare Co 798,341,2,18245205,High,21894.246000000003,Medium
+GL00799,Construction,Construction Co 800,226,1,22218512,High,26662.214399999997,Medium
+GL00806,Technology,Technology Co 807,797,2,63241153,Low,50592.9224,Low
+GL00807,Technology,Technology Co 808,633,2,39038376,High,46846.0512,Low
+GL00814,Renewable Energy,Renewable Energy Co 815,543,4,39332205,Medium,39332.205,Low
+GL00818,Renewable Energy,Renewable Energy Co 819,344,1,25040448,Medium,25040.448,Low
+GL00819,Renewable Energy,Renewable Energy Co 820,966,3,65307396,Low,52245.916800000006,High
+GL00824,Healthcare,Healthcare Co 825,488,4,28957920,Low,23166.336000000003,Medium
+GL00834,Healthcare,Healthcare Co 835,487,1,48205208,Medium,48205.208,Low
+GL00835,Construction,Construction Co 836,315,4,24539760,Medium,24539.760000000002,High
+GL00836,Technology,Technology Co 837,854,4,46065614,Medium,46065.614,High
+GL00837,Technology,Technology Co 838,733,5,66814416,High,80177.2992,Low
+GL00840,Technology,Technology Co 841,572,1,43956484,High,52747.7808,High
+GL00842,Manufacturing,Manufacturing Co 843,288,1,21708000,Medium,21708,Low
+GL00843,Manufacturing,Manufacturing Co 844,435,2,40147890,Medium,40147.89,Medium
+GL00844,Construction,Construction Co 845,410,2,36815950,Low,29452.760000000006,High
+GL00845,Technology,Technology Co 846,830,2,65047100,High,78056.51999999999,High
+GL00847,Transportation,Transportation Co 848,444,1,33831912,Medium,33831.912000000004,Low
+GL00850,Transportation,Transportation Co 851,473,2,26807275,High,32168.73,High
+GL00853,Construction,Construction Co 854,462,3,31632678,High,37959.213599999995,Medium
+GL00855,Renewable Energy,Renewable Energy Co 856,237,2,21882210,Medium,21882.21,High
+GL00856,Technology,Technology Co 857,754,4,46757048,Low,37405.6384,Low
+GL00857,Renewable Energy,Renewable Energy Co 858,315,5,29299725,Medium,29299.725000000002,High
+GL00858,Technology,Technology Co 859,691,4,48586974,High,58304.368800000004,Medium
+GL00859,Healthcare,Healthcare Co 860,404,1,40242844,High,48291.4128,Medium
+GL00862,Healthcare,Healthcare Co 863,423,4,24583914,High,29500.696799999998,Low
+GL00863,Manufacturing,Manufacturing Co 864,269,4,25119758,High,30143.709600000002,High
+GL00865,Technology,Technology Co 866,759,2,72929274,Medium,72929.274,Medium
+GL00867,Technology,Technology Co 868,832,2,79735552,Medium,79735.552,High
+GL00868,Healthcare,Healthcare Co 869,482,5,37656732,Low,30125.385600000005,Medium
+GL00869,Renewable Energy,Renewable Energy Co 870,468,2,35731332,Medium,35731.332,High
+GL00870,Technology,Technology Co 871,746,1,74085260,Low,59268.208,Medium
+GL00877,Transportation,Transportation Co 878,181,4,17455459,High,20946.550799999997,Low
+GL00879,Education,Education Co 880,290,4,17122180,High,20546.615999999998,Low
+GL00882,Technology,Technology Co 883,723,3,54280671,Low,43424.5368,High
+GL00884,Technology,Technology Co 885,504,4,39139632,High,46967.558399999994,Low
+GL00885,Technology,Technology Co 886,524,4,31452052,Low,25161.641600000003,Medium
+GL00887,Transportation,Transportation Co 888,441,3,40515552,Medium,40515.552,Medium
+GL00891,Technology,Technology Co 892,945,4,89695620,Low,71756.496,High
+GL00895,Transportation,Transportation Co 896,445,5,36575440,High,43890.528,Low
+GL00896,Renewable Energy,Renewable Energy Co 897,862,2,53287978,High,63945.5736,High
+GL00897,Technology,Technology Co 898,449,2,30968877,High,37162.6524,Low
+GL00899,Healthcare,Healthcare Co 900,310,2,28932610,High,34719.132,Low
+GL00900,Construction,Construction Co 901,480,2,28422720,Medium,28422.72,Medium
+GL00901,Renewable Energy,Renewable Energy Co 902,311,1,26986092,Low,21588.873600000003,High
+GL00904,Renewable Energy,Renewable Energy Co 905,331,1,29755907,High,35707.0884,Medium
+GL00906,Healthcare,Healthcare Co 907,348,1,27712980,Medium,27712.98,High
+GL00907,Healthcare,Healthcare Co 908,329,5,30557849,High,36669.4188,Low
+GL00910,Construction,Construction Co 911,468,4,45822816,Low,36658.2528,Low
+GL00915,Education,Education Co 916,290,1,27186920,Low,21749.536000000004,High
+GL00921,Manufacturing,Manufacturing Co 922,400,4,31210800,Medium,31210.8,High
+GL00924,Technology,Technology Co 925,634,2,37510610,Low,30008.488,Medium
+GL00925,Technology,Technology Co 926,717,2,67829634,Medium,67829.634,High
+GL00926,Renewable Energy,Renewable Energy Co 927,820,5,73054620,High,87665.544,Low
+GL00927,Manufacturing,Manufacturing Co 928,420,2,28087080,High,33704.496,Medium
+GL00928,Renewable Energy,Renewable Energy Co 929,350,2,27688850,Medium,27688.850000000002,High
+GL00929,Transportation,Transportation Co 930,366,4,28994520,High,34793.424,Low
+GL00930,Healthcare,Healthcare Co 931,490,4,26949020,High,32338.824,High
+GL00932,Education,Education Co 933,260,5,24656840,Medium,24656.84,High
+GL00935,Renewable Energy,Renewable Energy Co 936,822,5,80510790,Low,64408.63200000001,Low
+GL00937,Technology,Technology Co 938,573,2,55933968,High,67120.7616,Low
+GL00939,Healthcare,Healthcare Co 940,393,4,34713690,High,41656.428,Low
+GL00942,Renewable Energy,Renewable Energy Co 943,685,2,34425360,High,41310.432,Medium
+GL00943,Renewable Energy,Renewable Energy Co 944,403,1,38734748,Low,30987.7984,High
+GL00945,Transportation,Transportation Co 946,242,2,19871588,High,23845.9056,Medium
+GL00950,Manufacturing,Manufacturing Co 951,499,4,38821202,Medium,38821.202,High
+GL00952,Technology,Technology Co 953,587,4,53604840,High,64325.808000000005,Low
+GL00953,Construction,Construction Co 954,333,2,32452182,Medium,32452.182,Low
+GL00954,Technology,Technology Co 955,864,3,72737568,Medium,72737.568,Low
+GL00963,Technology,Technology Co 964,823,5,80035927,Low,64028.7416,High
+GL00964,Healthcare,Healthcare Co 965,428,4,41846844,Low,33477.4752,Low
+GL00967,Transportation,Transportation Co 968,262,1,17974248,High,21569.097599999997,Medium
+GL00968,Manufacturing,Manufacturing Co 969,430,2,32093480,Low,25674.784,High
+GL00970,Technology,Technology Co 971,662,3,37681040,Medium,37681.04,High
+GL00978,Construction,Construction Co 979,395,1,20550270,Medium,20550.27,Medium
+GL00979,Transportation,Transportation Co 980,338,1,21569470,High,25883.364,High
+GL00984,Manufacturing,Manufacturing Co 985,265,3,17751555,High,21301.865999999998,Low
+GL00986,Transportation,Transportation Co 987,364,4,31427032,High,37712.4384,Low
+GL00987,Healthcare,Healthcare Co 988,369,4,19082097,High,22898.5164,High
+GL00991,Transportation,Transportation Co 992,418,1,32119956,Medium,32119.956000000002,Low
+GL00995,Technology,Technology Co 996,829,3,45782354,Medium,45782.354,High
+GL00997,Healthcare,Healthcare Co 998,310,1,23438480,Medium,23438.48,Low
+GL00999,Technology,Technology Co 1000,867,5,68848470,High,82618.164,High
+GL01000,Technology,Technology Co 1001,793,1,60574891,High,72689.8692,Low
