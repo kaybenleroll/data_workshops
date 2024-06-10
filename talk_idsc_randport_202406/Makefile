@@ -70,6 +70,16 @@ docker-run:
 docker-bash:
 	docker exec -it -u ${DOCKER_USER} ${CONTAINER_NAME} bash
 
+
+create-slides-pdf:
+	docker run --rm -t \
+	  -v `pwd`:/slides \
+	  astefanutti/decktape:3.12.0 \
+	  --size 1920x1080 \
+	  /slides/idsc2024_mcooney_random_portfolios.html \
+	  idsc2024_mcooney_random_portfolios.pdf
+
+
 docker-stop:
 	docker stop ${CONTAINER_NAME}
 

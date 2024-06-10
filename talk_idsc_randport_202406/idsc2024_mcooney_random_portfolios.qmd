@@ -111,9 +111,14 @@ Portfolio performance is highly dependent on risk limits
 
 ---
 
-Separate returns based on ability ("alpha") from the market ("beta")?
+Separate "alpha" from "beta"?
 
 ---
+
+CAPM Model
+
+\
+
 
 $$
 r = \alpha + \beta \, m
@@ -122,7 +127,7 @@ $$
 
 
 
-## Basic Approach
+# Basic Approach
 
 \
 
@@ -167,7 +172,7 @@ What sort of stuff?
 # Insurance Use Cases
 
 
-## Premium Planning
+## Premium Forecasting
 
 \
 
@@ -223,6 +228,100 @@ Run simulations
 read_rds("data/sim_planning_portfolio_plot.rds") |> print()
 ```
 
+
+## Premium Planning
+
+\
+
+
+US Liability Business
+
+\
+
+
+Grow from 60mm USD to 80mm USD
+
+---
+
+Where does the premium come from?
+
+---
+
+
+Northeast US -> 10mm
+
+\
+
+Heathcare sector -> 5mm
+
+\
+
+Small business -> 5mm
+
+
+---
+
+Co-occurrence of Risk Factors
+
+---
+
+Allocate by simulating policies
+
+\
+
+Also allocates across other policies
+
+
+## Portfolio Optimisation
+
+---
+
+Involved
+
+---
+
+Basic visualisations
+
+---
+
+![](img/portfolio_premium_heatmap.png)
+
+---
+
+Use pricing / loss models
+
+---
+
+Simulate portfolios
+
+---
+
+What does 'optimal' mean?
+
+---
+
+
+![](img/portfolio_loss_simulations.png)
+---
+
+Proper use may require rethinking relationships
+
+
+
+# Summary
+
+\
+
+
+Random Portfolios are a powerful idea
+
+\
+
+Lots of use cases in insurance
+
+\
+
+Requires computational power
 
 
 
