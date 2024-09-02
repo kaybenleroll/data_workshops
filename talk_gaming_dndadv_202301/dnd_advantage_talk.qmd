@@ -75,15 +75,86 @@ Who Am I?
 
 \
 
-Test Intuition
+Explain D&D and the d20 System
 
-\
+Test Intuition
 
 Simulate Mechanisms
 
+Illustrate Typical Examples
+
+
+# Dungeons & Dragons
+
+---
+
+![](img/dnd5e_banner.png)
+
+---
+
+![](img/Stranger_Things_logo.png)
+
+
+
+## d20 System
+
 \
 
-Illustrate Typical Examples
+Uncertain outcomes resolved with dice
+
+\
+
+Polyhedral dice
+
+---
+
+![](img/dnd_polyhedral_dice.png)
+
+---
+
+### Basic Tests
+
+\
+
+Mostly use d20 (20-sided die)
+
+\
+
+
+  1. Roll 1d20
+  1. Add appropriate modifiers
+  1. Compare to target Difficulty Class
+
+
+
+### Contested Rolls
+
+\
+
+Used for direct contests
+
+\
+
+  1. Both roll 1d20
+  1. Add appropriate modifiers
+  1. Highest result wins
+
+
+## Advantage / Disadvantage
+
+\
+
+Introduced in Fifth Edition (5e)
+
+\
+
+Roll 2d20
+
+\
+
+Keep Highest (Advantage)
+
+Keep Lowest (Disadvantage)
 
 
 
@@ -104,8 +175,8 @@ No need for simulation
 
 
 \begin{eqnarray*}
-1d20 &\rightarrow&  20 \text{ possible outcomes} \\
-2d20 &\rightarrow& 400 \text{ possible outcomes}
+1\text{d}20 &\rightarrow&  20 \text{ possible outcomes} \\
+2\text{d}20 &\rightarrow& 400 \text{ possible outcomes}
 \end{eqnarray*}
 
 ---
@@ -537,7 +608,7 @@ ggplot(plot_oppprob_data_tbl, aes(x = diff, y = p1_success, colour = contest_key
   geom_point() +
   scale_x_continuous(breaks = seq(-8, 8, by = 2)) +
   expand_limits(y = 0) +
-  geom_dl(aes(label = contest_key), method = "last.bumpup") +
+  geom_dl(aes(label = contest_key), method = "last.qp") +
   labs(
     x      = "P1 Bonus Difference",
     y      = "Probability of Success",
@@ -671,11 +742,161 @@ outcomes_cumlprob_tbl |>
 ```
 
 
+# Making Decisions
+
+---
+
+Pavluk of Pelor
+
+![](img/pavluk.png)
+
+---
+
+![](img/combat_scene.png)
+
+---
+
+Fighting Large Wolf
+
+\
+
+
+20% -> AC 13
+
+80% -> AC 14
+
+\
+
+
+20% -> +5 attack, 1d12 + 3
+
+70% -> +6 attack, 1d12 + 4
+
+10% -> +7 attack, 1d12 + 5
+
+
+## Three Options
+
+\
+
+Move and Help the Rogue
+
+\
+
+Cast Guiding Bolt
+
+\
+
+Move and Help the Champion
+
+
+---
+
+### Move and Help Rogue
+
+\
+
+
+Move beside Rogue
+
+Help action (+5 attack, +1d6)
+
+Give advantage
+
+
+### Cast Guiding Bolt
+
+\
+
+
+Cast Guiding Bolt
+
++5 attack, 4d6 damage, grants advantage
+
+
+### Move and Help Champion
+
+\
+
+
+Move beside Wolf
+
+Help Champion (+6 attack, 2d6 damage)
+
+Give advantage
+
+
+## Simulations
+
+```{r load_simulation_data}
+#| echo: false
+
+sim_output_data_tbl <- read_rds("data/sim_output_data_tbl.rds")
+```
+
+```{r display_damage_histograms}
+#| echo: false
+
+sim_data_tbl <- sim_output_data_tbl |>
+  select(option_label, sim_id, outcome_data) |>
+  unnest(outcome_data) |>
+  mutate(
+    total_damage = pavluk_damage + rogue_damage + champion_damage
+    )
+
+summary_data_tbl <- sim_data_tbl |>
+  summarise(
+    miss_count  = sum(total_damage == 0) / n(),
+    mean_damage = mean(total_damage),
+    median_damage = median(total_damage),
+    damage_p10    = quantile(total_damage, 0.1),
+    damage_p90    = quantile(total_damage, 0.9),
+    
+    .by = option_label
+  )
+
+ggplot() +
+  geom_histogram(aes(x = total_damage), binwidth = 1, data = sim_data_tbl) +
+  geom_vline(aes(xintercept = mean_damage),   data = summary_data_tbl, colour = "red") +
+  facet_wrap(vars(option_label), ncol = 1) +
+  labs(
+    x = "Total Damage",
+    y = "Sim Frequency",
+    title = "Simulated Damage of Chosen Option (10,000 sims)"
+    )
+```
+
+---
+
+```{r show_summary_data}
+#| echo: false
+
+summary_data_tbl |>
+  transmute(
+    Option      = option_label,
+    `Miss Prop` = miss_count |> round(4),
+    Mean        = mean_damage |> round(2),
+    Median      = median_damage,
+    P10         = damage_p10,
+    P90         = damage_p90
+    ) |>
+  knitr::kable()
+```
+
+---
+
+Looks like Pavluk is spell-casting...
+
+
 # Summary
 
 ---
 
-+/- 3 on average
++/- 3 on average (all test difficulties)
+
+\
+
+Advantage about +4 for gameplay
 
 \
 
@@ -698,10 +919,14 @@ Effects non-intuitive
 
 Stand-Up Maths YouTube Channel
 
+[https://www.youtube.com/watch?v=X_DdGRjtwAo]()
+
 \
 
 
-[https://www.youtube.com/watch?v=X_DdGRjtwAo]()
+Joseph Newton
+
+[https://www.youtube.com/watch?v=R0gewfLILw0]()
 
 ---
 

@@ -1,0 +1,572 @@
+---
+title: "Generate Combat Outcome Simulations"
+author: "Mick Cooney <mickcooney@gmail.com>"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+---
+
+```{r knit_opts}
+#| include: false
+
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(glue)
+library(stringi)
+library(cowplot)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+n_sim <- 10000
+
+```
+
+
+# Generate Dice Rolls
+
+As we are simulating this combat under a number of different conditions, we
+want to make rolls for each of the different characters to see what different
+effects occur given bonuses, advantage and so on.
+
+In each case, we run our simulations for `n_sim` simulations.
+
+We want a function to generate those d20 rolls with both advantage and
+disadvantage.
+
+```{r generate_d20_rolls}
+#| echo: true
+
+generate_d20_rolls <- function(n_rolls) {
+  roll_tbl <- sample(1:20, 2 * n_rolls, replace = TRUE) |>
+    matrix(ncol = 2) |>
+    as_tibble(.name_repair = \(x) paste0("V", seq_along(x))) |>
+    transmute(
+      sim_id = 1:n(),
+      
+      adv = pmax(V1, V2),
+      dis = pmin(V1, V2),
+      str = V1
+      )
+  
+  return(roll_tbl)
+}
+```
+
+We then use this function to simulate all the attack rolls resulting from the
+different options.
+
+
+## Generate Rogue Dice Rolls
+
+We first look at the attack and damage rolls of our rogue. We also roll damage
+based on having and not having a sneak attack.
+
+```{r generate_rogue_dice_results}
+#| echo: true
+
+rogue_attacks_tbl <- generate_d20_rolls(n_rolls = n_sim) |>
+  pivot_longer(
+    cols      = !sim_id,
+    names_to  = "roll_subtype",
+    values_to = "roll_result"
+    ) |>
+  mutate(
+    character = "Rogue",
+    roll_type = "attack",
+    roll_mod  = 6,
+    
+    .after = sim_id
+    )
+
+rogue_attacks_tbl |> glimpse()
+
+
+rogue_damage_tbl <- sample(1:6, size = 6 * n_sim, replace = TRUE) |>
+  matrix(ncol = 6) |>
+  as_tibble(.name_repair = \(x) paste0("V", seq_along(x))) |>
+  transmute(
+    sim_id = 1:n(),
+    
+    basic       = V1,
+    crit        = V1 + V2,
+    basic_sneak = V1 + V3 + V4,
+    crit_sneak  = V1 + V2 + V3 + V4 + V5 + V6
+    ) |>
+  pivot_longer(
+    cols      = !sim_id,
+    names_to  = "roll_subtype",
+    values_to = "roll_result"
+    ) |>
+  mutate(
+    character = "Rogue",
+    roll_type = "damage",
+    roll_mod  = 4,
+    
+    .after = sim_id
+    )
+
+rogue_damage_tbl |> glimpse()
+```
+
+
+## Generate Champion Dice Rolls
+
+We now repeat this process for the Champion, though his weapon is the
+Greatsword which does 2d6 damage.
+
+```{r generate_champion_dice_results}
+#| echo: true
+
+champion_attacks_tbl <- generate_d20_rolls(n_rolls = n_sim) |>
+  pivot_longer(
+    cols      = !sim_id,
+    names_to  = "roll_subtype",
+    values_to = "roll_result"
+    ) |>
+  mutate(
+    character = "Champion",
+    roll_type = "attack",
+    roll_mod  = 5,
+    
+    .after = sim_id
+    )
+
+champion_attacks_tbl |> glimpse()
+
+
+champion_damage_tbl <- sample(1:6, size = 4 * n_sim, replace = TRUE) |>
+  matrix(ncol = 4) |>
+  as_tibble(.name_repair = \(x) paste0("V", seq_along(x))) |>
+  transmute(
+    sim_id = 1:n(),
+    
+    basic       = V1 + V2,
+    crit        = V1 + V2 + V3 + V4
+    ) |>
+  pivot_longer(
+    cols      = !sim_id,
+    names_to  = "roll_subtype",
+    values_to = "roll_result"
+    ) |>
+  mutate(
+    character = "Champion",
+    roll_type = "damage",
+    roll_mod  = 3,
+    
+    .after = sim_id
+    )
+
+champion_damage_tbl |> glimpse()
+```
+
+
+## Generate Pavluk Dice Rolls
+
+
+```{r generate_pavluk_dice_results}
+#| echo: true
+
+pavluk_attacks_tbl <- generate_d20_rolls(n_rolls = n_sim) |>
+  pivot_longer(
+    cols      = !sim_id,
+    names_to  = "roll_subtype",
+    values_to = "roll_result"
+    ) |>
+  mutate(
+    character = "Pavluk",
+    roll_type = "attack",
+    roll_mod  = 5,
+    
+    .after = sim_id
+    )
+
+pavluk_attacks_tbl |> glimpse()
+
+
+pavluk_damage_tbl <- sample(1:6, size = 8 * n_sim, replace = TRUE) |>
+  matrix(ncol = 8) |>
+  as_tibble(.name_repair = \(x) paste0("V", seq_along(x))) |>
+  transmute(
+    sim_id = 1:n(),
+    
+    basic       = V1 + V2 + V3 + V4,
+    crit        = V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8
+    ) |>
+  pivot_longer(
+    cols      = !sim_id,
+    names_to  = "roll_subtype",
+    values_to = "roll_result"
+    ) |>
+  mutate(
+    character = "Pavluk",
+    roll_type = "damage",
+    roll_mod  = 0,
+    
+    .after = sim_id
+    )
+
+pavluk_damage_tbl |> glimpse()
+```
+
+## Generate Enemy Data
+
+We now want to simulate the different possibilities for the targets AC.
+
+```{r generate_target_data}
+#| echo: true
+
+target_ac_tbl <- sample(
+    x       = c(13, 14),
+    prob    = c(0.2, 0.8),
+    size    = n_sim,
+    replace = TRUE
+    ) |>
+  enframe(
+    name  = "sim_id",
+    value = "target_ac"
+    )
+
+target_ac_tbl |> glimpse()
+```
+
+
+## Combine Simulation Data
+
+We now combine all these generated simulation data.
+
+
+```{r combine_simulation_outcome_data}
+#| echo: true
+
+dice_outcomes_tbl <- list(
+    champion_attacks_tbl,
+    champion_damage_tbl,
+    rogue_attacks_tbl,
+    rogue_damage_tbl,
+    pavluk_attacks_tbl,
+    pavluk_damage_tbl
+    ) |>
+  bind_rows() |>
+  arrange(sim_id, character, roll_type, roll_subtype) |>
+  inner_join(target_ac_tbl, by = "sim_id")
+
+dice_outcomes_tbl |> glimpse()
+```
+
+
+
+
+
+
+# Calculate Outcomes
+
+We now need to put the dice rolls together to figure out the range of
+possible for our different choices.
+
+```{r resolve_attack_roll}
+#| echo: true
+
+resolve_attack_roll <- function(roll, mod, target_ac, crit_range = c(20)) {
+  if(roll %in% crit_range) {
+    return("crit")
+  } else if((roll + mod) > target_ac) {
+    return("basic")
+  } else {
+    return("miss")
+  }
+  
+  return("Error")
+}
+```
+
+
+
+```{r calculate_simulation_outcome}
+#| echo: TRUE
+
+calculate_simulation_outcome <- function(
+    sim_dice_tbl, rogue_adv = FALSE, rogue_sneak = FALSE,
+    champion_adv = FALSE, pavluk_attack = FALSE
+    ) {
+
+  
+  sim_target_ac <- sim_dice_tbl |>
+    pull(target_ac) |>
+    unique()
+  
+  determine_attack_result <- function(r, m)
+    resolve_attack_roll(
+      roll       = r,
+      mod        = m,
+      target_ac  = sim_target_ac,
+      crit_range = 20
+      )
+
+  determine_champion_attack_result <- function(r, m)
+    resolve_attack_roll(
+      roll       = r,
+      mod        = m,
+      target_ac  = sim_target_ac,
+      crit_range = c(19, 20)
+      )
+
+  
+    
+  ### First resolve Pavluk's spell attack if necessary  
+  if(pavluk_attack == TRUE) {
+    pavluk_attack_roll <- sim_dice_tbl |>
+      filter(
+        character    == "Pavluk",
+        roll_type    == "attack",
+        roll_subtype == "str"
+        ) |>
+      mutate(
+        attack_hit = map2_chr(roll_result, roll_mod, determine_attack_result)
+        ) |>
+      pull(attack_hit) |>
+      extract2(1)
+    
+    pavluk_damage <- sim_dice_tbl |>
+      filter(
+        character    == "Pavluk",
+        roll_type    == "damage",
+        roll_subtype == pavluk_attack_roll
+        ) |>
+      mutate(
+        total_damage = roll_result + roll_mod
+        ) |>
+      pull(total_damage)
+
+    if(length(pavluk_damage) == 0) pavluk_damage <- 0
+
+    if(pavluk_attack_roll != "miss") rogue_adv <- TRUE
+  } else {
+    pavluk_damage <- 0
+  }
+  
+
+  ### Resolve the Rogue's attacks
+  rogue_attack_roll <- sim_dice_tbl |>
+    filter(
+      character    == "Rogue",
+      roll_type    == "attack",
+      roll_subtype == if_else(rogue_adv == TRUE, "adv", "str")
+      ) |>
+    mutate(
+      attack_hit = map2_chr(roll_result, roll_mod, determine_attack_result)
+      ) |>
+    pull(attack_hit) |>
+    extract2(1)
+#print(rogue_attack_roll)  
+  rogue_attack_roll <- str_c(
+    rogue_attack_roll,
+    if_else(rogue_sneak == TRUE, "_sneak", "")
+    )
+#print(rogue_attack_roll)  
+
+  rogue_damage <- sim_dice_tbl |>
+    filter(
+      character    == "Rogue",
+      roll_type    == "damage",
+      roll_subtype == rogue_attack_roll
+      ) |>
+    mutate(
+      total_damage = roll_result + roll_mod
+      ) |>
+    pull(total_damage)
+#print(rogue_damage)
+
+  if(length(rogue_damage) == 0) rogue_damage <- 0
+#print(rogue_damage)
+
+  ### Resolve the Champions's attacks
+  champion_attack_roll <- sim_dice_tbl |>
+    filter(
+      character    == "Champion",
+      roll_type    == "attack",
+      roll_subtype == if_else(champion_adv == TRUE, "adv", "str")
+      ) |>
+    mutate(
+      attack_hit = map2_chr(roll_result, roll_mod, determine_attack_result)
+      ) |>
+    pull(attack_hit) |>
+    extract2(1)
+  
+  champion_damage <- sim_dice_tbl |>
+    filter(
+      character    == "Champion",
+      roll_type    == "damage",
+      roll_subtype == champion_attack_roll
+      ) |>
+    mutate(
+      total_damage = roll_result + roll_mod
+      ) |>
+    pull(total_damage)
+
+  if(length(champion_damage) == 0) champion_damage <- 0
+
+  
+  
+  ### Gather the results together and return the tibble
+  # message(glue("target_ac is {sim_target_ac}"))
+  # message(glue("pavluk damage is {pavluk_damage}"))
+  # message(glue("rogue damage is {rogue_damage}"))
+  # message(glue("champion damage is {champion_damage}"))
+  
+  results_data_tbl <- tibble(
+    target_ac       = sim_target_ac,
+    pavluk_damage   = pavluk_damage,
+    rogue_damage    = rogue_damage,
+    champion_damage = champion_damage
+    )
+  
+  return(results_data_tbl)
+}
+```
+
+We now simulate these outcomes using our various options.
+
+
+## Construct Option Settings
+
+So we have three different options that result in a few different settings. To
+do this, we want to construct a function that takes the dice roll data and
+determines the outcomes of the dice rolls and damage.
+
+
+```{r calculate_option_outcome}
+#| echo: true
+
+calculate_option_outcome <- function(p_a, r_a, r_s, c_a) {
+  
+  sim_outcome_func <- function(sim_outcomes_tbl) {
+    
+    outcome_data_tbl <- calculate_simulation_outcome(
+      sim_dice_tbl  = sim_outcomes_tbl,
+      pavluk_attack = p_a,
+      rogue_adv     = r_a,
+      rogue_sneak   = r_s,
+      champion_adv  = c_a
+      )
+  
+    return(outcome_data_tbl)
+  }
+
+  return(sim_outcome_func)
+}
+```
+
+
+```{r construct_pavluk_options_table}
+#| echo: true
+
+action_options_tbl <- tribble(
+  
+      ~option_label, ~pavluk_attack, ~rogue_adv, ~rogue_sneak, ~champion_adv,
+       "Help Rogue",          FALSE,       TRUE,         TRUE,         FALSE,
+       "Cast Spell",           TRUE,      FALSE,         TRUE,         FALSE,
+    "Help Champion",          FALSE,      FALSE,        FALSE,          TRUE
+    ) |>
+  mutate(
+    outcome_func = pmap(
+      list(
+        p_a = pavluk_attack,
+        r_a = rogue_adv,
+        r_s = rogue_sneak,
+        c_a = champion_adv
+        ),
+      calculate_option_outcome
+      )
+    )
+
+
+action_options_tbl |> glimpse()
+```
+
+
+
+We now want to generate the simulation outcomes
+
+```{r setup_simulation_data}
+#| echo: true
+
+sim_input_data_tbl <- expand_grid(
+    action_options_tbl,
+    dice_outcomes_tbl |> group_nest(sim_id)
+    )
+
+sim_input_data_tbl |> glimpse()
+```
+
+```{r run_simulation_outcomes}
+#| echo: true
+
+sim_output_data_tbl <- sim_input_data_tbl |>
+  mutate(
+    outcome_data = map2(
+      outcome_func, data,
+      exec,
+
+      .progress = "running_sims"
+      )
+    )
+
+sim_output_data_tbl |> glimpse()
+```
+
+## Write to Disk
+
+We now write this data to disk.
+
+```{r write_sim_output_disk}
+#| echo: true
+
+sim_output_data_tbl |> write_rds("data/sim_output_data_tbl.rds")
+```
+
+
+# R Environment {.unnumbered}
+
+```{r show_session_info, echo=TRUE, message=TRUE}
+options(width = 120L)
+sessioninfo::session_info()
+options(width = 80L)
+```
+
