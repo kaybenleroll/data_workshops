@@ -1,18 +1,20 @@
-Version: 1.0
+---
+title: "RAG"
+subtitle: "A Use Case"
+author: "Mick Cooney <mcooney@describedata.com>"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  revealjs:
+    self-contained: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    css: styles.css
+---
 
-RestoreWorkspace: Default
-SaveWorkspace: Default
-AlwaysSaveHistory: Default
-
-EnableCodeIndexing: Yes
-UseSpacesForTab: Yes
-NumSpacesForTab: 2
-Encoding: UTF-8
-
-RnwWeave: knitr
-LaTeX: pdfLaTeX
-
-AutoAppendNewline: Yes
-StripTrailingWhitespace: Yes
-
-BuildType: Makefile

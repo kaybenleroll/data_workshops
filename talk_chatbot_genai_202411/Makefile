@@ -12,13 +12,13 @@ DOCKER_GID=$(shell id -g)
 
 RSTUDIO_PORT=8787
 
-PROJECT_FOLDER=dndtalk
+PROJECT_FOLDER=genai_talk
 
 
 ### Set GITHUB_USER with 'gh config set gh_user <<user>>'
 GITHUB_USER=$(shell gh config get gh_user)
 
-CONTAINER_NAME=dnd-talk
+CONTAINER_NAME=genai-talk
 
 ### Project build targets
 .SUFFIXES: .qmd .html .dot .png
