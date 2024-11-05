@@ -1,0 +1,18 @@
+* {
+text-align: center;
+}
+
+.reveal table {
+  font-size: 80%;
+}
+
+.custom-small table {
+  font-size: .5em
+}
+
+h1.title {
+  background-image: url(img/describedata.png), url(img/fourtheorem.png);
+  background-repeat: no-repeat;
+  background-position: left, right;
+  background-size: 300px, 300px;
+}
