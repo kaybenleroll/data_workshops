@@ -1,0 +1,1305 @@
+---
+title: "BTYD Modelling with Stan"
+subtitle: "Dublin Data Science"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Wednesday, April 30 2025"
+editor: source
+format:
+  revealjs:
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(scales)
+library(cowplot)
+library(glue)
+library(fs)
+library(rfm)
+library(CLVTools)
+library(cmdstanr)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+library(arrow)
+
+
+source("lib_utils.R")
+source("lib_btyd.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+```{r load_data}
+#| include: false
+
+retail_rawdata_tbl <- read_parquet("data/retail_rawdata_tbl.parquet")
+retail_cleaned_tbl <- read_parquet("data/retail_cleaned_tbl.parquet")
+
+customer_transactions_tbl <- read_parquet("data/customer_transactions_tbl.parquet")
+
+synthdata_longframe_transactions_tbl <- read_parquet("data/synthdata_longframe_transactions_tbl.parquet")
+synthdata_longframe_simparams_tbl    <- read_parquet("data/synthdata_longframe_simparams_tbl.parquet")
+
+
+btyd_fitdata_tbl   <- read_parquet("data/btyd_fitdata_tbl.parquet")
+btyd_obs_stats_tbl <- read_parquet("data/btyd_obs_stats_tbl.parquet")
+
+```
+
+
+# Background
+
+---
+
+Before I Begin...
+
+---
+
+This talk is brought to you in association with
+
+\
+
+
+![](img/captain_hindsight.png)
+
+
+
+## Bayesian Mixer
+
+\
+
+
+![](img/glenn_meyers.png)
+
+
+
+## Dublin Data Science
+
+![](img/dds_pedro.png)
+
+---
+
+[Data Science: Soup to Nuts](https://www.youtube.com/playlist?list=PLBNUi5C90QfZ5t1JrgAtz_LXvCB7Eh5iu)
+
+\
+
+
+![](img/youtube_playlist.png)
+
+
+## Goals
+
+\
+
+
+1. Teach Bayes
+2. Use realistic problem
+3. Learn BTYD
+
+---
+
+How hard can it be???
+
+
+
+# Customer Lifetime Value
+
+---
+
+UCI Machine Learning Repository
+
+\
+
+Online Retail II
+
+\
+
+
+[https://archive-beta.ics.uci.edu/dataset/502/online+retail+ii]()
+
+
+
+## Transaction Data
+
+\
+
+
+```{r show_tnx_rawdata}
+#| echo: false
+
+retail_rawdata_tbl %>% select(-excel_sheet) %>% head(5)
+```
+
+---
+
+```{r show_tnx_cleaned}
+#| echo: false
+
+retail_cleaned_tbl %>% select(-excel_sheet) %>% head(5)
+```
+
+---
+
+```{r show_customer_transactions}
+#| echo: false
+
+customer_transactions_tbl %>% head(5)
+```
+
+---
+
+```{r visualise_transaction_data}
+#| echo: false
+
+plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id) %>%
+  slice_sample(n = 30) %>%
+  unnest(data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Date",
+    y = "Customer ID",
+    title = "Visualisation of Transaction Times for 30 Customers"
+    ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 10)
+    )
+```
+
+---
+
+```{r visualise_transaction_data_more}
+#| echo: false
+
+plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id) %>%
+  mutate(tnx_count = map_int(data, nrow)) %>%
+  filter(tnx_count > 2, tnx_count < 100) %>%
+  slice_sample(n = 30) %>%
+  unnest(data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point(aes(colour = total_spend)) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(
+    x      = "Transaction Date",
+    y      = "Customer ID",
+    colour = "Amt",
+    title  = "Visualisation of Transaction Times for Second Sample"
+    ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 10)
+    )
+```
+
+
+
+
+## RFM Models
+
+\
+
+
+Recency
+
+\
+
+
+Frequency
+
+\
+
+
+Monetary
+
+
+---
+
+```{r construct_rfm_data}
+#| echo: false
+
+customer_rfmdata <- customer_transactions_tbl %>%
+  filter(tnx_timestamp <= as.POSIXct("2011-01-01")) %>%
+  rfm_table_order(
+    customer_id   = customer_id,
+    order_date    = tnx_timestamp,
+    revenue       = total_spend,
+    analysis_date = as.POSIXct("2011-01-01")
+    )
+
+customer_rfmdata$rfm %>% head(5)
+```
+
+---
+
+![](img/rfm_heat_map.png)
+
+---
+
+![](img/rfm_segments.png)
+
+---
+
+Not much statistics...
+
+---
+
+Censored data
+
+---
+
+Survival analysis?
+
+
+
+# BTYD Models
+
+---
+
+Buy Till You Die
+
+---
+
+Counting Your Customers: Who Are They and What Will They Do Next?
+
+\
+
+(SMC Paper)
+
+---
+
+Peter Fader
+
+\
+
+
+Bruce Hardie
+
+\
+
+
+[http://www.brucehardie.com]()
+
+
+---
+
+Statistical distributions of transactions
+
+\
+
+
+![](img/clv_pnbd_arrow.png)
+
+---
+
+
+$$
+\begin{eqnarray*}
+x &=& \text{count of transactions}         \\
+t_x &=& \text{time from birth to last transaction}    \\
+T   &=& \text{time from birth to observation time}
+\end{eqnarray*}
+$$
+
+$$
+\text{Data: } (x, t_x, T)
+$$
+
+
+## P/NBD Models
+
+\
+
+
+$$
+\begin{eqnarray*}
+x &\sim& \text{Poisson}(\lambda)          \\
+\tau &\sim& \text{Exponential}(\mu)       \\
+\\
+\lambda &\sim& \text{Gamma}(\alpha, r)    \\
+\mu &\sim& \text{Gamma}(s, \beta)         \\
+\end{eqnarray*}
+$$
+
+---
+
+$$
+\text{Parameters: } (\alpha, r, s, \beta)
+$$
+
+
+
+## BG/NBD Models
+
+\
+
+
+$$
+\begin{eqnarray*}
+x &\sim& \text{Poisson}(\lambda)                  \\
+P(\text{alive}, k) &\sim& \text{Geometric}(p, k)  \\
+\\
+\lambda &\sim& \text{Gamma}(\alpha, r)            \\
+p &\sim& \text{Beta}(a, b)                        \\
+\end{eqnarray*}
+$$
+
+---
+
+$$
+\text{Parameters: } (\alpha, r, a, b)
+$$
+
+---
+
+But what about monetary?
+
+
+
+## G/G Spend Models
+
+\
+
+
+$$
+\begin{eqnarray*}
+v &\sim& \text{Gamma}(p, \nu)     \\
+\\
+p &\sim& \text{Gamma}(q, \gamma)  \\
+\end{eqnarray*}
+$$
+
+---
+
+$$
+\text{Parameters: } (\nu, q, \gamma)
+$$
+
+
+## First Attempts
+
+\
+
+
+```{r}
+#| echo: false
+
+customer_clvdata <- customer_transactions_tbl %>%
+  semi_join(
+    btyd_fitdata_tbl %>% filter(first_tnx_date < as.POSIXct("2011-01-01")),
+    by = "customer_id") %>%
+  clvdata(
+    date.format      = "%Y-%m-%d",
+    time.unit        = "weeks",
+    estimation.split = as.POSIXct("2011-01-01"),
+    name.id          = "customer_id",
+    name.date        = "tnx_timestamp",
+    name.price       = "total_spend"
+    )
+
+first_pnbd <- pnbd(
+  clv.data           = customer_clvdata,
+  start.params.model = c(
+    r     = 0.5,
+    alpha = 10,
+    s     = 1,
+    beta  = 20
+    )
+  )
+
+
+first_pnbd %>% print()
+```
+
+---
+
+![](img/notsure_fry.png)
+
+---
+
+To Stan!!!
+
+![](img/onward.png)
+
+
+# Stan Code
+
+## Likelihood Model
+
+\
+
+
+$$
+\begin{eqnarray*}
+LL(\lambda, \mu \, | \, x, t_x, T) = x \log \lambda + \log \mu - \log(\lambda + \mu) \\
+  + \, \text{log_sum_exp}(A, \, B)\\
+\\
+A = -(\lambda + \mu) \, t_x \;\;\;\; B = \log \lambda - (\lambda + \mu) \, T
+\end{eqnarray*}
+$$
+
+---
+
+```{r setup_stan_models}
+#| include: false
+#| output: false
+
+stan_codedir  <- "stan_code"
+stan_modeldir <- "stan_model"
+```
+
+
+
+```{r fit_full_pnbd_model}
+#| include: false
+
+
+pnbd_fullhier_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_fullhier.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+
+stan_modelname <- "pnbd_fullhier"
+
+stanfit_prefix      <- glue("fit_{stan_modelname}")
+stanfit_object_file <- glue("data/{stanfit_prefix}_stanfit.rds")
+
+
+stan_data_lst <- btyd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    r_p1      = 0,
+    r_p2      = 1,
+
+    alpha_p1  = 0,
+    alpha_p2  = 1,
+    
+    s_p1      = 0,
+    s_p2      = 1,
+    
+    beta_p1   = 0,
+    beta_p2   = 1
+    )
+
+if(!file_exists(stanfit_object_file)) {
+  pnbd_fullhier_stanfit <- pnbd_fullhier_stanmodel$sample(
+    data            =                stan_data_lst,
+    chains          =                            4,
+    iter_warmup     =                          500,
+    iter_sampling   =                          500,
+    seed            =                         4201,
+    save_warmup     =                        FALSE,
+    adapt_delta     =                         0.80,
+    output_dir      =                stan_modeldir,
+    output_basename =               stanfit_prefix,
+    )
+  
+  pnbd_fullhier_stanfit$save_object(stanfit_object_file, compress = "gzip")
+} else {
+  pnbd_fullhier_stanfit <- read_rds(stanfit_object_file)
+}
+
+diag_str <- pnbd_fullhier_stanfit$cmdstan_diagnose()
+```
+
+```{r show_pnbd_fullhier_diagnostics}
+#| echo: false
+
+diag_str$stdout %>%
+  str_split("\n") %>%
+  extract2(1) %>%
+  tail(-6) %>%
+  cat(sep = "\n")
+```
+
+
+---
+
+
+```{r show_fullhier_traceplots}
+#| echo: false
+
+
+pnbd_fullhier_stanfit$draws() %>%
+  mcmc_trace(pars = c("r", "alpha", "s", "beta")) +
+  expand_limits(y = 0) +
+  labs(
+    x = "Iteration",
+    y = "Value",
+    title = "Traceplot of Hierarchical Parameters"
+    ) +
+  theme(axis.text.x = element_text(size = 10))
+```
+
+---
+
+```{r show_fullhier_ess_ratios}
+#| echo: false
+
+pnbd_fullhier_stanfit %>%
+  neff_ratio(pars = c("r", "alpha", "s", "beta")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+---
+
+![](img/eleanor_awesome.png)
+
+Well that doesn't look awesome...
+
+
+
+
+## Simulation-Based Calibration
+
+\
+
+1. Set values for parameters
+1. Use statistical model to generate data
+1. Fit model with model
+1. Compare fitted values to 'real' values
+
+
+---
+
+But before we get to that...
+
+---
+
+### Gamma Distribution
+
+```{r plot_gamma_distribution}
+#| echo: false
+
+x_vals <- seq(0, 1.0, by = 0.001)
+
+gamma_params_tbl <- tribble(
+       ~distrib_label,  ~p_shape,     ~p_rate,
+    "Gamma(0.1, 0.4)",       0.1,         0.4,
+        "Gamma(1, 4)",       1.0,         4.0,
+       "Gamma(5, 20)",       5.0,        20.0,
+      "Gamma(10, 40)",      10.0,        40.0,
+    ) %>%
+  mutate(
+    data = map2(
+      p_shape, p_rate,
+      ~ tibble(x = x_vals, dens = dgamma(x_vals, shape = .x, rate = .y))
+      )
+    ) %>%
+  unnest(data) %>%
+  filter(x >= 0.01)
+
+
+ggplot(gamma_params_tbl) +
+  geom_line(aes(x = x, y = dens, colour = distrib_label)) +
+  labs(
+    x      = "Value",
+    y      = "Density",
+    colour = "Distribution",
+    title  = "Density Plots for Selection of Gamma Distributions"
+    )
+```
+
+---
+
+Reparameterise
+
+\
+
+
+$$
+\text{Gamma}(r, \alpha) \rightarrow \text{Gamma}(\mu, c_v)
+$$
+
+\
+
+
+$$
+\begin{eqnarray*}
+\mu   &=& \text{ Mean} \\
+c_v   &=& \text{ Coefficient of Variation}
+\end{eqnarray*}
+$$
+
+---
+
+$$
+\begin{eqnarray*}
+r      &=& \frac{1}{c_v^2}      \\
+\\
+\alpha &=& \frac{1}{\mu \, c_v^2}
+\end{eqnarray*}
+$$
+
+---
+
+```{r plot_reparam_gamma_distribution}
+#| echo: false
+
+dgamma_mucv <- function(x, mu, cv) {
+  new_params <- gamma_mucv2shaperate(mu, cv)
+  
+  dgamma(x, shape = new_params[1], rate = new_params[2])
+}
+
+x_vals <- seq(0, 1.0, by = 0.001)
+
+gamma_params_tbl <- tribble(
+       ~distrib_label,       ~p_mu,       ~p_cv,
+    "Gamma(c_v = 0.25)",      0.25,        0.25,
+    "Gamma(c_v = 0.50)",      0.25,        0.50,
+    "Gamma(c_v = 1.00)",      0.25,        1.00,
+    "Gamma(c_v = 2.00)",      0.25,        2.00,
+    ) %>%
+  mutate(
+    data = map2(
+      p_mu, p_cv,
+      ~ tibble(x = x_vals, dens = dgamma_mucv(x_vals, mu = .x, cv = .y))
+      )
+    ) %>%
+  unnest(data) %>%
+  filter(x >= 0.01)
+
+
+ggplot(gamma_params_tbl) +
+  geom_line(aes(x = x, y = dens, colour = distrib_label)) +
+  labs(
+    x      = "Value",
+    y      = "Density",
+    colour = "Distribution",
+    title  = "Density Plots for Selection of Gamma Distributions"
+    )
+```
+
+---
+
+Use this parameterisation from now on
+
+
+# Models of Synthetic Data
+
+## Long Timeframe Data
+
+---
+
+Generate synthetic transactions over longer time period
+
+
+---
+
+
+```{r visualise_longframe_synth_transaction_data}
+#| echo: false
+
+plot_tbl <- synthdata_longframe_transactions_tbl %>%
+  group_nest(customer_id) %>%
+  filter(map_int(data, nrow) >= 2) %>%
+  slice_sample(n = 30) %>%
+  unnest(data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Date",
+    y = "Customer ID",
+    title = "Visualisation of Transaction Times for 30 Customers"
+    ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 10)
+    )
+```
+
+---
+
+
+```{r fit_pnbd_longframe_synth_model}
+#| include: false
+
+synthdata_5000_tbl <- synthdata_longframe_transactions_tbl %>%
+  group_nest(customer_id) %>%
+  slice_sample(n = 5000) %>% 
+  unnest(data)
+
+btyd_longframe_synth_fitdata_tbl <- synthdata_5000_tbl %>% 
+  calculate_transaction_cbs_data(last_date = as.POSIXct("2017-12-31"))
+
+stan_modelname <- "pnbd_longframe_synth"
+
+stanfit_prefix      <- glue("fit_{stan_modelname}")
+stanfit_object_file <- glue("data/{stanfit_prefix}_stanfit.rds")
+
+stan_data_lst <- btyd_longframe_synth_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    r_p1      = 0,
+    r_p2      = 1,
+
+    alpha_p1  = 0,
+    alpha_p2  = 1,
+    
+    s_p1      = 0,
+    s_p2      = 1,
+    
+    beta_p1   = 0,
+    beta_p2   = 1
+    )
+
+if(!file_exists(stanfit_object_file)) {
+  pnbd_longframe_synth_stanfit <- pnbd_fullhier_stanmodel$sample(
+    data            =                stan_data_lst,
+    chains          =                            4,
+    iter_warmup     =                          500,
+    iter_sampling   =                          500,
+    seed            =                         4202,
+    save_warmup     =                        FALSE,
+    adapt_delta     =                         0.90,
+    output_dir      =                stan_modeldir,
+    output_basename =               stanfit_prefix,
+    )
+
+  pnbd_longframe_synth_stanfit$save_object(stanfit_object_file, compress = "gzip")
+} else {
+  pnbd_longframe_synth_stanfit <- read_rds(stanfit_object_file)
+}
+
+
+diag_str <- pnbd_longframe_synth_stanfit$cmdstan_diagnose()
+```
+
+```{r calc_pnbd_longframe_synth_diagnostics}
+#| echo: false
+
+diag_str$stdout %>%
+  str_split("\n") %>%
+  extract2(1) %>%
+  tail(-6) %>%
+  cat(sep = "\n")
+```
+
+---
+
+```{r show_pnbd_longframe_synth_ess_ratios}
+#| echo: false
+
+pnbd_longframe_synth_stanfit %>%
+  neff_ratio(pars = c("r", "alpha", "s", "beta")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+---
+
+![](img/star_wars_fail.png)
+
+
+---
+
+Try fixed priors
+
+---
+
+
+```{r fit_pnbd_fixedprior_longframe_synth_model}
+#| include: false
+
+pnbd_fixedprior_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_fixed.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+
+stan_modelname <- "pnbd_fixedprior"
+
+stanfit_prefix      <- glue("fit_{stan_modelname}")
+stanfit_object_file <- glue("data/{stanfit_prefix}_stanfit.rds")
+
+stan_data_lst <- btyd_longframe_synth_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn  = 0.25,
+    lambda_cv  = 1.00,
+
+    mu_mn      = 0.10,
+    mu_cv      = 1.00
+    )
+
+if(!file_exists(stanfit_object_file)) {
+  pnbd_fixedprior_longframe_synth_stanfit <- pnbd_fixedprior_stanmodel$sample(
+    data            =                stan_data_lst,
+    chains          =                            4,
+    iter_warmup     =                          500,
+    iter_sampling   =                          500,
+    seed            =                         4203,
+    save_warmup     =                        FALSE,
+    adapt_delta     =                         0.90,
+    output_dir      =                stan_modeldir,
+    output_basename =               stanfit_prefix,
+    )
+
+  pnbd_fixedprior_longframe_synth_stanfit$save_object(stanfit_object_file, compress = "gzip")
+} else {
+  pnbd_fixedprior_longframe_synth_stanfit <- read_rds(stanfit_object_file)
+}
+
+
+diag_str <- pnbd_fixedprior_longframe_synth_stanfit$cmdstan_diagnose()
+```
+
+```{r show_pnbd_fixedprior_longframe_synth_diagnostics}
+#| echo: false
+
+diag_str$stdout %>%
+  str_split("\n") %>%
+  extract2(1) %>%
+  tail(-6) %>%
+  cat(sep = "\n")
+```
+
+---
+
+```{r show_pnbd_fixedprior_longframe_synth_ess_ratios}
+#| echo: false
+
+pnbd_fixedprior_longframe_synth_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+
+---
+
+
+```{r calculate_fixedprior_longframe_synth_data}
+#| echo: false
+
+fixedprior_longframe_synth_validation_tbl <- pnbd_fixedprior_longframe_synth_stanfit %>%
+  recover_types(btyd_longframe_synth_fitdata_tbl) %>%
+  spread_draws(lambda[customer_id], mu[customer_id]) %>%
+  ungroup() %>%
+  inner_join(synthdata_longframe_simparams_tbl, by = "customer_id") %>%
+  select(
+    customer_id, draw_id = .draw, post_lambda = lambda, customer_lambda,
+    post_mu = mu, customer_mu
+    )
+
+fixedprior_longframe_synth_qvals_tbl <- fixedprior_longframe_synth_validation_tbl %>%
+  group_by(customer_id, customer_lambda, customer_mu) %>%
+  summarise(
+    .groups = "drop",
+    
+    lambda_vals = list(post_lambda), mu_vals = list(post_mu)
+    ) %>%
+  mutate(
+    lambda_qval = map2_dbl(lambda_vals, customer_lambda, ~ ecdf(.x)(.y)),
+    mu_qval     = map2_dbl(mu_vals,     customer_mu,     ~ ecdf(.x)(.y))
+    )
+```
+
+```{r plot_fixedprior_longframe_synth_data_boxplot}
+#| echo: false
+
+plot_tbl <- fixedprior_longframe_synth_validation_tbl %>%
+  group_by(customer_id) %>%
+  summarise(
+    .groups = "drop",
+    
+    customer_lambda = unique(customer_lambda),
+    
+    lambda_p10 = quantile(post_lambda, 0.10),
+    lambda_p25 = quantile(post_lambda, 0.25),
+    lambda_p50 = quantile(post_lambda, 0.50),
+    lambda_p75 = quantile(post_lambda, 0.75),
+    lambda_p90 = quantile(post_lambda, 0.90),
+
+    lambda_mn  = mean(post_lambda),
+
+    customer_mu = unique(customer_mu),
+
+    mu_p10 = quantile(post_mu, 0.10),
+    mu_p25 = quantile(post_mu, 0.25),
+    mu_p50 = quantile(post_mu, 0.50),
+    mu_p75 = quantile(post_mu, 0.75),
+    mu_p90 = quantile(post_mu, 0.90),
+
+    mu_mn  = mean(post_mu)
+    )
+
+ggplot(plot_tbl %>% slice_sample(n = 30)) +
+  geom_errorbar(aes(x = customer_id, ymin = lambda_p10, ymax = lambda_p90), size = 1, width = 0) +
+  geom_errorbar(aes(x = customer_id, ymin = lambda_p25, ymax = lambda_p75), size = 3, width = 0) +
+  geom_point(aes(x = customer_id, y = customer_lambda), colour = "red") +
+  labs(
+    x = "Customer",
+    y = "Lambda",
+    title = "Sample Comparisons of Posterior Values for Lambda"
+    ) +
+  theme(axis.text.x = element_text(angle = 20, size = 6))
+```
+
+---
+
+```{r plot_fixedprior_longframe_synth_data_qvals}
+#| echo: false
+
+plot_tbl <- fixedprior_longframe_synth_qvals_tbl %>%
+  select(customer_id, lambda_qval, mu_qval) %>%
+  pivot_longer(
+    cols      = !customer_id,
+    names_to  = "label",
+    values_to = "qval"
+  )
+
+ggplot(plot_tbl) +
+  geom_histogram(aes(x = qval), bins = 50) +
+  facet_wrap(vars(label), nrow = 2, scales = "free") +
+  labs(
+    x = "q-Value",
+    y = "Frequency",
+    title = "Histogram of q-Values for Lambda"
+    )
+```
+
+---
+
+Do not have parameters normally
+
+\
+
+Create observable comparisons
+
+---
+
+1. Count of customers transacting
+1. Count of all transactions
+
+---
+
+![](img/longframe_fixed_fit_tnxcount.png)
+
+---
+
+![](img/longframe_fixed_fit_tnxcount_quantiles.png)
+
+---
+
+![](img/longframe_fixed_valid_tnxcount.png)
+
+---
+
+![](img/longframe_fixed_valid_tnxcount_quantiles.png)
+
+## Using the Outputs
+
+---
+
+```{r plot_posterior_lambda_mu_combinations}
+#| echo: false
+
+plot_data_tbl <- fixedprior_longframe_synth_validation_tbl |>
+  summarise(
+    mean_lm = mean(post_lambda),
+    mean_mu = mean(post_mu),
+    
+    .by = customer_id
+    )
+
+ggplot(plot_data_tbl) +
+  geom_point(aes(x = mean_lm, y = mean_mu)) +
+  expand_limits(x = 0, y = 0) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(
+    x = expression(Posterior~Mean~lambda),
+    y = expression(Posterior~Mean~mu),
+    title =  "Posterior Summaries"
+    )
+  
+```
+
+---
+
+```{r plot_histogram_lambda_posterior_quantile_ratios}
+#| echo: false
+
+posterior_ratio_data_tbl <- fixedprior_longframe_synth_validation_tbl |>
+  summarise(
+    lm_p10 = quantile(post_lambda, 0.10),
+    lm_p90 = quantile(post_lambda, 0.90),
+    mu_p10 = quantile(post_mu, 0.10),
+    mu_p90 = quantile(post_mu, 0.90),
+
+    .by = customer_id
+    ) |>
+  mutate(
+    lm_ratio = lm_p90 / lm_p10,
+    mu_ratio = mu_p90 / mu_p10
+    )
+
+ggplot(posterior_ratio_data_tbl) +
+  geom_histogram(aes(x = lm_ratio), bins = 50) +
+  labs(
+    x = expression(Quantile~Ratio~lambda),
+    y = "Frequency",
+    title = "Histogram for Ratios"
+    )
+  
+```
+
+---
+
+```{r plot_histogram_mu_posterior_quantile_ratios}
+#| echo: false
+
+ggplot(posterior_ratio_data_tbl) +
+  geom_histogram(aes(x = mu_ratio), bins = 50) +
+  labs(
+    x = expression(Quantile~Ratio~mu),
+    y = "Frequency",
+    title = "Histogram for Ratios"
+    )
+  
+```
+
+
+
+# Future Steps
+
+## Models on Real-World Data
+
+---
+
+```{r visualise_realworld_transaction_data_redux}
+#| echo: false
+
+plot_tbl <- customer_transactions_tbl %>%
+  group_nest(customer_id) %>%
+  slice_sample(n = 30) %>%
+  unnest(data)
+
+ggplot(plot_tbl, aes(x = tnx_timestamp, y = customer_id, group = customer_id)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Transaction Date",
+    y = "Customer ID",
+    title = "Visualisation of Transaction Times for 30 Customers"
+    ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 10)
+    )
+```
+
+---
+
+```{r fit_pnbd_fixedprior_extdata_model}
+#| include: false
+
+pnbd_fixedprior_extdata_stanmodel <- cmdstan_model(
+  "stan_code/pnbd_fixed.stan",
+  include_paths =   stan_codedir,
+  pedantic      =           TRUE,
+  dir           =  stan_modeldir
+  )
+
+stan_modelname <- "pnbd_fixedprior_extdata"
+
+stanfit_prefix      <- glue("fit_{stan_modelname}")
+stanfit_object_file <- glue("data/{stanfit_prefix}_stanfit.rds")
+
+stan_data_lst <- btyd_fitdata_tbl %>%
+  select(customer_id, x, t_x, T_cal) %>%
+  compose_data(
+    lambda_mn  = 0.25,
+    lambda_cv  = 1.00,
+
+    mu_mn      = 0.30,
+    mu_cv      = 1.00
+    )
+
+if(!file_exists(stanfit_object_file)) {
+  pnbd_fixedprior_extdata_stanfit <- pnbd_fixedprior_extdata_stanmodel$sample(
+    data            =                stan_data_lst,
+    chains          =                            4,
+    iter_warmup     =                          500,
+    iter_sampling   =                          500,
+    seed            =                         4204,
+    save_warmup     =                        FALSE,
+    adapt_delta     =                         0.90,
+    output_dir      =                stan_modeldir,
+    output_basename =               stanfit_prefix,
+    )
+
+  pnbd_fixedprior_extdata_stanfit$save_object(stanfit_object_file, compress = "gzip")
+} else {
+  pnbd_fixedprior_extdata_stanfit <- read_rds(stanfit_object_file)
+}
+
+diag_str <- pnbd_fixedprior_extdata_stanfit$cmdstan_diagnose()
+```
+
+```{r show_pnbd_fixedprior_extdata_diagnostics}
+#| echo: false
+
+diag_str$stdout %>%
+  str_split("\n") %>%
+  extract2(1) %>%
+  tail(-6) %>%
+  cat(sep = "\n")
+```
+
+---
+
+```{r show_pnbd_fixedprior_extdata_ess_ratios}
+#| echo: false
+
+pnbd_fixedprior_longframe_synth_stanfit %>%
+  neff_ratio(pars = c("lambda", "mu")) %>%
+  mcmc_neff() +
+    ggtitle("Plot of Parameter Effective Sample Sizes")
+```
+
+---
+
+![](img/pnbd_fixed_extdata_custcount.png)
+
+---
+
+![](img/pnbd_fixed_extdata_tnxcount.png)
+
+
+## BG/NBD Model
+
+---
+
+No explicit lifetime model
+
+\
+
+
+Chance of lapsing, $p$, after transaction
+
+
+## Combined Model
+
+---
+
+```{r display_pnbd_combined_model_stancode}
+#| echo: FALSE
+
+read_lines("stan_code/pnbd_combined.stan") |>
+  extract(55:66) |>
+  cat(sep = "\n")
+```
+
+
+
+
+# Conclusion
+
+---
+
+![](img/captain_hindsight_sidekicks.png)
+
+---
+
+Lessons Learned
+
+
+## Workshop
+
+---
+
+Bad Idea
+
+---
+
+Better to use brms / rstanarm
+
+---
+
+Useful approach $\rightarrow$ Problem worth solving
+
+
+## BTYD Models
+
+---
+
+Re-do Data Generation
+
+---
+
+Pay attention to seasonality
+
+---
+
+Add monetary modelling
+
+
+
+
+
+# Thank You!
+
+\
+
+
+This talk...
+
+[https://github.com/kaybenleroll/data_workshops/talk_bm_btydbayes_202211]()
+
+\
+
+
+Workshop...
+
+[https://github.com/kaybenleroll/data_workshops/ws_clvbayes_202201]()
+
+
+
+
