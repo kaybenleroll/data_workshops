@@ -1,0 +1,1026 @@
+---
+title: "Survival Analysis with Stan"
+author: "Mick Cooney <mickcooney@gmail.com>"
+editor: source
+format:
+  revealjs:
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+    mathjax: true
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(arrow)
+library(qs)
+library(scales)
+library(cowplot)
+library(glue)
+library(cmdstanr)
+library(brms)
+library(rstanarm)
+library(posterior)
+library(bayesplot)
+library(tidybayes)
+library(survival)
+library(survminer)
+library(gt)
+
+
+source("lib_utils.R")
+source("lib_stan_diagnostics.R")
+source("lib_survival_modelling.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+```{r load_data_modelling}
+#| echo: false
+
+modelling_data_tbl <- read_parquet("data/model_training_small_tbl.parquet")
+
+actual_cashflows_tbl <- read_parquet("data/actual_cashflow_tbl.parquet")
+
+actual_monthly_tbl <- actual_cashflows_tbl |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+
+actual_monthly_recent_tbl <- actual_cashflows_tbl |>
+  filter(policy_startdate >= as.Date("2010-01-01")) |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+
+actual_monthly_lowprem_tbl <- actual_cashflows_tbl |>
+  filter(monthly_premium <= 1000) |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+```
+
+
+```{r load_data_lapse1}
+#| echo: false
+
+lapse1_sim_cashflow_tbl <- read_parquet("data/lapse1_sim_cashflow_tbl.parquet")
+
+lapse1_sim_monthly_cashflow_tbl <- lapse1_sim_cashflow_tbl |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(draw_id, cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+
+lapse1_sim_monthly_cashflow_recent_tbl <- lapse1_sim_cashflow_tbl |>
+  filter(policy_startdate >= as.Date("2010-01-01")) |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(draw_id, cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+
+lapse1_sim_monthly_cashflow_lowprem_tbl <- lapse1_sim_cashflow_tbl |>
+  filter(monthly_premium <= 1000) |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(draw_id, cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+```
+
+
+```{r load_data_lapse2}
+#| echo: false
+
+lapse2_sim_cashflow_tbl <- read_parquet("data/lapse2_sim_cashflow_tbl.parquet")
+
+lapse2_sim_monthly_cashflow_tbl <- lapse2_sim_cashflow_tbl |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(draw_id, cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+
+lapse2_sim_monthly_cashflow_recent_tbl <- lapse2_sim_cashflow_tbl |>
+  filter(policy_startdate >= as.Date("2010-01-01")) |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(draw_id, cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+
+lapse2_sim_monthly_cashflow_lowprem_tbl <- lapse2_sim_cashflow_tbl |>
+  filter(monthly_premium <= 1000) |>
+  summarise(
+    total_cashflow = sum(cashflow),
+    
+    .by = c(draw_id, cashflow_date)
+    ) |>
+  filter(
+    cashflow_date <= as.Date("2016-01-01")
+    )
+```
+
+
+# Setting the Scene
+
+## Irish Life Insurance
+
+\
+
+
+12 months for expenses
+
+\
+
+
+12 months for commission
+
+
+---
+
+### Credit Crisis 2008--2011
+
+\
+
+
+Lapses EXPLODED
+
+\
+
+
+Needed to understand this
+
+---
+
+Wanted a Bayesian approach
+
+\
+
+
+Very messy data
+
+---
+
+```{r display_policy_data_gt}
+#| echo: false
+
+modelling_data_tbl |>
+  slice_sample(n = 15) |>
+  select(
+    policy_id, sa_id, cluster_id, prem_ape, policy_startdate, policy_duration,
+    gender_life1, smoker_life1, isjointlife, sum_assured, mortgage_status,
+    policy_status, policy_lifetime, lapsed
+    ) |>
+  gt() |>
+  fmt_number(
+    columns = policy_lifetime,
+    decimals = 2
+    ) |>
+  fmt_currency(
+    columns = sum_assured,
+    currency = "EUR",
+    decimals = 0
+    ) |>
+  tab_options(table.font.size = px(10))
+```
+
+---
+
+Logistic regression
+
+\
+
+
+Conditional probability of lapse occurring
+
+---
+
+![](img/bacon_studio.png)
+
+---
+
+"Computer science research in the corporate environment is not a good idea"
+
+---
+
+Nothing to lose...
+
+\
+
+
+Try using Survival Analysis instead
+
+
+
+# Basic Concepts
+
+\
+
+
+*Time-to-Event* Modelling
+
+\
+
+
+Origins in Medical Statistics
+
+
+\
+
+
+Cancer Research
+
+
+## Censoring and Truncation
+
+\
+
+
+_Censoring_: Incomplete observation of data used
+
+\
+
+
+_Truncation_: Data not observed as a result of the observation size
+
+
+## Survival and Hazard Functions
+
+\
+
+
+Aim of modelling is to estimate distribution of lifetime of subjects.
+
+\
+
+
+Data often heavily censored
+
+
+---
+
+### Right Censoring
+
+\
+
+
+Event not occurred for most subjects at point of observation
+
+\
+
+
+Only know lower-bound for the time-to-event
+
+---
+
+Models need to account for this
+
+---
+
+::: {.left-align}
+Survival function, $S(t)$:
+:::
+
+$$
+S(t) = P(T > t), \, 0 \leq t \leq \infty
+$$
+
+\
+
+
+
+::: {.left-align}
+Cumulative Hazard function, $\Lambda(t)$:
+:::
+
+$$
+S(t) = e^{-\Lambda(t)}
+$$
+
+---
+
+::: {.left-align}
+Hazard function, $\lambda(t)$:
+:::
+
+$$
+\lambda(t) = \lim_{\delta t \to 0^+} \frac{P(t \le T < t + \delta t \;|\; T \ge t)}{\delta t}
+$$
+
+\
+
+
+$$
+\implies S(t) = e^{- \int_0^t \lambda(\tau) \, d\tau}
+$$
+
+---
+
+Often (but not always) most intuitive to model hazard function.
+
+
+## The Kaplan-Meier Estimator
+
+\
+
+
+Non-parametric estimator of $S(t)$
+
+
+$$
+\hat{S}(t) = \prod_{t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)
+$$
+
+$d_i$ count of failures
+
+$n_i$ number of subjects
+
+
+---
+
+Analogous to histograms for density functions
+
+---
+
+
+```{r km_plots}
+#| echo: false
+
+km_data_tbl <- modelling_data_tbl |>
+  select(
+    policy_lifetime, lapsed, smoker_life1, gender_life1
+    )
+
+km_fit_all    <- survfit(Surv(policy_lifetime, lapsed) ~ 1,            data = km_data_tbl)
+km_fit_smoker <- survfit(Surv(policy_lifetime, lapsed) ~ smoker_life1, data = km_data_tbl)
+km_fit_gender <- survfit(Surv(policy_lifetime, lapsed) ~ gender_life1, data = km_data_tbl)
+
+km_all_plot <- ggsurvplot(
+  km_fit_all,
+  data       = km_data_tbl,
+  risk.table = FALSE,
+  censor     = FALSE,
+  conf.int   = TRUE,
+  ggtheme    = theme_cowplot(),
+  palette    = "Set2"
+  )
+
+km_smoker_plot <- ggsurvplot(
+  km_fit_smoker,
+  data       = km_data_tbl,
+  risk.table = FALSE,
+  censor     = FALSE,
+  conf.int   = TRUE,
+  ggtheme    = theme_cowplot(),
+  palette    = "Set2"
+  )
+
+km_gender_plot <- ggsurvplot(
+  km_fit_gender,
+  data       = km_data_tbl,
+  risk.table = FALSE,
+  censor     = FALSE,
+  conf.int   = TRUE,
+  ggtheme    = theme_cowplot(),
+  palette    = "Set2"
+  )
+
+
+plot_grid(
+  km_all_plot$plot + 
+    labs(
+      title = "KM Survival Curve: All Policies",
+      x     = "Policy Lifetime (weeks)",
+      y     = "Estimated S(t)"
+      ),
+  km_smoker_plot$plot +
+    labs(
+      title = "KM Survival Curve by Smoker Status",
+      x     = "Policy Lifetime (weeks)",
+      y     = "Estimated S(t)",
+      color = "Smoker"
+      ),
+  km_gender_plot$plot +
+    labs(
+      title = "KM Survival Curve by Gender",
+      x     = "Policy Lifetime (weeks)",
+      y     = "Estimated S(t)",
+      color = "Gender"
+      ),
+  nrow = 2
+  )
+```
+
+
+
+# Parametric Models
+
+---
+
+\
+
+
+Assume $S(t) = 1 - P(t)$
+
+\
+
+
+$P$ known distribution function
+
+\
+
+
+Regression methods on parameters
+
+---
+
+Can also model $h(t)$ or $H(t)$
+
+
+
+## Examples
+
+\
+
+
+Accelerate Failure Time (AFT) models
+
+\
+
+
+Quality control for manufacturing 
+
+
+# Semi-parametric Models
+
+---
+
+Non-parametric baseline, parametric hazards etc.
+
+\
+
+
+Proportional hazards
+
+
+## Cox PH Models
+
+\
+
+
+$$
+\lambda(t \,|\, \mathbf{x}) = \lambda_0(t) \, \exp\big(\mathbf{x}^\top \beta\big)
+$$
+
+::: {.left-align}
+- **Baseline hazard**: $\lambda_0(t)$ non-parametric (unspecified)
+- **Relative risk**: multiplicative effect per covariate
+:::
+
+---
+
+::: {.left-align}
+Assumptions and interpretation:
+
+\
+
+
+- **Proportional hazards**: ratios of hazards are constant over time
+- **Semi-parametric**: baseline is free; covariate effects parametric
+- **Coefficients**: log hazard ratios; $\exp(\beta)$ is hazard ratio
+:::
+
+
+---
+
+::: {.left-align}
+Estimation (partial likelihood):
+:::
+
+$$
+L(\beta) = \prod_{i \in \mathcal{D}} \frac{\exp(\mathbf{x}_i^\top \beta)}{\sum_{j \in R(t_i)} \exp(\mathbf{x}_j^\top \beta)}
+$$
+
+::: {.left-align}
+- $\mathcal{D}$: set of observed events
+- $R(t_i)$: risk set just before time $t_i$
+:::
+
+---
+
+::: {.left-align}
+Bayesian Cox via brms/rstanarm:
+
+\
+
+
+- **brms**: `family = cox(bhaz = list(df = 8))` for M-spline baseline
+- **rstanarm**: `stan_surv()` in branch 'feature/survival'
+- **Outputs**: posterior hazard ratios, baseline hazard/survival via stored basis
+:::
+
+
+# Bayesian Survival Analysis
+
+\
+
+Fit a simple model first
+
+---
+
+::: {.small-code}
+```
+lapse1_coxph_stansurv <- stan_surv(
+  Surv(policy_lifetime, lapsed) ~ gender_life1 + smoker_life1,
+  data   = model_training_tbl,
+  
+  # MCMC sampling parameters
+  ...
+  
+  # Baseline hazard
+  basehaz     = "ms",          # M-splines (flexible, default)
+  basehaz_ops = list(df = 6),  # Degrees of freedom for baseline hazard
+  
+  # Prior specifications (explicit is better than implicit)
+  prior           = rstanarm::normal(location = 0, scale = 2.5), # Weakly informative for coefficients
+  prior_intercept = rstanarm::normal(location = 0, scale = 10),  # For baseline hazard
+  )
+```
+:::
+
+---
+
+```{r show_lapse1_model_convergence}
+#| echo: false
+
+lapse1_coxph_stansurv <- qread("stan_model/lapse1_coxph_stansurv.qs")
+
+plot_stan_convergence(
+  lapse1_coxph_stansurv,
+  title = "Model 1 Convergence Diagnostics: Gender + Smoker"
+  )
+```
+
+
+
+## Assess the Model
+
+\
+
+
+Simulate lapses over a year
+
+
+\
+
+Calculate corresponding cashflows
+
+\
+
+
+Compare to actual
+
+---
+
+```{r lapse1_construct_comparison_plot_ribbons}
+#| echo: false
+
+lapse1_sim_monthly_bands_tbl <- lapse1_sim_monthly_cashflow_tbl |>
+  summarise(
+    p10 = quantile(total_cashflow, 0.10),
+    p25 = quantile(total_cashflow, 0.25),
+    p50 = quantile(total_cashflow, 0.50),
+    p75 = quantile(total_cashflow, 0.75),
+    p90 = quantile(total_cashflow, 0.90),
+    
+    .by = c(cashflow_date)
+    )
+
+ggplot(lapse1_sim_monthly_bands_tbl) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p10, ymax = p90),
+    alpha = 0.5
+    ) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p25, ymax = p75),
+    alpha = 0.5
+    ) +
+  geom_line(
+    aes(x = cashflow_date, y = total_cashflow),
+    data = actual_monthly_tbl,
+    colour = "red"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time",
+    y = "Cashflow",
+    title    = glue("Simulated vs Actual Cashflows for Simple Lapse Model"),
+    subtitle = "Showing 50% and 80% bands"
+    )
+```
+
+---
+
+```{r lapse1_construct_comparison_plot_recent}
+#| echo: false
+
+lapse1_sim_monthly_bands_recent_tbl <- lapse1_sim_monthly_cashflow_recent_tbl |>
+  summarise(
+    p10 = quantile(total_cashflow, 0.10),
+    p25 = quantile(total_cashflow, 0.25),
+    p50 = quantile(total_cashflow, 0.50),
+    p75 = quantile(total_cashflow, 0.75),
+    p90 = quantile(total_cashflow, 0.90),
+    
+    .by = c(cashflow_date)
+    )
+
+ggplot(lapse1_sim_monthly_bands_recent_tbl) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p10, ymax = p90),
+    alpha = 0.5
+    ) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p25, ymax = p75),
+    alpha = 0.5
+    ) +
+  geom_line(
+    aes(x = cashflow_date, y = total_cashflow),
+    data = actual_monthly_recent_tbl,
+    colour = "red"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time",
+    y = "Cashflow",
+    title    = glue("Simulated vs Actual Cashflows for Simple Lapse Model"),
+    subtitle = "Recent policies (start date >= 2010-01-01), showing 50% and 80% bands"
+    )
+```
+
+---
+
+```{r lapse1_construct_comparison_plot_ribbons_lowprem}
+#| echo: false
+
+lapse1_sim_monthly_bands_lowprem_tbl <- lapse1_sim_monthly_cashflow_lowprem_tbl |>
+  summarise(
+    p10 = quantile(total_cashflow, 0.10),
+    p25 = quantile(total_cashflow, 0.25),
+    p50 = quantile(total_cashflow, 0.50),
+    p75 = quantile(total_cashflow, 0.75),
+    p90 = quantile(total_cashflow, 0.90),
+    
+    .by = c(cashflow_date)
+    )
+
+ggplot(lapse1_sim_monthly_bands_lowprem_tbl) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p10, ymax = p90),
+    alpha = 0.5
+    ) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p25, ymax = p75),
+    alpha = 0.5
+    ) +
+  geom_line(
+    aes(x = cashflow_date, y = total_cashflow),
+    data = actual_monthly_lowprem_tbl,
+    colour = "red"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time",
+    y = "Cashflow",
+    title    = glue("Simulated vs Actual Cashflows for Simple Lapse Model"),
+    subtitle = "Policies with prem_ape < 12k, showing 50% and 80% bands"
+    )
+```
+
+---
+
+Baseline hazard too high?
+
+---
+
+```{r lapse1_bayesian_mle_comparison}
+#| echo: false
+
+lapse1_mle <- coxph(
+  Surv(policy_lifetime, lapsed) ~ gender_life1 + smoker_life1,
+  data = modelling_data_tbl ,
+  x    = TRUE,
+  y    = TRUE
+  )
+
+comparison_lapse1_lst <- compare_baseline_hazards(
+  stansurv_fit = lapse1_coxph_stansurv,
+  coxph_fit    = lapse1_mle,
+  max_time     = 156,
+  plot_type    = "survival"
+  )
+
+comparison_lapse1_lst$plot |> print()
+```
+
+
+
+# Improving the Model
+
+---
+
+::: {.small-code}
+```
+lapse2_coxph_stansurv <- stan_surv(
+  Surv(policy_lifetime, lapsed) ~ gender_life1 + smoker_life1 + cluster_id + prem_sa_ratio,
+  data   = model_training_tbl,
+  
+  # MCMC sampling parameters
+  ...
+  
+  # Baseline hazard specification
+  basehaz     = "ms",  # M-splines (flexible, default)
+  basehaz_ops = list(df = 6),  # Degrees of freedom for baseline hazard
+  
+  # Prior specifications (explicit is better than implicit)
+  prior           = rstanarm::normal(location = 0, scale = 2.5), # Weakly informative for coefficients
+  prior_intercept = rstanarm::normal(location = 0, scale = 10),  # For baseline hazard
+  )
+```
+:::
+
+
+---
+
+```{r show_lapse2_model_convergence}
+#| echo: false
+
+lapse2_coxph_stansurv <- qread("stan_model/lapse2_coxph_stansurv.qs")
+
+plot_stan_convergence(
+  lapse2_coxph_stansurv,
+  title = "Model 2 Convergence Diagnostics"
+  )
+```
+
+
+---
+
+```{r lapse2_construct_comparison_plot_ribbons}
+#| echo: false
+
+lapse2_sim_monthly_bands_tbl <- lapse2_sim_monthly_cashflow_tbl |>
+  summarise(
+    p10 = quantile(total_cashflow, 0.10),
+    p25 = quantile(total_cashflow, 0.25),
+    p50 = quantile(total_cashflow, 0.50),
+    p75 = quantile(total_cashflow, 0.75),
+    p90 = quantile(total_cashflow, 0.90),
+    
+    .by = c(cashflow_date)
+    )
+
+ggplot(lapse2_sim_monthly_bands_tbl) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p10, ymax = p90),
+    alpha = 0.5
+    ) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p25, ymax = p75),
+    alpha = 0.5
+    ) +
+  geom_line(
+    aes(x = cashflow_date, y = total_cashflow),
+    data = actual_monthly_tbl,
+    colour = "red"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time",
+    y = "Cashflow",
+    title    = glue("Simulated vs Actual Cashflows for Simple Lapse Model"),
+    subtitle = "Showing 50% and 80% bands"
+    )
+```
+
+---
+
+```{r lapse2_construct_comparison_plot_recent}
+#| echo: false
+
+lapse2_sim_monthly_bands_recent_tbl <- lapse2_sim_monthly_cashflow_recent_tbl |>
+  summarise(
+    p10 = quantile(total_cashflow, 0.10),
+    p25 = quantile(total_cashflow, 0.25),
+    p50 = quantile(total_cashflow, 0.50),
+    p75 = quantile(total_cashflow, 0.75),
+    p90 = quantile(total_cashflow, 0.90),
+    
+    .by = c(cashflow_date)
+    )
+
+ggplot(lapse2_sim_monthly_bands_recent_tbl) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p10, ymax = p90),
+    alpha = 0.5
+    ) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p25, ymax = p75),
+    alpha = 0.5
+    ) +
+  geom_line(
+    aes(x = cashflow_date, y = total_cashflow),
+    data = actual_monthly_recent_tbl,
+    colour = "red"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time",
+    y = "Cashflow",
+    title    = glue("Simulated vs Actual Cashflows for Simple Lapse Model"),
+    subtitle = "Recent policies (start date >= 2010-01-01), showing 50% and 80% bands"
+    )
+```
+
+---
+
+```{r lapse2_construct_comparison_plot_ribbons_lowprem}
+#| echo: false
+
+lapse2_sim_monthly_bands_lowprem_tbl <- lapse2_sim_monthly_cashflow_lowprem_tbl |>
+  summarise(
+    p10 = quantile(total_cashflow, 0.10),
+    p25 = quantile(total_cashflow, 0.25),
+    p50 = quantile(total_cashflow, 0.50),
+    p75 = quantile(total_cashflow, 0.75),
+    p90 = quantile(total_cashflow, 0.90),
+    
+    .by = c(cashflow_date)
+    )
+
+ggplot(lapse2_sim_monthly_bands_lowprem_tbl) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p10, ymax = p90),
+    alpha = 0.5
+    ) +
+  geom_ribbon(
+    aes(x = cashflow_date, ymin = p25, ymax = p75),
+    alpha = 0.5
+    ) +
+  geom_line(
+    aes(x = cashflow_date, y = total_cashflow),
+    data = actual_monthly_lowprem_tbl,
+    colour = "red"
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    x = "Time",
+    y = "Cashflow",
+    title    = glue("Simulated vs Actual Cashflows for Simple Lapse Model"),
+    subtitle = "Policies with prem_ape < 12k, showing 50% and 80% bands"
+    )
+```
+
+---
+
+```{r lapse2_bayesian_mle_comparison}
+#| echo: false
+
+lapse2_mle <- coxph(
+  Surv(policy_lifetime, lapsed) ~ gender_life1 + smoker_life1 + cluster_id + prem_sa_ratio,
+  data = modelling_data_tbl ,
+  x    = TRUE,
+  y    = TRUE
+  )
+
+comparison_lapse2_lst <- compare_baseline_hazards(
+  stansurv_fit = lapse2_coxph_stansurv,
+  coxph_fit    = lapse2_mle,
+  max_time     = 156,
+  plot_type    = "survival"
+  )
+
+comparison_lapse2_lst$plot |> print()
+```
+
+
+# Conclusions and Next Steps
+
+\
+
+
+Survival analysis feasible in Stan
+
+\
+
+
+Need to try more in `brms`
+
+\
+
+
+Lapse rates over-estimated by the model
+
+\
+
+
+Needs a lot more work to be usable
+
+
+
+
+
+# Thank You!
+
+::: {style="font-size: 0.7em;"}
+
+\
+
+
+[https://github.com/kaybenleroll/data_workshops/talk_bm_survivalbayes_202512]()
+
+\
+
+
+Main project
+
+[https://github.com/kaybenleroll/bayesian_survival_analysis]()
+
+\
+
+
+Old Workshop (non-Bayes)
+
+[https://kaybenleroll.github.io/data_workshops/oldertalks/ws_survival_201809/worksheet_survival.html]()
+
+:::
+
+
+
+
+
+
+
+
+
+
