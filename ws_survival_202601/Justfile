@@ -1,0 +1,291 @@
+# =============================================================================
+# PROJECT CONFIGURATION
+# =============================================================================
+
+PROJECT_USER    := "kaybenleroll"
+PROJECT_NAME    := "ws_survival_202601"
+PROJECT_TAG     := "latest"
+IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
+DOCKER_USER     := "rstudio"
+DOCKER_PASS     := "CHANGEME"
+DOCKER_UID      := `id -u`
+DOCKER_GID      := `id -g`
+PWD             := `pwd`
+RSTUDIO_PORT    := "8787"
+PROJECT_FOLDER  := "surv_workshop"
+CONTAINER_NAME  := "survival-workshop"
+
+DOCKER_BUILD_ARGS := ""
+
+# =============================================================================
+# DEFAULT TARGET
+# =============================================================================
+
+# List all available recipes
+default:
+	@just --list
+
+# =============================================================================
+# RENDERING TARGETS - Quarto Notebooks
+# =============================================================================
+
+# Render all notebooks
+all: all-html
+
+# Generate all HTML files from QMD files
+all-html: \
+	worksheet_survival \
+	classic_survival_models
+
+# Internal helper: Check if rebuild needed based on content hash
+_needs_rebuild output *sources:
+	#!/usr/bin/env bash
+	mkdir -p .just-cache
+	# Combine all source files and compute hash
+	combined_hash=$(cat {{sources}} 2>/dev/null | md5sum | cut -d' ' -f1)
+	cache_file=".just-cache/$(basename {{output}}).md5"
+	
+	# Rebuild if: output missing, cache missing, or hash changed
+	if [ ! -f {{output}} ] || \
+	   [ ! -f "$cache_file" ] || \
+	   [ "$combined_hash" != "$(cat $cache_file 2>/dev/null)" ]; then
+		echo "$combined_hash" > "$cache_file"
+		exit 0  # needs rebuild
+	else
+		echo "$(basename {{output}}) is up to date (no content changes)"
+		exit 1  # skip rebuild
+	fi
+
+# Internal helper: Render a single QMD file with logging and hash-based caching
+_render-qmd qmd_file *deps:
+	#!/usr/bin/env bash
+	html_file="${1%.qmd}.html"
+	
+	# Build list of all dependencies (qmd + library files)
+	all_deps="{{qmd_file}} lib_utils.R data_setup.R"
+	
+	# Check if rebuild needed
+	if just _needs_rebuild "$html_file" $all_deps; then
+		echo "TIMESTAMP: $(date) - Rendering script {{qmd_file}}" >> output.log 2>&1
+		quarto render "{{qmd_file}}" --to html >> output.log 2>&1
+		echo "TIMESTAMP: $(date) - Finished {{qmd_file}}" >> output.log 2>&1
+	fi
+
+# --- Workshop Notebooks ---
+
+# Render main workshop survival analysis notebook
+worksheet_survival:
+	just _render-qmd worksheet_survival.qmd
+
+# Render main workshop notebook (alias)
+worksheet: worksheet_survival
+
+# Render classical survival models notebook
+classic_survival_models:
+	just _render-qmd classic_survival_models.qmd
+
+# Render classical survival models (alias)
+classic: classic_survival_models
+
+# =============================================================================
+# CLEANING TARGETS
+# =============================================================================
+
+# Clean all generated files
+clean-all: clean-html clean-cache clean-outputs
+
+# Remove all HTML output files
+clean-html:
+	rm -fv *.html
+
+# Remove Quarto cache
+clean-cache:
+	rm -rf *_cache/
+	rm -rf *_files/
+	rm -rf .just-cache/
+
+# Remove output logs
+clean-outputs:
+	rm -fv output.log
+
+# Nuclear option: remove all generated and cached files
+nuke: clean-all
+	@echo "All generated files removed"
+
+# =============================================================================
+# DOCKER TARGETS - Container Management
+# =============================================================================
+
+# Build Docker image
+docker-build-image:
+	docker build -t {{IMAGE_TAG}} \
+		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
+		{{DOCKER_BUILD_ARGS}} \
+		-f Dockerfile . 2>&1 | tee -a docker_build.log
+
+# Rebuild Docker image (no cache)
+docker-rebuild-image:
+	docker build --no-cache -t {{IMAGE_TAG}} \
+		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
+		{{DOCKER_BUILD_ARGS}} \
+		-f Dockerfile . 2>&1 | tee -a docker_build.log
+
+# Run Docker container with RStudio Server
+docker-run-image:
+	docker run --rm -d \
+	  --userns=keep-id \
+	  -e RUNROOTLESS=false \
+	  -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" \
+	  -e USER={{DOCKER_USER}} \
+	  -e PASSWORD={{DOCKER_PASS}} \
+	  -e USERID={{DOCKER_UID}} \
+	  -e GROUPID={{DOCKER_GID}} \
+	  -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}:z" \
+	  -v "{{PWD}}/.rstudio_copilot:/home/rstudio/.config/github-copilot:rw" \
+	  --name {{CONTAINER_NAME}} \
+	  {{IMAGE_TAG}}
+
+
+# Stop Docker container
+docker-stop-image:
+	docker stop {{CONTAINER_NAME}} || true
+
+# Remove Docker container
+docker-rm: docker-stop-image
+	docker rm {{CONTAINER_NAME}} || true
+
+# Restart Docker container
+docker-restart: docker-stop-image docker-run-image
+
+# Enter Docker container bash shell
+docker-bash:
+	docker exec -u {{DOCKER_USER}} -it {{CONTAINER_NAME}} bash
+
+# Enter Docker container as root
+docker-bash-root:
+	docker exec -u root -it {{CONTAINER_NAME}} bash
+
+# Show Docker container logs
+docker-logs:
+	docker logs {{CONTAINER_NAME}}
+
+# Show Docker container status
+docker-status:
+	docker ps -a --filter name={{CONTAINER_NAME}}
+
+# Complete Docker cleanup
+docker-clean: docker-rm
+	@echo "Docker container removed"
+
+# Display SSH tunnel command for remote RStudio access
+ssh-tunnel:
+	@echo "Run this command on your local machine:"
+	@echo "  ssh -L {{RSTUDIO_PORT}}:localhost:{{RSTUDIO_PORT}} $(whoami)@$(hostname)"
+	@echo ""
+	@echo "Then access RStudio at: http://localhost:{{RSTUDIO_PORT}}"
+
+# =============================================================================
+# DEVELOPMENT TARGETS
+# =============================================================================
+
+# Watch for changes and auto-render (requires entr)
+watch notebook:
+	ls {{notebook}}.qmd lib_utils.R data_setup.R | entr -c just {{notebook}}
+
+# Check Quarto installation
+check-quarto:
+	@quarto --version
+	@quarto check
+
+# Check R installation in container
+check-r:
+	docker exec {{CONTAINER_NAME}} R --version
+
+# Validate all QMD files without rendering
+validate:
+	@for file in *.qmd; do \
+		echo "Validating $$file..."; \
+		quarto render "$$file" --to html --execute false || exit 1; \
+	done
+
+# Show project info
+info:
+	@echo "Project: {{PROJECT_NAME}}"
+	@echo "Docker Image: {{IMAGE_TAG}}"
+	@echo "Container: {{CONTAINER_NAME}}"
+	@echo "RStudio Port: {{RSTUDIO_PORT}}"
+	@echo "Working Directory: {{PWD}}"
+	@echo "Access URL: http://localhost:{{RSTUDIO_PORT}}"
+
+# Open RStudio in browser (Linux)
+open-rstudio:
+	xdg-open http://localhost:{{RSTUDIO_PORT}}
+
+# =============================================================================
+# DATA MANAGEMENT TARGETS
+# =============================================================================
+
+# List data files
+list-data:
+	@echo "CSV data files:"
+	@ls -lh data/*.csv 2>/dev/null || echo "  No CSV files found"
+
+# Show data directory size
+data-size:
+	@du -sh data/ 2>/dev/null || echo "No data directory found"
+
+# Validate telco churn data file exists
+check-data:
+	@test -f data/telcochurn.csv && echo "✓ telcochurn.csv found" || echo "✗ telcochurn.csv missing"
+
+# =============================================================================
+# UTILITY TARGETS
+# =============================================================================
+
+# Show disk usage for project
+disk-usage:
+	@echo "Project disk usage:"
+	@du -sh . 2>/dev/null
+	@echo ""
+	@echo "Breakdown:"
+	@du -sh data/ *.html *_cache/ *_files/ 2>/dev/null | sort -h || echo "Some directories not found"
+
+# Show all HTML output files
+list-html:
+	@ls -lh *.html 2>/dev/null || echo "No HTML files found"
+
+# Show recent log entries
+show-logs:
+	@tail -n 50 output.log 2>/dev/null || echo "No output.log found"
+
+# Show all available Quarto notebooks
+list-notebooks:
+	@echo "Available Quarto notebooks:"
+	@ls -1 *.qmd 2>/dev/null || echo "No .qmd files found"
+	@echo ""
+	@echo "Available Rmd notebooks:"
+	@ls -1 *.Rmd 2>/dev/null || echo "No .Rmd files found"
+
+# Preview rendered HTML in terminal (requires w3m or lynx)
+preview file:
+	@if command -v w3m > /dev/null; then \
+		w3m {{file}}.html; \
+	elif command -v lynx > /dev/null; then \
+		lynx {{file}}.html; \
+	else \
+		echo "Error: Install w3m or lynx for terminal HTML preview"; \
+		exit 1; \
+	fi
+
+# Count lines of R code in project
+count-code:
+	@echo "R code statistics:"
+	@find . -name "*.R" -o -name "*.qmd" -o -name "*.Rmd" | xargs wc -l | tail -1
+	@echo ""
+	@echo "Breakdown by file type:"
+	@echo -n "  .R files: "
+	@find . -name "*.R" | xargs wc -l 2>/dev/null | tail -1 || echo "0"
+	@echo -n "  .qmd files: "
+	@find . -name "*.qmd" | xargs wc -l 2>/dev/null | tail -1 || echo "0"
+	@echo -n "  .Rmd files: "
+	@find . -name "*.Rmd" | xargs wc -l 2>/dev/null | tail -1 || echo "0"
