@@ -303,11 +303,12 @@ probabilities). It is also called the *intensity function*, *instantaneous
 failure rate*, or *force of mortality*.
 
 Different shapes of hazard functions tell us about the underlying process:
-- **Increasing hazard**: The risk of event increases over time (aging effect)
-- **Decreasing hazard**: The risk decreases over time (initial high-risk
-  period)
-- **Constant hazard**: The risk remains constant (memoryless or exponential
-  process)
+
+  - **Increasing hazard**: The risk of event increases over time (aging effect)
+  - **Decreasing hazard**: The risk decreases over time (initial high-risk
+    period)
+  - **Constant hazard**: The risk remains constant (memoryless or exponential
+    process)
 
 
 ### Cumulative Functions
@@ -514,9 +515,10 @@ and represents a "memoryless" process - the probability of an event in the
 next time interval doesn't depend on how much time has already passed.
 
 In real-world scenarios, constant hazard might approximate:
-- Component failures due to random external shocks (not wear-and-tear)
-- Customer churn in highly competitive markets with stable conditions
-- Certain types of equipment failure where aging effects are minimal
+
+  - Component failures due to random external shocks (not wear-and-tear)
+  - Customer churn in highly competitive markets with stable conditions
+  - Certain types of equipment failure where aging effects are minimal
 
 The survival curve for a constant hazard declines exponentially, creating a
 smooth curve that never quite reaches zero (though it approaches it
@@ -591,12 +593,13 @@ plot_grid(hazard_plot, cuml_plot, nrow = 2)
 An early hazard pattern, also known as a **decreasing hazard**, occurs when
 the risk of an event is highest at the beginning and decreases over time.
 This pattern is common in scenarios involving:
-- Post-surgical mortality (highest risk immediately after surgery)
-- Infant mortality patterns in certain diseases
-- "Burn-in" failures in manufacturing (defective items fail quickly)
-- Early customer churn (dissatisfied customers leave quickly, satisfied ones
-  stay longer)
-- Equipment with "break-in" periods where initial defects are exposed
+
+  - Post-surgical mortality (highest risk immediately after surgery)
+  - Infant mortality patterns in certain diseases
+  - "Burn-in" failures in manufacturing (defective items fail quickly)
+  - Early customer churn (dissatisfied customers leave quickly, satisfied ones
+    stay longer)
+  - Equipment with "break-in" periods where initial defects are exposed
 
 The decreasing hazard implies that if an individual survives the early
 high-risk period, their subsequent risk of experiencing the event becomes
@@ -640,11 +643,11 @@ plot_grid(hazard_plot, cuml_plot, nrow = 2)
 A late hazard pattern, or **increasing hazard**, represents situations where
 the risk of an event grows over time. This is the classic "aging" or
 "wear-out" pattern commonly seen in:
-- Age-related mortality in biological systems
-- Mechanical wear and tear (parts degrade over time)
-- Chronic disease progression
-- Long-term customer relationships (satisfaction may erode over time)
-- Material fatigue failures
+  - Age-related mortality in biological systems
+  - Mechanical wear and tear (parts degrade over time)
+  - Chronic disease progression
+  - Long-term customer relationships (satisfaction may erode over time)
+  - Material fatigue failures
 
 With an increasing hazard, the longer an individual survives, the higher
 their instantaneous risk becomes. This reflects cumulative damage,
@@ -813,9 +816,10 @@ There are several methods for constructing confidence intervals for $S(t)$:
    $\log(-\log(\hat{S}(t)))$
 
 The log-log method is generally preferred because:
-- It respects the constraint that $0 \leq S(t) \leq 1$
-- It performs better for small sample sizes
-- It has better coverage properties in simulation studies
+
+  - It respects the constraint that $0 \leq S(t) \leq 1$
+  - It performs better for small sample sizes
+  - It has better coverage properties in simulation studies
 
 In R, we specify the confidence interval type using the `conf.type` argument:
 
@@ -1131,10 +1135,11 @@ telco_intl_km  <- survfit(Surv(accountdur, churned) ~ intlplan, data = telco_chu
 Having created the KM estimates, we first plot the curves to check for
 differences. Visual inspection of survival curves is often the first step in
 identifying potential differences between groups. Look for:
-- Separation between curves (suggesting different survival experiences)
-- Crossing curves (indicating non-proportional hazards)
-- Confidence interval overlap (suggesting statistical uncertainty about
-  differences)
+
+  - Separation between curves (suggesting different survival experiences)
+  - Crossing curves (indicating non-proportional hazards)
+  - Confidence interval overlap (suggesting statistical uncertainty about
+    differences)
 
 ```{r plot_km_curves}
 #| echo: true
@@ -1267,57 +1272,29 @@ statistically significant or could be due to random chance. The **log-rank
 test** is the standard non-parametric test for comparing survival curves
 between two or more groups.
 
-The log-rank test is conducted using `survdiff()` from the survival package.
-The null hypothesis is that there is no difference in survival between groups.
-
-```{r logrank_test_example}
-#| echo: true
-
-# Test if voicemail plan affects churn
-vmail_test <- survdiff(
-  Surv(accountdur, churned) ~ vmailplan,
-  data = telco_churn_tbl
-  )
-
-vmail_test |> print()
-
-# Test if international plan affects churn
-intl_test <- survdiff(
-  Surv(accountdur, churned) ~ intlplan,
-  data = telco_churn_tbl
-  )
-
-intl_test |> print()
-```
-
-The test statistic follows a chi-squared distribution. A small p-value
-(typically < 0.05) suggests we can reject the null hypothesis and conclude
-that the survival curves differ significantly between groups.
-
-From the output, we can see:
-- The "Observed" column shows actual number of events in each group
-- The "Expected" column shows expected events if survival were the same
-- The test statistic and p-value tell us if differences are significant
-
-#### Interpretation Guidelines
-
-When interpreting log-rank tests:
-- **p < 0.05**: Strong evidence of different survival experiences
-- **p > 0.05**: Insufficient evidence to conclude groups differ
-- **Large differences in Observed vs Expected**: Indicates which group has
-  better/worse survival
-
-Note that the log-rank test assumes **proportional hazards** - that is, the
-hazard ratio between groups remains constant over time. If curves cross, this
-assumption is violated and alternative tests may be more appropriate.
+We conduct this test using `survdiff()` from the survival package, with the
+null hypothesis that there is no difference in survival between groups. The
+next section explores the theoretical foundation and practical applications in
+detail.
 
 
 # Comparing Curves: The Log-Rank Test
 
-Now that we have ways of constructing different survival curves from our data
-we turn our attention to checking if these differences can be explained by
-random chance
+Now that we have ways of constructing different survival curves from our
+data, we can compare the patterns visually and numerically across groups.
+Visualizing survival curves provides the primary insight: do the curves
+differ substantially, and if so, where? The log-rank test offers a
+computational aid for summarizing observed differences between curves,
+though we emphasize visual interpretation and effect sizes over p-values.
 
+## Comparing Curves: Observed vs. Expected
+
+When comparing survival curves across groups, we can ask: do the observed
+event counts in each group differ from what we'd see if survival were
+identical across groups?
+
+At each time point where an event occurs, we can compute expected event
+counts given the population at risk and total events observed:
 
 |            |Control          |    Treatment      |   Total     |
 |----------- |:---------------:|:-----------------:|:-----------:|
@@ -1325,34 +1302,58 @@ random chance
 |Non-failure |$n_{0i} - d_{0i}$| $n_{1i} - d_{1i}$ | $n_i - d_i$ |
 |Total       |$n_{0i}$         | $n_{1i}$          | $n_i$       |
 
+where:
 
-From this table of values, we define two values:
+  - $d_{0i}$ and $d_{1i}$ are the number of observed failures in each group at
+    time $t_i$
+  - $n_{0i}$ and $n_{1i}$ are the number at risk in each group at time $t_i$
+  - $d_i$ is the total number of events at time $t_i$
+
+The expected count and variance for the control group are:
 
 \begin{eqnarray*}
 e_{0i} &=& E(d_{0i}) = \frac{n_{0i} d_i}{n_i}                                        \\
-v_{0i} &=& \text{var}(d_{0i}) = \frac{n_{0i} n_{1i} d_i (n_i - d_i)}{n_i^2(n_i - 1)} \\ 
-U_0    &=& \sum_{i=1}^{N} (d_{0i} - e_{0i}) = \sum d_{0i} - \sum e_{0i}              \\
-V_0    &=& \text{var}(U_0) = \sum v_{0i}
+v_{0i} &=& \text{var}(d_{0i}) = \frac{n_{0i} n_{1i} d_i (n_i - d_i)}{n_i^2(n_i - 1)} 
 \end{eqnarray*}
 
-Having defined these variables as above, we can show that
+Summing across all time points:
+
+\begin{eqnarray*}
+U_0    &=& \sum_{i=1}^{N} (d_{0i} - e_{0i})   \\
+V_0    &=& \sum_{i=1}^{N} v_{0i}
+\end{eqnarray*}
+
+The log-rank test statistic is:
 
 $$
-\frac{U_0^2}{V_0} \sim \chi_1^2
+\frac{U_0^2}{V_0} \sim \chi_1^2 \text{ (for two groups)}
 $$
 
-This gives us a natural statistical test to compare the two curves.
+This provides a summary measure of the aggregate difference between observed
+and expected, but the practical value lies in examining the "Observed" versus
+"Expected" columns in the output: which group has more or fewer events than
+expected? By how much? That difference is what matters.
 
+### A Note on P-Values
+
+P-values quantify evidence against the null hypothesis of equal survival, but
+they are brittle measures that conflate effect size with sample size. With
+large samples, trivial differences yield small p-values; with small samples,
+large differences may yield large p-values. **The magnitude of the difference
+and its practical importance are what matter for decision-making.** Always
+examine the curves themselves and the observed vs. expected counts rather than
+relying on a p-value threshold (e.g., 0.05) to guide interpretation.
 
 ## Comparing Binary Categories
 
-The simplest case is when we are comparing survival data split down binary
-outcomes, such as whether or not the customer has a voicemail plan or a plan
-with international calls.
+The simplest application is comparing survival across two groups: treatment
+versus control, presence or absence of a characteristic, or any other binary
+grouping. We examine visual differences in curves and quantify them using
+observed versus expected event counts.
 
-### Voicemail Differences
+### Voicemail Plan Comparison
 
-We start by comparing the voicemail plans.
+Let's examine whether a voicemail plan affects churn:
 
 ```{r compare_vmail_curves}
 #| echo: true
@@ -1366,14 +1367,20 @@ telco_vmail_survdiff |> print()
 telco_vmail_survdiff |> glance()
 ```
 
-Such a small $p$-value suggests the differences in the curves are unlikely to
-be due to chance, and this gels with what we observed on the plots of the
-curves.
+The "Observed" and "Expected" columns tell the story: customers with a
+voicemail plan have substantially fewer observed events (146 observed vs. 185
+expected), indicating better retention than would occur under equal survival.
+Conversely, customers without a plan have more events than expected (274
+observed vs. 235 expected), indicating worse retention.
 
-### International Calls Differences
+This aligns visually with the Kaplan-Meier curves: the voicemail plan group
+has a noticeably higher survival probability at all time points. The
+difference is substantial and practically meaningful for business
+decision-making.
 
-Now we compare the differences between plans with and without international
-calls.
+### International Plan Comparison
+
+Now let's examine an international calling plan:
 
 ```{r compare_intl_curves}
 #| echo: true
@@ -1387,10 +1394,23 @@ telco_intl_survdiff |> print()
 telco_intl_survdiff |> glance()
 ```
 
+Here we see customers with international plans have more observed events than
+expected (194 vs. 177), indicating worse retention. The gap is smaller than
+the voicemail comparison, suggesting a weaker relationship. This could reflect
+that international plan adoption is associated with other risk factors (travel
+patterns, churn propensity) or simply a smaller underlying effect.
+
 ## Comparing Multiple Categories
 
-The approach discussed can be extended to categorical variables with multiple
-values. We can use `areacode` for this as it has three values in it:
+When comparing more than two groups, we ask the same question: do the
+observed event counts differ meaningfully from what we'd expect under equal
+survival? Visual inspection becomes even more important with multiple curves,
+as differences can be complex and context-dependent.
+
+### Area Code Comparison
+
+Let's examine whether telephone area codes affect churn. First, we check how
+many categories we have:
 
 ```{r check_area_code_levels}
 #| echo: true
@@ -1398,7 +1418,7 @@ values. We can use `areacode` for this as it has three values in it:
 telco_churn_tbl |> count(areacode)
 ```
 
-Let's check how it splits the survival curves.
+Three area codes are represented. Let's visualize the Kaplan-Meier curves:
 
 ```{r create_areacode_km_estimates}
 #| echo: true
@@ -1411,7 +1431,7 @@ telco_areacode_km <- survfit(
 telco_areacode_km |> ggsurvplot(censor = TRUE, conf.int = TRUE)
 ```
 
-Now let's run the log-rank test on this data:
+The curves track closely together. The observed/expected comparison:
 
 ```{r compare_areacode_curves}
 #| echo: true
@@ -1425,49 +1445,69 @@ telco_areacode_survdiff |> print()
 telco_areacode_survdiff |> glance()
 ```
 
-Again, the results of the log-rank test meshes with our visual inspection: a
-$p$-value of 0.6 suggests differences are likely due to chance, and for most
-of the curves the three area codes pretty much share the same experience.
-
-Using our domain knowledge, this also makes sense - we would not expect phones
-based in different area codes to have substantial differences: area codes are
-too big and broad to show systemic geographic effects.
+All three area codes show observed and expected counts that are quite similar.
+The observed/expected difference is negligible across all groups, consistent
+with what we see visually. This makes business sense: area codes are broad
+geographic regions, unlikely to capture meaningful local effects on churn.
 
 
-## Discretizing Continuous Variables
+## Discretizing Continuous Variables for Comparison
 
-In the event that we have numeric variables affecting survival, we need to
-perform some discretization of those values to allow us to assess these
-effects.
+Many variables affecting survival are continuous (age, income, usage metrics),
+yet group comparisons require categorical groupings. We discretize continuous
+variables into meaningful bins for exploratory visualization and comparison.
+This approach works well for understanding non-linear relationships and
+validating patterns, though regression models (covered later) handle continuous
+variables more elegantly.
 
-Regression models discussed later will allow us tackle these dependencies in
-a more direct way, but for now we will use this simplified approach.
+### Rationale for Discretization
 
-One numeric variable likely to have an effect on churn is `custservicecalls` -
-the number of calls made to customer service. We would expect that an account
-with more service calls is likely to be dissatisfied, so higher counts of
-calls corresponds to a higher churn rate.
+Discretization serves several purposes:
 
-### Discretizing `custservicecalls`
+  1. **Visualization**: Group comparisons are easier to interpret visually
+  1. **Interpretability**: Binned results are more explainable to stakeholders
+  1. **Exploration**: Simple binning reveals non-linear or threshold effects
+  1. **Robustness**: Test patterns across different discretization schemes to
+     ensure findings are stable
 
-Having decided to bin our calls, we now need to decide how we go about this.
-One way is to split the data by quantiles, so we can try this first.
+The key is choosing sensible cutpoints that reflect domain knowledge and data
+distribution.
 
-Should this not prove satisfactory, it may help inform more suitable ways
-to bin this value.
+### Example: Customer Service Calls
 
-```{r create_custservicecalls_bins}
+We suspect customer satisfaction (measured by calls to service) affects churn.
+Let's examine the distribution first:
+
+```{r explore_custservicecalls_distribution}
 #| echo: true
 
-telco_churn_tbl |> count(custservicecalls) |> mutate(cuml = cumsum(n))
+telco_churn_tbl |>
+  ggplot(aes(x = custservicecalls)) +
+  geom_histogram(bins = 20, fill = "steelblue", alpha = 0.7) +
+  labs(
+    title = "Distribution of Customer Service Calls",
+    x = "Number of Calls",
+    y = "Frequency"
+    ) +
+  scale_x_continuous(breaks = seq(0, 10, by = 1))
 ```
 
-We see this is a very skewed distribution to the lower end of call counts, so
-`ntile()` is not as effective here as it will not properly separate the
-counts. Instead we use `cut()` as that gives us more control over the binning.
+The distribution is heavily skewed: most customers make 0-2 calls, with a long
+right tail. This skewness means quantile-based binning (equal-sized groups) is
+suboptimal. Domain knowledge suggests better cutpoints.
 
+### Domain-Driven Binning
 
-```{r construct_callservice_cuts}
+Rather than splitting at quantiles, we use business reasoning:
+
+  - **0-1 calls**: Normal, satisfied customers
+  - **2 calls**: Slightly elevated engagement
+  - **3-5 calls**: Noticeably concerned customers
+  - **6+ calls**: Very dissatisfied customers
+
+This creates natural categories that reflect customer satisfaction levels:
+
+```{r discretize_custservicecalls}
 #| echo: true
 
 telco_churn_cat_tbl <- telco_churn_tbl |>
@@ -1475,21 +1515,44 @@ telco_churn_cat_tbl <- telco_churn_tbl |>
     calls_cat = cut(
       custservicecalls,
       breaks = c(0, 1, 2, 5, Inf),
-      right = FALSE
+      right = FALSE,
+      labels = c("0-1", "2", "3-5", "6+")
       )
     )
+
+# Verify the discretization
+telco_churn_cat_tbl |>
+  count(calls_cat) |>
+  mutate(prop = n / sum(n))
+```
+
+### Visual Comparison Across Bins
+
+Kaplan-Meier curves for each bin:
+
+```{r create_callscat_km_estimates}
+#| echo: true
 
 telco_callscat_km <- survfit(
   Surv(accountdur, churned) ~ calls_cat,
   data = telco_churn_cat_tbl
   )
 
-telco_callscat_km |> ggsurvplot(censor = FALSE, conf.int = TRUE)
+telco_callscat_km |>
+  ggsurvplot(
+    censor   = FALSE,
+    conf.int = TRUE
+    )
 ```
 
-It looks like there is not much difference for lower counts, but there is a
-worse churn experience when the number of customer service calls is 5 or
-higher.
+A clear pattern emerges: customers with fewer calls have much better survival.
+The gradient is strong—each increase in call category associates with visibly
+worse retention. The 0-1 and 2 categories track similarly (good retention),
+while 3-5 and especially 6+ show substantially higher churn.
+
+### Quantifying Group Differences
+
+The observed/expected comparison across bins:
 
 ```{r compare_callscat_curves}
 #| echo: true
@@ -1503,70 +1566,617 @@ telco_callscat_survdiff |> print()
 telco_callscat_survdiff |> glance()
 ```
 
+The observed/expected discrepancies are large and consistent: low-call groups
+have substantially fewer events than expected (better retention), while
+high-call groups have many more events than expected (worse retention). This
+is one of the strongest patterns in the data and is critically important for
+the business—customer service call volume is a strong indicator of churn risk.
+
+### Sensitivity to Discretization Choices
+
+An important caveat: results can be sensitive to where you place cutpoints.
+The domain-driven binning we used (0-1, 2, 3-5, 6+) reflects business
+intuition, but we should test whether the pattern holds under different
+discretization schemes. If the finding is robust, it will persist across
+multiple approaches; if it's fragile, different binning will yield
+contradictory results.
+
+#### Alternative 1: Quantile-Based Binning
+
+The simplest alternative is equal-sized groups via quantiles. This ignores
+the distribution but ensures each bin has similar sample size:
+
+```{r discretization_quantile}
+#| echo: true
+
+# Create 4 equal-sized groups
+telco_churn_quantile_tbl <- telco_churn_tbl |>
+  mutate(
+    calls_quantile = ntile(custservicecalls, 4) |>
+      factor(labels = c("Q1 (lowest)", "Q2", "Q3", "Q4 (highest)"))
+    )
+
+# Check group sizes
+telco_churn_quantile_tbl |>
+  count(calls_quantile) |>
+  mutate(prop = n / sum(n))
+```
+
+Visualize the survival curves:
+
+```{r plot_quantile_discretization}
+#| echo: true
+
+telco_callsquantile_km <- survfit(
+  Surv(accountdur, churned) ~ calls_quantile,
+  data = telco_churn_quantile_tbl
+  )
+
+telco_callsquantile_km |>
+  ggsurvplot(
+    censor   = FALSE,
+    conf.int = TRUE
+    )
+```
+
+Compare observed vs. expected:
+
+```{r compare_quantile_discretization}
+#| echo: true
+
+telco_callsquantile_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ calls_quantile,
+  data = telco_churn_quantile_tbl
+  )
+
+telco_callsquantile_survdiff |> print()
+```
+
+The gradient persists: higher quantiles show progressively worse survival.
+However, quantile binning obscures the true cutpoints—Q1 might range from 0-1
+calls while Q4 might be 4+ calls, making interpretation harder for
+stakeholders.
+
+#### Alternative 2: Binary Split at Median
+
+A simpler approach splits at the median, creating just two groups:
+
+```{r discretization_binary}
+#| echo: true
+
+# Find median
+median_calls <- median(telco_churn_tbl$custservicecalls)
+write_lines(glue("Median customer service calls: {median_calls}"), stdout())
+
+# Binary split
+telco_churn_binary_tbl <- telco_churn_tbl |>
+  mutate(
+    calls_binary = if_else(
+      custservicecalls <= median_calls,
+      "Low (0-1 calls)",
+      "High (2+ calls)"
+      ) |> factor()
+    )
+
+# Check split
+telco_churn_binary_tbl |>
+  count(calls_binary) |>
+  mutate(prop = n / sum(n))
+```
+
+Survival curves for binary split:
+
+```{r plot_binary_discretization}
+#| echo: true
+
+telco_callsbinary_km <- survfit(
+  Surv(accountdur, churned) ~ calls_binary,
+  data = telco_churn_binary_tbl
+  )
+
+telco_callsbinary_km |>
+  ggsurvplot(
+    censor   = FALSE,
+    conf.int = TRUE
+    )
+```
+
+Observed vs. expected:
+
+```{r compare_binary_discretization}
+#| echo: true
+
+telco_callsbinary_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ calls_binary,
+  data = telco_churn_binary_tbl
+  )
+
+telco_callsbinary_survdiff |> print()
+```
+
+The binary split clearly shows the pattern: high-call customers have
+substantially worse retention. This is the simplest discretization and
+easiest to communicate, though it loses granularity.
+
+#### Alternative 3: Finer Granularity
+
+To test whether the 3-5 and 6+ groups truly differ, let's split more finely:
+
+```{r discretization_fine}
+#| echo: true
+
+telco_churn_fine_tbl <- telco_churn_tbl |>
+  mutate(
+    calls_fine = cut(
+      custservicecalls,
+      breaks = c(0, 2, 3, 4, 5, Inf),
+      right = FALSE,
+      labels = c("0-1", "2", "3", "4", "5+")
+      )
+    )
+
+# Check group sizes
+telco_churn_fine_tbl |>
+  count(calls_fine) |>
+  mutate(prop = n / sum(n))
+```
+
+Visualize fine-grained split:
+
+```{r plot_fine_discretization}
+#| echo: true
+
+telco_callsfine_km <- survfit(
+  Surv(accountdur, churned) ~ calls_fine,
+  data = telco_churn_fine_tbl
+  )
+
+telco_callsfine_km |>
+  ggsurvplot(
+    censor   = FALSE,
+    conf.int = TRUE
+    )
+```
+
+Observed vs. expected:
+
+```{r compare_fine_discretization}
+#| echo: true
+
+telco_callsfine_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ calls_fine,
+  data = telco_churn_fine_tbl
+  )
+
+telco_callsfine_survdiff |> print()
+```
+
+The finer split reveals that each increment in calls corresponds to worse
+survival. The 0-1 and 2 groups are similar (both have good retention), while
+3, 4, and 5+ each show progressively worse outcomes. This suggests a gradual
+relationship rather than a sharp threshold.
+
+#### Alternative 4: Low/Medium/High Split
+
+A common business approach uses three tiers. Let's test a natural low/medium/
+high split:
+
+```{r discretization_three_tier}
+#| echo: true
+
+telco_churn_tier_tbl <- telco_churn_tbl |>
+  mutate(
+    calls_tier = cut(
+      custservicecalls,
+      breaks = c(0, 2, 4, Inf),
+      right = FALSE,
+      labels = c("Low (0-1)", "Medium (2-3)", "High (4+)")
+      )
+    )
+
+# Check distribution
+telco_churn_tier_tbl |>
+  count(calls_tier) |>
+  mutate(prop = n / sum(n))
+```
+
+Survival curves for three tiers:
+
+```{r plot_tier_discretization}
+#| echo: true
+
+telco_callstier_km <- survfit(
+  Surv(accountdur, churned) ~ calls_tier,
+  data = telco_churn_tier_tbl
+  )
+
+telco_callstier_km |>
+  ggsurvplot(
+    censor   = FALSE,
+    conf.int = TRUE
+    )
+```
+
+Observed vs. expected:
+
+```{r compare_tier_discretization}
+#| echo: true
+
+telco_callstier_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ calls_tier,
+  data = telco_churn_tier_tbl
+  )
+
+telco_callstier_survdiff |> print()
+```
+
+The three-tier approach provides a middle ground: simple enough for
+communication, yet captures the gradient. Low-tier customers have excellent
+retention, medium-tier are at moderate risk, and high-tier show substantial
+churn.
+
+#### Synthesis: What Do Multiple Discretizations Reveal?
+
+Across all five discretization approaches (original domain-driven, quantile,
+binary, fine-grained, and three-tier), the core pattern remains consistent:
+
+  1. **Direction is stable**: Higher customer service calls always associate
+     with worse survival, regardless of how we bin the data.
+  1. **Gradient exists**: The finer discretization reveals a gradual
+     relationship rather than a sharp threshold. Each additional call
+     corresponds to incrementally worse retention.
+  1. **Practical cutpoints matter**: The 0-2 calls range appears relatively
+     safe, while 3+ calls indicate elevated risk. The 5+ group shows
+     particularly severe churn.
+  1. **Effect size is large**: Regardless of binning, the observed/expected
+     discrepancies are substantial—this is not a marginal effect sensitive to
+     discretization choices.
+
+The robustness across discretization schemes gives us confidence that customer
+service call volume is genuinely predictive of churn, not an artifact of a
+particular binning choice. For business use, the three-tier or original
+four-category approach balances simplicity with actionable granularity.
+
+This sensitivity analysis demonstrates best practice: when discretizing
+continuous variables, test multiple approaches to ensure findings are not
+driven by arbitrary cutpoint choices. Robust patterns will persist; fragile
+findings will disappear under alternative binning schemes.
+
+## Limitations: One Variable at a Time
+
+The group comparison approach examines only one variable at a time. This
+limitation becomes apparent when exploring multiple potential risk factors.
+The primary issues are:
+
+  1. **Confounding**: A difference in survival between groups on one variable
+     might actually reflect a different variable. For example, if voicemail plan
+     adoption correlates with customer tenure, the apparent survival difference
+     between voicemail groups might actually be driven by tenure—not the plan
+     itself.
+  1. **Practical feasibility**: As you split by multiple variables simultaneously,
+     each subgroup becomes smaller and survival estimates less stable. A simple
+     example: splitting by voicemail (2 levels) × area code (3 levels) × 
+     customer service calls (4 levels) produces 24 groups. Most will be too small
+     to yield meaningful estimates.
+
+For these reasons, regression models (Cox proportional hazards, covered next)
+are more practical when multiple variables are involved. They naturally handle
+multiple predictors, adjust for confounding, and provide coefficients
+quantifying each variable's independent association with survival.
+
+
 
 
 
 # The Cox Proportional Hazards Model
 
 Up to this point we have focused on empirical and non-parametric approaches
-to estimating survival and hazard functions.
+to estimating survival and hazard functions. The Kaplan-Meier estimator
+provides survival curves for different groups, and the log-rank test lets us
+compare those curves. These methods are powerful for exploratory analysis and
+simple group comparisons, but they have fundamental limitations when dealing
+with real-world complexity.
 
-While useful, these approaches do not work when we want to consider multiple
-variables simultaneously. We could try to construct different KM estimates
-according to the splits, but splitting along multiple directions rapidly
-diminishes the amount of data in each split.
+## Understanding Cox Regression: Motivation and Theory
 
-Instead, we start to build regression models to estimate the hazard and
-survival functions.
+The group comparison approach encounters several practical challenges. Real-
+world outcomes rarely depend on a single factor—customer churn might be
+influenced by voicemail plan, international plan, customer service calls,
+account age, and usage patterns all at once. We could split the data by all
+these variables, but this creates an explosion of subgroups. With just 5
+binary variables, we'd have 32 groups; many would be too small for reliable
+estimation. Continuous predictors pose additional challenges, requiring
+arbitrary discretization that loses information. Perhaps most importantly,
+group-based approaches cannot disentangle confounding—differences between
+groups on one variable might actually be driven by correlated factors.
 
-## Proportional Hazards
+The **Cox proportional hazards model** addresses these needs while respecting
+the unique structure of survival data—censoring, time-to-event outcomes, and
+non-constant hazard rates. It provides individual-level risk scores, handles
+multiple predictors simultaneously, quantifies independent effects while
+adjusting for confounding, and accommodates both continuous and categorical
+variables naturally. It has become the standard regression approach in
+survival analysis because it balances flexibility, interpretability, and
+computational tractability.
 
-The core assumption for the proportional hazards model is that we model the
-hazard function and construct the survival curve from that.
+### Why Specialized Methods for Survival Data?
 
-We assume we have a reference hazard function of time, $h_0(t)$, known as the
-*baseline hazard*. All hazard functions are proportional to this baseline:
+Before diving into Cox models specifically, it's worth understanding why
+survival data requires specialized regression rather than standard linear or
+logistic regression. Linear regression assumes normally distributed outcomes
+that can take any value; survival times are strictly positive and often
+heavily right-skewed. More critically, **censored observations** don't fit
+the framework—if a customer is still active at day 180, we know their true
+survival time is "at least 180 days," not "exactly 180 days." Linear
+regression has no mechanism to handle this partial information.
+
+We could convert survival to binary (churned/not churned by day 180) and use
+logistic regression, but this throws away timing information—a customer
+churning on day 10 versus day 175 are treated identically. It also requires
+choosing an arbitrary time cutoff and doesn't naturally handle cases censored
+before that cutoff.
+
+Survival regression models work directly with **hazard functions**—the
+instantaneous risk of an event at each time point, conditional on survival
+to that point. This respects the time-to-event structure and naturally
+incorporates censored observations through likelihood functions that account
+for partial information. The Cox model is the most widely used approach
+because it makes minimal assumptions about the baseline hazard function (it's
+"semi-parametric"), yet still provides interpretable coefficients and robust
+predictions.
+
+### The Proportional Hazards Assumption
+
+The Cox model is built on a specific structural assumption about how
+covariates affect the hazard function. Understanding this assumption is
+critical for proper model use and interpretation.
+
+**The Baseline Hazard**
+
+Imagine a reference individual with all covariates set to zero (or reference
+levels for categorical variables). This person's hazard function over time is
+$h_0(t)$, called the **baseline hazard**. It represents the time-varying risk
+pattern for this reference case.
+
+Importantly, the Cox model does not require us to specify the shape of $h_0(t)$
+—it could be constant (exponential distribution), increasing (Weibull), have
+a bathtub shape, or any other pattern. This flexibility is a major advantage:
+we don't need to assume a particular distribution for survival times.
+
+**Proportionality: Constant Hazard Ratios**
+
+The "proportional hazards" assumption states that every individual's hazard
+function is a **constant multiple** of the baseline hazard:
 
 $$
-h(t) = \psi \, h_0(t)
+h(t | X) = \psi \, h_0(t)
 $$
 
-Implicit in the above statement is that the time-effects of the hazard are
-built into the hazard function $h_0(t)$ - there is no time-varying effect
-in the coefficients in the Cox PH model.
+where $\psi$ is a positive constant that depends on the individual's covariate
+values $X$, but **not on time**. This means:
 
-The hazards can be greater or less than this baseline - $\psi > 1$ means the
-hazard is greater than the baseline and the survival curve will be below the
-baseline curve; $\psi < 1$ means it is less.
+  - If person A has twice the hazard of person B at time 10, they also have
+    twice the hazard at time 100, time 500, etc.
+  - The **hazard ratio** between any two individuals remains constant over time
+  - All individuals experience the same time-varying pattern ($h_0(t)$), just
+    scaled up or down by $\psi$
 
-We model this constant factor $\psi$ as a linear model - we have covariates
-$x_i$ as inputs to the model, and each covariate has a corresponding
-coefficient $\beta_i$.
+Graphically, this means survival curves for different groups should not cross
+substantially—one group should consistently have better or worse survival
+throughout the observation period.
+
+**What Violates Proportional Hazards?**
+
+The assumption fails when the effect of a covariate changes over time:
+
+  - **Early vs. late effects**: A treatment might reduce hazard initially but
+    lose effectiveness over time (curves eventually cross)
+  - **Delayed effects**: A risk factor might not matter early but become
+    important later
+  - **Time-varying covariates**: If a covariate itself changes over time (e.g.,
+    customer upgrades their plan), simple proportional hazards doesn't apply
+    directly
+
+Violations don't make the Cox model useless, but they require extensions like
+time-varying coefficients or stratification (topics beyond this workshop).
+
+We'll cover two sets of diagnostic tools later in this workshop:
+
+  1. **Schoenfeld residuals** (Section "Assessing the Proportional Hazards
+     Assumption"): Formal tests for whether coefficients vary over time
+  1. **Residual-based variable exploration** (Section "Validating the
+     Proportional Hazards Model"): Using martingale and deviance residuals to
+     identify promising predictors and assess model fit
+
+**Modeling the Hazard Multiplier**
+
+The constant $\psi$ is modeled as an exponential linear function of covariates:
 
 $$
-\psi = \exp(\beta \, x) = \exp(\beta_1 x_1 + ... + \beta_n x_x)
+\psi = \exp(\beta_1 x_1 + \beta_2 x_2 + \ldots + \beta_p x_p) = \exp(\beta^T X)
 $$
 
-Thus, stated fully, our Cox PH model can be expressed as follows:
+Why the exponential? Several reasons:
+
+  1. **Ensures positivity**: Hazards must be non-negative, and $\exp(\cdot)$ is
+     always positive regardless of the linear predictor's value
+  1. **Multiplicative effects**: $\exp(a + b) = \exp(a) \cdot \exp(b)$, so
+     effects of different variables multiply rather than add
+  1. **Interpretable coefficients**: $\exp(\beta_j)$ is the hazard ratio for a
+     one-unit increase in $x_j$, holding other variables constant
+
+Putting it together, the full Cox proportional hazards model is:
 
 $$
-h(t | X) = h_0(t) \exp(\beta \, X)
+h(t | X) = h_0(t) \exp(\beta^T X)
 $$
 
-As our data is censored we need to modify our standard maximum likelihood
-approaches to estimating the parameters of a model - instead we need to use
-'partial likelihoods' that takes into account the censoring.
+The baseline hazard $h_0(t)$ captures the time-varying pattern, while
+$\exp(\beta^T X)$ captures how individual characteristics scale that pattern
+up or down.
 
-We will not go into the details, but this method reduces to optimising a
-function over the parameter space. This has the side benefit that once we have
-these parameter values, we can use this to calculate the baseline hazard also.
+### Interpreting Coefficients: Hazard Ratios
 
-With this in mind, we now turn our attention to actually fitting the models.
+Cox model coefficients are interpreted through **hazard ratios** (HRs), which
+are simply $\exp(\beta_j)$ for each coefficient $\beta_j$.
+
+**For Binary Variables**
+
+Suppose `intlplan` (international calling plan: yes/no) has a coefficient
+$\beta = 0.69$. The hazard ratio is:
+
+$$
+HR = \exp(0.69) \approx 2.0
+$$
+
+**Interpretation**: Customers with an international plan have approximately
+**twice the hazard** (twice the instantaneous churn risk) at any given time,
+compared to customers without an international plan, holding all other
+variables constant.
+
+Equivalently, their risk is 100% higher. Generally:
+
+  - $HR = 1.0$: No effect (hazard unchanged)
+  - $HR > 1.0$: Increased hazard (worse survival)
+  - $HR < 1.0$: Decreased hazard (better survival)
+  - $HR = 2.0$: Hazard doubled (100% increase)
+  - $HR = 0.5$: Hazard halved (50% reduction)
+
+**For Continuous Variables**
+
+Suppose `custservicecalls` has a coefficient $\beta = 0.15$. The hazard ratio
+for a one-unit increase (one additional call) is:
+
+$$
+HR = \exp(0.15) \approx 1.16
+$$
+
+**Interpretation**: Each additional customer service call is associated with
+a 16% increase in churn hazard, holding other variables constant.
+
+For a 5-call increase, the hazard ratio is:
+
+$$
+HR = \exp(5 \times 0.15) = \exp(0.75) \approx 2.12
+$$
+
+So five additional calls more than double the hazard.
+
+**Negative Coefficients**
+
+If a coefficient is negative, $\exp(\beta) < 1$, indicating a protective
+effect. For example, $\beta = -0.50$ gives $HR = \exp(-0.50) \approx 0.61$,
+meaning a 39% reduction in hazard (better survival).
+
+**The "Holding Other Variables Constant" Caveat**
+
+Hazard ratios represent **independent associations** after adjusting for other
+variables in the model. This is crucial: the effect of voicemail plan in a
+model with multiple predictors might differ from its effect when modeled alone,
+because other variables may confound or mediate the relationship.
+
+### Estimation: Partial Likelihood
+
+How do we estimate the coefficients $\beta$ in a Cox model? Standard maximum
+likelihood doesn't work directly because we have censored observations and an
+unspecified baseline hazard $h_0(t)$. The elegant solution is **partial
+likelihood**, developed by Cox (1972).
+
+**The Conceptual Idea**
+
+Rather than modeling the probability of events happening at specific times
+(which would require specifying $h_0(t)$), partial likelihood focuses on the
+**relative risk** at each event time.
+
+When an event occurs at time $t_i$, we ask: "Given that exactly one event
+occurred at this time and these people were at risk, how likely is it that
+this particular person experienced the event (versus someone else)?"
+
+The probability that individual $j$ has the event, given the risk set at
+time $t_i$, is:
+
+$$
+P(\text{individual } j \text{ fails at } t_i \mid \text{one failure at } t_i) = 
+\frac{\exp(\beta^T X_j)}{\sum_{k \in R(t_i)} \exp(\beta^T X_k)}
+$$
+
+where $R(t_i)$ is the **risk set**—all individuals still under observation
+(not yet failed or censored) just before time $t_i$.
+
+Notice that $h_0(t_i)$ cancels out in this ratio—it appears in both numerator
+and denominator, so we don't need to estimate it to calculate this probability.
+This is the key insight that makes the Cox model work without distributional
+assumptions.
+
+**Constructing the Partial Likelihood**
+
+We multiply these conditional probabilities across all observed event times:
+
+$$
+PL(\beta) = \prod_{i=1}^{D} \frac{\exp(\beta^T X_i)}{\sum_{k \in R(t_i)} \exp(\beta^T X_k)}
+$$
+
+where $D$ is the number of observed events. Maximizing this partial likelihood
+(or equivalently, its log) yields estimates of $\beta$.
+
+**Censored observations** contribute to the risk sets at event times before
+their censoring time, but don't contribute an event term. Their information
+isn't lost—they help define who was at risk when events occurred.
+
+**After Estimating Coefficients**
+
+Once we have $\hat{\beta}$, we can estimate the baseline hazard $h_0(t)$ using
+the **Breslow estimator**, though this is often not needed for practical
+applications. Most analyses focus on hazard ratios (which depend only on
+$\beta$) or predicted survival probabilities (which can be calculated without
+explicitly estimating $h_0(t)$).
+
+**Computational Note**
+
+Maximizing the partial likelihood is a standard numerical optimization problem,
+solved by iterative algorithms like Newton-Raphson. The R `survival` package
+implements this efficiently, handling tens of thousands of observations and
+hundreds of covariates routinely.
+
+### Advantages of the Cox Model
+
+Before fitting models, it's worth summarizing why the Cox proportional hazards
+model has become the workhorse of survival analysis:
+
+  1. **Semi-parametric flexibility**: No distributional assumptions about
+     survival times. The baseline hazard can have any shape.
+  1. **Handles censoring naturally**: Partial likelihood incorporates censored
+     observations without bias or information loss.
+  1. **Interpretable coefficients**: Hazard ratios have clear, practical
+     interpretations for stakeholders.
+  1. **Multiple predictors**: Easily accommodates many covariates—continuous,
+     categorical, interactions—in a single model.
+  1. **Adjusts for confounding**: Estimates independent effects of each variable
+     while controlling for others.
+  1. **Robust and well-studied**: Decades of theoretical development, extensive
+     software implementations, well-understood properties.
+  1. **Extensions available**: Can be extended for time-varying coefficients,
+     time-varying covariates, competing risks, frailty (random effects), and
+     more.
+
+The main limitation is the proportional hazards assumption, which needs
+checking (we'll cover diagnostics later). When violated, alternative models or
+extensions may be needed.
+
+With this foundation, we're ready to fit Cox models to our data and interpret
+the results.
 
 
 ## Our First Cox-PH Model
 
-For our first Cox-PH model, we build a model using the voicemail parameter.
+Having developed the theoretical foundation, we now fit our first Cox
+proportional hazards model to examine whether voicemail plan status affects
+customer churn.
+
+The `coxph()` function uses the same formula syntax as other R regression
+functions: the left side is a `Surv()` object (time and event indicator),
+and the right side specifies predictors. For a single binary predictor like
+`vmailplan`, this gives us a simple baseline model.
 
 ```{r telco_model01_coxph}
 #| echo: true
@@ -1579,49 +2189,98 @@ telco_model01_coxph <- coxph(
 telco_model01_coxph |> summary()
 ```
 
+The `summary()` output provides several key pieces of information:
+
+  - **Coefficient (coef)**: The estimated $\beta$ value from the model
+  - **Hazard ratio (exp(coef))**: $\exp(\beta)$, the multiplicative effect on
+    the hazard
+  - **Standard error and z-score**: Quantify uncertainty in the coefficient
+    estimate
+  - **Concordance**: The c-index we'll discuss in the next section
+
+For `vmailplan`, the negative coefficient means having a voicemail plan is
+associated with *lower* hazard (better survival). The hazard ratio of
+approximately 0.65 indicates that customers with voicemail plans have about
+65% of the churn hazard compared to those without—equivalently, a 35%
+reduction in churn risk.
+
+This model was estimated using the partial likelihood framework described
+earlier, comparing observed events to the risk set at each event time without
+requiring specification of the baseline hazard shape.
+
 Now that we have built our first survival regression model, how do we assess
 how good the model is?
 
 
 ## Model Assessment
 
-Model assessment in survival analysis is less straightforward as the models
-produce a distribution rather than a number. We can discuss more robust
-assessments later, but for now it is worth introducing a number of
-quantitative measures of model quality.
+Assessing Cox model fit differs from standard regression because we're modeling
+a distribution (survival probabilities over time) rather than a single numeric
+outcome. We cannot simply calculate residual sums of squares or standard $R^2$.
+Instead, survival analysis uses adapted metrics that account for censoring and
+time-to-event structure.
+
+Two key measures help quantify how well a Cox model explains the data:
+**pseudo-$R^2$** (variance explained) and the **concordance index**
+(predictive discrimination). Both provide complementary views of model quality.
 
 ### R-Squared
 
 The standard measure of model fit is $R^2$, the proportion of variance
-explained by the model. This does not quite work for survival models, but we
-can use a modified $R^2$ statistic, defined for Cox-PH models as follows:
+explained by the model. This concept doesn't directly apply to Cox models
+(which estimate hazard functions, not outcomes), but we can construct an
+analogous measure based on likelihood ratios.
+
+For Cox proportional hazards models, we use a **pseudo-$R^2$** defined as:
 
 $$
 R^2 = 1 - \left( \frac{l(0)}{l(\hat{\beta})} \right)^{\frac{2}{n}}
 $$
 
-where $l(\beta)$ is the log-likelihood function.
+where $l(\beta)$ is the log-partial-likelihood function, $l(0)$ is the
+log-partial-likelihood of the null model (no predictors), and $n$ is the
+sample size.
+
+This measures improvement in model fit compared to the null model. Values
+range from 0 (no improvement over null) to 1 (perfect fit), though in
+practice survival models rarely achieve high $R^2$ values. A value of 0.10-0.20
+might represent a reasonably useful model, as censoring and unmeasured factors
+inherently limit explained variance.
 
 
 ### Concordance Index
 
-The concordance index, or $c$-index, or $c$-statistic is the proportion of
-pairwise comparisons correctly identified by the model. To ensure a fair
-comparison at least one of the rows must not be censored.
+The concordance index (c-index or c-statistic) measures **predictive
+discrimination**: how well the model ranks individuals by risk. It answers
+the question: "If we pick two random individuals, does our model correctly
+predict which one will experience the event first?"
 
-We compare comparison times and check that our model correctly predicted the
-order of times between the compared datapoints - a correct value adds 1 to
-the total, an incorrect one adds 0. We then divide the total by the number
-of comparisons made to get our statistic.
+Formally, the c-index is the proportion of **concordant pairs** among all
+evaluable pairs. A pair is evaluable if at least one individual experiences
+the event (not both censored). The pair is concordant if:
 
-Thus, a concordance index of 0.5 is equivalent to a random guess and so is our
-baseline value. A good survival model will have a $c$-index between 0.6 and
-0.7 - anything higher is unlikely due to the censored nature of our data.
+  - The person predicted to have higher risk (higher linear predictor $\beta^T X$)
+    actually experiences the event first, *or*
+  - The person predicted to have lower risk is censored before the higher-risk
+    person's event time
+
+The c-index ranges from 0 to 1:
+
+  - **0.5**: Random guessing (coin flip)—model has no discriminative ability
+  - **0.6-0.7**: Reasonable discrimination—typical for good survival models
+  - **0.7-0.8**: Strong discrimination—excellent model performance
+  - **>0.8**: Exceptional (rare in practice due to censoring and noise)
+
+Unlike classification accuracy, the c-index naturally handles censored
+observations by excluding pairs where censoring prevents meaningful comparison.
+It's analogous to the area under the ROC curve (AUC) in classification
+problems.
 
 
 ### Assessing Our First Model
 
-So how good is our model?
+Let's examine our voicemail plan model using these metrics. We use `glance()`
+to extract summary statistics and `tidy()` to view coefficient details:
 
 ```{r telco_model01_coxph_assessment}
 #| echo: true
@@ -1635,15 +2294,31 @@ telco_model01_coxph |>
 telco_model01_coxph |> tidy()
 ```
 
-This simple model with one binary variable gives us a $c$-index of 0.565. The
-$R^2$ is essentially zero (0.011), and we will check how both values correlate
-as we iterate upon the model-building.
+This simple model with one binary variable gives us a **c-index of 0.565**—
+slightly better than random guessing (0.5), but only modestly so. The model
+can distinguish high-risk from low-risk customers, but not strongly. This
+makes sense: voicemail plan status alone cannot explain the full complexity
+of customer churn behavior.
+
+The **$R^2$ is essentially zero (0.011)**, indicating that voicemail plan
+explains about 1% of the variance in churn hazard. Again, this is expected
+for a single predictor in a complex process.
+
+These low values aren't necessarily problematic—they establish a baseline.
+As we add more predictive variables, we'll track how both metrics improve.
+The question becomes: can we build a model with c-index approaching 0.70 and
+$R^2$ above 0.10 by including additional risk factors?
 
 
 ## Adding International Plans
 
-For our second model we add international calls, adding it as a single variable
-before we see what adding both does..
+Before building more complex models, it's good practice to examine each
+potential predictor individually. This helps us understand each variable's
+independent relationship with churn and establishes individual baselines
+before testing combined effects.
+
+We fit a second model using only `intlplan` (international calling plan
+status) as the predictor:
 
 ```{r telco_model02_coxph}
 #| echo: true
@@ -1656,9 +2331,14 @@ telco_model02_coxph <- coxph(
 telco_model02_coxph |> summary()
 ```
 
-Model02 has a $c$-index of 0.591, so the international plan has more
-predictive power. Note that $R^2$ is increasing with $c$-index, so this
-relationship is worth investigating later.
+The coefficient for `intlplan` is positive and substantial, indicating that
+having an international plan is associated with *higher* churn hazard. The
+hazard ratio (approximately 2.5-3.0 based on typical values) suggests
+customers with international plans have roughly 2.5× the churn risk compared
+to those without. This is a strong effect—much larger than voicemail plan's
+protective effect.
+
+Examining the model assessment metrics:
 
 ```{r telco_model02_coxph_assessment}
 #| echo: true
@@ -1670,9 +2350,32 @@ telco_model02_coxph |>
 telco_model02_coxph |> tidy()
 ```
 
-Having checked the variables separately, we now combine them into a single
-model containing both variables. We expect combining both variables to improve
-our model, but if both are highly correlated this may not be the case.
+Model02 achieves a **c-index of 0.591**, notably better than Model01's 0.565.
+This confirms that international plan status has stronger discriminative power
+for predicting churn than voicemail plan. The model can now distinguish
+high-risk from low-risk customers more reliably, though still only moderately.
+
+The **$R^2$ has increased** from 0.011 to approximately 0.024-0.03 (check the
+output above). While still low in absolute terms, this represents a meaningful
+improvement—international plan explains 2-3% of variance in churn hazard
+compared to voicemail's 1%.
+
+An interesting pattern emerges: as c-index increases, $R^2$ also increases.
+This relationship makes intuitive sense—better discrimination (c-index)
+generally corresponds to better explanatory power ($R^2$)—though they measure
+different aspects of model quality.
+
+### Combining Both Predictors
+
+Having examined each variable separately, we now combine them into a single
+model containing both `vmailplan` and `intlplan`. This tests whether the
+variables provide **independent** information about churn risk.
+
+We expect the combined model to improve over either single-predictor model
+since both variables capture different aspects of customer behavior. However,
+if the two variables are highly correlated (e.g., if customers with voicemail
+tend to also have international plans), their effects might overlap
+substantially, limiting the improvement from including both.
 
 ```{r telco_model03_coxph}
 #| echo: true
@@ -1685,8 +2388,12 @@ telco_model03_coxph <- coxph(
 telco_model03_coxph |> summary()
 ```
 
-The combined model, Model03, has a $c$-index of 0.643 and an $R^2$ of 0.05.
+The combined model shows both coefficients remain statistically meaningful,
+suggesting each variable contributes independently. The hazard ratios are
+similar to the single-predictor models, indicating minimal confounding
+between these variables.
 
+Assessing the combined model:
 
 ```{r telco_model03_coxph_assessment}
 #| echo: true
@@ -1698,6 +2405,22 @@ telco_model03_coxph |>
 telco_model03_coxph |> tidy()
 ```
 
+Model03 achieves a **c-index of 0.643**—a substantial jump from 0.591
+(Model02) and 0.565 (Model01). The combined model now discriminates between
+high-risk and low-risk customers reasonably well, approaching the 0.65-0.70
+range typical of good survival models.
+
+The **$R^2$ has improved to approximately 0.05** (5% of variance explained).
+While this might seem low compared to linear regression standards, it's
+reasonable for survival data where censoring and unmeasured factors inherently
+limit explained variance.
+
+The improvement from combining predictors confirms that voicemail plan and
+international plan provide complementary information—they're not simply
+capturing the same underlying customer characteristic. This justifies
+including both in the model and suggests that adding additional relevant
+predictors might further improve performance.
+
 This model appears to be better, and there are many more variables we can
 try to improve the model.
 
@@ -1708,19 +2431,42 @@ expect, we have tools to help with this.
 
 ## Validating the Proportional Hazards Model
 
-We have skipped much of the statistical theory up to this point, but we now
-need to look at using some of it.
+Before continuing to build more complex models, we need tools to answer two
+key questions:
 
-A common statistical approach for assessing regression models is through
-analysis of the residuals, typically defined as some form of difference
-between the predicted and observed values.
+  1. **Model adequacy**: Does our model fit the data reasonably well? Are there
+     systematic patterns in the residuals suggesting problems?
+  1. **Variable selection**: Which additional variables might improve the model?
+     Can we identify promising predictors before fitting dozens of models?
 
-For survival analysis, our approach is more involved in terms of how we
-define the residuals of a model, but the basic concept is the same.
+In linear regression, residual plots (observed minus predicted) help answer
+both questions. For Cox models, residuals are more complex because we're
+modeling hazards over time with censored observations, not simple numeric
+outcomes. However, the conceptual approach remains the same: examine
+differences between observed and expected values.
+
+We'll use two types of residuals:
+
+  - **Martingale residuals**: Measure differences between observed events and
+    expected cumulative hazard. Useful for exploring functional forms and
+    identifying influential observations.
+  - **Deviance residuals**: Symmetric transformation of martingale residuals,
+    better behaved for model diagnostics and goodness-of-fit assessment.
+
+A particularly valuable application is using residuals from a **null model**
+(no predictors) to explore which variables show relationships with the
+outcome. Variables that show clear patterns when plotted against null-model
+residuals are promising candidates for inclusion.
 
 ### Fitting the Null Model
 
-We first work from a null CoxPH model that we fit - the 'null' model:
+We begin by fitting a **null model** (intercept-only, no predictors). This
+model assumes all individuals have the same baseline hazard, with no
+covariate effects. It serves as our reference point: any patterns in the
+residuals indicate that covariates could improve predictions.
+
+The formula `Surv(accountdur, churned) ~ 1` fits a model with only the
+baseline hazard—equivalent to estimating a single survival curve for everyone:
 
 ```{r fit_null_model}
 #| echo: true
@@ -1733,17 +2479,38 @@ telco_model00_coxph <- coxph(
 telco_model00_coxph |> summary()
 ```
 
+This model has no coefficients (no covariates), so the summary is minimal.
+Its primary value is generating residuals that capture unexplained variation—
+variation we hope to explain by adding predictors.
+
 
 ### Martingale Residuals
 
-We define our basic residual $m_i$ as follows:
+Martingale residuals extend the concept of "observed minus expected" to the
+survival context. For each individual $i$, the martingale residual is:
 
 $$
 m_i = \delta_i - \hat{H}_0(t_i) \exp(x_i \hat{\beta})
 $$
 
-The residual is the difference between the observed value of the whether the
-event occurred and its expected value under the Cox model.
+where:
+
+  - $\delta_i$ is the event indicator (1 if event occurred, 0 if censored)
+  - $\hat{H}_0(t_i)$ is the estimated cumulative baseline hazard at time $t_i$
+  - $\exp(x_i \hat{\beta})$ is the relative risk multiplier from covariates
+
+The residual measures the difference between the **observed event status**
+(did the event happen?) and the **expected cumulative hazard** (how much
+risk has accumulated?). For the null model, this simplifies since
+$\exp(x_i \hat{\beta}) = 1$ (no covariates).
+
+**Interpretation:**
+
+  - Positive residuals: Individual experienced event sooner than expected (or
+    survived longer than expected if censored)
+  - Negative residuals: Individual survived longer than expected (or experienced
+    event later than expected if censored)
+  - Residuals sum to zero on average
 
 ```{r calculate_null_model_martingale_residuals}
 #| echo: true
@@ -1753,9 +2520,21 @@ telco_model00_resid_m <- telco_model00_coxph |> residuals(type = "martingale")
 telco_model00_resid_m |> summary()
 ```
 
-We have zero-mean, but there is skew in the data as the values are bounded
-above at 1, but unbounded below. The easiest way to check the shape is look at
-a histogram of the values.
+The martingale residuals have several notable properties visible in the
+summary and histogram:
+
+  1. **Zero mean**: Residuals average to approximately zero (by construction)
+  1. **Asymmetric distribution**: Bounded above at 1 (event occurred, but no
+    cumulative hazard would give residual > 1) but unbounded below (censored
+    observations with high predicted cumulative hazard)
+  1. **Right skew**: The upper bound creates skewness, making them unsuitable
+    for standard normality-based diagnostics
+
+Despite the asymmetry, martingale residuals are valuable for:
+
+  - Detecting non-linear relationships (plot residuals vs. continuous predictors)
+  - Identifying influential observations (extreme residuals)
+  - Exploring which variables to include (as we'll do next)
 
 ```{r plot_null_model_martingale_residuals}
 #| echo: true
@@ -1776,14 +2555,27 @@ ggplot() +
 
 ### Deviance Residuals
 
-Martingale residuals cannot be used in sums of squares methods to assess
-goodness-of-fit - instead we define another quantity when the model is correct
-is symmetrically distributed with an expectation of zero. These 'deviance'
-residuals, $d_i$ are defined as follows:
+Martingale residuals' asymmetry limits their usefulness for goodness-of-fit
+assessment and outlier detection. We need residuals that are approximately
+symmetric and normally distributed under correct model specification.
+
+**Deviance residuals** transform martingale residuals to have better
+statistical properties. They are defined as:
 
 $$
-d_i = \text{sign}(m_i) {-2 [m_i + \delta_i \log (\delta_i - m_i)]}^{1/2}
+d_i = \text{sign}(m_i) \sqrt{-2 [m_i + \delta_i \log (\delta_i - m_i)]}
 $$
+
+where $m_i$ is the martingale residual. This transformation:
+
+  - Preserves the sign of the martingale residual (positive/negative pattern)
+  - Creates approximate symmetry around zero
+  - Yields approximate normality when the model fits well
+  - Behaves similarly to standardized residuals in linear regression
+
+**Why "deviance"?** The name comes from likelihood theory: the squared
+deviance residuals sum to the model's deviance statistic, analogous to how
+squared residuals in linear regression sum to the residual sum of squares.
 
 ```{r calculate_null_model_deviance_residuals}
 #| echo: true
@@ -1813,18 +2605,41 @@ ggplot() +
   ggtitle("Histogram of Null-Model Squared Deviance Residuals")
 ```
 
-Neither look distributed as we would like, suggesting this model is not good,
-but we will return to this topic later.
+The deviance residuals show some asymmetry and non-normality, which is
+expected for the null model—we haven't included any predictors yet! The
+deviations from normality indicate that covariates can improve the model.
+
+For a well-specified model with appropriate predictors, we'd expect deviance
+residuals to:
+
+  - Be approximately symmetric around zero
+  - Show near-normal distribution
+  - Have no systematic patterns when plotted against predictors or fitted values
+
+The fact that these distributions look "off" isn't a problem—it's an
+opportunity. It tells us there's predictable structure in the data that
+covariates can capture. The next step is identifying which covariates.
 
 
 ### Residual Plots
 
-Much like for linear models, these residuals are useful to help decide which
-variables may have predictive power in our survival model. We do this by
-plotting the values of the residual against the variable values.
+The most valuable use of null-model residuals is **exploratory variable
+selection**. By plotting residuals against potential predictors, we can
+visually identify variables that show relationships with the outcome.
 
-To do this, we first add the residuals to the original dataset so that we can
-construct some of the residual plots.
+**The logic**: If a variable is predictive, different values of that variable
+should correspond to systematically different residuals. For example:
+
+  - Categorical variables: Groups should have different median residuals
+  - Continuous variables: Residuals should show trends or patterns
+
+Variables with clear visual patterns are strong candidates for inclusion in
+the model. Variables showing no pattern likely have little predictive value.
+
+We plot martingale residuals (rather than deviance) because they're more
+sensitive to functional form issues and easier to interpret for this purpose.
+
+First, we add the residuals to the dataset:
 
 ```{r create_residual_plots_null_model}
 #| echo: true
@@ -1902,29 +2717,84 @@ ggplot(telco_null_assess_tbl) +
   ggtitle("Residual Plot of Martingal Residual against intlmins")
 ```
 
-No strong patterns stand out here, but that does not necessarily rule them
-out of candidate models. We will not know the predictive power till we try
-them in a model.
+**Interpreting these plots:**
+
+For categorical variables (`vmailplan`, `intlplan`, `areacode`): Look for
+differences in the distribution of residuals across categories. Clear
+separation between boxplots suggests the variable affects survival.
+
+For continuous variables (`vmailmessage`, `daymins`, `nightmins`, `intlmins`):
+Look for trends, curvature, or other systematic patterns. A horizontal band
+with no structure suggests the variable has little predictive value. Trends
+indicate relationships.
+
+From these plots:
+
+  - `intlplan` and `vmailplan` show some separation, suggesting predictive power
+    (which we've already confirmed by fitting models with these variables)
+  - `custservicecalls` shows a gradient pattern—higher calls correspond to more
+    positive residuals (worse survival than expected)
+  - Continuous variables show weak or unclear patterns, though absence of clear
+    visual patterns doesn't definitively rule them out
+
+This exploratory analysis guides model building: we should definitely try
+customer service calls, and the plan variables are confirmed as useful. The
+continuous usage variables are less clear and may require model fitting to
+assess properly.
 
 
 ## Assessing the Proportional Hazards Assumption
 
-The proportional hazards assumption is key in the construction of the partial
-likelihood, as it allows the cancellation of the baseline hazard in the
-calculations.
+The proportional hazards assumption is fundamental to Cox regression: it
+states that hazard ratios remain constant over time. Recall from the theory
+section that the model assumes:
 
-This assumption of proportional hazards is likely to be violated in practice,
-so the question is how big the effect those violations have on our model.
-Formal statistical tests are thus of limited value, but can be a useful
-indicator of issues with any models built.
+$$
+h(t | X) = h_0(t) \exp(\beta^T X)
+$$
 
+where $\beta$ (and thus hazard ratios $\exp(\beta)$) do **not** vary with
+time $t$. This assumption enables the partial likelihood construction by
+allowing the baseline hazard to cancel out.
 
-### Residual Plots
+**Why check this assumption?** If hazard ratios change over time—for example,
+a treatment effect that weakens over time, or a risk factor that only matters
+early—then:
 
-Tests for the proportional hazards assumption reduce to checking if the
-parameters from the model are constant over time. This task is made easier
-by the construction of 'Schoenfeld' residuals, which we will not discuss
-here, but are easily calculated in R by using the `cox.zph()` function.
+  1. Coefficient estimates will be averages across time, potentially obscuring
+     important temporal patterns
+  1. Predictions may be systematically biased at certain time points
+  1. Interpretations become ambiguous ("hazard ratio of 2.0" is less meaningful
+     if it's 3.0 early and 1.5 late)
+
+Some degree of non-proportionality is nearly always present in real data. The
+practical question is: **Is the violation severe enough to undermine the
+model's usefulness?** Minor deviations are typically acceptable; severe
+violations require alternative approaches (stratification, time-varying
+coefficients, or different models).
+
+### Testing with Schoenfeld Residuals
+
+The most common approach uses **Schoenfeld residuals**—a special type of
+residual that isolates deviations from proportional hazards. We won't derive
+them here, but the key insight is:
+
+  - If the PH assumption holds, Schoenfeld residuals should show **no trend
+    over time**
+  - If hazard ratios change over time, Schoenfeld residuals will show systematic
+    patterns (increasing, decreasing, or non-linear trends)
+
+The `cox.zph()` function computes these residuals, tests for time trends, and
+produces diagnostic plots. The test correlates the residuals with time
+(or functions of time); significant correlation indicates non-proportionality.
+
+**Interpreting cox.zph() output:**
+  - Each coefficient gets a test statistic and p-value
+  - Small p-values (< 0.05) suggest non-proportional hazards for that variable
+  - The GLOBAL test assesses overall model proportionality
+  - Diagnostic plots show residual trends over time (flat = good)
+
+Let's check our three fitted models:
 
 ```{r testing_model01_ph_assumptions}
 #| echo: true
@@ -1935,9 +2805,21 @@ telco_model01_coxzph |> print()
 telco_model01_coxzph |> ggcoxzph()
 ```
 
-The plot and $p$-value suggest the assumptions are not horrible here.
+**Interpreting Model 01 (vmailplan):**
 
-We now move on to the second model we built.
+The plot shows Schoenfeld residuals over time. Ideally, we want a flat,
+horizontal pattern with no systematic trend. The test statistic and p-value
+quantify whether any observed trend is stronger than expected by chance.
+
+For a single binary predictor like `vmailplan`, substantial departures from
+proportionality would show up as clear upward or downward trends in the plot.
+If the p-value is large (> 0.05, though remember we don't rely heavily on
+p-value thresholds), the assumption appears reasonable.
+
+The plot and test statistics suggest the proportional hazards assumption is
+not seriously violated for this simple model.
+
+### Model 02: International Plan
 
 ```{r testing_model02_ph_assumptions}
 #| echo: true
@@ -1948,10 +2830,12 @@ telco_model02_coxzph |> print()
 telco_model02_coxzph |> ggcoxzph()
 ```
 
-The assumption also seems sound here.
+The proportional hazards assumption also appears acceptable for the
+international plan model. The residual pattern doesn't show strong temporal
+trends, suggesting the hazard ratio for `intlplan` remains reasonably constant
+over the observation period.
 
-
-We now try the combined model, `model03`:
+### Model 03: Combined Model
 
 ```{r testing_model03_ph_assumptions}
 #| echo: true
@@ -1961,6 +2845,38 @@ telco_model03_coxzph <- telco_model03_coxph |> cox.zph(transform = "km")
 telco_model03_coxzph |> print()
 telco_model03_coxzph |> ggcoxzph()
 ```
+
+**Interpreting Model 03 (vmailplan + intlplan):**
+
+The combined model tests proportionality for each coefficient separately, plus
+a GLOBAL test for overall model validity. Each variable gets its own plot
+showing residual patterns over time.
+
+Key observations:
+
+  - Both variables should show flat trends if the assumption holds
+  - The GLOBAL test provides an overall assessment
+  - Individual variables might show mild violations while the overall model
+    remains acceptable
+
+For this model, the diagnostics suggest the proportional hazards assumption
+is reasonably satisfied. Neither variable shows severe departures from
+proportionality, and the GLOBAL test indicates the model structure is
+appropriate.
+
+**What if assumptions were violated?** If we saw clear trends or the tests
+indicated problems, we'd have several options:
+
+  1. **Stratify** on the problematic variable (allows different baseline hazards
+     for different groups)
+  1. **Add time-varying coefficients** using `tt()` in the formula (allows
+     coefficients to change over time)
+  1. **Transform the variable** (sometimes non-linearity masquerades as
+     non-proportionality)
+  1. **Accept minor violations** if the model still provides useful insights
+
+For now, our models pass the proportionality checks, so we can proceed with
+confidence in our coefficient interpretations and predictions.
 
 
 

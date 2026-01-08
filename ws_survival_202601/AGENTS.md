@@ -1,16 +1,14 @@
-# AI Agent Guidelines for [PROJECT_NAME]
+# AI Agent Guidelines for Survival Analysis Workshop
 
 This document provides guidance for AI assistants (GitHub Copilot, etc.) working with this codebase.
 
-> **Template Instructions**: Replace `[PROJECT_NAME]` and other placeholders with project-specific details. Remove sections marked "Optional - remove if not applicable" that don't apply to your project. This template supports both data processing/ETL projects and statistical modeling/analysis projects.
-
 ## 🎯 Quick Context
 
-**What is this?** [Brief one-sentence description]  
+**What is this?** Educational workshop on survival analysis using R and the telco churn dataset  
 **Primary tool:** RStudio Server in Docker (rocker/tidyverse)  
-**Key technologies:** R, [frameworks/packages], [special tools]  
-**Main challenge:** [Project-specific challenge - e.g., large datasets, complex models, temporal dependencies]  
-**Primary output:** [What this project produces - e.g., predictions, reports, processed datasets]
+**Key technologies:** R, Quarto (qmd), survival package, survminer, tidyverse  
+**Main challenge:** Creating pedagogical content that balances statistical rigor with accessibility  
+**Primary output:** Rendered HTML workshop materials (worksheet_survival.html) with embedded visualizations and explanations
 
 ## 🚨 Critical Rules - Read These First!
 
@@ -39,65 +37,139 @@ left_join(data1, data2, by = "key")
 **All library files (`lib_*.R`) must have complete roxygen2 documentation.** Check function signatures in the files before asking about parameters.
 
 ### 4. Reproducibility
-- **Always set seeds**: Use consistent seed (e.g., `seed = 4000`) for reproducible results
+- **Always set seeds**: Use consistent seed (e.g., `seed = 42`) for reproducible results
 - **Document package versions**: Use renv or specify versions in Dockerfile
 - **Cache expensive computations**: Save fitted models and large results
+
+### 5. Markdown/Quarto Formatting (CRITICAL for this project)
+
+**List Formatting Rules:**
+
+```markdown
+# ✅ CORRECT - Proper list formatting
+Some introductory text explaining the list:
+
+  - First item with two-space indentation
+  - Second item
+  - Multi-line item continues on next line
+    with proper indentation (four spaces total)
+
+# ❌ WRONG - Missing blank line before list
+Some introductory text:
+  - First item (will merge with paragraph above!)
+
+# ❌ WRONG - Blank lines between items
+  - First item
+
+  - Second item (creates separate lists!)
+
+# ❌ WRONG - No indentation
+- First item (inconsistent with rest of document)
+```
+
+**Critical Rules:**
+1. **Blank line BEFORE lists**: Always have one blank line between intro text and first list item
+2. **NO blank lines BETWEEN items**: List items should be consecutive (no blank lines)
+3. **Two-space indentation**: All list items start with two spaces, then the marker (- or 1.)
+4. **Continuation lines**: Multi-line list items need proper indentation (4 spaces for continuation)
+5. **Auto-numbering**: Use `1.` for ALL numbered list items (Markdown auto-numbers them)
+
+**Why This Matters:**
+- Without blank line before: List merges with preceding paragraph
+- With blank lines between items: Renders as separate lists
+- Without proper indentation: Markdown doesn't recognize as list
+- Manual numbering (1. 2. 3.): Fragile when reordering/adding items
 
 ## 🐳 Docker/Podman Setup
 
 ### Standard Container Launch
 ```bash
 # Use Justfile command (recommended)
-just docker-run
+just docker-run-image
 
-# Manual command (for reference)
-podman run -d \
-  --name project-rstudio \
-  -p "127.0.0.1:8787:8787" \
-  -e DISABLE_AUTH=true \
+# Manual command (for reference - uses Docker, not Podman)
+docker run --rm -d \
+  --userns=keep-id \
   -e RUNROOTLESS=false \
-  -e OPENBLAS_NUM_THREADS=1 \
-  -e OMP_NUM_THREADS=1 \
-  -e MKL_NUM_THREADS=1 \
-  --ulimit nproc=65535:65535 \
-  --pids-limit=-1 \
-  --security-opt label=disable \
-  -v ./:/home/rstudio/project:Z \
-  -v ./data:/data:ro,Z \
-  rocker/tidyverse:4.5.0
+  -p "127.0.0.1:8787:8787" \
+  -e USER=rstudio \
+  -e PASSWORD=CHANGEME \
+  -e USERID=$(id -u) \
+  -e GROUPID=$(id -g) \
+  -v "$(pwd):/home/rstudio/surv_workshop:z" \
+  -v "$(pwd)/.rstudio_copilot:/home/rstudio/.config/github-copilot:rw" \
+  --name survival-workshop \
+  kaybenleroll/ws_survival_202601:latest
 ```
 
 ### Key Configuration Notes
 - **RUNROOTLESS=false** - rocker images need root for initial setup
 - **Port binding to 127.0.0.1** - Never use 0.0.0.0 (security risk)
-- **SELinux :Z suffix** - Required for volume mounts on SELinux systems
-- **--security-opt label=disable** - Fallback if :Z doesn't work
-- **:ro flag** - Mark data directories read-only when possible
-- **Threading env vars** - Critical for parallel processing stability
+- **SELinux :z suffix** - Required for volume mounts on SELinux systems (lowercase :z for shared)
+- **--userns=keep-id** - Maintains user ID mapping in rootless mode
+- **--rm flag** - Auto-removes container when stopped
+- **GitHub Copilot mount** - Persists authentication across container restarts
+- **Project mount** - Maps to /home/rstudio/surv_workshop (not /project)
 
-### Parallel Processing Limits
-- **8 workers maximum recommended** for furrr/future
-- **Resource limits**: `--ulimit nproc=65535:65535 --pids-limit=-1`
-- **Test with small datasets** before full parallel runs
+### Docker Image Management
+```bash
+# Build Docker image
+just docker-build-image
+
+# Rebuild from scratch (no cache)
+just docker-rebuild-image
+
+# Stop container
+just docker-stop-image
+
+# Remove container
+just docker-rm
+
+# Restart container
+just docker-restart
+
+# Enter container shell
+just docker-bash
+
+# View container logs
+just docker-logs
+
+# Check container status
+just docker-status
+```
 
 ### SSH Tunneling for Remote Access
 ```bash
-# Display tunnel command
-just ssh-tunnel-rstudio
-# Then run on local machine: ssh -L 8787:localhost:8787 user@remote
-# Access: http://localhost:8787
+# Display tunnel command with your username and hostname
+just ssh-tunnel
+
+# Example output:
+# Run this command on your local machine:
+#   ssh -L 8787:localhost:8787 username@hostname
+# Then access RStudio at: http://localhost:8787
 ```
 
-### GitHub Copilot in RStudio (Optional)
-- **Server-level configuration**: Add to Dockerfile
-  ```dockerfile
-  RUN mkdir -p /etc/rstudio && \
-      echo "copilot-enabled=1" >> /etc/rstudio/rsession.conf
-  ```
-- **Persist GitHub auth**: Mount from host
-  ```bash
-  -v "$HOME/.config/github-copilot:/home/rstudio/.config/github-copilot:rw"
-  ```
+### Quarto Rendering Targets
+```bash
+# Render main workshop notebook
+just worksheet_survival
+# or
+just worksheet
+
+# Render classical survival models
+just classic_survival_models
+# or
+just classic
+
+# Render all notebooks
+just all
+
+# Clean generated files
+just clean-html        # Remove HTML files
+just clean-cache       # Remove Quarto cache
+just clean-all         # Remove everything
+just nuke             # Nuclear option
+```
 
 ## 📊 Project Structure
 
@@ -530,6 +602,43 @@ Use descriptive labels: `load_data`, `fit_model1`, `visualize_results`
 ### Narrative Text
 Add explanatory text before and after code chunks explaining purpose and results.
 
+### Markdown List Formatting in Narrative Sections
+
+**CRITICAL**: Lists in Quarto documents follow standard Markdown rules:
+
+```markdown
+# ✅ CORRECT
+Explanatory paragraph about what comes next:
+
+  1. First numbered item
+  1. Second numbered item (auto-numbered by Markdown)
+  1. Third item with continuation
+     that wraps to next line
+
+Another paragraph after the list.
+
+# ❌ WRONG - No blank line before list
+This paragraph introduces:
+  1. List item (will merge with paragraph!)
+
+# ❌ WRONG - Blank lines between items
+  1. First item
+
+  1. Second item (creates two separate lists!)
+
+# ❌ WRONG - Manual numbering
+  1. First item
+  2. Second item (fragile when reordering)
+  3. Third item
+```
+
+**Common Patterns in This Workshop:**
+- Bulleted lists for examples, properties, characteristics
+- Numbered lists for step-by-step procedures, key findings
+- Always use `1.` for numbered items (let Markdown handle numbering)
+- Ensure blank line before list, no blank lines between items
+- Use two-space indentation consistently
+
 ### Multi-Model Organization
 ```r
 # Load Data section
@@ -661,7 +770,44 @@ left_join(data1, data2, by = "key")
 left_join(data1, data2, by = "key", relationship = "many-to-many")
 ```
 
-### 2. Too Many Parallel Workers
+### 2. Markdown List Formatting Errors
+```markdown
+# ❌ BAD - No blank line before list
+Text introducing the list:
+  - Item 1 (merges with paragraph!)
+
+# ❌ BAD - Blank lines between items
+  - Item 1
+
+  - Item 2 (separate lists!)
+
+# ❌ BAD - No indentation
+- Item 1 (inconsistent)
+
+# ❌ BAD - Manual numbering
+  1. First
+  2. Second
+  3. Third (fragile when reordering)
+
+# ✅ GOOD - Proper formatting
+Text introducing the list:
+
+  - Item 1
+  - Item 2
+  - Item 3 continues on next line
+    with proper indentation
+
+Next paragraph.
+
+# ✅ GOOD - Auto-numbered list
+Numbered list example:
+
+  1. First item
+  1. Second item
+  1. Third item
+```
+
+### 3. Too Many Parallel Workers
 ```r
 # ❌ DANGEROUS - May crash
 plan(multisession, workers = 16)
@@ -670,7 +816,7 @@ plan(multisession, workers = 16)
 plan(multisession, workers = 8)
 ```
 
-### 3. Using print() Instead of Logging
+### 4. Using print() Instead of Logging
 ```r
 # ❌ BAD - Clutters output
 print(paste("Processing", nrow(data), "records"))
@@ -679,7 +825,7 @@ print(paste("Processing", nrow(data), "records"))
 write_log_entry("PROCESSING", glue("Processing {nrow(data)} records"))
 ```
 
-### 4. Not Converting Column Names on Import
+### 5. Not Converting Column Names on Import
 ```r
 # ❌ BAD - Inconsistent names
 data <- read_csv("messy_data.csv")
@@ -689,7 +835,7 @@ data <- read_csv("messy_data.csv") |>
   set_colnames(names(.) |> to_snake_case())
 ```
 
-### 5. Skipping roxygen2 Documentation
+### 6. Skipping roxygen2 Documentation
 ```r
 # ❌ BAD - Undocumented
 process_data <- function(x, y) {...}
@@ -703,7 +849,7 @@ process_data <- function(x, y) {...}
 process_data <- function(x, y) {...}
 ```
 
-### 6. Not Testing Before Full Run
+### 7. Not Testing Before Full Run
 ```r
 # ❌ BAD - Running on full dataset without testing
 result <- process_all_items(million_items)
@@ -714,13 +860,13 @@ test_result <- process_all_items(test_sample)
 glimpse(test_result)  # Verify before full run
 ```
 
-### 7. Changing Seeds Without Documentation
+### 8. Changing Seeds Without Documentation
 ```r
 # ❌ BAD - Breaks reproducibility
 set.seed(sample(1:10000, 1))
 
 # ✅ GOOD - Consistent, documented seed
-set.seed(4000)  # Project standard seed
+set.seed(42)  # Project standard seed
 ```
 
 ## 🔧 Troubleshooting
@@ -839,6 +985,8 @@ data |> summarise(duplicates = n() - n_distinct(key_column))
 10. **Test incrementally**: Small samples before full runs
 11. **Output formatting**: Use `write_lines(text, stdout())` in Quarto
 12. **Proper indentation**: Closing `)` on own line, 2 spaces from opening `(`
+13. **Markdown lists**: Blank line before, no blanks between, two-space indent, use `1.` for auto-numbering
+14. **Check list formatting**: Always verify lists will render as single unified lists
 
 ## ❓ Questions to Ask Before Making Changes
 
@@ -855,59 +1003,123 @@ data |> summarise(duplicates = n() - n_distinct(key_column))
 - Are join relationships explicitly specified?
 - Are function arguments properly indented?
 - Have I set seeds for reproducibility?
+- **Do lists have blank line before but not between items?**
+- **Are list items using two-space indentation?**
+- **Are numbered lists using `1.` for auto-numbering?**
+
+## �️ Justfile Commands Reference
+
+### Available Commands
+```bash
+# List all commands
+just --list
+# or
+just
+
+# Project information
+just info              # Show project configuration
+just check-quarto      # Verify Quarto installation
+just check-r           # Check R in container
+just check-data        # Validate data files exist
+
+# Development
+just watch worksheet   # Auto-render on file changes (requires entr)
+just validate          # Check all QMD files without rendering
+just list-notebooks    # Show all available notebooks
+just list-html         # Show rendered HTML files
+
+# Data management
+just list-data         # List CSV data files
+just data-size         # Show data directory size
+
+# Utilities
+just disk-usage        # Show project disk usage
+just count-code        # Count lines of code
+just show-logs         # View recent rendering logs
+just preview <file>    # Preview HTML in terminal (needs w3m/lynx)
+just open-rstudio      # Open RStudio in browser (Linux)
+```
+
+### Hash-Based Smart Rendering
+The Justfile implements content-based caching:
+- Only re-renders when QMD file or dependencies (lib_utils.R, data_setup.R) change
+- Tracks changes via MD5 hashes in `.just-cache/`
+- Prevents unnecessary re-renders when only comments/whitespace change
 
 ## 📝 Environment Variables
 
-Standard environment variables (customize for your project):
+Standard environment variables in Dockerfile:
 
 ```bash
-# Data locations
-INPUT_DATA_DIR=/data/raw
-OUTPUT_DATA_DIR=/home/rstudio/project/output
+# Timezone
+TZ=Europe/Dublin
 
-# Threading (CRITICAL)
-OPENBLAS_NUM_THREADS=1
-OMP_NUM_THREADS=1
-MKL_NUM_THREADS=1
+# RStudio credentials (set in Justfile)
+USER=rstudio
+PASSWORD=CHANGEME
 
-# Project-specific
-[ADD PROJECT-SPECIFIC VARIABLES]
+# User/Group mapping
+USERID=$(id -u)
+GROUPID=$(id -g)
 ```
 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Start Docker container
-just docker-run
+# 1. Build Docker image (first time only)
+just docker-build-image
 
-# 2. Setup SSH tunnel (if remote)
+# 2. Start Docker container
+just docker-run-image
+
+# 3. Setup SSH tunnel (if remote)
 just ssh-tunnel
-# Copy command, run on local machine
+# Copy the displayed command, run on local machine
 
-# 3. Access RStudio
+# 4. Access RStudio
 # Open: http://localhost:8787
+# User: rstudio / Password: CHANGEME
 
-# 4. Load libraries and test
+# 5. In RStudio, load libraries and test
 library(tidyverse)
-library(arrow)
+library(survival)
+library(survminer)
 source("lib_utils.R")
 
-# 5. Run quick validation
-data <- read_parquet("data/sample.parquet")
-glimpse(data)
+# 6. Run quick validation
+telco_churn_tbl <- read_csv("data/telcochurn.csv")
+glimpse(telco_churn_tbl)
+
+# 7. Render workshop notebook
+just worksheet
 ```
 
 ## 🔄 Recent Updates & Known Issues
 
-### [Category] ([Date])
-- **[Update description]**: [Details]
-  - [Implementation note 1]
-  - [Implementation note 2]
+### Markdown List Formatting (2026-01-08)
+- **Critical formatting rules established**: All lists now follow strict Markdown conventions
+  - Blank line required BEFORE list (separates from preceding paragraph)
+  - NO blank lines BETWEEN list items (prevents splitting into multiple lists)
+  - Two-space indentation for all list items
+  - Use `1.` for all numbered items (Markdown auto-numbers sequentially)
+  - Four-space indentation for continuation lines
+- **Workshop-wide formatting audit completed**: All ~30+ lists verified and corrected
+- **Impact**: Proper rendering across all Markdown processors (Quarto, GitHub, Pandoc)
+
+### Survival Analysis Workshop Content (2026-01-08)
+- **Expanded pedagogical sections**: Added detailed explanations for Cox PH model sections
+  - Model syntax and output interpretation
+  - Assessment metrics (pseudo-R², concordance index) with benchmarks
+  - Model building narrative for predictor selection
+  - Comprehensive residual diagnostics (martingale, deviance)
+  - Proportional hazards assumption testing
+- **Cross-references added**: Theory sections now link to diagnostic validation sections
+- **80-column formatting maintained** throughout document
 
 ---
 
-**Last Updated**: [Date]  
-**Maintainer**: [Name] ([email])
+**Last Updated**: 2026-01-08  
+**Maintainer**: Mick Cooney (mcooney@describedata.com)
 
 ---
 
