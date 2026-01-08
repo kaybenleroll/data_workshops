@@ -18,6 +18,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     graphviz \
     htop \
     just \
+    less \
     libclang-dev \
     libglpk-dev \
     libgsl-dev \
