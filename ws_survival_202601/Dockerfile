@@ -83,7 +83,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     nanoparquet \
     pec \
     pryr \
-    qs \
+    qs2 \
     quarto \
     regplot \
     riskRegression \

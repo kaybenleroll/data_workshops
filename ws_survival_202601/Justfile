@@ -2,20 +2,29 @@
 # PROJECT CONFIGURATION
 # =============================================================================
 
-PROJECT_USER    := "kaybenleroll"
-PROJECT_NAME    := "ws_survival_202601"
-PROJECT_TAG     := "latest"
+# Docker image naming
+PROJECT_USER    := "kaybenleroll"     # Docker Hub username
+PROJECT_NAME    := "ws_survival_202601" # Project/repository name
+PROJECT_TAG     := "latest"           # Image tag (use 'latest' or version number)
 IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
-DOCKER_USER     := "rstudio"
-DOCKER_PASS     := "CHANGEME"
-DOCKER_UID      := `id -u`
-DOCKER_GID      := `id -g`
-PWD             := `pwd`
-RSTUDIO_PORT    := "8787"
-PROJECT_FOLDER  := "surv_workshop"
-CONTAINER_NAME  := "survival-workshop"
 
-DOCKER_BUILD_ARGS := ""
+# RStudio Server credentials (CHANGE PASSWORD in production!)
+DOCKER_USER     := "rstudio"          # Username for RStudio login
+DOCKER_PASS     := "CHANGEME"         # Password for RStudio login (update this!)
+
+# User/group mapping for file permissions in container
+DOCKER_UID      := `id -u`            # Current user ID (for file ownership)
+DOCKER_GID      := `id -g`            # Current group ID (for file ownership)
+
+# Directory configuration
+PWD             := `pwd`              # Current working directory
+RSTUDIO_PORT    := "8787"             # Host port for RStudio Server
+PROJECT_FOLDER  := "surv_workshop"    # Mount point inside container
+CONTAINER_NAME  := "survival-workshop" # Container name for docker commands
+
+# Build and logging configuration
+OUTPUT_LOG      := "quarto_render_output.log"  # Quarto rendering log file
+DOCKER_BUILD_ARGS := ""               # Additional docker build arguments
 
 # =============================================================================
 # DEFAULT TARGET
@@ -29,23 +38,29 @@ default:
 # RENDERING TARGETS - Quarto Notebooks
 # =============================================================================
 
-# Render all notebooks
-all: all-html
+# Render all notebooks (two-part workshop + classic models)
+all: both-parts classic_survival_models
 
-# Generate all HTML files from QMD files
-all-html: \
-	worksheet_survival \
-	classic_survival_models
+# Alias for all targets
+all-html: all
 
 # Internal helper: Check if rebuild needed based on content hash
+# Uses MD5 hashing to detect actual content changes (not just timestamps)
+# Returns exit 0 if rebuild needed, exit 1 if up-to-date
 _needs_rebuild output *sources:
 	#!/usr/bin/env bash
 	mkdir -p .just-cache
-	# Combine all source files and compute hash
+	
+	# Combine all source files and compute MD5 hash
+	# This detects actual content changes, ignoring comments/whitespace-only edits
 	combined_hash=$(cat {{sources}} 2>/dev/null | md5sum | cut -d' ' -f1)
 	cache_file=".just-cache/$(basename {{output}}).md5"
 	
 	# Rebuild if: output missing, cache missing, or hash changed
+	# Three conditions that trigger a rebuild:
+	#   1. HTML output doesn't exist yet
+	#   2. No cached hash (first run or cache cleared)
+	#   3. Source content changed (hash mismatch)
 	if [ ! -f {{output}} ] || \
 	   [ ! -f "$cache_file" ] || \
 	   [ "$combined_hash" != "$(cat $cache_file 2>/dev/null)" ]; then
@@ -53,100 +68,245 @@ _needs_rebuild output *sources:
 		exit 0  # needs rebuild
 	else
 		echo "$(basename {{output}}) is up to date (no content changes)"
-		exit 1  # skip rebuild
+		exit 1  # skip rebuild (content unchanged)
 	fi
 
 # Internal helper: Render a single QMD file with logging and hash-based caching
-_render-qmd qmd_file *deps:
+# Only re-renders when QMD content or dependencies (lib_utils.R) actually change
+# Logs all rendering activity to OUTPUT_LOG for debugging
+_render-qmd qmd_file:
 	#!/usr/bin/env bash
-	html_file="${1%.qmd}.html"
+	qmd_file="{{qmd_file}}"
+	html_file="${qmd_file%.qmd}.html"
 	
-	# Build list of all dependencies (qmd + library files)
-	all_deps="{{qmd_file}} lib_utils.R data_setup.R"
+	# Build list of all dependencies for hash-based change detection
+	# Include both the QMD file and shared R libraries that it sources
+	all_deps="$qmd_file lib_utils.R"
 	
-	# Check if rebuild needed
+	# Check if rebuild needed (based on content hash, not timestamps)
+	# _needs_rebuild returns 0 if rebuild needed, 1 if up-to-date
 	if just _needs_rebuild "$html_file" $all_deps; then
-		echo "TIMESTAMP: $(date) - Rendering script {{qmd_file}}" >> output.log 2>&1
-		quarto render "{{qmd_file}}" --to html >> output.log 2>&1
-		echo "TIMESTAMP: $(date) - Finished {{qmd_file}}" >> output.log 2>&1
+		# Log rendering start/end times for performance tracking
+		echo "TIMESTAMP: $(date) - Rendering $qmd_file" >> {{OUTPUT_LOG}} 2>&1
+		quarto render "$qmd_file" --to html >> {{OUTPUT_LOG}} 2>&1
+		echo "TIMESTAMP: $(date) - Finished $qmd_file" >> {{OUTPUT_LOG}} 2>&1
 	fi
 
-# --- Workshop Notebooks ---
+# =============================================================================
+# PRIMARY WORKSHOP TARGETS - Sequential Workshop Workflow
+# =============================================================================
+# Current workshop sequence: Part 1 (initial_survival_models) → Part 2 (expanded_coxph_models)
+# To extend: Add new parts to primary array in render-container-all and update dependencies
 
-# Render main workshop survival analysis notebook
-worksheet_survival:
-	just _render-qmd worksheet_survival.qmd
+# Render Part 1: Initial survival models and exploratory analysis
+initial_survival_models:
+	@echo "▶ Rendering Part 1: Initial Survival Models..."
+	@mkdir -p precompute
+	@just _render-qmd initial_survival_models.qmd
+	@echo "✓ Part 1 complete (data saved to precompute/)"
+
+# Render Part 2: Cox regression and advanced validation (requires Part 1)
+# DEPENDENCY: Requires initial_survival_models to run first (creates precompute/ data)
+# Part 2 loads models and data saved by Part 1, so strict ordering is enforced
+expanded_coxph_models: initial_survival_models
+	@echo "▶ Rendering Part 2: Expanded Cox PH Models..."
+	# Validate that Part 1's output exists before attempting Part 2
+	# Part 2 notebook will fail if it can't load precomputed data
+	@if [ ! -f precompute/telco_churn_cat.parquet ]; then \
+		echo "✗ Error: precompute/telco_churn_cat.parquet not found"; \
+		echo "  Run 'just initial_survival_models' first to generate required files"; \
+		exit 1; \
+	fi
+	@just _render-qmd expanded_coxph_models.qmd
+	@echo "✓ Part 2 complete"
+
+# Render current workshop sequence (all primary parts in dependency order)
+workshop-sequence: initial_survival_models expanded_coxph_models
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "✓ Workshop sequence completed successfully"
+	@echo "  Part 1: initial_survival_models.html"
+	@echo "  Part 2: expanded_coxph_models.html"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Alias for workshop sequence
+worksheet: workshop-sequence
+
+# =============================================================================
+# SUPPLEMENTARY WORKSHOP TARGETS
+# =============================================================================
 
 # Render classical survival models notebook
 classic_survival_models:
-	just _render-qmd classic_survival_models.qmd
+	@just _render-qmd classic_survival_models.qmd
 
 # Render classical survival models (alias)
 classic: classic_survival_models
 
+# Render original monolithic worksheet (legacy, use workshop-sequence instead)
+worksheet_survival:
+	@echo "⚠ Warning: worksheet_survival.qmd is the legacy monolithic version"
+	@echo "  Consider using 'just workshop-sequence' for the updated workshop"
+	@just _render-qmd worksheet_survival.qmd
+
 # --- Container Rendering (exec inside running container) ---
+# RECOMMENDED: These targets use Docker container for rendering (no host R/Quarto needed)
 
 # Render any QMD using Quarto inside the running container
+# Requires container to be running (start with: just docker-run-image)
 render-container file:
 	#!/usr/bin/env bash
+	# Auto-append .qmd extension if not specified
 	qmd="{{file}}"
 	if [[ "$qmd" != *.qmd ]]; then
 		qmd="${qmd}.qmd"
 	fi
+	# Validate file exists on host before sending to container
 	if [ ! -f "$qmd" ]; then
 		echo "Error: $qmd not found in host project root"
 		exit 1
 	fi
+	# Ensure container is running before attempting exec
 	if ! docker ps --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^{{CONTAINER_NAME}}$'; then
 		echo "Error: container {{CONTAINER_NAME}} is not running. Start it with: just docker-run-image"
 		exit 1
 	fi
 	echo "Rendering $qmd inside container {{CONTAINER_NAME}}..."
+	# Execute Quarto inside container (as rstudio user, in project directory)
 	docker exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
 		quarto render "$qmd" --to html
 
 # Render all QMDs using Quarto inside the running container
+# SMART ORDERING: Renders primary notebooks in dependency order, then supplementary notebooks
+# SKIPS: temp_* experimental notebooks that may have missing data
 render-container-all:
-	@if ! docker ps --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^{{CONTAINER_NAME}}$'; then \
-		echo "Error: container {{CONTAINER_NAME}} is not running. Start it with: just docker-run-image"; \
-		exit 1; \
+	#!/usr/bin/env bash
+	# Ensure container is running
+	if ! docker ps --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^{{CONTAINER_NAME}}$'; then
+		echo "Error: container {{CONTAINER_NAME}} is not running. Start it with: just docker-run-image"
+		exit 1
 	fi
-	@for file in *.qmd; do \
-		echo "Rendering $$file inside container {{CONTAINER_NAME}}..."; \
-		docker exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
-			quarto render "$$file" --to html || exit 1; \
+
+	# Enable bash nullglob to handle case where *.qmd matches nothing
+	shopt -s nullglob
+	
+	# PRIMARY WORKSHOP NOTEBOOKS (render in dependency order)
+	# Earlier parts must render before later parts (later parts load data saved by earlier parts)
+	# To extend workshop: Add new part QMDs to this array in sequential dependency order
+	# Example: primary=(initial_survival_models.qmd expanded_coxph_models.qmd new_part3.qmd)
+	primary=(initial_survival_models.qmd expanded_coxph_models.qmd)
+	
+	# Collect remaining QMD files (excluding primary and temp_* files)
+	extra=()
+	for f in *.qmd; do
+		# Skip temp/experimental notebooks (often have missing data dependencies)
+		# Pattern: temp_*.qmd files are work-in-progress and may fail
+		if [[ "$f" == temp_* ]]; then
+			continue
+		fi
+		# Skip if already in primary list (avoid duplicates)
+		skip=0
+		for p in "${primary[@]}"; do
+			if [ "$f" = "$p" ]; then skip=1; break; fi
+			done
+		[ $skip -eq 0 ] && extra+=("$f")
 	done
+
+	# Build final render order: primary notebooks first (in dependency order), then extras
+	qmd_files=("${primary[@]}" "${extra[@]}")
+	if [ ${#qmd_files[@]} -eq 0 ]; then
+		echo "Error: No .qmd files found in project root"
+		exit 1
+	fi
+
+	# Render each file in order, failing fast on any error
+	for file in "${qmd_files[@]}"; do
+		echo "Rendering $file inside container {{CONTAINER_NAME}}..."
+		docker exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
+			quarto render "$file" --to html || exit 1
+	done
+	echo "✓ Rendered ${#qmd_files[@]} file(s) inside container"
+
+# Render current workshop sequence inside the container (sequential)
+# Convenience target that renders all primary notebooks in dependency order
+# Equivalent to render-container-all but only renders primary notebooks (skips supplementary)
+render-container-sequence:
+	@just render-container initial_survival_models
+	@just render-container expanded_coxph_models
+	@echo "✓ Workshop sequence rendered inside container"
+
+# --- Host Rendering (outside Docker container) ---
+# NOTE: These targets require Quarto and R installed on the host system
+# Most users should use render-container* targets instead to avoid host dependencies
+
+# Render any QMD using Quarto on host (outside container)
+# Useful for quick edits when Docker isn't running, but requires local Quarto installation
+render-host file:
+	#!/usr/bin/env bash
+	# Pre-flight check: verify Quarto is available on host PATH
+	# If not installed, guide user to container-based rendering instead
+	if ! command -v quarto >/dev/null 2>&1; then
+		echo "Error: Quarto not found on host PATH. Install Quarto or use 'just render-container {{file}}' to render inside Docker.";
+		exit 1;
+	fi
+	# Auto-append .qmd extension if user didn't specify it
+	qmd="{{file}}"
+	if [[ "$qmd" != *.qmd ]]; then
+		qmd="${qmd}.qmd"
+	fi
+	# Validate file exists before attempting render
+	if [ ! -f "$qmd" ]; then
+		echo "Error: $qmd not found in host project root"
+		exit 1
+	fi
+	echo "Rendering $qmd on host..."
+	quarto render "$qmd" --to html >> {{OUTPUT_LOG}} 2>&1 || exit 1
+	echo "✓ Rendered $qmd on host"
+
+# Render all QMDs on host (outside container)
+render-host-all:
+	@for file in *.qmd; do \
+		echo "Rendering $$file on host..."; \
+		quarto render "$$file" --to html >> {{OUTPUT_LOG}} 2>&1 || exit 1; \
+		done
 
 # =============================================================================
 # CLEANING TARGETS
 # =============================================================================
 
 # Clean all generated files
-clean-all: clean-html clean-cache clean-outputs
+clean-all: clean-html clean-cache clean-precompute clean-outputs
 
 # Remove all HTML output files
 clean-html:
 	rm -fv *.html
 
-# Remove Quarto cache
+# Remove Quarto cache and build artifacts
 clean-cache:
 	rm -rf *_cache/
 	rm -rf *_files/
 	rm -rf .just-cache/
 
+# Remove precomputed data files (Part 1 → Part 2 workflow)
+clean-precompute:
+	rm -rfv precompute/*.parquet precompute/*.qs
+
 # Remove output logs
 clean-outputs:
-	rm -fv output.log
+	rm -fv {{OUTPUT_LOG}}
 
-# Nuclear option: remove all generated and cached files
+# Nuclear option: remove all generated, cached, and precomputed files
 nuke: clean-all
-	@echo "All generated files removed"
+	@echo "✓ All generated files removed"
 
 # =============================================================================
 # DOCKER TARGETS - Container Management
 # =============================================================================
+# These targets manage the Docker container lifecycle
+# The container provides RStudio Server with R, Quarto, and all dependencies
+# Avoids need to install R/Quarto on host machine
 
-# Build Docker image
+# Build Docker image from Dockerfile
+# Includes R packages, Quarto, and workshop dependencies
 docker-build-image:
 	docker build -t {{IMAGE_TAG}} \
 		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
@@ -154,6 +314,7 @@ docker-build-image:
 		-f Dockerfile . 2>&1 | tee -a docker_build.log
 
 # Rebuild Docker image (no cache)
+# Use when Dockerfile or dependencies change significantly
 docker-rebuild-image:
 	docker build --no-cache -t {{IMAGE_TAG}} \
 		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
@@ -161,6 +322,11 @@ docker-rebuild-image:
 		-f Dockerfile . 2>&1 | tee -a docker_build.log
 
 # Run Docker container with RStudio Server
+# Container configuration:
+#   - Binds to localhost:8787 only (not exposed externally)
+#   - Maps current directory to /home/rstudio/surv_workshop
+#   - Persists GitHub Copilot auth across restarts
+#   - Runs rootless with user/group ID mapping for file permissions
 docker-run-image:
 	docker run --rm -d \
 	  --userns=keep-id \
@@ -218,9 +384,14 @@ ssh-tunnel:
 # DEVELOPMENT TARGETS
 # =============================================================================
 
-# Watch for changes and auto-render (requires entr)
+# Watch for changes and auto-render two-part workshop (requires entr)
+watch-workshop:
+	@echo "Watching Part 1 and Part 2 for changes..."
+	@ls initial_survival_models.qmd expanded_coxph_models.qmd lib_utils.R | entr -c just both-parts
+
+# Watch specific notebook for changes (requires entr)
 watch notebook:
-	ls {{notebook}}.qmd lib_utils.R data_setup.R | entr -c just {{notebook}}
+	@ls {{notebook}}.qmd lib_utils.R | entr -c just {{notebook}}
 
 # Check Quarto installation
 check-quarto:
@@ -229,7 +400,7 @@ check-quarto:
 
 # Check R installation in container
 check-r:
-	docker exec {{CONTAINER_NAME}} R --version
+	@docker exec {{CONTAINER_NAME}} R --version 2>/dev/null || echo "Container not running"
 
 # Validate all QMD files without rendering
 validate:
@@ -240,16 +411,30 @@ validate:
 
 # Show project info
 info:
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Project: {{PROJECT_NAME}}"
 	@echo "Docker Image: {{IMAGE_TAG}}"
 	@echo "Container: {{CONTAINER_NAME}}"
 	@echo "RStudio Port: {{RSTUDIO_PORT}}"
 	@echo "Working Directory: {{PWD}}"
 	@echo "Access URL: http://localhost:{{RSTUDIO_PORT}}"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "Workshop Structure:"
+	@echo "  Part 1: initial_survival_models.qmd"
+	@echo "  Part 2: expanded_coxph_models.qmd (depends on Part 1)"
+	@echo "  Legacy: worksheet_survival.qmd (monolithic version)"
+	@echo "  Bonus:  classic_survival_models.qmd"
+	@echo ""
+	@echo "Quick Start:"
+	@echo "  just workshop-sequence   # Render workshop sequence"
+	@echo "  just all                 # Render everything"
+	@echo "  just docker-run-image    # Start RStudio container"
+	@echo "  just ssh-tunnel          # Show SSH tunnel command"
 
 # Open RStudio in browser (Linux)
 open-rstudio:
-	xdg-open http://localhost:{{RSTUDIO_PORT}}
+	@xdg-open http://localhost:{{RSTUDIO_PORT}} 2>/dev/null || open http://localhost:{{RSTUDIO_PORT}} 2>/dev/null || echo "Could not open browser"
 
 # =============================================================================
 # DATA MANAGEMENT TARGETS
@@ -268,6 +453,24 @@ data-size:
 check-data:
 	@test -f data/telcochurn.csv && echo "✓ telcochurn.csv found" || echo "✗ telcochurn.csv missing"
 
+# Show precompute directory status
+check-precompute:
+	@echo "Precompute directory contents:"
+	@if [ -d precompute ]; then \
+		ls -lh precompute/ 2>/dev/null || echo "  Empty"; \
+	else \
+		echo "  Directory does not exist (created by 'just initial_survival_models')"; \
+	fi
+
+# Validate all required data and precompute files for Part 2
+check-dependencies:
+	@echo "Checking dependencies for expanded_coxph_models..."
+	@test -f data/telcochurn.csv && echo "✓ telcochurn.csv" || echo "✗ telcochurn.csv MISSING"
+	@test -f precompute/telco_churn_cat.parquet && echo "✓ telco_churn_cat.parquet" || echo "✗ telco_churn_cat.parquet MISSING (run 'just initial_survival_models')"
+	@test -f precompute/model00_null.qs && echo "✓ model00_null.qs" || echo "✗ model00_null.qs MISSING"
+	@test -f precompute/model01_vmailplan.qs && echo "✓ model01_vmailplan.qs" || echo "✗ model01_vmailplan.qs MISSING"
+	@test -f precompute/model03_combined.qs && echo "✓ model03_combined.qs" || echo "✗ model03_combined.qs MISSING"
+
 # =============================================================================
 # UTILITY TARGETS
 # =============================================================================
@@ -277,24 +480,32 @@ disk-usage:
 	@echo "Project disk usage:"
 	@du -sh . 2>/dev/null
 	@echo ""
-	@echo "Breakdown:"
-	@du -sh data/ *.html *_cache/ *_files/ 2>/dev/null | sort -h || echo "Some directories not found"
+	@echo "Breakdown by component:"
+	@du -sh data/ precompute/ *.html *_cache/ *_files/ .just-cache/ 2>/dev/null | sort -h || echo "Some directories not found"
 
 # Show all HTML output files
 list-html:
-	@ls -lh *.html 2>/dev/null || echo "No HTML files found"
+	@echo "Rendered HTML files:"
+	@ls -lh *.html 2>/dev/null || echo "  No HTML files found (run 'just all' to render)"
 
 # Show recent log entries
 show-logs:
-	@tail -n 50 output.log 2>/dev/null || echo "No output.log found"
+	@tail -n 50 {{OUTPUT_LOG}} 2>/dev/null || echo "No output.log found"
 
 # Show all available Quarto notebooks
 list-notebooks:
 	@echo "Available Quarto notebooks:"
-	@ls -1 *.qmd 2>/dev/null || echo "No .qmd files found"
 	@echo ""
-	@echo "Available Rmd notebooks:"
-	@ls -1 *.Rmd 2>/dev/null || echo "No .Rmd files found"
+	@echo "Two-Part Workshop (Primary):"
+	@echo "  initial_survival_models.qmd    (Part 1: Exploratory analysis)"
+	@echo "  expanded_coxph_models.qmd      (Part 2: Cox regression + validation)"
+	@echo ""
+	@echo "Supplementary:"
+	@echo "  classic_survival_models.qmd    (Classical methods reference)"
+	@echo "  worksheet_survival.qmd         (Legacy monolithic version)"
+	@echo ""
+	@echo "Other formats:"
+	@ls -1 *.Rmd 2>/dev/null || echo "  No .Rmd files found"
 
 # Preview rendered HTML in terminal (requires w3m or lynx)
 preview file:
@@ -307,15 +518,20 @@ preview file:
 		exit 1; \
 	fi
 
-# Count lines of R code in project
+# Count lines of code in project
 count-code:
-	@echo "R code statistics:"
-	@find . -name "*.R" -o -name "*.qmd" -o -name "*.Rmd" | xargs wc -l | tail -1
+	@echo "Code statistics:"
 	@echo ""
-	@echo "Breakdown by file type:"
-	@echo -n "  .R files: "
+	@echo "Total lines:"
+	@find . -name "*.R" -o -name "*.qmd" -o -name "*.Rmd" | xargs wc -l 2>/dev/null | tail -1
+	@echo ""
+	@echo "By file type:"
+	@echo -n "  .R files:   "
 	@find . -name "*.R" | xargs wc -l 2>/dev/null | tail -1 || echo "0"
 	@echo -n "  .qmd files: "
 	@find . -name "*.qmd" | xargs wc -l 2>/dev/null | tail -1 || echo "0"
 	@echo -n "  .Rmd files: "
 	@find . -name "*.Rmd" | xargs wc -l 2>/dev/null | tail -1 || echo "0"
+	@echo ""
+	@echo "Workshop notebooks:"
+	@wc -l initial_survival_models.qmd expanded_coxph_models.qmd 2>/dev/null | tail -1 || echo "  Files not found"

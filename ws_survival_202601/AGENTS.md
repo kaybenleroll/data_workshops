@@ -7,8 +7,10 @@ This document provides guidance for AI assistants (GitHub Copilot, etc.) working
 **What is this?** Educational workshop on survival analysis using R and the telco churn dataset  
 **Primary tool:** RStudio Server in Docker (rocker/tidyverse)  
 **Key technologies:** R, Quarto (qmd), survival package, survminer, tidyverse  
+**Workshop structure:** Sequential multi-part workflow where later parts depend on earlier outputs  
+**Current parts:** Part 1 (KM/exploratory) → Part 2 (Cox regression) with data/model persistence between parts  
 **Main challenge:** Creating pedagogical content that balances statistical rigor with accessibility  
-**Primary output:** Rendered HTML workshop materials (worksheet_survival.html) with embedded visualizations and explanations
+**Primary output:** Rendered HTML files (one per workshop part) with embedded visualizations and explanations
 
 ## 🚨 Critical Rules - Read These First!
 
@@ -151,46 +153,68 @@ just ssh-tunnel
 
 ### Quarto Rendering Targets
 ```bash
-# Render main workshop notebook
-just worksheet_survival
+# SEQUENTIAL WORKSHOP (RECOMMENDED)
+# Render workshop parts in dependency order (earlier parts create data for later parts)
+just workshop-sequence       # Render current workshop sequence (Part 1 → Part 2)
 # or
 just worksheet
 
-# Render classical survival models
-just classic_survival_models
+# Render individual parts (respect dependencies!)
+just initial_survival_models  # Part 1: Initial survival models and exploratory analysis
+just expanded_coxph_models    # Part 2: Cox regression (requires Part 1 first!)
+
+# CONTAINER RENDERING (uses Docker, no host R/Quarto needed)
+just render-container initial_survival_models
+just render-container expanded_coxph_models
+just render-container-sequence    # Render current workshop sequence in container
+just render-container-all         # Render all QMDs in dependency order (skips temp_*)
+
+# HOST RENDERING (requires Quarto + R on host)
+just render-host initial_survival_models
+just render-host-all              # Render all on host
+
+# SUPPLEMENTARY NOTEBOOKS
+just classic_survival_models      # Classical models reference
 # or
 just classic
 
-# Render all notebooks
+just worksheet_survival           # Legacy monolithic version (deprecated)
+
+# Render complete workshop (all current parts + supplementary)
 just all
 
-# Clean generated files
+# CLEANING
 just clean-html        # Remove HTML files
 just clean-cache       # Remove Quarto cache
+just clean-precompute  # Remove Part 1 saved data
+just clean-outputs     # Remove rendering logs
 just clean-all         # Remove everything
-just nuke             # Nuclear option
+just nuke             # Nuclear option (same as clean-all)
 ```
 
 ## 📊 Project Structure
 
 ```
 project_name/
-├── data/                           # Input data files (often read-only)
-│   ├── raw/                       # Original source data
-│   └── reference/                 # Reference tables/lookups
-├── output/                         # Processing results / analysis outputs
-├── models/                         # Saved model objects (Optional - for modeling projects)
-│   └── fitted_models/             # Cached fitted models
-├── stan_code/                      # Stan model definitions (Optional - for Bayesian projects)
+├── data/                           # Input data files (read-only)
+│   └── telcochurn.csv             # Main dataset
+├── precompute/                     # Inter-part data transfer (gitignored binaries)
+│   ├── telco_churn_cat.parquet    # Shared data from earlier parts
+│   ├── model00_null.qs            # Persisted models
+│   ├── model01_vmailplan.qs       # (Part N saves, Part N+1 loads)
+│   └── model03_combined.qs        # 
 ├── build/                          # Docker build configurations
 │   ├── Dockerfile
 │   └── install_packages.R
-├── lib_*.R                         # Shared library functions (ALL documented with roxygen2!)
-├── *.qmd                          # Quarto analysis notebooks (Optional - for analysis projects)
-├── scripts/                        # Processing scripts (Optional - for ETL projects)
-├── chunk_timings/                  # Notebook execution timings (Optional - for analysis projects)
-├── Justfile                        # Task automation
-├── .env                           # Environment variables (gitignored)
+├── lib_utils.R                     # Shared utility functions (documented with roxygen2!)
+├── initial_survival_models.qmd     # Workshop Part 1: KM estimation, log-rank tests
+├── expanded_coxph_models.qmd       # Workshop Part 2: Cox regression, diagnostics
+├── classic_survival_models.qmd     # Supplementary: Classical methods reference
+├── worksheet_survival.qmd          # Legacy monolithic version (deprecated)
+├── temp_*.qmd                      # Experimental notebooks (skipped by render-all)
+├── Justfile                        # Task automation with extensive comments
+├── .just-cache/                    # Hash-based rebuild cache (gitignored)
+├── quarto_render_output.log        # Rendering logs
 └── README.md                      # Project documentation
 ```
 
@@ -389,8 +413,8 @@ write_lines(glue(
 # Use parquet for tibbles (fast, portable, compressed)
 data_tbl |> write_parquet_compressed("output/data.parquet")
 
-# Use qs for complex objects (2-10x faster than RDS)
-model_results_lst |> qsave("models/results.qs", preset = "balanced")
+# Use qs2 for complex objects (2-10x faster than RDS)
+model_results_lst |> qs_save("models/results.qs")
 
 # Helper function in lib_utils.R
 write_parquet_compressed <- function(data, path) {
@@ -402,7 +426,7 @@ write_parquet_compressed <- function(data, path) {
 ```r
 # ✅ GOOD
 object_tbl |> write_parquet_compressed(path)
-object_lst |> qsave(path, preset = "balanced")
+object_lst |> qs_save(path)
 
 # ❌ BAD
 write_parquet(object_tbl, path)
@@ -414,10 +438,10 @@ write_parquet(object_tbl, path)
 cache_file <- "models/model1_results.qs"
 
 if (file_exists(cache_file)) {
-  model1_results <- qread(cache_file)
+  model1_results <- qs_read(cache_file)
 } else {
   model1_results <- expensive_computation(...)
-  model1_results |> qsave(cache_file, preset = "balanced")
+  model1_results |> qs_save(cache_file)
 }
 ```
 
@@ -907,7 +931,7 @@ combined <- data1 |>
 ### Core Data Wrangling
 - `tidyverse` - Data manipulation (dplyr, tidyr, readr, ggplot2)
 - `arrow` - Parquet and columnar formats
-- `qs` - Fast object serialization
+- `qs2` - Fast object serialization
 - `lubridate` - Date/time operations
 - `glue` - String interpolation
 - `fs` - Cross-platform filesystem
@@ -940,7 +964,7 @@ combined <- data1 |>
 ### Performance Optimization
 - **Arrow threading**: `arrow::set_cpu_count()`, `arrow::set_io_thread_count()`
 - **Parquet compression**: zstd level 3 (via `write_parquet_compressed()`)
-- **qs package**: `preset = "balanced"` for speed/compression
+- **qs2 package**: Automatic compression/speed optimization
 - **Manual caching**: Use `file_exists()` for >2GB objects
 
 ## ✅ Pre-Flight Checklist
@@ -1021,9 +1045,12 @@ just info              # Show project configuration
 just check-quarto      # Verify Quarto installation
 just check-r           # Check R in container
 just check-data        # Validate data files exist
+just check-precompute  # Check Part 1 output files
+just check-dependencies # Validate all required files for Part 2
 
 # Development
-just watch worksheet   # Auto-render on file changes (requires entr)
+just watch-workshop    # Auto-render workshop sequence on changes (requires entr)
+just watch <notebook>  # Watch specific notebook
 just validate          # Check all QMD files without rendering
 just list-notebooks    # Show all available notebooks
 just list-html         # Show rendered HTML files
@@ -1042,9 +1069,26 @@ just open-rstudio      # Open RStudio in browser (Linux)
 
 ### Hash-Based Smart Rendering
 The Justfile implements content-based caching:
-- Only re-renders when QMD file or dependencies (lib_utils.R, data_setup.R) change
+- Only re-renders when QMD file or dependencies (lib_utils.R) change
 - Tracks changes via MD5 hashes in `.just-cache/`
 - Prevents unnecessary re-renders when only comments/whitespace change
+
+### Container vs Host Rendering
+**Container rendering (RECOMMENDED):**
+- Uses Docker container for rendering (no host R/Quarto needed)
+- Targets: `render-container`, `render-container-all`, `render-container-sequence`
+- Requires container running (`just docker-run-image`)
+
+**Host rendering:**
+- Requires Quarto + R installed on host system
+- Targets: `render-host`, `render-host-all`
+- Useful for quick edits when Docker isn't running
+
+### Dependency Ordering
+- `render-container-all` enforces sequential rendering (primary notebooks in dependency order)
+- Current sequence: `initial_survival_models.qmd` → `expanded_coxph_models.qmd`
+- Automatically skips `temp_*` experimental notebooks
+- Later parts require earlier parts' precompute/ output files
 
 ## 📝 Environment Variables
 
@@ -1090,11 +1134,26 @@ source("lib_utils.R")
 telco_churn_tbl <- read_csv("data/telcochurn.csv")
 glimpse(telco_churn_tbl)
 
-# 7. Render workshop notebook
-just worksheet
+# 7. Render workshop sequence
+just workshop-sequence         # Current workshop parts in order
+# or use container rendering
+just render-container-sequence # Same, but inside container
 ```
 
 ## 🔄 Recent Updates & Known Issues
+
+### Justfile Enhancements (2026-01-08)
+- **Comprehensive comments added**: All Justfile sections now have detailed explanations
+  - Project configuration variables with purpose and usage
+  - Hash-based caching logic and rebuild conditions
+  - Sequential dependency ordering enforcement (primary notebooks rendered in order)
+  - Container vs host rendering strategies
+  - Temp file skipping for experimental notebooks
+- **Container rendering targets**: Added `render-container`, `render-container-all`, `render-container-sequence`
+- **Host rendering targets**: Added `render-host`, `render-host-all` (require Quarto on host)
+- **Smart dependency ordering**: `render-container-all` respects notebook dependencies automatically
+- **Temp file handling**: All `temp_*.qmd` files automatically skipped in batch renders
+- **Scalable structure**: Workshop can expand to additional parts (Part 3, 4, etc.) without Justfile changes
 
 ### Markdown List Formatting (2026-01-08)
 - **Critical formatting rules established**: All lists now follow strict Markdown conventions
