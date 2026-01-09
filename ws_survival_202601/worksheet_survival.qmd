@@ -2879,6 +2879,799 @@ For now, our models pass the proportionality checks, so we can proceed with
 confidence in our coefficient interpretations and predictions.
 
 
+## Systematic Residual Analysis for Variable Selection
+
+Earlier, we examined martingale residuals from the null model against a few
+variables and identified `custservicecalls` as a promising predictor. Now we
+take a more systematic approach: examining all continuous variables in the
+dataset to identify additional candidates for model inclusion.
+
+This systematic exploration serves two purposes:
+
+  1. **Discovery**: Find variables with predictive value that we might have
+     overlooked in initial exploration
+  1. **Validation**: Confirm that our initial findings (custservicecalls being
+     important) hold up under broader comparison
+
+### Available Continuous Variables
+
+The telco churn dataset contains several continuous variables measuring
+customer usage patterns:
+
+  - **Usage minutes**: `daymins`, `evemins`, `nightmins`, `intlmins`
+  - **Call counts**: `daycalls`, `evecalls`, `nightcalls`, `intlcalls`
+  - **Other**: `vmailmessage`, `custservicecalls`
+
+We'll plot martingale residuals from the null model against each variable,
+adding a LOESS smoother to reveal any systematic patterns. A flat smoother
+suggests no relationship; a trending or curved smoother suggests the variable
+might improve the model.
+
+### Generating Systematic Residual Plots
+
+Rather than create plots one by one, we use a programmatic approach to
+generate residual plots for all continuous variables:
+
+```{r systematic_residual_analysis_setup}
+#| echo: true
+
+CONTINUOUS_VARS <- c(
+  "daymins", "evemins", "nightmins", "intlmins",
+  "daycalls", "evecalls", "nightcalls", "intlcalls",
+  "vmailmessage", "custservicecalls"
+  )
+```
+
+We create a function to generate consistent residual plots:
+
+```{r define_residual_plot_function}
+#| echo: true
+
+create_residual_plot <- function(data_tbl, var_name) {
+  ggplot(data_tbl, aes(x = .data[[var_name]], y = resid_m)) +
+    geom_point(size = 0.8, alpha = 0.15) +
+    geom_smooth(
+      method = "loess",
+      se     = FALSE,
+      colour = "firebrick",
+      linewidth = 1.2
+      ) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(
+      x     = var_name,
+      y     = "Martingale Residual",
+      title = glue("Residuals vs {var_name}")
+      ) +
+    theme_minimal()
+}
+```
+
+Now we generate all plots:
+
+```{r generate_systematic_residual_plots}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 12
+
+residual_plots <- map(
+  CONTINUOUS_VARS,
+  \(var) create_residual_plot(telco_null_assess_tbl, var)
+  )
+
+# Arrange plots in a grid using cowplot
+plot_grid(
+  plotlist = residual_plots,
+  ncol     = 2,
+  labels   = "AUTO"
+  )
+```
+
+### Interpreting the Residual Patterns
+
+**Strong patterns** (clear trends or curvature in the LOESS smoother):
+
+  - `custservicecalls`: Shows a clear positive trend—higher values correspond
+    to more positive residuals (worse survival than expected). This confirms
+    our earlier finding that customer service calls strongly predict churn.
+
+**Moderate patterns** (subtle trends worth investigating):
+
+  - `daymins`: May show a slight upward trend at higher values, suggesting
+    heavy daytime users might have elevated churn risk
+  - `intlmins`: International minutes usage may show some pattern, though the
+    relationship with `intlplan` (already in our model) could explain this
+
+**Weak or no patterns** (flat LOESS smoothers):
+
+  - `evemins`, `nightmins`: Evening and night usage show little systematic
+    relationship with residuals
+  - Call count variables (`daycalls`, `evecalls`, `nightcalls`, `intlcalls`):
+    Number of calls appears less predictive than usage minutes or service calls
+  - `vmailmessage`: Voicemail message count shows minimal pattern
+
+### Quantifying Residual Relationships
+
+We can quantify these visual patterns by computing correlations between
+residuals and each variable:
+
+```{r quantify_residual_correlations}
+#| echo: true
+
+residual_correlations_tbl <- tibble(
+  variable    = CONTINUOUS_VARS,
+  correlation = map_dbl(
+    CONTINUOUS_VARS,
+    \(var) cor(
+      telco_null_assess_tbl$resid_m,
+      telco_null_assess_tbl[[var]],
+      use = "complete.obs"
+      )
+    )
+  ) |>
+  arrange(desc(abs(correlation)))
+
+residual_correlations_tbl |> print()
+```
+
+The correlations confirm our visual assessment. Variables with larger absolute
+correlations show stronger linear relationships with the residuals and are
+better candidates for model inclusion. Note that correlation captures linear
+relationships only—a variable could have a non-linear relationship that
+correlation misses.
+
+### Variable Selection Summary
+
+Based on systematic residual analysis, we identify:
+
+  1. **Strong candidate**: `custservicecalls` - Clear positive relationship
+     with residuals; higher service calls predict worse survival
+  1. **Possible candidates**: `daymins` and potentially `intlmins` - Show
+     weaker patterns that may or may not improve the model
+  1. **Unlikely to help**: Call count variables and evening/night minutes show
+     little systematic relationship with survival
+
+We'll proceed by adding `custservicecalls` to our model, as it shows the
+strongest and clearest relationship with the outcome.
+
+
+## Adding Continuous Variables to the Model
+
+Having identified `custservicecalls` as a promising predictor through residual
+analysis, we now add it to our Cox model. This represents an important step:
+moving from purely categorical predictors to including continuous variables.
+
+### Model 04: Adding Customer Service Calls
+
+We extend Model 03 (which included `vmailplan` and `intlplan`) by adding
+`custservicecalls` as a continuous predictor:
+
+```{r fit_model04_continuous}
+#| echo: true
+
+telco_model04_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan + intlplan + custservicecalls,
+  data = telco_churn_tbl
+  )
+
+telco_model04_coxph |> summary()
+```
+
+### Interpreting the Continuous Variable Coefficient
+
+For continuous predictors, the hazard ratio interpretation differs from
+categorical variables:
+
+  - The coefficient $\beta$ represents the log hazard ratio for a **one-unit
+    increase** in the predictor
+  - The hazard ratio $\exp(\beta)$ is the multiplicative change in hazard for
+    each additional unit
+
+For `custservicecalls`, if the hazard ratio is approximately 1.45, this means:
+
+  - Each additional customer service call increases the hazard of churning by
+    approximately 45%
+  - A customer with 4 service calls has $1.45^4 \approx 4.4$ times the hazard
+    of a customer with 0 calls
+
+This interpretation assumes a **linear relationship on the log-hazard scale**
+—that each additional call has the same multiplicative effect. We'll test this
+assumption later.
+
+### Model Assessment
+
+Compare Model 04 to our previous models:
+
+```{r assess_model04}
+#| echo: true
+
+telco_model04_coxph |>
+  glance() |>
+  select(n, nevent, r.squared, concordance, std.error.concordance)
+
+telco_model04_coxph |> tidy()
+```
+
+The improvement is substantial:
+
+  - **Concordance** (c-index): Should improve notably from Model 03's 0.643
+  - **R-squared**: Should increase as we're explaining more variance
+  - **All coefficients significant**: Each predictor contributes independently
+
+### Checking the Proportional Hazards Assumption
+
+We must verify that adding `custservicecalls` doesn't violate the PH assumption:
+
+```{r test_model04_ph_assumption}
+#| echo: true
+
+telco_model04_coxzph <- telco_model04_coxph |> cox.zph(transform = "km")
+
+telco_model04_coxzph |> print()
+telco_model04_coxzph |> ggcoxzph()
+```
+
+Examine the test results and plots. If the p-value for `custservicecalls` is
+non-significant (> 0.05) and the Schoenfeld residual plot shows no strong time
+trend, the proportional hazards assumption is reasonably satisfied.
+
+### Visualising the Effect
+
+We can visualise the effect of customer service calls on survival by creating
+predicted survival curves for different call levels:
+
+```{r visualise_custservicecalls_effect}
+#| echo: true
+
+# Create prediction profiles at different call levels
+csc_profiles_tbl <- tibble(
+  vmailplan        = factor("no", levels = c("no", "yes")),
+  intlplan         = factor("no", levels = c("no", "yes")),
+  custservicecalls = c(0, 1, 2, 4, 6)
+  )
+
+# Generate predicted survival curves
+csc_survfit <- survfit(telco_model04_coxph, newdata = csc_profiles_tbl)
+
+# Plot
+ggsurvplot(
+  csc_survfit,
+  data         = csc_profiles_tbl,
+  censor       = FALSE,
+  conf.int     = FALSE,
+  legend.title = "Service Calls",
+  legend.labs  = c("0", "1", "2", "4", "6"),
+  xlab         = "Account Duration",
+  ylab         = "Survival Probability",
+  title        = "Predicted Survival by Customer Service Calls",
+  ggtheme      = theme_minimal()
+  )
+```
+
+The survival curves should show clear separation: customers with more service
+calls have substantially lower survival probabilities at every time point.
+
+
+## Non-Linear Effects via Discretisation
+
+The linear model assumes each additional customer service call has the same
+proportional effect on hazard. But is this assumption reasonable? Perhaps
+the difference between 0 and 1 calls is negligible, while the jump from 3 to
+6 calls represents a qualitative shift in customer dissatisfaction.
+
+We can model non-linear effects by discretising the continuous variable into
+categories, allowing each category to have its own hazard ratio relative to
+the reference group.
+
+### Model 05: Discretised Customer Service Calls
+
+Earlier in the workshop, we created `calls_cat` with domain-driven bins (0-1,
+2, 3-5, 6+). We now use this discretised variable in our Cox model:
+
+```{r fit_model05_discretised}
+#| echo: true
+
+telco_model05_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan + intlplan + calls_cat,
+  data = telco_churn_cat_tbl
+  )
+
+telco_model05_coxph |> summary()
+```
+
+### Interpreting Discretised Coefficients
+
+With a categorical predictor, each level gets its own coefficient relative to
+the reference category (0-1 calls):
+
+  - **calls_cat = 2**: Hazard ratio compared to 0-1 calls
+  - **calls_cat = 3-5**: Hazard ratio compared to 0-1 calls
+  - **calls_cat = 6+**: Hazard ratio compared to 0-1 calls
+
+This allows us to see whether the effect is truly linear or shows jumps,
+thresholds, or other non-linear patterns.
+
+### Checking the Proportional Hazards Assumption
+
+```{r test_model05_ph_assumption}
+#| echo: true
+
+telco_model05_coxzph <- telco_model05_coxph |> cox.zph(transform = "km")
+
+telco_model05_coxzph |> print()
+telco_model05_coxzph |> ggcoxzph()
+```
+
+### Comparing Linear vs. Discretised Models
+
+We compare Models 04 and 05 using AIC (lower is better) and other metrics:
+
+```{r compare_model04_model05}
+#| echo: true
+
+# Extract AIC values
+aic_model04 <- AIC(telco_model04_coxph)
+aic_model05 <- AIC(telco_model05_coxph)
+
+write_lines(
+  glue(
+    "AIC Comparison:\n",
+    "  Model 04 (linear custservicecalls): {round(aic_model04, 2)}\n",
+    "  Model 05 (discretised calls_cat):   {round(aic_model05, 2)}\n",
+    "  Difference (04 - 05):               {round(aic_model04 - aic_model05, 2)}"
+    ),
+  stdout()
+  )
+
+# Compare concordance and R-squared
+bind_rows(
+  telco_model04_coxph |> glance() |> mutate(model = "Model04 (linear)"),
+  telco_model05_coxph |> glance() |> mutate(model = "Model05 (discretised)")
+  ) |>
+  select(model, concordance, r.squared, AIC, BIC)
+```
+
+**Interpretation:**
+
+  - If the discretised model has substantially better (lower) AIC, the
+    non-linear specification captures important patterns the linear model misses
+  - If AICs are similar, the linear model's parsimony may be preferred
+  - The trade-off: discretisation is more flexible but uses more parameters
+
+### Visualising the Non-Linear Pattern
+
+We can visualise the hazard ratios for each category to see the shape of the
+relationship:
+
+```{r visualise_discretised_hazard_ratios}
+#| echo: true
+
+# Extract coefficients for calls_cat levels
+calls_cat_coefs_tbl <- telco_model05_coxph |>
+  tidy() |>
+  filter(str_detect(term, "calls_cat")) |>
+  mutate(
+    category  = str_remove(term, "calls_cat"),
+    hr        = exp(estimate),
+    hr_lower  = exp(estimate - 1.96 * std.error),
+    hr_upper  = exp(estimate + 1.96 * std.error)
+    ) |>
+  # Add reference category
+  bind_rows(
+    tibble(
+      term     = "calls_cat0-1",
+      category = "0-1",
+      estimate = 0,
+      hr       = 1,
+      hr_lower = 1,
+      hr_upper = 1
+      )
+    ) |>
+  mutate(
+    category = factor(
+      category,
+      levels = c("0-1", "2", "3-5", "6+")
+      )
+    )
+
+ggplot(calls_cat_coefs_tbl, aes(x = category, y = hr)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = hr_lower, ymax = hr_upper), width = 0.2) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+  scale_y_continuous(trans = "log2") +
+  labs(
+    x     = "Customer Service Calls Category",
+    y     = "Hazard Ratio (log scale)",
+    title = "Hazard Ratios by Service Call Category",
+    subtitle = "Reference: 0-1 calls; error bars show 95% CI"
+    ) +
+  theme_minimal()
+```
+
+This plot reveals the shape of the relationship. A linear pattern would show
+evenly spaced hazard ratios on the log scale; departures from this pattern
+indicate non-linearity.
+
+
+## Non-Linear Effects via Splines
+
+Discretisation is intuitive but requires choosing arbitrary cutpoints and
+loses information within categories. An alternative approach uses **splines**
+to model smooth non-linear relationships without manual binning.
+
+### Introduction to Penalized Splines
+
+Penalized splines (P-splines) fit a smooth curve through the data by:
+
+  1. Using basis functions (like polynomials) to capture flexible shapes
+  1. Adding a penalty term that prevents overfitting by shrinking toward
+     simpler (smoother) curves
+  1. Automatically selecting the degree of smoothness from the data
+
+The `pspline()` function in the survival package implements penalized splines
+for Cox models. The key advantage: the data determines the shape of the
+relationship rather than arbitrary cutpoints.
+
+### Model 06: Spline for Customer Service Calls
+
+```{r fit_model06_spline}
+#| echo: true
+
+telco_model06_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan + intlplan + pspline(custservicecalls),
+  data = telco_churn_tbl
+  )
+
+telco_model06_coxph |> summary()
+```
+
+The summary shows the spline term's degrees of freedom (df)—higher df means
+more curvature. A df near 1 suggests the relationship is approximately linear;
+higher df indicates the spline captures non-linear patterns.
+
+### Checking the Proportional Hazards Assumption
+
+```{r test_model06_ph_assumption}
+#| echo: true
+
+telco_model06_coxzph <- telco_model06_coxph |> cox.zph(transform = "km")
+
+telco_model06_coxzph |> print()
+```
+
+Note: The cox.zph() output for spline terms tests whether the overall spline
+effect satisfies proportional hazards.
+
+### Visualising the Spline Effect
+
+The most informative diagnostic is plotting the estimated smooth effect:
+
+```{r visualise_spline_effect}
+#| echo: true
+#| fig-width: 8
+#| fig-height: 5
+
+# Use termplot to visualise the spline
+termplot(
+  telco_model06_coxph,
+  term   = 3,
+  se     = TRUE,
+  col.term = "firebrick",
+  col.se   = "grey70",
+  xlab   = "Customer Service Calls",
+  ylab   = "Log Hazard (centered)",
+  main   = "Spline Effect of Customer Service Calls"
+  )
+```
+
+**Interpreting the spline plot:**
+
+  - The y-axis shows the log hazard contribution (centered at zero)
+  - The shaded region shows the 95% confidence band
+  - A straight line indicates a linear relationship
+  - Curvature indicates non-linearity
+  - Wide confidence bands at the extremes reflect fewer observations
+
+### Comparing All Three Approaches
+
+Now we compare our three approaches to modeling customer service calls:
+
+```{r compare_all_continuous_approaches}
+#| echo: true
+
+# Compare AIC values
+aic_comparison_tbl <- tibble(
+  model = c(
+    "Model04: Linear",
+    "Model05: Discretised",
+    "Model06: Spline"
+    ),
+  AIC = c(
+    AIC(telco_model04_coxph),
+    AIC(telco_model05_coxph),
+    AIC(telco_model06_coxph)
+    )
+  ) |>
+  mutate(delta_AIC = AIC - min(AIC)) |>
+  arrange(AIC)
+
+aic_comparison_tbl |> print()
+```
+
+**Interpretation guidelines:**
+
+  - $\Delta$AIC < 2: Models are essentially equivalent
+  - $\Delta$AIC 2-7: Some evidence favoring the better model
+  - $\Delta$AIC > 10: Strong evidence favoring the better model
+
+### When to Use Each Approach
+
+**Linear (Model 04):**
+
+  - Simplest interpretation (one hazard ratio)
+  - Best when relationship is truly linear
+  - Most parsimonious (fewest parameters)
+
+**Discretised (Model 05):**
+
+  - Interpretable categories for stakeholders
+  - Captures threshold effects
+  - Requires domain knowledge for cutpoint selection
+  - Can detect non-linear patterns
+
+**Spline (Model 06):**
+
+  - Most flexible—data determines shape
+  - No arbitrary cutpoint decisions
+  - Harder to communicate to non-technical audiences
+  - Best for understanding the true functional form
+
+
+## Model Comparison Framework
+
+We've now built six models of increasing complexity. Before selecting a final
+model, we need a systematic comparison framework that considers multiple
+criteria.
+
+### Summary Comparison Table
+
+```{r create_model_comparison_table}
+#| echo: true
+
+model_comparison_tbl <- bind_rows(
+  telco_model01_coxph |> glance() |> mutate(model = "Model01: vmailplan"),
+  telco_model02_coxph |> glance() |> mutate(model = "Model02: intlplan"),
+  telco_model03_coxph |> glance() |> mutate(model = "Model03: vmail + intl"),
+  telco_model04_coxph |> glance() |> mutate(model = "Model04: + csc (linear)"),
+  telco_model05_coxph |> glance() |> mutate(model = "Model05: + csc (factor)"),
+  telco_model06_coxph |> glance() |> mutate(model = "Model06: + csc (spline)")
+  ) |>
+  select(model, n, nevent, concordance, r.squared, AIC, BIC) |>
+  arrange(AIC)
+
+model_comparison_tbl |> print()
+```
+
+### Interpreting the Comparison Metrics
+
+**Concordance (C-index):**
+
+  - Measures discrimination: probability that a randomly selected pair of
+    observations is correctly ranked
+  - Range: 0.5 (random) to 1.0 (perfect)
+  - 0.6-0.7: Acceptable discrimination
+  - 0.7-0.8: Good discrimination
+  - > 0.8: Excellent discrimination
+
+**R-squared (pseudo):**
+
+  - Proportion of variation explained
+  - Generally lower for survival models than linear regression
+  - Values of 0.05-0.15 are typical for survival data
+
+**AIC (Akaike Information Criterion):**
+
+  - Balances model fit against complexity
+  - Lower is better
+  - Penalizes additional parameters
+
+**BIC (Bayesian Information Criterion):**
+
+  - Similar to AIC but with stronger penalty for complexity
+  - More conservative—favors simpler models
+  - Lower is better
+
+### Likelihood Ratio Tests
+
+For nested models, we can formally test whether the more complex model
+significantly improves fit:
+
+```{r likelihood_ratio_tests}
+#| echo: true
+
+# Test: Does adding custservicecalls improve Model 03?
+write_lines("\n--- Testing Model03 vs Model04 (adding linear csc) ---", stdout())
+anova(telco_model03_coxph, telco_model04_coxph, test = "LRT")
+```
+
+A significant p-value (< 0.05) indicates the additional complexity is
+justified by improved fit.
+
+### Model Selection Considerations
+
+Beyond statistical metrics, consider:
+
+  1. **Interpretability**: Can you explain the model to stakeholders?
+     - Linear effects are easiest to communicate
+     - Discretised effects provide clear categories
+     - Splines require visualisation
+
+  1. **Predictive vs. explanatory goals**:
+     - For prediction: prioritize concordance and AIC
+     - For understanding: prioritize interpretability and coefficient meaning
+
+  1. **Sample size considerations**:
+     - Complex models need more data
+     - Splines can overfit with small samples
+
+  1. **Domain knowledge**:
+     - Does the functional form make business sense?
+     - Are the hazard ratios plausible?
+
+### Final Model Recommendation
+
+Based on the comparison:
+
+  - All models including `custservicecalls` substantially outperform Models
+    01-03
+  - The choice between linear, discretised, and spline depends on use case
+  - For this workshop's purposes, **Model 04 (linear)** or **Model 05
+    (discretised)** offer the best balance of performance and interpretability
+
+The discretised model (Model 05) may be preferred for business communication,
+as statements like "customers with 6+ service calls have X times the churn
+risk" are more actionable than continuous interpretations.
+
+
+## Validating Model Improvement with Residuals
+
+To confirm our model improvements are genuine, we examine residuals from the
+fitted model and compare them to the null model residuals. If our predictors
+capture meaningful variation, residuals should show reduced patterns.
+
+### Residuals from the Fitted Model
+
+```{r calculate_fitted_model_residuals}
+#| echo: true
+
+# Calculate residuals from Model 05 (discretised)
+telco_model05_resid_m <- telco_model05_coxph |> residuals(type = "martingale")
+
+# Add to assessment tibble
+telco_fitted_assess_tbl <- telco_churn_cat_tbl |>
+  mutate(
+    resid_null  = telco_model00_resid_m,
+    resid_model = telco_model05_resid_m
+    )
+```
+
+### Comparing Residual Patterns
+
+We compare residuals from the null model versus the fitted model for the key
+predictor we added:
+
+```{r compare_residual_patterns}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 5
+
+null_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = custservicecalls, y = resid_null)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "firebrick") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "Customer Service Calls",
+    y     = "Martingale Residual",
+    title = "Null Model Residuals"
+    ) +
+  theme_minimal()
+
+fitted_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = custservicecalls, y = resid_model)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "firebrick") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "Customer Service Calls",
+    y     = "Martingale Residual",
+    title = "Fitted Model Residuals"
+    ) +
+  theme_minimal()
+
+plot_grid(
+  null_resid_plot,
+  fitted_resid_plot,
+  ncol   = 2,
+  labels = c("A", "B")
+  )
+```
+
+**Interpretation:**
+
+  - **Panel A (Null Model)**: Shows the clear positive trend we identified
+    earlier—customer service calls predict worse survival
+  - **Panel B (Fitted Model)**: The LOESS smoother should be flatter,
+    indicating the model has captured the relationship
+
+### Checking for Remaining Patterns
+
+We should also check whether the model residuals show patterns against
+variables not in the model:
+
+```{r check_remaining_patterns}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 5
+
+# Check residuals against daymins (not in model)
+daymins_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = daymins, y = resid_model)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "Daytime Minutes",
+    y     = "Martingale Residual",
+    title = "Residuals vs Daytime Minutes"
+    ) +
+  theme_minimal()
+
+# Check residuals against intlmins (not in model)
+intlmins_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = intlmins, y = resid_model)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "International Minutes",
+    y     = "Martingale Residual",
+    title = "Residuals vs International Minutes"
+    ) +
+  theme_minimal()
+
+plot_grid(
+  daymins_resid_plot,
+  intlmins_resid_plot,
+  ncol   = 2,
+  labels = c("A", "B")
+  )
+```
+
+If these plots show flat LOESS smoothers, our model captures the main
+predictive relationships. Any remaining patterns suggest additional variables
+might further improve the model—an opportunity for future refinement.
+
+### Summary
+
+Through systematic residual analysis, we:
+
+  1. Identified `custservicecalls` as the strongest continuous predictor
+  1. Tested three approaches to modeling its effect (linear, discretised, spline)
+  1. Demonstrated substantial model improvement through concordance and AIC
+  1. Validated that residual patterns are reduced after including the predictor
+
+This workflow—residual exploration, variable selection, model fitting, and
+validation—provides a principled approach to building Cox proportional hazards
+models for any survival analysis problem.
+
 
 # R Environment
 

@@ -77,15 +77,45 @@ _render-qmd qmd_file *deps:
 worksheet_survival:
 	just _render-qmd worksheet_survival.qmd
 
-# Render main workshop notebook (alias)
-worksheet: worksheet_survival
-
 # Render classical survival models notebook
 classic_survival_models:
 	just _render-qmd classic_survival_models.qmd
 
 # Render classical survival models (alias)
 classic: classic_survival_models
+
+# --- Container Rendering (exec inside running container) ---
+
+# Render any QMD using Quarto inside the running container
+render-container file:
+	#!/usr/bin/env bash
+	qmd="{{file}}"
+	if [[ "$qmd" != *.qmd ]]; then
+		qmd="${qmd}.qmd"
+	fi
+	if [ ! -f "$qmd" ]; then
+		echo "Error: $qmd not found in host project root"
+		exit 1
+	fi
+	if ! docker ps --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^{{CONTAINER_NAME}}$'; then
+		echo "Error: container {{CONTAINER_NAME}} is not running. Start it with: just docker-run-image"
+		exit 1
+	fi
+	echo "Rendering $qmd inside container {{CONTAINER_NAME}}..."
+	docker exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
+		quarto render "$qmd" --to html
+
+# Render all QMDs using Quarto inside the running container
+render-container-all:
+	@if ! docker ps --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^{{CONTAINER_NAME}}$'; then \
+		echo "Error: container {{CONTAINER_NAME}} is not running. Start it with: just docker-run-image"; \
+		exit 1; \
+	fi
+	@for file in *.qmd; do \
+		echo "Rendering $$file inside container {{CONTAINER_NAME}}..."; \
+		docker exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
+			quarto render "$$file" --to html || exit 1; \
+	done
 
 # =============================================================================
 # CLEANING TARGETS
