@@ -38,8 +38,8 @@ default:
 # RENDERING TARGETS - Quarto Notebooks
 # =============================================================================
 
-# Render all notebooks (two-part workshop + classic models)
-all: both-parts classic_survival_models
+# Render all notebooks (workshop sequence + independent worksheets + supplementary)
+all: workshop-sequence exploration_data lifebook_basics lapse_analysis lapse_modelling classic queueing
 
 # Alias for all targets
 all-html: all
@@ -58,7 +58,7 @@ _needs_rebuild output *sources:
 	
 	# Rebuild if: output missing, cache missing, or hash changed
 	# Three conditions that trigger a rebuild:
-	#   1. HTML output doesn't exist yet
+	#   1. HTML output doesn’t exist yet
 	#   2. No cached hash (first run or cache cleared)
 	#   3. Source content changed (hash mismatch)
 	if [ ! -f {{output}} ] || \
@@ -72,17 +72,22 @@ _needs_rebuild output *sources:
 	fi
 
 # Internal helper: Render a single QMD file with logging and hash-based caching
-# Only re-renders when QMD content or dependencies (lib_utils.R) actually change
+# Only re-renders when QMD content or dependencies (lib_utils.R, lib_survival_modelling.R) actually change
 # Logs all rendering activity to OUTPUT_LOG for debugging
 _render-qmd qmd_file:
 	#!/usr/bin/env bash
 	qmd_file="{{qmd_file}}"
 	html_file="${qmd_file%.qmd}.html"
-	
+
 	# Build list of all dependencies for hash-based change detection
 	# Include both the QMD file and shared R libraries that it sources
 	all_deps="$qmd_file lib_utils.R"
-	
+
+	# Add lib_survival_modelling.R as dependency if file sources it
+	if grep -q "lib_survival_modelling.R" "$qmd_file" 2>/dev/null; then
+		all_deps="$all_deps lib_survival_modelling.R"
+	fi
+
 	# Check if rebuild needed (based on content hash, not timestamps)
 	# _needs_rebuild returns 0 if rebuild needed, 1 if up-to-date
 	if just _needs_rebuild "$html_file" $all_deps; then
@@ -135,18 +140,58 @@ worksheet: workshop-sequence
 # SUPPLEMENTARY WORKSHOP TARGETS
 # =============================================================================
 
+# Render life insurance exploration notebook (data preparation)
+# Creates analysis-ready datasets used by lapse worksheets
+exploration_data:
+	@echo "▶ Rendering Data Exploration..."
+	@just _render-qmd exploration_lifebook_data.qmd
+	@echo "✓ Data exploration complete"
+
+# Render life insurance survival basics worksheet (insurance data)
+# Independent worksheet: loads prepared data from data/ directory
+lifebook_basics:
+	@echo "▶ Rendering Life Insurance Basics..."
+	@just _render-qmd lifebook_survival_basics.qmd
+	@echo "✓ Life insurance basics complete"
+
+# Render life insurance lapse analysis worksheet (univariate analysis)
+# Independent worksheet: loads prepared data from data/ directory
+lapse_analysis:
+	@echo "▶ Rendering Lapse Analysis Worksheet..."
+	@just _render-qmd worksheet_lapse_analysis.qmd
+	@echo "✓ Lapse analysis complete"
+
+# Render lapse analysis (alias)
+lapse: lapse_analysis
+
+# Render life insurance lapse modelling worksheet (Cox models)
+# Independent worksheet: loads prepared data from data/ directory
+lapse_modelling:
+	@echo "▶ Rendering Lapse Modelling Worksheet..."
+	@just _render-qmd worksheet_lapse_modelling.qmd
+	@echo "✓ Lapse modelling complete"
+
 # Render classical survival models notebook
 classic_survival_models:
-	@just _render-qmd classic_survival_models.qmd
+	@just _render-qmd temp_classic_survival_models.qmd
 
 # Render classical survival models (alias)
 classic: classic_survival_models
+
+# Render queueing theory worksheet
+queueing_theory:
+	@echo "▶ Rendering Queueing Theory Worksheet..."
+	@just _render-qmd worksheet_queueing_theory.qmd
+	@echo "✓ Queueing theory complete"
+
+# Render queueing theory (alias)
+queueing: queueing_theory
 
 # Render original monolithic worksheet (legacy, use workshop-sequence instead)
 worksheet_survival:
 	@echo "⚠ Warning: worksheet_survival.qmd is the legacy monolithic version"
 	@echo "  Consider using 'just workshop-sequence' for the updated workshop"
-	@just _render-qmd worksheet_survival.qmd
+	@just _render-qmd temp_worksheet_survival.Rmd
 
 # --- Container Rendering (exec inside running container) ---
 # RECOMMENDED: These targets use Docker container for rendering (no host R/Quarto needed)
@@ -189,30 +234,31 @@ render-container-all:
 	# Enable bash nullglob to handle case where *.qmd matches nothing
 	shopt -s nullglob
 	
+	# RENDER ORDER WITH DEPENDENCIES:
+	# 1. Primary workshop sequence (sequential interdependencies)
+	# 2. Data exploration (creates datasets for other worksheets)
+	# 3. Independent worksheets (no cross-dependencies)
+	# 4. Supplementary worksheets
+	
 	# PRIMARY WORKSHOP NOTEBOOKS (render in dependency order)
 	# Earlier parts must render before later parts (later parts load data saved by earlier parts)
 	# To extend workshop: Add new part QMDs to this array in sequential dependency order
-	# Example: primary=(initial_survival_models.qmd expanded_coxph_models.qmd new_part3.qmd)
 	primary=(initial_survival_models.qmd expanded_coxph_models.qmd)
 	
-	# Collect remaining QMD files (excluding primary and temp_* files)
-	extra=()
-	for f in *.qmd; do
-		# Skip temp/experimental notebooks (often have missing data dependencies)
-		# Pattern: temp_*.qmd files are work-in-progress and may fail
-		if [[ "$f" == temp_* ]]; then
-			continue
-		fi
-		# Skip if already in primary list (avoid duplicates)
-		skip=0
-		for p in "${primary[@]}"; do
-			if [ "$f" = "$p" ]; then skip=1; break; fi
-			done
-		[ $skip -eq 0 ] && extra+=("$f")
-	done
-
-	# Build final render order: primary notebooks first (in dependency order), then extras
-	qmd_files=("${primary[@]}" "${extra[@]}")
+	# INDEPENDENT WORKSHEETS (no dependencies on other qmds)
+	# These load directly from data/ but don't depend on precompute/
+	independent=(
+		exploration_lifebook_data.qmd
+		lifebook_survival_basics.qmd
+		worksheet_lapse_analysis.qmd
+		worksheet_lapse_modelling.qmd
+	)
+	
+	# SUPPLEMENTARY NOTEBOOKS (no dependencies, render after primary)
+	supplementary=(temp_classic_survival_models.qmd worksheet_queueing_theory.qmd)
+	
+	# Build final render order: primary (in dependency order), then independent, then supplementary
+	qmd_files=("${primary[@]}" "${independent[@]}" "${supplementary[@]}")
 	if [ ${#qmd_files[@]} -eq 0 ]; then
 		echo "Error: No .qmd files found in project root"
 		exit 1
@@ -248,7 +294,7 @@ render-host file:
 		echo "Error: Quarto not found on host PATH. Install Quarto or use 'just render-container {{file}}' to render inside Docker.";
 		exit 1;
 	fi
-	# Auto-append .qmd extension if user didn't specify it
+	# Auto-append .qmd extension if not specified
 	qmd="{{file}}"
 	if [[ "$qmd" != *.qmd ]]; then
 		qmd="${qmd}.qmd"
@@ -425,6 +471,9 @@ info:
 	@echo "  Part 2: expanded_coxph_models.qmd (depends on Part 1)"
 	@echo "  Legacy: worksheet_survival.qmd (monolithic version)"
 	@echo "  Bonus:  classic_survival_models.qmd"
+	@echo "  Insurance: worksheet_lapse_analysis.qmd (life insurance lapse - existing)"
+	@echo "  Insurance: worksheet_lapse_modelling.qmd (life insurance lapse - new version)"
+	@echo "  Queueing: worksheet_queueing_theory.qmd (queueing theory fundamentals)"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  just workshop-sequence   # Render workshop sequence"
@@ -501,8 +550,11 @@ list-notebooks:
 	@echo "  expanded_coxph_models.qmd      (Part 2: Cox regression + validation)"
 	@echo ""
 	@echo "Supplementary:"
-	@echo "  classic_survival_models.qmd    (Classical methods reference)"
-	@echo "  worksheet_survival.qmd         (Legacy monolithic version)"
+	@echo "  classic_survival_models.qmd       (Classical methods reference)"
+	@echo "  worksheet_lapse_analysis.qmd      (Life insurance lapse - existing)"
+	@echo "  worksheet_lapse_modelling.qmd     (Life insurance lapse - new version)"
+	@echo "  worksheet_queueing_theory.qmd     (Queueing theory fundamentals)"
+	@echo "  worksheet_survival.qmd            (Legacy monolithic version)"
 	@echo ""
 	@echo "Other formats:"
 	@ls -1 *.Rmd 2>/dev/null || echo "  No .Rmd files found"

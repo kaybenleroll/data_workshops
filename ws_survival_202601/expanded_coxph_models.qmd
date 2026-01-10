@@ -109,6 +109,9 @@ initial_survival_models.qmd. We load the processed data and initial models:
 ```{r load_part1_data}
 #| echo: true
 
+# Load raw telco data
+telco_churn_tbl <- read_parquet("precompute/telco_churn_raw.parquet")
+
 # Load discretized telco data (includes calls_cat)
 telco_churn_cat_tbl <- read_parquet("precompute/telco_churn_cat.parquet")
 
@@ -116,10 +119,6 @@ telco_churn_cat_tbl <- read_parquet("precompute/telco_churn_cat.parquet")
 telco_model00_coxph <- qs_read("precompute/model00_null.qs")
 telco_model01_coxph <- qs_read("precompute/model01_vmailplan.qs")
 telco_model03_coxph <- qs_read("precompute/model03_combined.qs")
-
-# For clarity: reload raw data to ensure all variables are available
-telco_cols <- cols(areacode = col_character())
-telco_churn_tbl <- read_csv("data/telcochurn.csv", col_types = telco_cols)
 
 write_lines(
   glue(

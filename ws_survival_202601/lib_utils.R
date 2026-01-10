@@ -230,3 +230,29 @@ write_parquet_compressed <- function(x, sink, ...) {
     ...
   )
 }
+
+
+#' Write Timestamped Log Entry
+#'
+#' Writes a formatted log message to console with timestamp and section identifier.
+#'
+#' @param section Character string identifying the section/module logging the message
+#' @param log_message Character string containing the message to log
+#'
+#' @return NULL (writes message to console via message())
+#'
+#' @details Format: [YYYY-MM-DD HH:MM:SS.sss] - [SECTION]: message
+#'
+#' @examples
+#' \dontrun{
+#' write_log_entry("DATA_IMPORT", "Starting data import process")
+#' write_log_entry("VALIDATION", "Found 10 invalid records")
+#' }
+write_log_entry <- function(section, log_message) {
+  message(
+    glue(
+      "[{timestamp}] - [{section}]: {log_message}",
+      timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%OS")
+    )
+  )
+}

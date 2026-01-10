@@ -1622,6 +1622,10 @@ the continuation in the next worksheet.
 # Create output directory
 fs::dir_create("precompute", recurse = TRUE)
 
+# Save raw telco data (for use in next worksheets)
+telco_churn_tbl |>
+  write_parquet_compressed("precompute/telco_churn_raw.parquet")
+
 # Save processed data with discretized continuous variables
 telco_churn_cat_tbl |>
   write_parquet_compressed("precompute/telco_churn_cat.parquet")

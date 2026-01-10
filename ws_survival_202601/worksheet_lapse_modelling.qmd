@@ -1,0 +1,1193 @@
+---
+title: "Life Insurance Lapse Survival Analysis with Rollback Validation"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: sandstone
+      dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(glue)
+library(survival)
+library(survminer)
+library(broom)
+library(arrow)
+library(muhaz)
+library(lubridate)
+
+source("lib_utils.R")
+source("lib_survival_modelling.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "lubridate")
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+# Enable chunk timing for all chunks
+knitr::opts_chunk$set(time_it = TRUE)
+
+# Create a list to store chunk times
+chunk_times <- list()
+
+# Create a hook to capture chunk execution times
+knitr::knit_hooks$set(time_it = function(before, options) {
+  if (before) {
+    # Record start time in global environment
+    assign(".chunk_start_time", Sys.time(), envir = .GlobalEnv)
+  } else {
+    # Calculate elapsed time
+    elapsed <- difftime(
+      Sys.time(),
+      get(".chunk_start_time", envir = .GlobalEnv),
+      units = "secs"
+      ) |>
+      as.numeric()
+    
+    # Store in global list
+    chunk_times <- get("chunk_times", envir = .GlobalEnv)
+    chunk_times[[options$label]] <- elapsed
+    assign("chunk_times", chunk_times, envir = .GlobalEnv)
+    
+    # Print timing message
+    message(glue("⏱️  Chunk '{options$label}': {round(elapsed, 2)} seconds"))
+  }
+})
+```
+
+```{r setup_constants}
+#| echo: true
+
+TRAINING_DATE   <- as.Date("2015-01-01")
+VALIDATION_DATE <- as.Date("2016-01-01")
+
+write_lines(
+  glue(
+    "Training date:   {TRAINING_DATE}\n",
+    "Validation date: {VALIDATION_DATE}\n",
+    "Prediction horizon: 52 weeks (1 year)"
+    ),
+  stdout()
+  )
+```
+
+
+# Introduction
+
+This worksheet demonstrates survival analysis applied to life insurance policy
+lapse modeling using Cox proportional hazards regression with rollback
+validation.
+
+## Objectives
+
+Build Cox PH models to predict policy lapse behavior:
+
+  1. Train models on historical policy book snapshot (2015-01-01)
+  2. Predict lapses for the subsequent 12-month period
+  3. Validate predictions against actual outcomes (2016-01-01)
+  4. Quantify premium at risk and assess model calibration
+
+## Rollback Validation Methodology
+
+Unlike random cross-validation, rollback validation respects temporal structure:
+
+  - **Training**: Reconstruct policy book as of 2015-01-01
+    - Lapses before 2015: events
+    - Policies inforce at 2015: censored at that date
+    - Policies not yet incepted: excluded
+
+  - **Validation**: Same policies tracked forward to 2016-01-01
+    - New lapses between 2015-2016 identified
+    - Policies incepted after 2015: excluded (model had no info)
+
+This mimics real-world deployment: fit model at time $t$, predict outcomes
+from $t$ to $t+1$.
+
+## Business Context
+
+Policy lapse (voluntary termination) represents key risks:
+
+  - Lost premium revenue
+  - Disrupted cash flow planning
+  - Potential anti-selection if healthier lives lapse more
+
+Survival models help identify lapse drivers, quantify premium at risk, and
+inform retention strategies.
+
+
+# Load Prepared Datasets
+
+Load pre-prepared modeling datasets from the exploration workbook. All data
+manipulation, rollback construction, and filtering performed in
+`exploration_lifebook_data.qmd`.
+
+## Training Data (2015-01-01)
+
+Load training dataset representing the policy book as of 2015-01-01.
+
+```{r load_training}
+#| echo: true
+
+training_tbl <- read_parquet("data/model_training_small_tbl.parquet")
+
+write_lines(
+  glue("Training: {comma(nrow(training_tbl))} policies as of {TRAINING_DATE}"),
+  stdout()
+  )
+
+glimpse(training_tbl)
+
+training_tbl |>
+  count(status_at_reference_date) |>
+  mutate(proportion = n / sum(n)) |>
+  print()
+
+training_tbl |>
+  count(lapsed) |>
+  mutate(
+    status = if_else(lapsed == 1, "Event (lapsed)", "Censored (inforce/completed)"),
+    proportion = n / sum(n)
+    ) |>
+  select(status, n, proportion) |>
+  print()
+```
+
+
+## Validation Data (2016-01-01)
+
+Load rollforward dataset for the same policies as of 2016-01-01.
+
+```{r load_validation}
+#| echo: true
+
+validation_tbl <- read_parquet("data/model_rollforward_small_tbl.parquet")
+
+write_lines(
+  glue("Validation: {comma(nrow(validation_tbl))} policies as of {VALIDATION_DATE}"),
+  stdout()
+  )
+
+glimpse(validation_tbl)
+
+validation_tbl |>
+  count(status_at_reference_date) |>
+  mutate(proportion = n / sum(n)) |>
+  print()
+```
+
+
+## Verify Data Alignment
+
+The training and validation datasets contain the same policies at different
+time points.
+
+```{r filter_common}
+#| echo: true
+
+common_policy_ids <- training_tbl$policy_id
+
+training_tbl <- training_tbl |>
+  filter(policy_id %in% common_policy_ids)
+
+validation_tbl <- validation_tbl |>
+  filter(policy_id %in% common_policy_ids)
+
+write_lines(
+  glue(
+    "Common policies: {comma(length(common_policy_ids))}\n",
+    "Training:   {comma(nrow(training_tbl))}\n",
+    "Validation: {comma(nrow(validation_tbl))}"
+    ),
+  stdout()
+  )
+```
+
+
+## Create Derived Features
+
+Create age bands and other categorical predictors.
+
+```{r create_derived_features}
+#| echo: true
+
+training_tbl <- training_tbl |>
+  mutate(
+    age_band = cut(
+      age_at_observation,
+      breaks = c(0, 30, 40, 50, 60, 70, Inf),
+      labels = c("Under 30", "30-39", "40-49", "50-59", "60-69", "70+"),
+      right = FALSE
+      ),
+    vintage_cohort = cut(
+      policy_vintage_year,
+      breaks = c(1900, 2000, 2005, 2010, 2015, Inf),
+      labels = c("Pre-2000", "2000-2004", "2005-2009", "2010-2014", "2015+"),
+      right = FALSE
+      )
+    )
+
+validation_tbl <- validation_tbl |>
+  mutate(
+    age_band = cut(
+      age_at_observation,
+      breaks = c(0, 30, 40, 50, 60, 70, Inf),
+      labels = c("Under 30", "30-39", "40-49", "50-59", "60-69", "70+"),
+      right = FALSE
+      ),
+    vintage_cohort = cut(
+      policy_vintage_year,
+      breaks = c(1900, 2000, 2005, 2010, 2015, Inf),
+      labels = c("Pre-2000", "2000-2004", "2005-2009", "2010-2014", "2015+"),
+      right = FALSE
+      )
+    )
+
+write_lines("Derived features created: age_band, vintage_cohort", stdout())
+```
+
+
+## Sanity Checks
+
+Verify rollback logic is working correctly.
+
+```{r sanity_checks}
+#| echo: true
+
+check_tbl <- training_tbl |>
+  inner_join(
+    validation_tbl |> select(policy_id, status_2016 = status_at_reference_date),
+    by = "policy_id",
+    relationship = "one-to-one"
+    )
+
+write_lines("Status transitions (2015 -> 2016):", stdout())
+check_tbl |>
+  count(status_at_reference_date, status_2016) |>
+  pivot_wider(names_from = status_2016, values_from = n, values_fill = 0) |>
+  print()
+
+lifetime_check_tbl <- training_tbl |>
+  filter(status_at_reference_date == "inforce") |>
+  inner_join(
+    validation_tbl |> select(policy_id, lifetime_2016 = policy_lifetime),
+    by = "policy_id",
+    relationship = "one-to-one"
+    ) |>
+  mutate(lifetime_diff = lifetime_2016 - policy_lifetime)
+
+write_lines(
+  glue(
+    "\nLifetime change for inforce policies:\n",
+    "  Mean:   {sprintf('%.1f', mean(lifetime_check_tbl$lifetime_diff))} weeks\n",
+    "  Median: {sprintf('%.1f', median(lifetime_check_tbl$lifetime_diff))} weeks\n",
+    "  Expected: ~52 weeks (1 year)"
+    ),
+  stdout()
+  )
+```
+
+
+# Exploratory Data Analysis
+
+Explore training data to understand lapse patterns.
+
+## Summary Statistics
+
+```{r summary_stats}
+#| echo: true
+
+training_tbl |>
+  group_by(status_at_reference_date) |>
+  summarise(
+    count = n(),
+    mean_lifetime_wks = mean(policy_lifetime, na.rm = TRUE),
+    median_lifetime_wks = median(policy_lifetime, na.rm = TRUE),
+    mean_sum_assured = mean(sum_assured, na.rm = TRUE),
+    mean_prem_ape = mean(prem_ape, na.rm = TRUE),
+    mean_age = mean(age_at_observation, na.rm = TRUE),
+    .groups = "drop"
+    ) |>
+  print()
+```
+
+
+## Kaplan-Meier Survival Curves
+
+### Overall Survival
+
+```{r km_overall}
+#| echo: true
+
+km_overall <- survfit(
+  Surv(policy_lifetime, lapsed) ~ 1,
+  data = training_tbl,
+  conf.type = "log-log"
+  )
+
+plot(
+  km_overall,
+  conf.int = TRUE,
+  xlab = "Policy Lifetime (weeks)",
+  ylab = "Survival Probability",
+  main = "Overall Survival Curve"
+  )
+```
+
+
+### By Gender
+
+```{r km_gender}
+#| echo: true
+
+km_gender <- survfit(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = training_tbl,
+  conf.type = "log-log"
+  )
+
+plot(
+  km_gender,
+  conf.int = TRUE,
+  col = c("blue", "red"),
+  xlab = "Policy Lifetime (weeks)",
+  ylab = "Survival Probability",
+  main = "Survival by Gender"
+  )
+legend("topright", legend = names(km_gender$strata), col = c("blue", "red"), lty = 1)
+
+survdiff_gender <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = training_tbl
+  )
+print(survdiff_gender)
+```
+
+
+### By Smoker Status
+
+```{r km_smoker}
+#| echo: true
+
+km_smoker <- survfit(
+  Surv(policy_lifetime, lapsed) ~ smoker_life1,
+  data = training_tbl,
+  conf.type = "log-log"
+  )
+
+plot(
+  km_smoker,
+  conf.int = TRUE,
+  col = c("darkgreen", "orange"),
+  xlab = "Policy Lifetime (weeks)",
+  ylab = "Survival Probability",
+  main = "Survival by Smoker Status"
+  )
+legend("topright", legend = names(km_smoker$strata), col = c("darkgreen", "orange"), lty = 1)
+
+survdiff_smoker <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ smoker_life1,
+  data = training_tbl
+  )
+print(survdiff_smoker)
+```
+
+
+### By Cluster
+
+```{r km_cluster}
+#| echo: true
+
+km_cluster <- survfit(
+  Surv(policy_lifetime, lapsed) ~ cluster_id,
+  data = training_tbl,
+  conf.type = "log-log"
+  )
+
+plot(
+  km_cluster,
+  conf.int = FALSE,
+  xlab = "Policy Lifetime (weeks)",
+  ylab = "Survival Probability",
+  main = "Survival by Cluster"
+  )
+legend("topright", legend = names(km_cluster$strata), lty = 1, cex = 0.7)
+
+survdiff_cluster <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ cluster_id,
+  data = training_tbl
+  )
+print(survdiff_cluster)
+```
+
+
+### By Age Band
+
+```{r km_age}
+#| echo: true
+
+km_age <- survfit(
+  Surv(policy_lifetime, lapsed) ~ age_band,
+  data = training_tbl,
+  conf.type = "log-log"
+  )
+
+plot(
+  km_age,
+  conf.int = FALSE,
+  xlab = "Policy Lifetime (weeks)",
+  ylab = "Survival Probability",
+  main = "Survival by Age Band"
+  )
+legend("topright", legend = names(km_age$strata), lty = 1, cex = 0.8)
+
+survdiff_age <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ age_band,
+  data = training_tbl
+  )
+print(survdiff_age)
+```
+
+
+## Distribution Plots
+
+```{r distribution_plots}
+#| echo: true
+
+lifetime_plot <- ggplot(training_tbl) +
+  geom_histogram(
+    aes(x = policy_lifetime, fill = factor(lapsed)),
+    bins = 50, alpha = 0.6, position = "identity"
+    ) +
+  scale_fill_manual(
+    values = c("0" = "steelblue", "1" = "firebrick"),
+    labels = c("0" = "Censored", "1" = "Lapsed")
+    ) +
+  scale_x_continuous(labels = comma) +
+  labs(
+    title = "Policy Lifetime Distribution",
+    x = "Weeks", y = "Count", fill = "Status"
+    )
+
+prem_plot <- ggplot(
+  training_tbl |> filter(prem_ape > 0, prem_ape < 15000)
+  ) +
+  geom_histogram(
+    aes(x = prem_ape, fill = factor(lapsed)),
+    bins = 50, alpha = 0.6, position = "identity"
+    ) +
+  scale_x_log10(labels = comma) +
+  scale_fill_manual(
+    values = c("0" = "steelblue", "1" = "firebrick"),
+    labels = c("0" = "Censored", "1" = "Lapsed")
+    ) +
+  labs(
+    title = "Premium APE (Log Scale)",
+    x = "Premium APE", y = "Count", fill = "Status"
+    )
+
+sa_plot <- ggplot(training_tbl |> filter(sum_assured > 0)) +
+  geom_histogram(
+    aes(x = sum_assured, fill = factor(lapsed)),
+    bins = 50, alpha = 0.6, position = "identity"
+    ) +
+  scale_x_log10(labels = comma) +
+  scale_fill_manual(
+    values = c("0" = "steelblue", "1" = "firebrick"),
+    labels = c("0" = "Censored", "1" = "Lapsed")
+    ) +
+  labs(
+    title = "Sum Assured (Log Scale)",
+    x = "Sum Assured", y = "Count", fill = "Status"
+    )
+
+age_plot <- ggplot(training_tbl) +
+  geom_histogram(
+    aes(x = age_at_observation, fill = factor(lapsed)),
+    bins = 30, alpha = 0.6, position = "identity"
+    ) +
+  scale_fill_manual(
+    values = c("0" = "steelblue", "1" = "firebrick"),
+    labels = c("0" = "Censored", "1" = "Lapsed")
+    ) +
+  labs(
+    title = "Age at Observation",
+    x = "Age (years)", y = "Count", fill = "Status"
+    )
+
+plot_grid(lifetime_plot, prem_plot, sa_plot, age_plot, ncol = 2)
+```
+
+
+## Lapse Rates by Demographics
+
+```{r lapse_rates_demo}
+#| echo: true
+
+training_tbl |>
+  filter(!is.na(gender_life1), !is.na(smoker_life1)) |>
+  group_by(gender_life1, smoker_life1) |>
+  summarise(
+    total = n(),
+    lapsed = sum(lapsed),
+    lapse_rate = lapsed / total,
+    .groups = "drop"
+    ) |>
+  mutate(group = paste(gender_life1, smoker_life1, sep = " / ")) |>
+  ggplot(aes(x = group, y = lapse_rate, fill = group)) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  geom_text(aes(label = sprintf("%.1f%%", lapse_rate * 100)), vjust = -0.5) +
+  scale_y_continuous(labels = percent, limits = c(0, NA)) +
+  labs(
+    title = "Lapse Rate by Gender and Smoker Status",
+    x = NULL, y = "Lapse Rate"
+    ) +
+  theme(legend.position = "none")
+```
+
+
+# Residual-Based Variable Selection
+
+Use martingale residuals from null model to identify promising continuous
+predictors.
+
+## Fit Null Model
+
+```{r null_model}
+#| echo: true
+
+lapse_model00_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~ 1,
+  data = training_tbl
+  )
+
+lapse_model00_coxph |> summary()
+
+lapse_model00_coxph |>
+  glance() |>
+  select(n, nevent, logLik, AIC, BIC) |>
+  print()
+```
+
+
+## Extract Martingale Residuals
+
+```{r extract_residuals}
+#| echo: true
+
+training_tbl <- training_tbl |>
+  mutate(resid_m = residuals(lapse_model00_coxph, type = "martingale"))
+
+write_lines(
+  glue(
+    "Martingale residuals: mean = {sprintf('%.3f', mean(training_tbl$resid_m))}, ",
+    "range = [{sprintf('%.3f', min(training_tbl$resid_m))}, ",
+    "{sprintf('%.3f', max(training_tbl$resid_m))}]"
+    ),
+  stdout()
+  )
+```
+
+
+## Residual Plots
+
+```{r residual_plots}
+#| echo: true
+
+create_residual_plot <- function(data_tbl, var_name, use_log = FALSE) {
+  plot_data <- data_tbl |>
+    filter(!is.na(.data[[var_name]]), .data[[var_name]] > 0)
+
+  if (use_log) {
+    p <- ggplot(plot_data, aes(x = log(.data[[var_name]]), y = resid_m))
+    x_label <- glue("log({var_name})")
+    } else {
+    p <- ggplot(plot_data, aes(x = .data[[var_name]], y = resid_m))
+    x_label <- var_name
+    }
+
+  p +
+    geom_point(size = 0.8, alpha = 0.15) +
+    geom_smooth(method = "loess", se = FALSE, colour = "firebrick") +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(
+      title = glue("Martingale Residuals vs {var_name}"),
+      x = x_label,
+      y = "Martingale Residual"
+      )
+}
+
+prem_resid <- create_residual_plot(training_tbl, "prem_ape", use_log = TRUE)
+sa_resid <- create_residual_plot(training_tbl, "sum_assured", use_log = TRUE)
+ratio_resid <- create_residual_plot(training_tbl, "prem_sa_ratio", use_log = FALSE)
+age_resid <- create_residual_plot(training_tbl, "age_at_observation", use_log = FALSE)
+
+plot_grid(prem_resid, sa_resid, ratio_resid, age_resid, ncol = 2)
+```
+
+
+## Correlations
+
+```{r correlations}
+#| echo: true
+
+continuous_vars <- c("prem_ape", "sum_assured", "prem_sa_ratio", "age_at_observation")
+
+cor_values <- map_dbl(
+  continuous_vars,
+  ~cor(
+    training_tbl$resid_m,
+    training_tbl[[.x]],
+    use = "complete.obs"
+    )
+  )
+
+log_cor_values <- map_dbl(
+  continuous_vars,
+  ~{
+    valid_data <- training_tbl |> filter(.data[[.x]] > 0)
+    cor(
+      valid_data$resid_m,
+      log(valid_data[[.x]]),
+      use = "complete.obs"
+      )
+    }
+  )
+
+correlation_tbl <- tibble(
+  variable = continuous_vars,
+  correlation = cor_values,
+  log_correlation = log_cor_values
+  ) |>
+  arrange(desc(abs(correlation)))
+
+print(correlation_tbl)
+```
+
+
+# Incremental Model Building
+
+Build sequence of increasingly complex Cox models, assessing each step.
+
+## Model 00: Null Model
+
+Already fitted above as baseline.
+
+```{r model00_metrics}
+#| echo: true
+
+model00_metrics <- lapse_model00_coxph |>
+  glance() |>
+  select(n, nevent, logLik, AIC, BIC)
+
+print(model00_metrics)
+```
+
+
+## Model 01: Gender
+
+```{r model01}
+#| echo: true
+
+lapse_model01_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = training_tbl
+  )
+
+lapse_model01_coxph |> summary()
+lapse_model01_coxph |> tidy(conf.int = TRUE) |> print()
+
+lapse_model01_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_01 <- lapse_model01_coxph |> cox.zph(transform = "km")
+print(cox_zph_01)
+```
+
+
+## Model 02: Demographics (Gender + Smoker)
+
+```{r model02}
+#| echo: true
+
+lapse_model02_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~ gender_life1 + smoker_life1,
+  data = training_tbl
+  )
+
+lapse_model02_coxph |> summary()
+lapse_model02_coxph |> tidy(conf.int = TRUE) |> print()
+
+lapse_model02_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_02 <- lapse_model02_coxph |> cox.zph(transform = "km")
+print(cox_zph_02)
+
+anova(lapse_model01_coxph, lapse_model02_coxph, test = "Chisq")
+```
+
+
+## Model 03: Add Log Premium
+
+Filter to positive premiums and sum assured for log transformations.
+
+```{r model03}
+#| echo: true
+
+training_pos_tbl <- training_tbl |>
+  filter(prem_ape > 0, sum_assured > 0)
+
+lapse_model03_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~ gender_life1 + smoker_life1 + log(prem_ape),
+  data = training_pos_tbl
+  )
+
+lapse_model03_coxph |> summary()
+lapse_model03_coxph |> tidy(conf.int = TRUE) |> print()
+
+lapse_model03_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_03 <- lapse_model03_coxph |> cox.zph(transform = "km")
+print(cox_zph_03)
+```
+
+
+## Model 04: Add Log Sum Assured
+
+```{r model04}
+#| echo: true
+
+lapse_model04_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~
+    gender_life1 + smoker_life1 + log(prem_ape) + log(sum_assured),
+  data = training_pos_tbl
+  )
+
+lapse_model04_coxph |> summary()
+lapse_model04_coxph |> tidy(conf.int = TRUE) |> print()
+
+lapse_model04_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_04 <- lapse_model04_coxph |> cox.zph(transform = "km")
+print(cox_zph_04)
+
+anova(lapse_model03_coxph, lapse_model04_coxph, test = "Chisq")
+```
+
+
+## Model 05: Add Cluster
+
+```{r model05}
+#| echo: true
+
+lapse_model05_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~
+    gender_life1 + smoker_life1 + log(prem_ape) + log(sum_assured) + cluster_id,
+  data = training_pos_tbl
+  )
+
+lapse_model05_coxph |> summary()
+
+lapse_model05_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_05 <- lapse_model05_coxph |> cox.zph(transform = "km")
+print(cox_zph_05)
+
+anova(lapse_model04_coxph, lapse_model05_coxph, test = "Chisq")
+```
+
+
+## Model 06: Add Age (Linear)
+
+```{r model06}
+#| echo: true
+
+lapse_model06_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~
+    gender_life1 + smoker_life1 + log(prem_ape) + log(sum_assured) +
+    cluster_id + age_at_observation,
+  data = training_pos_tbl
+  )
+
+lapse_model06_coxph |> summary()
+lapse_model06_coxph |> tidy(conf.int = TRUE) |> print()
+
+lapse_model06_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_06 <- lapse_model06_coxph |> cox.zph(transform = "km")
+print(cox_zph_06)
+
+anova(lapse_model05_coxph, lapse_model06_coxph, test = "Chisq")
+```
+
+
+## Model 07: Add Policy Vintage
+
+```{r model07}
+#| echo: true
+
+lapse_model07_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~
+    gender_life1 + smoker_life1 + log(prem_ape) + log(sum_assured) +
+    cluster_id + age_at_observation + policy_vintage_year,
+  data = training_pos_tbl
+  )
+
+lapse_model07_coxph |> summary()
+
+lapse_model07_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_07 <- lapse_model07_coxph |> cox.zph(transform = "km")
+print(cox_zph_07)
+
+anova(lapse_model06_coxph, lapse_model07_coxph, test = "Chisq")
+```
+
+
+## Model 08: Full Model with Splines
+
+```{r model08}
+#| echo: true
+
+lapse_model08_coxph <- coxph(
+  Surv(policy_lifetime, lapsed) ~
+    gender_life1 + smoker_life1 + log(prem_ape) + log(sum_assured) +
+    cluster_id + pspline(age_at_observation) + policy_vintage_year +
+    pspline(prem_sa_ratio),
+  data = training_pos_tbl
+  )
+
+lapse_model08_coxph |> summary()
+
+lapse_model08_coxph |>
+  glance() |>
+  select(n, nevent, concordance, std.error.concordance, r.squared, AIC, BIC) |>
+  print()
+
+cox_zph_08 <- lapse_model08_coxph |> cox.zph(transform = "km")
+print(cox_zph_08)
+
+anova(lapse_model07_coxph, lapse_model08_coxph, test = "Chisq")
+
+par(mfrow = c(2, 2))
+termplot(lapse_model08_coxph, term = 6, se = TRUE, col.term = "firebrick",
+         main = "Age Effect (Spline)")
+termplot(lapse_model08_coxph, term = 8, se = TRUE, col.term = "firebrick",
+         main = "Prem/SA Ratio Effect (Spline)")
+par(mfrow = c(1, 1))
+```
+
+
+# Model Comparison
+
+Compare all models systematically.
+
+```{r model_comparison}
+#| echo: true
+
+model_list <- list(
+  lapse_model00_coxph,
+  lapse_model01_coxph,
+  lapse_model02_coxph,
+  lapse_model03_coxph,
+  lapse_model04_coxph,
+  lapse_model05_coxph,
+  lapse_model06_coxph,
+  lapse_model07_coxph,
+  lapse_model08_coxph
+  )
+
+model_comparison_tbl <- tibble(
+  model = sprintf("%02d", 0:8),
+  description = c(
+    "Null",
+    "Gender",
+    "Gender + Smoker",
+    "Demographics + log(prem)",
+    "Demo + log(prem) + log(SA)",
+    "Model04 + cluster",
+    "Model05 + age",
+    "Model06 + vintage",
+    "Full with splines"
+    ),
+  n = map_dbl(model_list, ~glance(.x)$n),
+  nevent = map_dbl(model_list, ~glance(.x)$nevent),
+  concordance = map_dbl(model_list, ~glance(.x)$concordance),
+  std_error = map_dbl(model_list, ~glance(.x)$std.error.concordance),
+  r_squared = map_dbl(model_list, ~glance(.x)$r.squared),
+  logLik = map_dbl(model_list, ~glance(.x)$logLik),
+  AIC = map_dbl(model_list, ~glance(.x)$AIC),
+  BIC = map_dbl(model_list, ~glance(.x)$BIC)
+  )
+
+print(model_comparison_tbl)
+
+best_model_idx <- which.min(model_comparison_tbl$AIC)
+best_model_name <- model_comparison_tbl$model[best_model_idx]
+
+write_lines(glue("Best model by AIC: Model {best_model_name}"), stdout())
+```
+
+
+## Forest Plot for Best Model
+
+```{r forest_plot}
+#| echo: true
+#| fig-height: 10
+
+best_model <- lapse_model08_coxph
+
+# ggforest requires unique rownames; create a safe copy with synthetic ids
+forest_data <- training_pos_tbl |>
+  ungroup() |>
+  mutate(.rowid = make.unique(as.character(row_number()))) |>
+  relocate(.rowid) |>
+  as.data.frame()
+
+rownames(forest_data) <- forest_data$.rowid
+forest_data$.rowid <- NULL
+
+ggforest(best_model, data = forest_data)
+```
+
+
+# Cashflow Validation
+
+Test best model on validation data to assess out-of-time performance.
+
+## Prepare Validation Data
+
+Filter validation data to match training policies that were inforce at training
+date.
+
+```{r prepare_validation}
+#| echo: true
+
+training_inforce_ids <- training_pos_tbl |>
+  filter(status_at_reference_date == "inforce") |>
+  pull(policy_id)
+
+validation_pos_tbl <- validation_tbl |>
+  filter(
+    policy_id %in% training_inforce_ids,
+    prem_ape > 0,
+    sum_assured > 0
+    )
+
+write_lines(
+  glue(
+    "Policies inforce at training date: {comma(length(training_inforce_ids))}\n",
+    "Validation sample (matched): {comma(nrow(validation_pos_tbl))}"
+    ),
+  stdout()
+  )
+```
+
+
+## Generate Predictions
+
+```{r generate_predictions}
+#| echo: true
+
+predictions_lst <- calculate_cashflow_predictions(
+  model_coxph = best_model,
+  training_data_tbl = training_pos_tbl |>
+    filter(status_at_reference_date == "inforce"),
+  prediction_horizon_weeks = 52
+  )
+
+print(predictions_lst$aggregate_summary)
+```
+
+
+## Compare to Actual Outcomes
+
+```{r compare_outcomes}
+#| echo: true
+
+comparison_lst <- compare_predicted_vs_actual(
+  predictions_list = predictions_lst,
+  actual_data_tbl = validation_pos_tbl
+  )
+
+write_lines("\n=== SUMMARY METRICS ===", stdout())
+print(comparison_lst$summary_metrics)
+
+write_lines("\n=== CALIBRATION BY DECILE ===", stdout())
+print(comparison_lst$calibration_tbl)
+```
+
+
+## Visualization
+
+```{r visualize_results}
+#| echo: true
+
+plots_lst <- create_cashflow_comparison_plots(comparison_lst)
+
+plot_grid(
+  plots_lst$lapse_comparison_plot,
+  plots_lst$premium_comparison_plot,
+  plots_lst$calibration_plot,
+  plots_lst$residual_plot,
+  ncol = 2
+  )
+```
+
+
+# Results Interpretation
+
+```{r interpret_results}
+#| echo: false
+
+metrics <- comparison_lst$summary_metrics
+
+write_lines(
+  glue(
+    "\n=== MODEL PERFORMANCE SUMMARY ===\n\n",
+    "Lapse Prediction:\n",
+    "  Predicted: {comma(sprintf('%.0f', metrics$predicted_lapses))} policies\n",
+    "  Actual:    {comma(sprintf('%.0f', metrics$actual_lapses))} policies\n",
+    "  Error:     {sprintf('%.1f%%', metrics$lapse_error_pct)}\n\n",
+    "Premium at Risk:\n",
+    "  Predicted: £{comma(sprintf('%.0f', metrics$predicted_premium_loss))}\n",
+    "  Actual:    £{comma(sprintf('%.0f', metrics$actual_premium_loss))}\n",
+    "  Error:     {sprintf('%.1f%%', metrics$premium_error_pct)}\n"
+    ),
+  stdout()
+  )
+
+if (abs(metrics$lapse_error_pct) < 10) {
+  write_lines("Lapse predictions: Well-calibrated (< 10% error)", stdout())
+  } else if (abs(metrics$lapse_error_pct) < 20) {
+  write_lines("Lapse predictions: Acceptable (10-20% error)", stdout())
+  } else {
+  write_lines("Lapse predictions: Significant error (> 20%)", stdout())
+  }
+
+if (abs(metrics$premium_error_pct) < 10) {
+  write_lines("Premium predictions: Well-calibrated (< 10% error)", stdout())
+  } else if (abs(metrics$premium_error_pct) < 20) {
+  write_lines("Premium predictions: Acceptable (10-20% error)", stdout())
+  } else {
+  write_lines("Premium predictions: Significant error (> 20%)", stdout())
+  }
+```
+
+## Key Findings
+
+1. **Discrimination**: Model 08 achieved concordance of
+   `r sprintf("%.3f", glance(best_model)$concordance)`, indicating
+   `r if(glance(best_model)$concordance > 0.65) "good" else if(glance(best_model)$concordance > 0.60) "moderate" else "weak"`
+   ability to rank lapse risk.
+
+2. **Calibration**: The calibration plot shows how predicted probabilities match
+   observed rates across risk deciles. Points near the diagonal indicate good
+   calibration.
+
+3. **Premium at Risk**: Model predicts
+   £`r comma(sprintf("%.0f", metrics$predicted_premium_loss))` in annual
+   premium at risk vs actual £`r comma(sprintf("%.0f", metrics$actual_premium_loss))`.
+
+4. **Key Risk Factors**: Demographics (gender, smoker), financial variables
+   (premium, sum assured), age, policy vintage, and cluster membership all
+   contribute to lapse risk.
+
+
+# Conclusions
+
+This analysis demonstrates Cox PH modeling for life insurance lapse prediction
+with rollback validation.
+
+## Business Value
+
+  - **Interpretable risk factors**: Clear hazard ratios for each covariate
+  - **Individual risk scores**: Policy-level lapse probabilities
+  - **Aggregate forecasts**: Total expected lapses and premium at risk
+  - **Validated performance**: Out-of-time assessment mimics real deployment
+
+## Recommendations
+
+  1. **Targeted retention**: Focus on high-risk policies identified by model
+  1. **Pricing review**: Examine segments with high lapse rates
+  1. **Product design**: Address structural drivers (prem/SA ratio)
+  1. **Capital planning**: Use calibrated forecasts for reserves
+
+## Limitations
+
+  - Assumes proportional hazards (tested via cox.zph)
+  - No time-varying covariates
+  - Limited to observable policy characteristics
+  - Past lapse behavior may not predict future
+
+## Future Work
+
+  - Incorporate time-varying covariates (payment history)
+  - Test stratified models by product/vintage
+  - Automate model monitoring for drift
+  - Extend to multi-state models (lapse vs other exits)
+
+
+# R Environment
+
+```{r session_info}
+#| echo: true
+
+sessioninfo::session_info()
+```

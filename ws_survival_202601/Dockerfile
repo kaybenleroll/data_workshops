@@ -59,6 +59,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
   && install2.r --error \
     anytime \
     arrow \
+    argparse \
     asaur \
     benchmarkme \
     broom \
@@ -73,10 +74,13 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     ggsurvfit \
     gt \
     gtsummary \
+    igraph \
+    jsonlite \
     kableExtra \
     Hmisc \
     lifecontingencies \
     loo \
+    lubridate \
     markdown \
     modeltime \
     muhaz \
@@ -137,8 +141,8 @@ USER rstudio
 
 COPY build/rstudio-prefs.json /home/rstudio/.config/rstudio/rstudio-prefs.json
 
-COPY build/docker_install_user_rpkgs.R /home/rstudio/tmp/
-RUN Rscript /home/rstudio/tmp/docker_install_user_rpkgs.R
+COPY build/docker_install_user_rpkgs.R /tmp/docker_install_user_rpkgs.R
+RUN Rscript /tmp/docker_install_user_rpkgs.R
 
 
 USER root
