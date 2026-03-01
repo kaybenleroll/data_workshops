@@ -1,0 +1,6 @@
+# Exclude binary serialized objects and data files
+*.qs
+*.parquet
+
+# Keep the directory structure tracked
+!.gitignore

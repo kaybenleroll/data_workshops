@@ -1,0 +1,1669 @@
+---
+title: "Dublin Data Science Workshop on Survival Analysis (Part 1: Initial Models)"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+
+---
+
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(survival)
+library(survminer)
+library(muhaz)
+library(broom)
+library(arrow)
+library(qs2)
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
+  )
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+Sys.setenv(OPENBLAS_NUM_THREADS = 8)
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+
+The notebook begins by loading all required packages, resolving namespace
+conflicts for reproducibility, and configuring multi-threaded Arrow I/O. We
+also establish global options (line width, cores) and set a consistent theme.
+Parallel and timing infrastructure are enabled up-front so later chunks
+automatically benefit from these settings without repeated boilerplate.
+
+```{r setup_chunk_timing}
+#| echo: false
+#| message: false
+
+# Enable chunk timing for all chunks
+knitr::opts_chunk$set(time_it = TRUE)
+
+# Create a list to store chunk times
+chunk_times <- list()
+
+# Create a hook to capture chunk execution times
+knitr::knit_hooks$set(time_it = function(before, options) {
+  if (before) {
+    # Record start time in global environment
+    assign(".chunk_start_time", Sys.time(), envir = .GlobalEnv)
+  } else {
+    # Calculate elapsed time
+    elapsed <- difftime(
+        Sys.time(), get(".chunk_start_time", envir = .GlobalEnv),
+        units = "secs"
+        ) |>
+      as.numeric()
+    
+    # Store in global list
+    chunk_times <- get("chunk_times", envir = .GlobalEnv)
+    chunk_times[[options$label]] <- elapsed
+    assign("chunk_times", chunk_times, envir = .GlobalEnv)
+    
+    # Print timing message
+    message(glue("⏱️  Chunk '{options$label}': {round(elapsed, 2)} seconds"))
+  }
+})
+```
+
+
+
+
+# Basic Concepts
+
+In *survival analysis* we analyse *time-to-event* data and try to estimate
+the underlying distribution of times for events to occur. Survival analysis
+is a fundamental statistical methodology that deals with the analysis of
+duration until an event of interest occurs. While the terminology comes from
+medical applications where the event is typically death, the methods are
+widely applicable across many domains: customer churn in business, equipment
+failure in engineering, time to promotion in organizational studies, and many
+others.
+
+The key distinguishing feature of survival analysis is its ability to handle
+**censored data** — situations where we know an observation period has ended
+but the event of interest has not occurred (or has occurred before observation
+began). This is a common and realistic scenario that standard statistical
+methods struggle to handle appropriately.
+
+## Introduction
+
+For the purposes of this workshop, we focus on a single event type, but the
+topic is wide and broadly applicable. The fundamental question we ask is:
+"Given that an individual has survived up to time $t$, what is the
+probability they will survive to some future time $t + s$?" Understanding and
+estimating these probabilities allows us to make predictions about future
+events and to compare survival experiences across different groups or under
+different conditions.
+
+
+### Workshop Materials
+
+All materials for this workshop is available in my standard GitHub repo:
+
+https://github.com/kaybenleroll/dublin_r_workshops
+
+
+![book cover](img/asaur_cover.jpg)
+
+
+The content of this workshop is partly based on the book "Applied Survival
+Analysis Using R" by Dirk F. Moore. The data from this book is available from
+CRAN via the package 'asaur'.
+
+
+### Example Datasets
+
+This workshop will use a number of different time-to-event datasets, so we
+look at those first.
+
+#### Telco Churn Data
+
+The telco churn data contains some customer usage information on mobile phone
+customers and whether or not they left their subscription accounts.
+
+```{r show_telco_churn_data}
+#| echo: true
+
+telco_cols <- cols(
+  areacode = col_character()
+  )
+
+telco_churn_tbl <- read_csv(
+  "data/telcochurn.csv",
+  col_types = telco_cols
+  )
+
+
+telco_churn_tbl |> glimpse()
+
+telco_churn_tbl |> head()
+```
+
+
+#### Prostate Survival
+
+The prostate survival data is generated data from a cancer survival study.
+
+```{r show_prostate_data}
+#| echo: true
+
+prostate_surv_tbl <- asaur::prostateSurvival |>
+  as_data_frame()
+
+prostate_surv_tbl |> glimpse()
+
+prostate_surv_tbl |> head()
+```
+
+#### Smoker Data
+
+The smoker data is a smoking relapse study involving a number of different
+treatments and details on when and if the patient resumed smoking.
+
+```{r show_smoker_data}
+#| echo: true
+
+pharmaco_smoker_tbl <- asaur::pharmacoSmoking |>
+  as_data_frame()
+
+pharmaco_smoker_tbl |> glimpse()
+
+pharmaco_smoker_tbl |> head()
+```
+
+
+
+## Basic Principles  
+
+### Data Censoring and Truncation
+
+In the problems we work on, our data observation process does not allow us to
+fully observe the variable in question. Instead, our observations are often
+*right-censored* - that is, we know the value in question is at least the
+observed value, but it may also be higher. Right-censoring occurs when the
+observation period ends (perhaps because of study termination, loss to
+follow-up, or withdrawal) before the event of interest occurs.
+
+For example, in a clinical trial studying time to recovery, if a patient
+withdraws from the study after 100 days without having recovered, we record
+their survival time as *at least* 100 days. We don't know if they recovered
+on day 101, day 150, or never. This is crucial information that ordinary
+regression methods cannot properly incorporate.
+
+Expressing this formally, suppose $T^*$ is the true unobserved time to event,
+and $U$ is the time to the censoring event (end of study, loss to follow-up,
+or withdrawal), then our observed time $T$, and censoring indicator, $\delta$,
+are given by
+
+\begin{eqnarray*}
+T      &=& \min(T^*, U) \\
+\delta &=& I[T^* \leq U]
+\end{eqnarray*}
+
+Here $\delta = 1$ indicates an observed event (uncensored) while $\delta = 0$
+indicates right-censoring. The pair $(T, \delta)$ is what we actually observe
+in our data.
+
+A less common phenomenon is *left-censoring* - where we observe the event to
+be at most a given duration. This may happen in medical studies where
+continual observation of the patients is not possible or feasible. For
+instance, if we're studying time to infection but only conduct examinations
+once per month, we know infections occurred before observation but not exactly
+when. Survival analysis methods for left-censored data are more specialized
+and less commonly applied in practice.
+
+### Hazard and Survival Functions
+
+Our key goal is to find the survival distribution - the distribution of times
+from some given start point to the time of the event. Once we understand this
+distribution, we can make inferences about how long events typically take,
+compare different groups, and model how covariates affect the rate of events.
+
+Two common ways of specifying this distribution are the *survival function*,
+$S(t)$ and the *hazard function*, $\lambda(t)$. These two functions contain
+equivalent information but provide different perspectives on the same
+underlying phenomenon.
+
+#### The Survival Function
+
+$S(t)$ is the probability of surviving to time $t$, or equivalently, the
+probability that the time to event exceeds $t$. It is defined as follows:
+
+$$
+S(t) = P(T > t), \, 0 \leq t \leq \infty
+$$
+
+Thus, $S(0) = 1$ (everyone survives until time 0) and $S(t)$ decreases
+monotonically with increasing time $t$. The survival function approaches 0 as
+$t \to \infty$ for proper survival distributions. As it is a probability it is
+always non-negative and at most 1.
+
+For example, if $S(5) = 0.8$, this means there is an 80% probability that an
+individual survives past time 5. Survival curves are often plotted as step
+functions, with a drop at each observed event time.
+
+#### The Hazard Function
+
+Alternatively, we can characterize the survival distribution through the
+hazard function, which represents the instantaneous rate of event occurrence
+given that the individual has survived to time $t$. More formally,
+
+$$
+\lambda(t) = \lim_{\delta \to 0} \frac{P(t \leq T \leq t + \delta \; | \, T > t)}{\delta}
+$$
+
+Intuitively, $\lambda(t) dt$ is approximately the probability that an event
+occurs in a small interval $[t, t + dt]$ given that the individual survived to
+time $t$. The hazard function is always non-negative and can exceed 1 (unlike
+probabilities). It is also called the *intensity function*, *instantaneous
+failure rate*, or *force of mortality*.
+
+Different shapes of hazard functions tell us about the underlying process:
+
+  - **Increasing hazard**: The risk of event increases over time (aging effect)
+  - **Decreasing hazard**: The risk decreases over time (initial high-risk
+    period)
+  - **Constant hazard**: The risk remains constant (memoryless or exponential
+    process)
+
+
+### Cumulative Functions
+
+Some analyses make it easier to use the *cumulative hazard function*, which
+accumulates the hazard over time up to time $t$:
+
+$$
+\Lambda(t) = \int^t_0 \lambda(u) \, du
+$$
+
+The cumulative hazard has a nice interpretation: $\Lambda(t)$ represents the
+total amount of "risk" that an individual has accumulated by time $t$. It is a
+non-decreasing function that starts at $\Lambda(0) = 0$ and increases to
+infinity as $t \to \infty$.
+
+A fundamental relationship connects the survival function to the cumulative
+hazard function:
+
+$$
+S(t) = \exp(- \Lambda(t))
+$$
+
+This relationship is important because it shows how the two fundamental
+functions are mathematically related. Given one, we can always compute the
+other. The cumulative hazard form is often useful in statistical modeling and
+estimation because the exponential relationship is well-behaved numerically.
+
+### Relationships Between Functions
+
+The survival function $S(t)$, probability density function $f(t)$, hazard
+function $\lambda(t)$, and cumulative hazard $\Lambda(t)$ are all
+mathematically related. Understanding these relationships helps us move
+between different representations of the survival distribution.
+
+The probability density function is related to the survival function by:
+
+$$
+f(t) = -\frac{dS(t)}{dt}
+$$
+
+This makes intuitive sense: the density is the rate at which the survival
+probability is decreasing.
+
+The hazard function can be expressed in terms of both:
+
+$$
+\lambda(t) = \frac{f(t)}{S(t)} = -\frac{d \log S(t)}{dt}
+$$
+
+This shows that the hazard is the density of events at time $t$ divided by the
+probability of surviving to $t$ - a conditional failure rate.
+
+These relationships allow us to derive any of these functions from any other,
+which is useful when different parameterizations are more natural for
+different distributions or applications.
+
+```{r show_function_relationships}
+#| echo: true
+
+# Demonstrate relationships using exponential distribution with rate 0.01
+lambda_const <- 0.01
+t_vals <- seq(0, 200, length.out = 200)
+
+# Calculate all functions
+S_t <- exp(-lambda_const * t_vals)
+f_t <- lambda_const * exp(-lambda_const * t_vals)
+h_t <- rep(lambda_const, length(t_vals))
+H_t <- lambda_const * t_vals
+
+relationships_tbl <- tibble(
+  time = t_vals,
+  survival = S_t,
+  density = f_t,
+  hazard = h_t,
+  cumulative_hazard = H_t
+  )
+
+# Plot all functions
+p1 <- ggplot(relationships_tbl) +
+  geom_line(aes(x = time, y = survival)) +
+  labs(title = "Survival S(t)", y = "S(t)")
+
+p2 <- ggplot(relationships_tbl) +
+  geom_line(aes(x = time, y = density)) +
+  labs(title = "Density f(t)", y = "f(t)")
+
+p3 <- ggplot(relationships_tbl) +
+  geom_line(aes(x = time, y = hazard)) +
+  labs(title = "Hazard λ(t)", y = "λ(t)")
+
+p4 <- ggplot(relationships_tbl) +
+  geom_line(aes(x = time, y = cumulative_hazard)) +
+  labs(title = "Cumulative Hazard Λ(t)", y = "Λ(t)")
+
+plot_grid(p1, p2, p3, p4, nrow = 2, ncol = 2)
+```
+
+
+### Mean and Median Survival
+
+While survival functions provide a complete picture of the survival
+distribution, it's often useful to summarize them with single statistics. Two
+common summary measures are the *mean survival time* and the *median survival
+time*.
+
+#### Mean Survival Time
+
+The mean survival time is the expected value of the distribution, computed
+using standard probability definitions. It can be expressed in terms of the
+survival function as:
+
+$$
+\mu = E(T) = \int^\infty_0 t f(t) \, dt = \int^\infty_0 S(t) \, dt
+$$
+
+The right-most expression shows that the mean is simply the area under the
+survival curve. For heavily censored data, the mean can be difficult to
+estimate reliably, since the tail of the distribution (large times) may not be
+well-observed.
+
+#### Median Survival Time
+
+The median survival time, $t_{\text{med}}$, is the time at which exactly half
+of the population is expected to have experienced the event. It is defined by
+the relationship:
+
+$$
+S(t_{\text{med}}) = 0.5
+$$
+
+The median is often easier to estimate than the mean, especially when data is
+heavily censored, since it only requires knowing the survival probability up
+to the 50% point rather than requiring the full distribution. In practice, the
+median survival time is often reported and compared across groups because it
+is more robust to extreme values and censoring patterns.
+
+#### Other Quantiles
+
+Beyond the median, we can define any quantile of the survival distribution.
+The $p$-th quantile $t_p$ is defined as:
+
+$$
+S(t_p) = 1 - p
+$$
+
+For example, the 25th percentile (first quartile) satisfies $S(t_{0.25}) =
+0.75$, meaning 75% of individuals survive past this time. Reporting multiple
+quantiles (e.g., quartiles) provides a more complete summary than the median
+alone.
+
+```{r demonstrate_quantiles}
+#| echo: true
+
+# Create a simple KM estimator for demonstration
+tt_demo   <- c(7, 6, 6, 5, 2, 4)
+cens_demo <- c(0, 1, 0, 0, 1, 1)
+
+demo_tbl <- tibble(tt = tt_demo, cens = cens_demo)
+
+demo_km <- survfit(
+  Surv(tt, cens) ~ 1,
+  data = demo_tbl,
+  conf.type = "log-log"
+  )
+
+# Extract quantiles
+quantile_times <- quantile(demo_km, probs = c(0.25, 0.50, 0.75))
+
+quantile_times |> print()
+
+# We can also visualize these on the survival curve
+quantile_df <- data.frame(
+  quantile = c("25th", "50th", "75th"),
+  prob = c(0.75, 0.50, 0.25),
+  time = as.numeric(quantile_times$quantile)
+  )
+
+ggsurvplot(demo_km)$plot +
+  geom_hline(
+    data = quantile_df,
+    aes(yintercept = prob, color = quantile),
+    linetype = "dashed"
+    ) +
+  labs(title = "Survival Curve with Quantiles")
+```
+
+
+## Example Distributions
+
+Let's look at some different survival distributions to build intuition about
+how different hazard patterns translate into survival curves. By examining
+several stylized examples, we can understand how the shape of the hazard
+function affects the survival experience. These examples represent common
+patterns seen in real-world applications and help us recognize and interpret
+the underlying processes generating time-to-event data.
+
+### Constant Hazard
+
+A constant hazard function represents a situation where the risk of an event
+occurring is the same at all times, regardless of how long an individual has
+already survived. This is characteristic of the **exponential distribution**
+and represents a "memoryless" process - the probability of an event in the
+next time interval doesn't depend on how much time has already passed.
+
+In real-world scenarios, constant hazard might approximate:
+
+  - Component failures due to random external shocks (not wear-and-tear)
+  - Customer churn in highly competitive markets with stable conditions
+  - Certain types of equipment failure where aging effects are minimal
+
+The survival curve for a constant hazard declines exponentially, creating a
+smooth curve that never quite reaches zero (though it approaches it
+asymptotically).
+
+```{r constant_hazard_plots}
+#| echo: true
+
+t_seq <- 1:100
+
+h_const_seq <- rep_along(t_seq, 0.01)
+S_const_seq <- cumprod(c(1, (1 - h_const_seq)))
+
+
+hazard_plot <- ggplot() +
+  geom_line(aes(x = t_seq, y = h_const_seq)) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+  geom_line(aes(x = c(0, t_seq), y = S_const_seq)) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
+
+If we increase the constant hazard, we get a similar shape, but the curve
+declines faster. A higher hazard rate means events occur more frequently,
+so the survival probability drops more rapidly. Notice that the fundamental
+shape remains the same (exponential decay) - only the rate of decline changes.
+This demonstrates an important principle: the hazard rate controls the speed
+of the survival process, not its qualitative behavior.
+
+```{r constant_hazard_higher_plots}
+#| echo: true
+
+h_const_high_seq <- rep_along(t_seq, 0.03)
+S_const_high_seq <- cumprod(c(1, (1 - h_const_high_seq)))
+
+
+hazard_plot <- ggplot() +
+  geom_line(aes(x = t_seq, y = h_const_high_seq)) +
+  geom_line(
+    aes(x = t_seq, y = h_const_seq),
+    colour = "blue",
+    linetype = "dashed"
+    ) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+  geom_line(aes(x = c(0, t_seq), y = S_const_high_seq)) +
+  geom_line(
+    aes(x = c(0, t_seq), y = S_const_seq),
+    colour = "blue",
+    linetype = "dashed"
+    ) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
+
+
+### Early Hazard
+
+An early hazard pattern, also known as a **decreasing hazard**, occurs when
+the risk of an event is highest at the beginning and decreases over time.
+This pattern is common in scenarios involving:
+
+  - Post-surgical mortality (highest risk immediately after surgery)
+  - Infant mortality patterns in certain diseases
+  - "Burn-in" failures in manufacturing (defective items fail quickly)
+  - Early customer churn (dissatisfied customers leave quickly, satisfied ones
+    stay longer)
+  - Equipment with "break-in" periods where initial defects are exposed
+
+The decreasing hazard implies that if an individual survives the early
+high-risk period, their subsequent risk of experiencing the event becomes
+lower and more stable. This is sometimes called "selection effect" - the
+frailer individuals experience events early, leaving a more robust population
+as time progresses.
+
+In the survival curve, this manifests as a steep initial drop followed by a
+more gradual, flatter decline. The slope of the survival curve decreases over
+time, reflecting the reduced hazard.
+
+```{r early_hazard_plots}
+#| echo: true
+
+early_seq <- seq(0.10, 0.01, by = -0.01)
+late_seq  <- rep(0.01, 100 - length(early_seq))
+
+h_early_seq <- c(early_seq, late_seq)
+S_early_seq <- cumprod(c(1, (1 - h_early_seq)))
+
+
+hazard_plot <- ggplot() +
+  geom_line(aes(x = t_seq, y = h_early_seq)) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+  geom_line(aes(x = c(0, t_seq), y = S_early_seq)) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
+
+
+
+### Late Hazard
+
+A late hazard pattern, or **increasing hazard**, represents situations where
+the risk of an event grows over time. This is the classic "aging" or
+"wear-out" pattern commonly seen in:
+  - Age-related mortality in biological systems
+  - Mechanical wear and tear (parts degrade over time)
+  - Chronic disease progression
+  - Long-term customer relationships (satisfaction may erode over time)
+  - Material fatigue failures
+
+With an increasing hazard, the longer an individual survives, the higher
+their instantaneous risk becomes. This reflects cumulative damage,
+deterioration, or depletion of protective factors over time.
+
+The survival curve shows a gentle initial decline that becomes progressively
+steeper. Unlike the decreasing hazard case, here the slope increases over
+time, meaning the survival probability drops more rapidly as time progresses.
+This accelerating decline is characteristic of aging and degradation
+processes.
+
+```{r late_hazard_plots}
+#| echo: true
+
+late_seq  <- seq(0.01, 0.10, by = 0.0015)
+early_seq <- rep(0.01, 100 - length(late_seq))
+
+h_late_seq <- c(early_seq, late_seq)
+S_late_seq <- cumprod(c(1, (1 - h_late_seq)))
+
+
+hazard_plot <- ggplot() +
+  geom_line(aes(x = t_seq, y = h_late_seq)) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Instantaneous Hazard")
+
+cuml_plot <- ggplot() +
+  geom_line(aes(x = c(0, t_seq), y = S_late_seq)) +
+  expand_limits(y = 0) +
+  xlab("Time") +
+  ylab("Cumulative Survival")
+
+plot_grid(hazard_plot, cuml_plot, nrow = 2)
+```
+
+
+# Estimations of the Survival Functions
+
+Having established the theoretical foundations of survival analysis, we now
+turn to the practical question: how do we estimate survival and hazard
+functions from observed data? This is challenging because of censoring - we
+don't observe complete event times for all individuals. Standard statistical
+methods like computing empirical cumulative distribution functions don't work
+because they would treat censored observations incorrectly.
+
+We'll explore two main approaches: the **Kaplan-Meier estimator** for
+survival functions (a non-parametric method that makes minimal assumptions)
+and **smoothed hazard estimation** using kernel methods. Understanding both
+approaches and how they relate to each other is essential for practical
+survival analysis.
+
+## The Kaplan-Meier Estimator
+
+The Kaplan-Meier (KM) estimator, also called the product-limit estimator, is
+the gold standard non-parametric method for estimating survival functions
+from censored data. Developed independently by Kaplan & Meier (1958), it
+handles right-censoring elegantly by updating the survival probability only
+at observed event times, properly accounting for the number of individuals
+still at risk.
+
+Kaplan-Meier is the standard method for estimating the survival function of a
+given dataset. Formally, it is defined as follows
+
+$$
+\hat{S}(t) = \prod_{t_i \leq t} (1 - \hat{q}_i) = \prod_{t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)
+$$
+
+where $n_i$ is the number of subjects at risk at time $t_i$ (those who have
+neither experienced the event nor been censored before $t_i$), and $d_i$ is
+the number of individuals who fail at that time.
+
+The intuition is straightforward: at each event time, we calculate the
+conditional probability of surviving past that time given survival up to that
+point. The overall survival probability is the product of all these
+conditional probabilities. Censored observations contribute to the risk set
+until their censoring time, then are removed without affecting the event
+count.
+
+### Using Kaplan-Meier
+
+In R, we construct KM estimators using the `survfit()` function from the
+`survival` package. The syntax follows R's standard formula interface, making
+it easy to estimate survival curves for entire datasets or by groups.
+
+The key function for specifying survival data is `Surv()`, which creates a
+survival object from time and event indicator variables. This special object
+type ensures that survival analysis functions correctly distinguish between
+observed events and censored observations.
+
+Before we move on to our datasets, we start with a small set of data to
+illustrate the basic workflow.
+
+```{r km_estimator_intro}
+#| echo: true
+
+tt   <- c(7, 6, 6, 5, 2, 4)
+cens <- c(0, 1, 0, 0, 1, 1)
+grp  <- c(0, 0, 0, 1, 1, 1)
+
+Surv(tt, cens)
+
+sample_tbl <- tibble(tt = tt, cens = cens, grp = grp)
+
+example_km <- survfit(
+  Surv(tt, cens) ~ 1,
+  data = sample_tbl,
+  conf.type = "log-log"
+  )
+
+plot(example_km)
+```
+
+Basic plotting routines are worth trying, but the `survminer` package has
+specialised plots that use `ggplot2` to create them. The `ggsurvplot()`
+function provides much richer visualizations with confidence intervals, risk
+tables, and customization options that follow ggplot2 conventions.
+
+```{r km_estimator_survminer}
+#| echo: true
+
+ggsurvplot(example_km)
+```
+
+Printing out the 'fitted' object gives us some basic statistics including
+the number of observations, number of events (failures), median survival
+time, and confidence intervals for the median.
+
+```{r km_estimator_print}
+#| echo: true
+
+example_km |> print()
+```
+
+We get more details from the `summary()` function, which provides estimates
+at each event time including: the number at risk ($n_i$), number of events
+($d_i$), survival probability ($\hat{S}(t)$), and confidence bounds. This
+table is the core output of the Kaplan-Meier method and shows exactly how the
+survival probability is updated at each observed failure time.
+
+```{r km_estimator_summary}
+#| echo: true
+
+example_km |> summary()
+```
+
+#### Exercises
+
+  1. Construct the KM estimator for the telco churn data
+  1. What is the median survival time for this data?
+  1. What is the mean survival time?
+  1. Repeat the above for the other two datasets.
+
+
+### Confidence Intervals for Kaplan-Meier
+
+The Kaplan-Meier estimator is a statistic, and like all statistics, it has
+uncertainty. Confidence intervals quantify this uncertainty and help us
+understand the precision of our survival estimates.
+
+There are several methods for constructing confidence intervals for $S(t)$:
+
+1. **Plain (linear)**: Uses normal approximation to $\hat{S}(t)$ directly
+2. **Log transformation**: Uses normal approximation to $\log(\hat{S}(t))$
+3. **Log-log transformation**: Uses normal approximation to
+   $\log(-\log(\hat{S}(t)))$
+
+The log-log method is generally preferred because:
+
+  - It respects the constraint that $0 \leq S(t) \leq 1$
+  - It performs better for small sample sizes
+  - It has better coverage properties in simulation studies
+
+In R, we specify the confidence interval type using the `conf.type` argument:
+
+```{r km_confidence_intervals}
+#| echo: true
+
+# Compare different confidence interval methods
+km_plain <- survfit(
+  Surv(tt, cens) ~ 1,
+  data = sample_tbl,
+  conf.type = "plain"
+  )
+
+km_log <- survfit(
+  Surv(tt, cens) ~ 1,
+  data = sample_tbl,
+  conf.type = "log"
+  )
+
+km_loglog <- survfit(
+  Surv(tt, cens) ~ 1,
+  data = sample_tbl,
+  conf.type = "log-log"
+  )
+
+# Extract and compare
+plain_tbl <- km_plain |>
+  tidy() |>
+  mutate(method = "plain")
+
+log_tbl <- km_log |>
+  tidy() |>
+  mutate(method = "log")
+
+loglog_tbl <- km_loglog |>
+  tidy() |>
+  mutate(method = "log-log")
+
+ci_comparison_tbl <- bind_rows(plain_tbl, log_tbl, loglog_tbl)
+
+# Plot comparison
+ggplot(ci_comparison_tbl) +
+  geom_step(aes(x = time, y = estimate)) +
+  geom_ribbon(
+    aes(x = time, ymin = conf.low, ymax = conf.high, fill = method),
+    alpha = 0.3
+    ) +
+  labs(
+    title = "Comparison of CI Methods",
+    x = "Time",
+    y = "Survival Probability"
+    )
+```
+
+Notice how the different methods can produce slightly different confidence
+bands, especially at the extremes of the survival curve. The log-log method
+(default in `survfit()`) tends to give more reasonable bounds that stay within
+[0, 1].
+
+
+#### Exercises
+
+  1. Construct the KM estimator for the telco churn data
+  1. What is the median survival time for this data?
+  1. What is the mean survival time?
+  1. Repeat the above for the other two datasets.
+
+
+### Follow-up Time
+
+A useful measure may be how long the observation period lasts, something that
+can be subtly difficult to measure. Understanding follow-up time is important
+because it tells us about the quality and completeness of our data - longer
+follow-up generally provides more reliable estimates, especially in the tail
+of the distribution.
+
+One clever method to estimate follow-up time is to "reverse" the event and
+censoring indicators - that is, we consider the original event as a censoring
+of the observation in the study, and censored observations as "events"
+(study completion). This reverse Kaplan-Meier approach gives us the
+distribution of observation times accounting for the fact that some
+observations end because of events (which we now treat as censored).
+
+```{r measure_followup_time}
+#| echo: true
+
+sample_tbl <- sample_tbl |>
+  mutate(follow = 1 - cens)
+
+follow_km <- survfit(
+  Surv(tt, follow) ~ 1,
+  data = sample_tbl
+  )
+
+ggsurvplot(follow_km)
+
+follow_km |> summary()
+```
+
+
+## Smoothed Hazard Functions
+
+While Kaplan-Meier gives us a non-parametric estimate of the survival
+function, we often want to estimate the hazard function directly. The hazard
+function can reveal important patterns about the instantaneous risk over time
+that may not be immediately obvious from the survival curve.
+
+An empirical estimate of the hazard function at each event time is given by
+the proportion of at-risk individuals who experience the event:
+
+$$
+\mu(i) = \frac{d_i}{n_i}
+$$
+
+This is a very noisy estimate as it is sensitive to sample noise, especially
+when the number of events at any given time is small. The resulting hazard
+estimate jumps around erratically and makes it difficult to discern underlying
+patterns or trends in the instantaneous risk.
+
+### The Hazard Estimator
+
+To obtain more smooth functions we use kernel density estimator techniques.
+Kernel smoothing applies a weighted moving average across time, producing a
+continuous, smooth estimate of the hazard function. The `muhaz` package
+implements these methods, with options for different kernels and bandwidth
+selection strategies.
+
+The smoothing helps us see trends and patterns in the hazard function that
+would be obscured by the noise in the raw empirical estimates. However, this
+comes at the cost of introducing bias - we're trading variance for bias to
+achieve interpretable estimates.
+
+```{r show_muhaz_plots}
+#| echo: true
+
+sample_muhaz <- muhaz(sample_tbl$tt, sample_tbl$cens, max.time = 7)
+
+plot(sample_muhaz)
+```
+
+`broom` has tidying methods for `muhaz()` and this allows us to create plots
+with `ggplot2`. The `tidy()` function converts the muhaz object into a tidy
+tibble with time and hazard estimate columns, making it easy to work with
+using tidyverse tools.
+
+```{r show_muhaz_tidy}
+#| echo: true
+
+muhaz_tidy_tbl <- sample_muhaz |> tidy()
+
+muhaz_tidy_tbl |> glimpse()
+```
+
+We have estimates of the hazard function now and so can plot it.
+
+```{r show_muhaz_tidy_plot}
+#| echo: true
+
+ggplot(muhaz_tidy_tbl) +
+  geom_line(aes(x = time, y = estimate)) +
+  expand_limits(x = 0, y = 0) +
+  xlab("Time") +
+  ylab("Estimated Hazard")
+```
+
+
+#### Exercises
+
+  1. Construct the smoothed estimator for the telco churn data
+  1. What time has the highest hazard rate?
+  1. What time has the lowest hazard rate?
+  1. Repeat the above for the other two datasets.
+
+
+### Boundary Corrections
+
+By default, `muhaz()` corrects for the boundary on both sides, but we may not
+wish this. Boundary corrections adjust the kernel estimator near the edges of
+the observed time range (at time 0 and at the maximum observed time) where
+the standard kernel approach can produce biased estimates.
+
+Near boundaries, the kernel "window" extends beyond the data range, causing
+downward bias. Boundary correction methods attempt to compensate for this.
+However, these corrections can sometimes introduce artifacts or instability,
+so it's worth comparing corrected and uncorrected estimates.
+
+To get estimates without this correction, we add it as an argument to the
+function call using `b.cor = "none"`.
+
+
+```{r show_muhaz_nocorr}
+#| echo: true
+
+sample_nocorr_muhaz <- muhaz(
+  sample_tbl$tt,
+  sample_tbl$cens,
+  max.time = 7,
+  b.cor = "none"
+  )
+
+plot(sample_nocorr_muhaz)
+
+
+sample_nocorr_muhaz_tidy_tbl <- sample_nocorr_muhaz |> tidy()
+
+ggplot(sample_nocorr_muhaz_tidy_tbl) +
+  geom_line(aes(x = time, y = estimate)) +
+  expand_limits(x = 0, y = 0) +
+  xlab("Time") +
+  ylab("Estimated Hazard")
+```
+
+To help ensure these smoothed estimates are capturing the correct aspects of
+the data, we also have the equivalent `pehaz()` functions - giving histogram
+estimates of the hazards. These provide discrete, binned estimates much like
+histograms do for density estimation, while `muhaz()` provides continuous
+estimates analogous to kernel density estimation. Comparing both can help
+validate that the smoothing isn't obscuring important features or introducing
+spurious patterns.
+
+#### Exercises
+
+  1. Construct the non-corrected smoothed estimator for the telco churn data
+  1. Repeat the above for the other two datasets.
+
+
+## Comparing KM and Smoothed Estimates
+
+Now that we have both methods of checking the empirical estimates, it is good
+to compare them. This comparison serves as a valuable validation check - if
+the two methods give substantially different results, it may indicate issues
+with the smoothing bandwidth, boundary effects, or data quality.
+
+Before we do this, we note that Kaplan-Meier estimates the survival function
+$S(t)$ but `muhaz()` gives us estimates of the hazard function $\lambda(t)$.
+To compare them directly, we need to convert one to match the other.
+
+Thus we need to do some conversions and the easiest way to do this is to
+numerically integrate the hazard functions to calculate the survival function
+using the relationship $S(t) = \exp(-\Lambda(t))$ where $\Lambda(t) =
+\int_0^t \lambda(u) du$. We can then compare this derived survival curve to
+the KM estimate. Close agreement suggests both methods are capturing the same
+underlying survival process.
+
+```{r integrate_muhaz}
+#| echo: true
+
+muhaz_surv_tbl <- muhaz_tidy_tbl |>
+  mutate(
+    dt  = c(0, diff(time)),
+    S_t = exp(-cumsum(estimate * dt))
+    )
+
+ggsurvplot(example_km)$plot +
+  geom_line(aes(x = time, y = S_t), data = muhaz_surv_tbl)
+```
+
+
+### No Boundary Correction
+
+We also want to compare the results without the boundary correction.
+
+```{r compare_nocorr_estimates}
+#| echo: true
+
+muhaz_nocorr_surv_tbl <- sample_nocorr_muhaz_tidy_tbl |>
+  mutate(
+    dt  = c(0, diff(time)),
+    S_t = exp(-cumsum(estimate * dt))
+    )
+
+ggsurvplot(example_km)$plot +
+  geom_line(
+    aes(x = time, y = S_t),
+    colour = "blue",
+    data = muhaz_surv_tbl
+    ) +
+  geom_line(aes(x = time, y = S_t), data = muhaz_nocorr_surv_tbl)
+```
+
+We see that removing the boundary corrections can cause big discrepancies
+between the smoothed and discrete estimates (at least in this case). The
+uncorrected estimate shows more divergence from the Kaplan-Meier curve,
+particularly at the extremes of the time range. This suggests that boundary
+corrections are helpful for this dataset, though the optimal choice can vary
+depending on data characteristics and analysis goals.
+
+
+## Estimating Survival Curves for the Telco Churn Data
+
+We now are going to build various Kaplan-Meier estimates for all the data,
+as well as splits on the data along `vmailplan` - whether or not the account
+had a voice mail, and `intlplan` - whether or not the account had an
+international calls plan.
+
+This is a common pattern in survival analysis: we estimate an overall survival
+curve for the entire population, then stratify by categorical variables to see
+if different groups have different survival experiences. These comparisons can
+reveal important risk factors and help us understand which customer
+characteristics are associated with longer or shorter account lifetimes.
+
+```{r create_km_fits}
+#| echo: true
+
+telco_all_km   <- survfit(Surv(accountdur, churned) ~ 1, data = telco_churn_tbl)
+telco_vmail_km <- survfit(Surv(accountdur, churned) ~ vmailplan, data = telco_churn_tbl)
+telco_intl_km  <- survfit(Surv(accountdur, churned) ~ intlplan, data = telco_churn_tbl)
+```
+
+
+### Plotting the Curves
+
+Having created the KM estimates, we first plot the curves to check for
+differences. Visual inspection of survival curves is often the first step in
+identifying potential differences between groups. Look for:
+
+  - Separation between curves (suggesting different survival experiences)
+  - Crossing curves (indicating non-proportional hazards)
+  - Confidence interval overlap (suggesting statistical uncertainty about
+    differences)
+
+```{r plot_km_curves}
+#| echo: true
+
+telco_all_km   |> ggsurvplot(censor = FALSE)
+telco_vmail_km |> ggsurvplot(censor = FALSE)
+telco_intl_km  |> ggsurvplot(censor = FALSE)
+```
+
+The estimators comes with upper and lower confidence bounds, and it may be
+useful to include these estimates when determining the differences. These
+confidence intervals quantify our uncertainty about the true survival
+probability at each time point. When confidence intervals for different groups
+overlap substantially, it suggests we cannot be confident that the groups
+truly differ. We will look at a more formal way of discriminating between
+curves (log-rank tests) in a while.
+
+```{r plot_km_curves_bounds}
+#| echo: true
+
+telco_all_km   |> ggsurvplot(censor = FALSE, conf.int = TRUE)
+telco_vmail_km |> ggsurvplot(censor = FALSE, conf.int = TRUE)
+telco_intl_km  |> ggsurvplot(censor = FALSE, conf.int = TRUE)
+```
+
+
+### Combining KM Estimators
+
+This is useful, but it would be better to combine all these together in a
+single plot for easier comparison. To do this, we need the tables of the
+estimator data, and stack them together.
+
+Fortunately, the *broom* package is compatible with basic survival analysis
+routines, so this provides us with utilities to help with this. The `tidy()`
+function extracts the survival curve data into a standard tibble format that
+we can manipulate with dplyr and plot with ggplot2.
+
+If we need to access the KM data directly, we can use `tidy()` to get a look:
+
+```{r introspect_km_fits}
+#| echo: true
+
+telco_all_km_data   <- telco_all_km |> tidy()
+telco_all_km_data   |> glimpse()
+
+telco_vmail_km_data <- telco_vmail_km |> tidy()
+telco_vmail_km_data |> glimpse()
+
+telco_intl_km_data  <- telco_intl_km |> tidy()
+telco_intl_km_data  |> glimpse()
+```
+
+We stack the data and create a line plot of each of the survival curves.
+
+```{r plot_stacked_km_plots}
+#| echo: true
+
+stacked_km_tbl <- list(
+    telco_all_km_data |> mutate(strata = "ALL"),
+    telco_vmail_km_data,
+    telco_intl_km_data
+    ) |>
+  bind_rows()
+
+
+ggplot(stacked_km_tbl) +
+  geom_line(aes(x = time, y = estimate, colour = strata)) +
+  geom_line(
+    aes(x = time, y = conf.high, colour = strata),
+    linetype = "dashed"
+    ) +
+  geom_line(
+    aes(x = time, y = conf.low, colour = strata),
+    linetype = "dashed"
+    )
+```
+
+This chart is not as useful as it could be - it is too 'busy'. We need to
+simplify.
+
+Instead of including everything, we will look at the international plan curves
+along with the estimator calculated from the full dataset.
+
+```{r plot_stacked_km_all_intl_plots}
+#| echo: true
+
+ggplot(stacked_km_tbl |> filter(grepl("ALL|intl", strata))) +
+  geom_line(aes(x = time, y = estimate, colour = strata)) +
+  geom_line(
+    aes(x = time, y = conf.high, colour = strata),
+    linetype = "dashed"
+    ) +
+  geom_line(
+    aes(x = time, y = conf.low, colour = strata),
+    linetype = "dashed"
+    )
+```
+
+From this, it looks like people without international plans are similar to
+the population as a whole, but those with plans have a much worse churn
+effect. This type of information will be useful later.
+
+We can do a similar thing for the voice-mail plans.
+
+```{r plot_stacked_km_all_vmail_plots}
+#| echo: true
+
+ggplot(stacked_km_tbl |> filter(grepl("ALL|vmail", strata))) +
+  geom_line(aes(x = time, y = estimate, colour = strata)) +
+  geom_line(
+    aes(x = time, y = conf.high, colour = strata),
+    linetype = "dashed"
+    ) +
+  geom_line(
+    aes(x = time, y = conf.low, colour = strata),
+    linetype = "dashed"
+    )
+```
+
+This split is more mixed, but it appears that those with a voicemail plan have
+a better churn experience than the population, but those without are similar
+to the population as a whole.
+
+
+### Testing for Differences: The Log-Rank Test
+
+While visual inspection of survival curves is informative, we need formal
+statistical tests to determine whether observed differences between groups are
+statistically significant or could be due to random chance. The **log-rank
+test** is the standard non-parametric test for comparing survival curves
+between two or more groups.
+
+We conduct this test using `survdiff()` from the survival package, with the
+null hypothesis that there is no difference in survival between groups. The
+next section explores the theoretical foundation and practical applications in
+detail.
+
+
+# Comparing Curves: The Log-Rank Test
+
+Now that we have ways of constructing different survival curves from our
+data, we can compare the patterns visually and numerically across groups.
+Visualizing survival curves provides the primary insight: do the curves
+differ substantially, and if so, where? The log-rank test offers a
+computational aid for summarizing observed differences between curves,
+though we emphasize visual interpretation and effect sizes over p-values.
+
+## Comparing Curves: Observed vs. Expected
+
+When comparing survival curves across groups, we can ask: do the observed
+event counts in each group differ from what we'd see if survival were
+identical across groups?
+
+At each time point where an event occurs, we can compute expected event
+counts given the population at risk and total events observed:
+
+|            |Control          |    Treatment      |   Total     |
+|----------- |:---------------:|:-----------------:|:-----------:|
+|Failure     |$d_{0i}$         | $d_{1i}$          | $d_i$       |
+|Non-failure |$n_{0i} - d_{0i}$| $n_{1i} - d_{1i}$ | $n_i - d_i$ |
+|Total       |$n_{0i}$         | $n_{1i}$          | $n_i$       |
+
+where:
+
+  - $d_{0i}$ and $d_{1i}$ are the number of observed failures in each group at
+    time $t_i$
+  - $n_{0i}$ and $n_{1i}$ are the number at risk in each group at time $t_i$
+  - $d_i$ is the total number of events at time $t_i$
+
+The expected count and variance for the control group are:
+
+\begin{eqnarray*}
+e_{0i} &=& E(d_{0i}) = \frac{n_{0i} d_i}{n_i}                                        \\
+v_{0i} &=& \text{var}(d_{0i}) = \frac{n_{0i} n_{1i} d_i (n_i - d_i)}{n_i^2(n_i - 1)} 
+\end{eqnarray*}
+
+Summing across all time points:
+
+\begin{eqnarray*}
+U_0    &=& \sum_{i=1}^{N} (d_{0i} - e_{0i})   \\
+V_0    &=& \sum_{i=1}^{N} v_{0i}
+\end{eqnarray*}
+
+The log-rank test statistic is:
+
+$$
+\frac{U_0^2}{V_0} \sim \chi_1^2 \text{ (for two groups)}
+$$
+
+This provides a summary measure of the aggregate difference between observed
+and expected, but the practical value lies in examining the "Observed" versus
+"Expected" columns in the output: which group has more or fewer events than
+expected? By how much? That difference is what matters.
+
+### A Note on P-Values
+
+P-values quantify evidence against the null hypothesis of equal survival, but
+they are brittle measures that conflate effect size with sample size. With
+large samples, trivial differences yield small p-values; with small samples,
+large differences may yield large p-values. **The magnitude of the difference
+and its practical importance are what matter for decision-making.** Always
+examine the curves themselves and the observed vs. expected counts rather than
+relying on a p-value threshold (e.g., 0.05) to guide interpretation.
+
+## Comparing Binary Categories
+
+The simplest application is comparing survival across two groups: treatment
+versus control, presence or absence of a characteristic, or any other binary
+grouping. We examine visual differences in curves and quantify them using
+observed versus expected event counts.
+
+### Voicemail Plan Comparison
+
+Let's examine whether a voicemail plan affects churn:
+
+```{r compare_vmail_curves}
+#| echo: true
+
+telco_vmail_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ vmailplan,
+  data = telco_churn_tbl
+  )
+
+telco_vmail_survdiff |> print()
+telco_vmail_survdiff |> glance()
+```
+
+The "Observed" and "Expected" columns tell the story: customers with a
+voicemail plan have substantially fewer observed events (146 observed vs. 185
+expected), indicating better retention than would occur under equal survival.
+Conversely, customers without a plan have more events than expected (274
+observed vs. 235 expected), indicating worse retention.
+
+This aligns visually with the Kaplan-Meier curves: the voicemail plan group
+has a noticeably higher survival probability at all time points. The
+difference is substantial and practically meaningful for business
+decision-making.
+
+### International Plan Comparison
+
+Now let's examine an international calling plan:
+
+```{r compare_intl_curves}
+#| echo: true
+
+telco_intl_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ intlplan,
+  data = telco_churn_tbl
+  )
+
+telco_intl_survdiff |> print()
+telco_intl_survdiff |> glance()
+```
+
+Here we see customers with international plans have more observed events than
+expected (194 vs. 177), indicating worse retention. The gap is smaller than
+the voicemail comparison, suggesting a weaker relationship. This could reflect
+that international plan adoption is associated with other risk factors (travel
+patterns, churn propensity) or simply a smaller underlying effect.
+
+## Comparing Multiple Categories
+
+When comparing more than two groups, we ask the same question: do the
+observed event counts differ meaningfully from what we'd expect under equal
+survival? Visual inspection becomes even more important with multiple curves,
+as differences can be complex and context-dependent.
+
+### Area Code Comparison
+
+Let's examine whether telephone area codes affect churn. First, we check how
+many categories we have:
+
+```{r check_area_code_levels}
+#| echo: true
+
+telco_churn_tbl |> count(areacode)
+```
+
+Three area codes are represented. Let's visualize the Kaplan-Meier curves:
+
+```{r create_areacode_km_estimates}
+#| echo: true
+
+telco_areacode_km <- survfit(
+  Surv(accountdur, churned) ~ areacode,
+  data = telco_churn_tbl
+  )
+
+telco_areacode_km |> ggsurvplot(censor = TRUE, conf.int = TRUE)
+```
+
+The curves track closely together. The observed/expected comparison:
+
+```{r compare_areacode_curves}
+#| echo: true
+
+telco_areacode_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ areacode,
+  data = telco_churn_tbl
+  )
+
+telco_areacode_survdiff |> print()
+telco_areacode_survdiff |> glance()
+```
+
+All three area codes show observed and expected counts that are quite similar.
+The observed/expected difference is negligible across all groups, consistent
+with what we see visually. This makes business sense: area codes are broad
+geographic regions, unlikely to capture meaningful local effects on churn.
+
+
+## Discretizing Continuous Variables for Comparison
+
+Many variables affecting survival are continuous (age, income, usage metrics),
+yet group comparisons require categorical groupings. We discretize continuous
+variables into meaningful bins for exploratory visualization and comparison.
+This approach works well for understanding non-linear relationships and
+validating patterns, though regression models (covered later) handle continuous
+variables more elegantly.
+
+### Rationale for Discretization
+
+Discretization serves several purposes:
+
+  1. **Visualization**: Group comparisons are easier to interpret visually
+  1. **Interpretability**: Binned results are more explainable to stakeholders
+  1. **Exploration**: Simple binning reveals non-linear or threshold effects
+  1. **Robustness**: Test patterns across different discretization schemes to
+     ensure findings are stable
+
+The key is choosing sensible cutpoints that reflect domain knowledge and data
+distribution.
+
+### Example: Customer Service Calls
+
+We suspect customer satisfaction (measured by calls to service) affects churn.
+Let's examine the distribution first:
+
+```{r explore_custservicecalls_distribution}
+#| echo: true
+
+telco_churn_tbl |>
+  ggplot(aes(x = custservicecalls)) +
+  geom_histogram(bins = 20, fill = "steelblue", alpha = 0.7) +
+  labs(
+    title = "Distribution of Customer Service Calls",
+    x = "Number of Calls",
+    y = "Frequency"
+    ) +
+  scale_x_continuous(breaks = seq(0, 10, by = 1))
+```
+
+The distribution is heavily skewed: most customers make 0-2 calls, with a long
+right tail. This skewness means quantile-based binning (equal-sized groups) is
+suboptimal. Domain knowledge suggests better cutpoints.
+
+### Domain-Driven Binning
+
+Rather than splitting at quantiles, we use business reasoning:
+
+  - **0-1 calls**: Normal, satisfied customers
+  - **2 calls**: Slightly elevated engagement
+  - **3-5 calls**: Noticeably concerned customers
+  - **6+ calls**: Very dissatisfied customers
+
+This creates natural categories that reflect customer satisfaction levels:
+
+```{r discretize_custservicecalls}
+#| echo: true
+
+telco_churn_cat_tbl <- telco_churn_tbl |>
+  mutate(
+    calls_cat = cut(
+      custservicecalls,
+      breaks = c(0, 1, 2, 5, Inf),
+      right = FALSE,
+      labels = c("0-1", "2", "3-5", "6+")
+      )
+    )
+
+# Verify the discretization
+telco_churn_cat_tbl |>
+  count(calls_cat) |>
+  mutate(prop = n / sum(n))
+```
+
+### Visual Comparison Across Bins
+
+Kaplan-Meier curves for each bin:
+
+```{r create_callscat_km_estimates}
+#| echo: true
+
+telco_callscat_km <- survfit(
+  Surv(accountdur, churned) ~ calls_cat,
+  data = telco_churn_cat_tbl
+  )
+
+telco_callscat_km |>
+  ggsurvplot(
+    censor   = FALSE,
+    conf.int = TRUE
+    )
+```
+
+A clear pattern emerges: customers with fewer calls have much better survival.
+The gradient is strong—each increase in call category associates with visibly
+worse retention. The 0-1 and 2 categories track similarly (good retention),
+while 3-5 and especially 6+ show substantially higher churn.
+
+### Quantifying Group Differences
+
+The observed/expected comparison across bins:
+
+```{r compare_callscat_curves}
+#| echo: true
+
+telco_callscat_survdiff <- survdiff(
+  Surv(accountdur, churned) ~ calls_cat,
+  data = telco_churn_cat_tbl
+  )
+
+telco_callscat_survdiff |> print()
+telco_callscat_survdiff |> glance()
+```
+
+The observed/expected discrepancies are large and consistent: low-call groups
+have substantially fewer events than expected (better retention), while
+high-call groups have many more events than expected (worse retention). This
+is one of the strongest patterns in the data and is critically important for
+the business—customer service call volume is a strong indicator of churn risk.
+
+## Limitations: One Variable at a Time
+
+The analytical approaches we've covered so far—Kaplan-Meier estimators, log-rank
+tests, and group comparisons—work well for initial exploration and answering
+simple questions: "Do these two groups have different survival experiences?" or
+"Is this variable associated with the outcome?"
+
+However, real-world survival problems are rarely simple. Customer churn depends
+on multiple factors simultaneously: voicemail plans, international plans, call
+volume, usage patterns, account age, and many others. When we analyze one
+variable at a time, we lose critical information:
+
+  1. **Confounding**: Differences between groups on one variable might actually
+     be driven by correlated factors. Perhaps customers with international plans
+     are younger, and age (not the plan) drives churn.
+
+  1. **Loss of information**: Discretizing continuous variables discards
+     information within categories. A customer with 3 service calls looks
+     identical to one with 5, even if the relationship is continuous.
+
+  1. **Combinatorial explosion**: To examine all interactions among 5 variables,
+     we'd need to split the data into $2^5 = 32$ groups. Many would be too small
+     for reliable estimation. With continuous variables, the problem becomes
+     infeasible.
+
+  1. **Credibility with stakeholders**: A finding based on univariate analysis
+     lacks confidence. Accounting for confounding factors and demonstrating
+     independent effects requires multivariate approaches.
+
+These limitations motivate a transition from exploratory, single-variable
+methods to **regression modeling**, which handles multiple predictors
+simultaneously, quantifies independent effects, and provides individual-level
+risk predictions.
+
+The next part of this workshop focuses on the **Cox proportional hazards model**,
+which addresses these needs while respecting the unique structure of survival
+data.
+
+
+# Save Objects for Next Worksheet
+
+Before concluding, we save the processed data and fitted models to support
+the continuation in the next worksheet.
+
+```{r save_for_expanded_analysis}
+#| echo: true
+
+# Create output directory
+fs::dir_create("precompute", recurse = TRUE)
+
+# Save raw telco data (for use in next worksheets)
+telco_churn_tbl |>
+  write_parquet_compressed("precompute/telco_churn_raw.parquet")
+
+# Save processed data with discretized continuous variables
+telco_churn_cat_tbl |>
+  write_parquet_compressed("precompute/telco_churn_cat.parquet")
+
+# Save null Cox model (for residual analysis in next worksheet)
+telco_model00_coxph <- coxph(
+  Surv(accountdur, churned) ~ 1,
+  data = telco_churn_tbl
+  )
+
+telco_model00_coxph |> qs_save("precompute/model00_null.qs")
+
+# Save initial categorical models (for baseline comparison in next worksheet)
+telco_model01_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan,
+  data = telco_churn_tbl
+  )
+
+telco_model03_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan + intlplan,
+  data = telco_churn_tbl
+  )
+
+telco_model01_coxph |> qs_save("precompute/model01_vmailplan.qs")
+telco_model03_coxph |> qs_save("precompute/model03_combined.qs")
+
+write_lines(
+  "✓ All objects saved to precompute/",
+  stdout()
+  )
+```
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: true
+#| message: true
+
+sessioninfo::session_info()
+```

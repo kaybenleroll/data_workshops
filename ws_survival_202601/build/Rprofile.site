@@ -1,0 +1,3 @@
+options(repos = c(CRAN = 'https://packagemanager.posit.co/cran/__linux__/jammy/2023-10-20'), download.file.method = 'libcurl')
+# https://docs.rstudio.com/rspm/admin/serving-binaries/#binaries-r-configuration-linux
+options(HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(), paste(getRversion(), R.version["platform"], R.version["arch"], R.version["os"])))

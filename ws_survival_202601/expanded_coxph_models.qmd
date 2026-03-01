@@ -1,0 +1,1589 @@
+---
+title: "Dublin Data Science Workshop on Survival Analysis (Part 2: Cox Regression & Model Validation)"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+
+---
+
+**Note:** This worksheet builds on the exploratory analysis from Part 1
+(initial_survival_models.qmd). Ensure you have completed that notebook before
+running this one, or manually load the precomputed objects from the
+`precompute/` directory.
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(survival)
+library(survminer)
+library(broom)
+library(arrow)
+library(qs2)
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "MASS",
+    "fitdistrplus")
+  )
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+Sys.setenv(OPENBLAS_NUM_THREADS = 8)
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+```{r setup_chunk_timing}
+#| echo: false
+#| message: false
+
+# Enable chunk timing for all chunks
+knitr::opts_chunk$set(time_it = TRUE)
+
+# Create a list to store chunk times
+chunk_times <- list()
+
+# Create a hook to capture chunk execution times
+knitr::knit_hooks$set(time_it = function(before, options) {
+  if (before) {
+    assign(".chunk_start_time", Sys.time(), envir = .GlobalEnv)
+  } else {
+    elapsed <- difftime(
+        Sys.time(), get(".chunk_start_time", envir = .GlobalEnv),
+        units = "secs"
+        ) |>
+      as.numeric()
+    
+    chunk_times <- get("chunk_times", envir = .GlobalEnv)
+    chunk_times[[options$label]] <- elapsed
+    assign("chunk_times", chunk_times, envir = .GlobalEnv)
+    
+    message(glue("⏱️  Chunk '{options$label}': {round(elapsed, 2)} seconds"))
+  }
+})
+```
+
+## Load Data from Part 1
+
+This worksheet builds directly on the exploratory analysis completed in
+initial_survival_models.qmd. We load the processed data and initial models:
+
+```{r load_part1_data}
+#| echo: true
+
+# Load raw telco data
+telco_churn_tbl <- read_parquet("precompute/telco_churn_raw.parquet")
+
+# Load discretized telco data (includes calls_cat)
+telco_churn_cat_tbl <- read_parquet("precompute/telco_churn_cat.parquet")
+
+# Load pre-fitted models
+telco_model00_coxph <- qs_read("precompute/model00_null.qs")
+telco_model01_coxph <- qs_read("precompute/model01_vmailplan.qs")
+telco_model03_coxph <- qs_read("precompute/model03_combined.qs")
+
+write_lines(
+  glue(
+    "Data loaded: {nrow(telco_churn_cat_tbl)} observations, ",
+    "{ncol(telco_churn_cat_tbl)} variables"
+    ),
+  stdout()
+  )
+```
+
+
+
+
+# The Cox Proportional Hazards Model
+
+Up to this point we have focused on empirical and non-parametric approaches
+to estimating survival and hazard functions. The Kaplan-Meier estimator
+provides survival curves for different groups, and the log-rank test lets us
+compare those curves. These methods are powerful for exploratory analysis and
+simple group comparisons, but they have fundamental limitations when dealing
+with real-world complexity.
+
+## Understanding Cox Regression: Motivation and Theory
+
+The group comparison approach encounters several practical challenges. Real-
+world outcomes rarely depend on a single factor—customer churn might be
+influenced by voicemail plan, international plan, customer service calls,
+account age, and usage patterns all at once. We could split the data by all
+these variables, but this creates an explosion of subgroups. With just 5
+binary variables, we'd have 32 groups; many would be too small for reliable
+estimation. Continuous predictors pose additional challenges, requiring
+arbitrary discretization that loses information. Perhaps most importantly,
+group-based approaches cannot disentangle confounding—differences between
+groups on one variable might actually be driven by correlated factors.
+
+The **Cox proportional hazards model** addresses these needs while respecting
+the unique structure of survival data—censoring, time-to-event outcomes, and
+non-constant hazard rates. It provides individual-level risk scores, handles
+multiple predictors simultaneously, quantifies independent effects while
+adjusting for confounding, and accommodates both continuous and categorical
+variables naturally. It has become the standard regression approach in
+survival analysis because it balances flexibility, interpretability, and
+computational tractability.
+
+### Why Specialized Methods for Survival Data?
+
+Before diving into Cox models specifically, it's worth understanding why
+survival data requires specialized regression rather than standard linear or
+logistic regression. Linear regression assumes normally distributed outcomes
+that can take any value; survival times are strictly positive and often
+heavily right-skewed. More critically, **censored observations** don't fit
+the framework—if a customer is still active at day 180, we know their true
+survival time is "at least 180 days," not "exactly 180 days." Linear
+regression has no mechanism to handle this partial information.
+
+We could convert survival to binary (churned/not churned by day 180) and use
+logistic regression, but this throws away timing information—a customer
+churning on day 10 versus day 175 are treated identically. It also requires
+choosing an arbitrary time cutoff and doesn't naturally handle cases censored
+before that cutoff.
+
+Survival regression models work directly with **hazard functions**—the
+instantaneous risk of an event at each time point, conditional on survival
+to that point. This respects the time-to-event structure and naturally
+incorporates censored observations through likelihood functions that account
+for partial information. The Cox model is the most widely used approach
+because it makes minimal assumptions about the baseline hazard function (it's
+"semi-parametric"), yet still provides interpretable coefficients and robust
+predictions.
+
+### The Proportional Hazards Assumption
+
+The Cox model is built on a specific structural assumption about how
+covariates affect the hazard function. Understanding this assumption is
+critical for proper model use and interpretation.
+
+**The Baseline Hazard**
+
+Imagine a reference individual with all covariates set to zero (or reference
+levels for categorical variables). This person's hazard function over time is
+$h_0(t)$, called the **baseline hazard**. It represents the time-varying risk
+pattern for this reference case.
+
+Importantly, the Cox model does not require us to specify the shape of $h_0(t)$
+—it could be constant (exponential distribution), increasing (Weibull), have
+a bathtub shape, or any other pattern. This flexibility is a major advantage:
+we don't need to assume a particular distribution for survival times.
+
+**Proportionality: Constant Hazard Ratios**
+
+The "proportional hazards" assumption states that every individual's hazard
+function is a **constant multiple** of the baseline hazard:
+
+$$
+h(t | X) = \psi \, h_0(t)
+$$
+
+where $\psi$ is a positive constant that depends on the individual's covariate
+values $X$, but **not on time**. This means:
+
+  - If person A has twice the hazard of person B at time 10, they also have
+    twice the hazard at time 100, time 500, etc.
+  - The **hazard ratio** between any two individuals remains constant over time
+  - All individuals experience the same time-varying pattern ($h_0(t)$), just
+    scaled up or down by $\psi$
+
+Graphically, this means survival curves for different groups should not cross
+substantially—one group should consistently have better or worse survival
+throughout the observation period.
+
+**What Violates Proportional Hazards?**
+
+The assumption fails when the effect of a covariate changes over time:
+
+  - **Early vs. late effects**: A treatment might reduce hazard initially but
+    lose effectiveness over time (curves eventually cross)
+  - **Delayed effects**: A risk factor might not matter early but become
+    important later
+  - **Time-varying covariates**: If a covariate itself changes over time (e.g.,
+    customer upgrades their plan), simple proportional hazards doesn't apply
+    directly
+
+Violations don't make the Cox model useless, but they require extensions like
+time-varying coefficients or stratification (topics beyond this workshop).
+
+We'll cover two sets of diagnostic tools later in this workshop:
+
+  1. **Schoenfeld residuals** (Section "Assessing the Proportional Hazards
+     Assumption"): Formal tests for whether coefficients vary over time
+  1. **Residual-based variable exploration** (Section "Validating the
+     Proportional Hazards Model"): Using martingale and deviance residuals to
+     identify promising predictors and assess model fit
+
+**Modeling the Hazard Multiplier**
+
+The constant $\psi$ is modeled as an exponential linear function of covariates:
+
+$$
+\psi = \exp(\beta_1 x_1 + \beta_2 x_2 + \ldots + \beta_p x_p) = \exp(\beta^T X)
+$$
+
+Why the exponential? Several reasons:
+
+  1. **Ensures positivity**: Hazards must be non-negative, and $\exp(\cdot)$ is
+     always positive regardless of the linear predictor's value
+  1. **Multiplicative effects**: $\exp(a + b) = \exp(a) \cdot \exp(b)$, so
+     effects of different variables multiply rather than add
+  1. **Interpretable coefficients**: $\exp(\beta_j)$ is the hazard ratio for a
+     one-unit increase in $x_j$, holding other variables constant
+
+Putting it together, the full Cox proportional hazards model is:
+
+$$
+h(t | X) = h_0(t) \exp(\beta^T X)
+$$
+
+The baseline hazard $h_0(t)$ captures the time-varying pattern, while
+$\exp(\beta^T X)$ captures how individual characteristics scale that pattern
+up or down.
+
+### Interpreting Coefficients: Hazard Ratios
+
+Cox model coefficients are interpreted through **hazard ratios** (HRs), which
+are simply $\exp(\beta_j)$ for each coefficient $\beta_j$.
+
+**For Binary Variables**
+
+Suppose `intlplan` (international calling plan: yes/no) has a coefficient
+$\beta = 0.69$. The hazard ratio is:
+
+$$
+HR = \exp(0.69) \approx 2.0
+$$
+
+**Interpretation**: Customers with an international plan have approximately
+**twice the hazard** (twice the instantaneous churn risk) at any given time,
+compared to customers without an international plan, holding all other
+variables constant.
+
+Equivalently, their risk is 100% higher. Generally:
+
+  - $HR = 1.0$: No effect (hazard unchanged)
+  - $HR > 1.0$: Increased hazard (worse survival)
+  - $HR < 1.0$: Decreased hazard (better survival)
+  - $HR = 2.0$: Hazard doubled (100% increase)
+  - $HR = 0.5$: Hazard halved (50% reduction)
+
+**For Continuous Variables**
+
+Suppose `custservicecalls` has a coefficient $\beta = 0.15$. The hazard ratio
+for a one-unit increase (one additional call) is:
+
+$$
+HR = \exp(0.15) \approx 1.16
+$$
+
+**Interpretation**: Each additional customer service call is associated with
+a 16% increase in churn hazard, holding other variables constant.
+
+For a 5-call increase, the hazard ratio is:
+
+$$
+HR = \exp(5 \times 0.15) = \exp(0.75) \approx 2.12
+$$
+
+So five additional calls more than double the hazard.
+
+**Negative Coefficients**
+
+If a coefficient is negative, $\exp(\beta) < 1$, indicating a protective
+effect. For example, $\beta = -0.50$ gives $HR = \exp(-0.50) \approx 0.61$,
+meaning a 39% reduction in hazard (better survival).
+
+**The "Holding Other Variables Constant" Caveat**
+
+Hazard ratios represent **independent associations** after adjusting for other
+variables in the model. This is crucial: the effect of voicemail plan in a
+model with multiple predictors might differ from its effect when modeled alone,
+because other variables may confound or mediate the relationship.
+
+### Estimation: Partial Likelihood
+
+How do we estimate the coefficients $\beta$ in a Cox model? Standard maximum
+likelihood doesn't work directly because we have censored observations and an
+unspecified baseline hazard $h_0(t)$. The elegant solution is **partial
+likelihood**, developed by Cox (1972).
+
+**The Conceptual Idea**
+
+Rather than modeling the probability of events happening at specific times
+(which would require specifying $h_0(t)$), partial likelihood focuses on the
+**relative risk** at each event time.
+
+When an event occurs at time $t_i$, we ask: "Given that exactly one event
+occurred at this time and these people were at risk, how likely is it that
+this particular person experienced the event (versus someone else)?"
+
+The probability that individual $j$ has the event, given the risk set at
+time $t_i$, is:
+
+$$
+P(\text{individual } j \text{ fails at } t_i \mid \text{one failure at } t_i) = 
+\frac{\exp(\beta^T X_j)}{\sum_{k \in R(t_i)} \exp(\beta^T X_k)}
+$$
+
+where $R(t_i)$ is the **risk set**—all individuals still under observation
+(not yet failed or censored) just before time $t_i$.
+
+Notice that $h_0(t_i)$ cancels out in this ratio—it appears in both numerator
+and denominator, so we don't need to estimate it to calculate this probability.
+This is the key insight that makes the Cox model work without distributional
+assumptions.
+
+**Constructing the Partial Likelihood**
+
+We multiply these conditional probabilities across all observed event times:
+
+$$
+PL(\beta) = \prod_{i=1}^{D} \frac{\exp(\beta^T X_i)}{\sum_{k \in R(t_i)} \exp(\beta^T X_k)}
+$$
+
+where $D$ is the number of observed events. Maximizing this partial likelihood
+(or equivalently, its log) yields estimates of $\beta$.
+
+**Censored observations** contribute to the risk sets at event times before
+their censoring time, but don't contribute an event term. Their information
+isn't lost—they help define who was at risk when events occurred.
+
+**After Estimating Coefficients**
+
+Once we have $\hat{\beta}$, we can estimate the baseline hazard $h_0(t)$ using
+the **Breslow estimator**, though this is often not needed for practical
+applications. Most analyses focus on hazard ratios (which depend only on
+$\beta$) or predicted survival probabilities (which can be calculated without
+explicitly estimating $h_0(t)$).
+
+**Computational Note**
+
+Maximizing the partial likelihood is a standard numerical optimization problem,
+solved by iterative algorithms like Newton-Raphson. The R `survival` package
+implements this efficiently, handling tens of thousands of observations and
+hundreds of covariates routinely.
+
+### Advantages of the Cox Model
+
+Before fitting models, it's worth summarizing why the Cox proportional hazards
+model has become the workhorse of survival analysis:
+
+  1. **Semi-parametric flexibility**: No distributional assumptions about
+     survival times. The baseline hazard can have any shape.
+  1. **Handles censoring naturally**: Partial likelihood incorporates censored
+     observations without bias or information loss.
+  1. **Interpretable coefficients**: Hazard ratios have clear, practical
+     interpretations for stakeholders.
+  1. **Multiple predictors**: Easily accommodates many covariates—continuous,
+     categorical, interactions—in a single model.
+  1. **Adjusts for confounding**: Estimates independent effects of each variable
+     while controlling for others.
+  1. **Robust and well-studied**: Decades of theoretical development, extensive
+     software implementations, well-understood properties.
+  1. **Extensions available**: Can be extended for time-varying coefficients,
+     time-varying covariates, competing risks, frailty (random effects), and
+     more.
+
+The main limitation is the proportional hazards assumption, which needs
+checking (we'll cover diagnostics later). When violated, alternative models or
+extensions may be needed.
+
+With this foundation, we're ready to fit Cox models to our data and interpret
+the results.
+
+
+# Continue from Initial Models
+
+## Our First Cox-PH Model
+
+Having developed the theoretical foundation, we now fit our first Cox
+proportional hazards model to examine whether voicemail plan status affects
+customer churn.
+
+The `coxph()` function uses the same formula syntax as other R regression
+functions: the left side is a `Surv()` object (time and event indicator),
+and the right side specifies predictors. For a single binary predictor like
+`vmailplan`, this gives us a simple baseline model.
+
+```{r telco_model01_coxph_summary}
+#| echo: true
+
+telco_model01_coxph |> summary()
+```
+
+The `summary()` output provides several key pieces of information:
+
+  - **Coefficient (coef)**: The estimated $\beta$ value from the model
+  - **Hazard ratio (exp(coef))**: $\exp(\beta)$, the multiplicative effect on
+    the hazard
+  - **Standard error and z-score**: Quantify uncertainty in the coefficient
+    estimate
+  - **Concordance**: The c-index we'll discuss in the next section
+
+For `vmailplan`, the negative coefficient means having a voicemail plan is
+associated with *lower* hazard (better survival). The hazard ratio of
+approximately 0.65 indicates that customers with voicemail plans have about
+65% of the churn hazard compared to those without—equivalently, a 35%
+reduction in churn risk.
+
+This model was estimated using the partial likelihood framework described
+earlier, comparing observed events to the risk set at each event time without
+requiring specification of the baseline hazard shape.
+
+## Model Assessment
+
+Assessing Cox model fit differs from standard regression because we're modeling
+a distribution (survival probabilities over time) rather than a single numeric
+outcome. We cannot simply calculate residual sums of squares or standard $R^2$.
+Instead, survival analysis uses adapted metrics that account for censoring and
+time-to-event structure.
+
+Two key measures help quantify how well a Cox model explains the data:
+**pseudo-$R^2$** (variance explained) and the **concordance index**
+(predictive discrimination). Both provide complementary views of model quality.
+
+### R-Squared
+
+The standard measure of model fit is $R^2$, the proportion of variance
+explained by the model. This concept doesn't directly apply to Cox models
+(which estimate hazard functions, not outcomes), but we can construct an
+analogous measure based on likelihood ratios.
+
+For Cox proportional hazards models, we use a **pseudo-$R^2$** defined as:
+
+$$
+R^2 = 1 - \left( \frac{l(0)}{l(\hat{\beta})} \right)^{\frac{2}{n}}
+$$
+
+where $l(\beta)$ is the log-partial-likelihood function, $l(0)$ is the
+log-partial-likelihood of the null model (no predictors), and $n$ is the
+sample size.
+
+This measures improvement in model fit compared to the null model. Values
+range from 0 (no improvement over null) to 1 (perfect fit), though in
+practice survival models rarely achieve high $R^2$ values. A value of 0.10-0.20
+might represent a reasonably useful model, as censoring and unmeasured factors
+inherently limit explained variance.
+
+
+### Concordance Index
+
+The concordance index (c-index or c-statistic) measures **predictive
+discrimination**: how well the model ranks individuals by risk. It answers
+the question: "If we pick two random individuals, does our model correctly
+predict which one will experience the event first?"
+
+Formally, the c-index is the proportion of **concordant pairs** among all
+evaluable pairs. A pair is evaluable if at least one individual experiences
+the event (not both censored). The pair is concordant if:
+
+  - The person predicted to have higher risk (higher linear predictor $\beta^T X$)
+    actually experiences the event first, *or*
+  - The person predicted to have lower risk is censored before the higher-risk
+    person's event time
+
+The c-index ranges from 0 to 1:
+
+  - **0.5**: Random guessing (coin flip)—model has no discriminative ability
+  - **0.6-0.7**: Reasonable discrimination—typical for good survival models
+  - **0.7-0.8**: Strong discrimination—excellent model performance
+  - **>0.8**: Exceptional (rare in practice due to censoring and noise)
+
+Unlike classification accuracy, the c-index naturally handles censored
+observations by excluding pairs where censoring prevents meaningful comparison.
+It's analogous to the area under the ROC curve (AUC) in classification
+problems.
+
+
+### Assessing Our First Model
+
+Let's examine our voicemail plan model using these metrics. We use `glance()`
+to extract summary statistics and `tidy()` to view coefficient details:
+
+```{r telco_model01_coxph_assessment}
+#| echo: true
+
+telco_model01_coxph |>
+  glance() |>
+  select(n, nevent, r.squared, concordance, std.error.concordance)
+
+telco_model01_coxph |> tidy()
+```
+
+This simple model with one binary variable gives us a **c-index of 0.565**—
+slightly better than random guessing (0.5), but only modestly so. The model
+can distinguish high-risk from low-risk customers, but not strongly. This
+makes sense: voicemail plan status alone cannot explain the full complexity
+of customer churn behavior.
+
+The **$R^2$ is essentially zero (0.011)**, indicating that voicemail plan
+explains about 1% of the variance in churn hazard. Again, this is expected
+for a single predictor in a complex process.
+
+These low values aren't necessarily problematic—they establish a baseline.
+As we add more predictive variables, we'll track how both metrics improve.
+The question becomes: can we build a model with c-index approaching 0.70 and
+$R^2$ above 0.10 by including additional risk factors?
+
+
+## Adding International Plans
+
+Before building more complex models, it's good practice to examine each
+potential predictor individually. This helps us understand each variable's
+independent relationship with churn and establishes individual baselines
+before testing combined effects.
+
+The combined model tests whether international plan status and voicemail
+provide independent information about churn risk:
+
+```{r telco_model03_coxph_summary}
+#| echo: true
+
+telco_model03_coxph |> summary()
+```
+
+The combined model shows both coefficients remain statistically meaningful,
+suggesting each variable contributes independently.
+
+Assessing the combined model:
+
+```{r telco_model03_coxph_assessment}
+#| echo: true
+
+telco_model03_coxph |>
+  glance() |>
+  select(n, nevent, r.squared, concordance, std.error.concordance)
+
+telco_model03_coxph |> tidy()
+```
+
+Model03 achieves a **c-index of 0.643**—a substantial jump from 0.565
+(Model01). The combined model now discriminates between high-risk and
+low-risk customers reasonably well, approaching the 0.65-0.70 range typical
+of good survival models.
+
+The **$R^2$ has improved to approximately 0.05** (5% of variance explained).
+While this might seem low compared to linear regression standards, it's
+reasonable for survival data where censoring and unmeasured factors inherently
+limit explained variance.
+
+The improvement from combining predictors confirms that voicemail plan and
+international plan provide complementary information. This justifies including
+both in the model and suggests that adding additional relevant predictors
+might further improve performance.
+
+Before we spend time iterating further, we check the proportional hazards
+assumption to ensure our models are valid.
+
+
+# Diagnostic Methods for Cox Models
+
+Before building more complex models, we need a systematic approach to model
+diagnostics and variable selection. This section introduces two fundamental
+diagnostic tools for Cox proportional hazards models: **residual analysis**
+for identifying promising predictors and detecting model inadequacies, and
+**Schoenfeld residuals** for testing the proportional hazards assumption.
+
+These diagnostic methods serve complementary purposes. Residual analysis helps
+us understand which variables to include and how they should enter the model
+(linear, non-linear, interactions). Proportional hazards diagnostics validate
+the fundamental assumption underlying our coefficient interpretations—that
+hazard ratios remain constant over time.
+
+Together, these tools form the foundation for iterative model development:
+fit a candidate model, check diagnostics, identify improvements, refit, and
+repeat until we achieve adequate fit without assumption violations.
+
+
+## Understanding Residuals in Survival Analysis
+
+Before continuing to build more complex models, we need tools to answer two
+key questions:
+
+  1. **Model adequacy**: Does our model fit the data reasonably well? Are there
+     systematic patterns in the residuals suggesting problems?
+  1. **Variable selection**: Which additional variables might improve the model?
+     Can we identify promising predictors before fitting dozens of models?
+
+In linear regression, residual plots (observed minus predicted) help answer
+both questions. For Cox models, residuals are more complex because we're
+modeling hazards over time with censored observations, not simple numeric
+outcomes. However, the conceptual approach remains the same: examine
+differences between observed and expected values.
+
+We'll use two types of residuals:
+
+  - **Martingale residuals**: Measure differences between observed events and
+    expected cumulative hazard. Useful for exploring functional forms and
+    identifying influential observations.
+  - **Deviance residuals**: Symmetric transformation of martingale residuals,
+    better behaved for model diagnostics and goodness-of-fit assessment.
+
+A particularly valuable application is using residuals from a **null model**
+(no predictors) to explore which variables show relationships with the
+outcome. Variables that show clear patterns when plotted against null-model
+residuals are promising candidates for inclusion.
+
+The intuition is simple: if a variable is associated with the outcome,
+plotting it against null-model residuals should reveal a trend. The null
+model doesn't account for any predictors, so all variation remains in the
+residuals. A strong predictor will show up as a clear pattern (linear,
+non-linear, or otherwise) when plotted against these residuals.
+
+This approach is particularly powerful because it lets us screen many
+candidate variables quickly without fitting dozens of models. We can visually
+inspect residual plots and quantify relationships via correlation, focusing
+our modeling efforts on the most promising predictors.
+
+### Martingale Residuals from Null Model
+
+Martingale residuals extend the concept of "observed minus expected" to the
+survival context. For each individual $i$, the martingale residual is:
+
+$$
+m_i = \delta_i - \hat{H}_0(t_i) \exp(x_i \hat{\beta})
+$$
+
+where:
+
+  - $\delta_i$ is the event indicator (1 if event occurred, 0 if censored)
+  - $\hat{H}_0(t_i)$ is the estimated cumulative baseline hazard at time $t_i$
+  - $\exp(x_i \hat{\beta})$ is the relative risk multiplier from covariates
+
+The residual measures the difference between the **observed event status**
+(did the event happen?) and the **expected cumulative hazard** (how much
+risk has accumulated?). For the null model, this simplifies since
+$\exp(x_i \hat{\beta}) = 1$ (no covariates).
+
+**Interpretation:**
+
+  - Positive residuals: Individual experienced event sooner than expected
+  - Negative residuals: Individual survived longer than expected
+  - Residuals sum to zero on average
+
+```{r calculate_null_model_residuals}
+#| echo: true
+
+telco_model00_resid_m <- telco_model00_coxph |> residuals(type = "martingale")
+
+telco_model00_resid_m |> summary()
+```
+
+### Residual-Based Variable Selection
+
+By plotting residuals against potential predictors, we identify variables that
+show relationships with the outcome. Variables with clear visual patterns are
+strong candidates for inclusion in the model.
+
+```{r systematic_residual_analysis_setup}
+#| echo: true
+
+# Add residuals to dataset
+telco_null_assess_tbl <- telco_churn_cat_tbl |>
+  mutate(resid_m = telco_model00_resid_m)
+
+# Define continuous variables for systematic exploration
+CONTINUOUS_VARS <- c(
+  "daymins", "evemins", "nightmins", "intlmins",
+  "daycalls", "evecalls", "nightcalls", "intlcalls",
+  "vmailmessage", "custservicecalls"
+  )
+```
+
+Function to generate residual plots:
+
+```{r define_residual_plot_function}
+#| echo: true
+
+create_residual_plot <- function(data_tbl, var_name) {
+  ggplot(data_tbl, aes(x = .data[[var_name]], y = resid_m)) +
+    geom_point(size = 0.8, alpha = 0.15) +
+    geom_smooth(
+      method = "loess",
+      se     = FALSE,
+      colour = "firebrick",
+      linewidth = 1.2
+      ) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(
+      x     = var_name,
+      y     = "Martingale Residual",
+      title = glue("Residuals vs {var_name}")
+      ) +
+    theme_minimal()
+}
+```
+
+Generate systematic residual plots:
+
+```{r generate_systematic_residual_plots}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 12
+
+residual_plots <- map(
+  CONTINUOUS_VARS,
+  \(var) create_residual_plot(telco_null_assess_tbl, var)
+  )
+
+# Arrange plots in a grid
+plot_grid(
+  plotlist = residual_plots,
+  ncol     = 2,
+  labels   = "AUTO"
+  )
+```
+
+### Quantifying Residual Relationships
+
+Compute correlations between residuals and each variable:
+
+```{r quantify_residual_correlations}
+#| echo: true
+
+residual_correlations_tbl <- tibble(
+  variable    = CONTINUOUS_VARS,
+  correlation = map_dbl(
+    CONTINUOUS_VARS,
+    \(var) cor(
+      telco_null_assess_tbl$resid_m,
+      telco_null_assess_tbl[[var]],
+      use = "complete.obs"
+      )
+    )
+  ) |>
+  arrange(desc(abs(correlation)))
+
+residual_correlations_tbl |> print()
+```
+
+**Key Finding**: `custservicecalls` shows the strongest relationship with
+residuals (correlation ≈ 0.16-0.18). While this might seem modest, remember
+that:
+
+  - Survival data has inherent noise from censoring and unmeasured factors
+  - We're looking at univariate relationships—the effect may be stronger when
+    combined with other predictors
+  - Even modest correlations can translate to meaningful improvements in model
+    concordance and predictive power
+
+The positive correlation indicates that higher customer service calls are
+associated with higher martingale residuals, meaning these customers
+experienced events sooner than expected under the null model. This confirms
+the relationship we observed visually: more service calls predict earlier
+churn.
+
+Other variables show weaker or negligible correlations, suggesting they may
+have limited predictive value (at least as linear main effects). This doesn't
+mean they're useless—interactions or non-linear transformations might reveal
+relationships—but `custservicecalls` is clearly the strongest candidate for
+our next model iteration.
+
+This variable will be our focus for extending the model beyond the simple
+categorical predictors (voicemail and international plans) we've used so far.
+
+
+## Testing Proportional Hazards: Schoenfeld Residuals
+
+The proportional hazards assumption is fundamental to Cox regression: it
+states that hazard ratios remain constant over time. If this assumption is
+violated, our coefficient interpretations become unreliable—a hazard ratio
+of 2.0 might be accurate early in the observation period but not later (or
+vice versa).
+
+**Schoenfeld residuals** provide a formal test of this assumption. These
+residuals are computed for each covariate at each event time and should be
+independent of time if the proportional hazards assumption holds. The
+`cox.zph()` function performs a statistical test for each covariate,
+testing whether the Schoenfeld residuals correlate with time.
+
+**Interpreting the output:**
+
+  - **p-value > 0.05**: No evidence against proportional hazards (assumption
+    appears satisfied)
+  - **p-value < 0.05**: Evidence of time-varying effects (assumption may be
+    violated)
+  - **GLOBAL test**: Overall test across all covariates simultaneously
+
+The diagnostic plots show Schoenfeld residuals versus transformed time,
+with a smoothed trend line. Flat trends (horizontal lines) suggest
+proportional hazards; clear upward or downward trends indicate violations.
+
+Let's check our initial models:
+
+Test Model 01:
+
+```{r testing_model01_ph_assumptions}
+#| echo: true
+
+telco_model01_coxzph <- telco_model01_coxph |> cox.zph(transform = "km")
+
+telco_model01_coxzph |> print()
+telco_model01_coxzph |> ggcoxzph()
+```
+
+The p-value for `vmailplan` should be well above 0.05, indicating no evidence
+of time-varying effects. The diagnostic plot should show a relatively flat
+trend with scattered residuals, consistent with proportional hazards.
+
+### Testing Model 03 (Combined Predictors)
+
+Test Model 03 (combined):
+
+```{r testing_model03_ph_assumptions}
+#| echo: true
+
+telco_model03_coxzph <- telco_model03_coxph |> cox.zph(transform = "km")
+
+telco_model03_coxzph |> print()
+telco_model03_coxzph |> ggcoxzph()
+```
+
+Both predictors should pass the proportional hazards test, and the GLOBAL
+test should show no overall evidence of violations. This validates that our
+coefficient interpretations (e.g., "customers with international plans have
+twice the hazard throughout the observation period") are appropriate.
+
+The diagnostics suggest the proportional hazards assumption is reasonably
+satisfied for both models. We can proceed with confidence that our hazard
+ratio interpretations are valid.
+
+
+# Building Models with Continuous Predictors
+
+Having established a baseline with categorical predictors and identified
+`custservicecalls` as a promising continuous variable through residual
+analysis, we now extend our modeling to incorporate this variable. This
+section explores three different approaches to including continuous predictors
+in Cox models, each with distinct advantages and interpretive implications.
+
+The key modeling question is: **how does the effect of customer service calls
+on churn hazard behave?** Is it linear (each additional call has the same
+proportional effect)? Is it stepped or threshold-based (low calls don't matter,
+but high calls trigger churn)? Or is it smoothly non-linear (the effect
+accelerates or decelerates)?
+
+We'll test three specifications:
+
+  1. **Linear**: Assumes constant proportional effect per unit increase
+  1. **Discretised**: Groups calls into bins, allowing step-function effects
+  1. **Splines**: Flexible smooth curves estimated from the data
+
+Each approach has trade-offs. Linear models are parsimonious and
+interpretable but may miss non-linear patterns. Discretisation is intuitive
+and matches business logic (e.g., "customers with 6+ calls behave
+differently") but requires choosing cutpoints and loses information within
+bins. Splines are maximally flexible but harder to interpret and can overfit.
+
+By comparing all three, we can understand the shape of the relationship and
+choose the specification that best balances fit, interpretability, and
+parsimony.
+
+
+## Adding Continuous Variables to the Model
+
+Having identified `custservicecalls` as a promising predictor through residual
+analysis, we now add it to our Cox model. We start with the simplest
+specification: a linear term.
+
+### Model 04: Linear Effect of Customer Service Calls
+
+We extend Model 03 (which included `vmailplan` and `intlplan`) by adding
+`custservicecalls` as a continuous predictor with a linear effect:
+
+```{r fit_model04_continuous}
+#| echo: true
+
+telco_model04_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan + intlplan + custservicecalls,
+  data = telco_churn_tbl
+  )
+
+telco_model04_coxph |> summary()
+```
+
+**Interpreting the output:**
+
+The coefficient for `custservicecalls` represents the log-hazard ratio for a
+one-unit increase (one additional call). Exponentiating this coefficient gives
+the hazard ratio. For example, if the coefficient is 0.20, the hazard ratio
+is exp(0.20) ≈ 1.22, meaning each additional customer service call increases
+the churn hazard by approximately 22%.
+
+The statistical significance (p-value) tells us whether this effect is
+distinguishable from zero. Given the strong correlation we observed in
+residual analysis, we expect a highly significant result.
+
+Notice also the overall model statistics:
+
+  - **Likelihood ratio test**: Compares this model to the null model (no
+    predictors), testing overall model significance
+  - **Wald test** and **Score test**: Alternative tests of overall significance,
+    based on different statistical principles
+  - **Concordance**: How well the model discriminates between patients (should
+    improve substantially from Model 03)
+
+### Assessing Model 04 Performance
+
+Compare Model 04 to our previous models:
+
+```{r assess_model04}
+#| echo: true
+
+telco_model04_coxph |>
+  glance() |>
+  select(n, nevent, r.squared, concordance, std.error.concordance)
+
+telco_model04_coxph |> tidy()
+```
+
+**What to look for:**
+
+  - **Concordance increase**: Model 03 achieved c ≈ 0.64. Model 04 should show
+    a meaningful jump, likely to 0.68-0.72, indicating substantially better
+    discrimination between high-risk and low-risk customers.
+  - **R² increase**: While still modest by linear regression standards,
+    adding a strong predictor should noticeably increase the proportion of
+    variance explained.
+  - **Coefficient significance**: All three predictors should remain
+    statistically significant, confirming they provide independent information
+    about churn risk.
+
+The improvement from Model 03 to Model 04 demonstrates the value of
+continuous predictors. While categorical variables like voicemail plan provide
+useful baseline discrimination, quantitative measures like customer service
+call frequency capture gradations of risk that binary indicators miss.
+
+This is a general pattern in survival modeling: combining categorical risk
+factors (which split the population into distinct subgroups) with continuous
+measures (which provide fine-grained risk stratification within subgroups)
+typically yields the best predictive performance.
+
+### Checking Proportional Hazards for Model 04
+
+```{r test_model04_ph_assumption}
+#| echo: true
+
+telco_model04_coxzph <- telco_model04_coxph |> cox.zph(transform = "km")
+
+telco_model04_coxzph |> print()
+telco_model04_coxzph |> ggcoxzph()
+```
+
+All three predictors should pass the test (p > 0.05), and the GLOBAL test
+should show no evidence of violations. The proportional hazards assumption
+appears satisfied for Model 04, validating our use of time-constant hazard
+ratios for interpretation.
+
+
+# Exploring Non-Linear Effects
+
+The linear Model 04 assumes each additional customer service call has the same
+proportional effect on hazard—the hazard ratio for going from 0 to 1 call is
+the same as going from 5 to 6 calls. But is this realistic?
+
+Behavioral intuition suggests non-linearity: a customer with 0-1 calls is
+probably satisfied and unlikely to churn. A customer with 2-3 calls might be
+frustrated but salvageable. A customer with 6+ calls is likely deeply
+dissatisfied and at high risk. The incremental effect of each additional call
+might accelerate rather than remain constant.
+
+This section explores two approaches to modeling non-linear effects:
+**discretisation** (grouping into bins) and **splines** (smooth flexible
+curves). Both allow the hazard ratio to vary across the range of customer
+service calls, but they differ in how they represent that variation.
+
+Discretisation is intuitive, aligns with business thinking (e.g., "high-call
+customers behave differently"), and provides easily interpretable hazard
+ratios for each group. The downside is that it requires choosing cutpoints
+(somewhat arbitrary) and treats customers within a bin as identical.
+
+Splines are data-driven and maximally flexible, estimating a smooth curve
+without imposing functional form. The downside is reduced interpretability—
+instead of simple hazard ratios, we get a curve that must be visualized.
+
+Both approaches can reveal whether the linear assumption is adequate or
+whether the relationship is genuinely non-linear.
+
+
+## Non-Linear Effects via Discretisation
+
+The linear model assumes each additional customer service call has the same
+proportional effect on hazard. We can test this by modeling non-linear effects
+through discretisation, using the domain-driven bins created in Part 1.
+
+### Model 05: Discretised Customer Service Calls
+
+Instead of treating customer service calls as a continuous linear predictor,
+we use the categorical variable `calls_cat` created in Part 1 with
+domain-driven cutpoints: (0-1), (2), (3-5), (6+). This allows each group to
+have its own hazard ratio relative to the reference group (0-1 calls).
+
+```{r fit_model05_discretised}
+#| echo: true
+
+telco_model05_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan + intlplan + calls_cat,
+  data = telco_churn_cat_tbl
+  )
+
+telco_model05_coxph |> summary()
+```
+
+**Interpreting the output:**
+
+The model produces three coefficients for `calls_cat` (since there are four
+groups, one is the reference). Each coefficient represents the log-hazard
+ratio for that group relative to the reference group (0-1 calls).
+
+For example:
+  - `calls_cat[2]`: hazard ratio for 2 calls vs 0-1 calls
+  - `calls_cat[3-5]`: hazard ratio for 3-5 calls vs 0-1 calls
+  - `calls_cat[6+]`: hazard ratio for 6+ calls vs 0-1 calls
+
+If the coefficients increase monotonically (each group has a higher hazard
+ratio than the previous), this confirms our intuition that more calls =
+higher risk. If the hazard ratios are roughly equal to the linear model's
+predictions (e.g., if 2 calls has HR ≈ linear_HR², 3-5 calls has HR ≈
+linear_HR³⁻⁵), then the linear model was adequate.
+
+But if we see non-linear patterns—for example, if 2 calls has nearly the
+same risk as 0-1 calls, but 6+ calls has dramatically higher risk—then
+discretisation captures important structure the linear model missed.
+
+### Comparing Linear vs. Discretised Models
+
+```{r compare_model04_model05}
+#| echo: true
+
+# Compare models
+bind_rows(
+  telco_model04_coxph |> glance() |> mutate(model = "Model04 (linear)"),
+  telco_model05_coxph |> glance() |> mutate(model = "Model05 (discretised)")
+  ) |>
+  select(model, concordance, r.squared, AIC, BIC)
+```
+
+**Interpreting the comparison:**
+
+  - **Concordance**: If Model 05 has noticeably higher concordance than Model 04,
+    it suggests the discretisation captures non-linear patterns that improve
+    risk discrimination.
+  - **AIC/BIC**: Lower is better. AIC and BIC penalize model complexity
+    (number of parameters), so even if Model 05 fits better, if it uses more
+    parameters, the penalty-adjusted metrics might favor Model 04.
+  - **Degrees of freedom**: Model 04 uses 3 parameters (vmail, intl, calls);
+    Model 05 uses 5 parameters (vmail, intl, calls_cat[2], calls_cat[3-5],
+    calls_cat[6+]). The question is whether the extra 2 parameters justify
+    their complexity.
+
+If AIC strongly favors Model 05 despite the parameter penalty, this is
+compelling evidence for non-linearity. If Model 04 has similar or better
+AIC/BIC, the linear model is adequate (simpler is better).
+
+### Checking Proportional Hazards for Model 05
+
+```{r test_model05_ph_assumption}
+#| echo: true
+
+telco_model05_coxzph <- telco_model05_coxph |> cox.zph(transform = "km")
+
+telco_model05_coxzph |> print()
+```
+
+Each level of `calls_cat` should pass the test individually, and the GLOBAL
+test should show no violations. If all tests pass, the discretised
+specification satisfies proportional hazards just as the linear version did.
+
+
+## Non-Linear Effects via Splines
+
+Penalized splines (P-splines) provide a flexible, data-driven approach to
+modeling smooth non-linear relationships without requiring arbitrary cutpoints.
+Unlike discretisation, which creates step functions, splines fit smooth curves
+that can capture gradual acceleration or deceleration in effects.
+
+The `pspline()` function in the survival package uses penalized regression
+splines, which balance fit (flexible curves that follow the data) against
+smoothness (penalizing overly wiggly functions). The penalty is chosen
+automatically via cross-validation, making splines largely automated and
+objective.
+
+Splines are particularly useful when we suspect non-linearity but don't have
+strong domain knowledge about where the cutpoints should be or whether the
+relationship has sudden jumps versus smooth transitions.
+
+The main downside is interpretation: instead of a single hazard ratio (linear
+model) or a set of group-specific hazard ratios (discretised model), we get
+a curve that must be visualized to understand. This is acceptable for
+exploratory analysis and prediction but can be harder to communicate to
+stakeholders who want simple "risk increases by X% per call" statements.
+
+### Model 06: Spline for Customer Service Calls
+
+```{r fit_model06_spline}
+#| echo: true
+
+telco_model06_coxph <- coxph(
+  Surv(accountdur, churned) ~ vmailplan + intlplan + pspline(custservicecalls),
+  data = telco_churn_tbl
+  )
+
+telco_model06_coxph |> summary()
+```
+
+**Interpreting the output:**
+
+The spline appears as `pspline(custservicecalls)` in the output with multiple
+degrees of freedom (typically 4-6). Unlike the linear model (1 df) or
+discretised model (3 df for 4 groups), the spline uses several basis functions
+to represent the smooth curve.
+
+The summary provides:
+
+  - **Linear component**: A test of whether the linear term is significant
+  - **Non-linear component**: A test of whether the non-linear deviations from
+    linearity are significant
+
+If the non-linear component is significant (p < 0.05), this is strong
+evidence that the relationship is genuinely non-linear and the spline
+captures structure the linear model missed.
+
+The overall degrees of freedom consumed by the spline are shown in the
+output. More degrees of freedom = more flexible curve, but also more
+parameters to estimate.
+
+### Visualising the Spline Effect
+
+The best way to understand a spline is to visualize it. The `termplot()`
+function shows the estimated curve across the range of customer service
+calls:
+
+```{r visualise_spline_effect}
+#| echo: true
+#| fig-width: 8
+#| fig-height: 5
+
+termplot(
+  telco_model06_coxph,
+  term   = 3,
+  se     = TRUE,
+  col.term = "firebrick",
+  col.se   = "grey70",
+  xlab   = "Customer Service Calls",
+  ylab   = "Log Hazard (centered)",
+  main   = "Spline Effect of Customer Service Calls"
+  )
+```
+
+**Interpreting the plot:**
+
+  - **X-axis**: Number of customer service calls
+  - **Y-axis**: Log-hazard (relative to the mean), centered at zero
+  - **Red curve**: Estimated effect of calls on log-hazard
+  - **Grey band**: Confidence interval (uncertainty in the curve)
+
+Look for:
+
+  - **Shape**: Is the curve roughly linear (straight line)? Or does it curve
+    (accelerate or decelerate)?
+  - **Confidence width**: Narrow bands = precise estimates; wide bands =
+    high uncertainty
+  - **Outlier behavior**: Does the curve behave erratically at extreme values
+    (very high calls)? This suggests overfitting or sparse data.
+
+If the curve is approximately linear, the linear model (Model 04) was adequate.
+If the curve clearly bends—especially if it accelerates (gets steeper) at
+higher values—this confirms non-linearity and justifies the added complexity.
+
+### Checking Proportional Hazards for Model 06
+
+```{r test_model06_ph_assumption}
+#| echo: true
+
+telco_model06_coxzph <- telco_model06_coxph |> cox.zph(transform = "km")
+
+telco_model06_coxzph |> print()
+```
+
+The spline components should all pass the proportional hazards test. If
+violations occur, it may indicate that the non-linear effect itself varies
+over time, requiring more advanced methods beyond this workshop's scope.
+
+
+# Model Comparison and Selection
+
+We've now built six models of increasing complexity, from a simple null model
+to models incorporating categorical predictors, continuous linear effects,
+discretised non-linear effects, and flexible spline effects. The question now
+is: **which model should we choose?**
+
+Model selection involves balancing multiple criteria:
+
+  - **Fit quality**: How well does the model discriminate and explain variation?
+  - **Parsimony**: Simpler models are easier to interpret and less prone to
+    overfitting
+  - **Assumption validity**: Does the model satisfy proportional hazards?
+  - **Interpretability**: Can we explain the model to stakeholders?
+  - **Predictive accuracy**: How well will it generalize to new data?
+
+There's rarely a single "best" model. The choice depends on the analysis
+goals: exploratory understanding, prediction, or communication to decision-
+makers. An exploratory analysis might favor the most flexible model (splines);
+a model for executive presentation might favor simpler discretised or linear
+specifications.
+
+We'll use several comparison frameworks:
+
+  1. **Summary table**: Concordance, R², AIC, BIC across all models
+  1. **Likelihood ratio tests**: Formal statistical tests comparing nested models
+  1. **Degrees of freedom consideration**: How many parameters does each model use?
+
+The summary table provides an overview, likelihood ratio tests offer formal
+statistical comparisons, and degrees of freedom remind us of complexity costs.
+
+## Summary Comparison Table
+
+```{r create_model_comparison_table}
+#| echo: true
+
+model_comparison_tbl <- bind_rows(
+  telco_model01_coxph |> glance() |> mutate(model = "Model01: vmailplan"),
+  telco_model03_coxph |> glance() |> mutate(model = "Model03: vmail + intl"),
+  telco_model04_coxph |> glance() |> mutate(model = "Model04: + csc (linear)"),
+  telco_model05_coxph |> glance() |> mutate(model = "Model05: + csc (factor)"),
+  telco_model06_coxph |> glance() |> mutate(model = "Model06: + csc (spline)")
+  ) |>
+  select(model, n, nevent, concordance, r.squared, AIC, BIC) |>
+  arrange(AIC)
+
+model_comparison_tbl |> print()
+```
+
+**Interpreting the table:**
+
+  - **Concordance**: Measures discrimination. Model 01 (vmailplan only) likely
+    achieves c ≈ 0.565. Model 04-06 (with custservicecalls) likely achieve
+    c ≈ 0.68-0.72. Look for diminishing returns—if Model 05 and 06 don't
+    meaningfully improve on Model 04, the added complexity isn't justified.
+  - **R²**: Variance explained. Expect low values (0.05-0.15) due to censoring
+    and unmeasured factors. Watch for incremental gains.
+  - **AIC/BIC**: Lower is better. These metrics penalize model complexity, so
+    they balance fit against parsimony. AIC penalizes complexity less than BIC,
+    so BIC favors simpler models more strongly.
+  - **Order**: Table sorted by AIC. The top model (lowest AIC) represents the
+    best balance of fit and complexity according to this criterion.
+
+Key questions:
+
+  - Does adding custservicecalls (Model 04) substantially improve on Model 03?
+    (Almost certainly yes.)
+  - Do non-linear specifications (Model 05/06) improve on the linear Model 04?
+    (Check if AIC drops by more than ~2-3 points.)
+  - Is there a "sweet spot" model that achieves most of the predictive gain
+    without excessive complexity?
+
+## Likelihood Ratio Tests
+
+The comparison table shows overall metrics, but doesn't tell us whether
+differences are *statistically significant*. Likelihood ratio tests (LRTs)
+provide formal hypothesis testing for nested models.
+
+**What is a nested model?** Model A is nested in Model B if A is a special case
+of B. For example:
+
+  - Model 03 (vmailplan + intlplan) is nested in Model 04 (vmailplan +
+    intlplan + custservicecalls)
+  - Model 04 (linear custservicecalls) is nested in Model 05 (discretised
+    custservicecalls)—the factor specification allows different slopes within
+    bins, whereas linear forces a single slope
+
+The LRT compares the log-likelihoods of two nested models:
+
+  - **Null hypothesis (H₀)**: The simpler model is adequate
+  - **Alternative (H₁)**: The complex model provides significantly better fit
+  - **Test statistic**: -2 × (log-likelihood of simple model - log-likelihood
+    of complex model)
+  - **Distribution**: Chi-squared with degrees of freedom = difference in
+    parameter count
+  - **Interpretation**: p < 0.05 suggests the complex model improves fit beyond
+    chance
+
+This is particularly useful when information criteria (AIC/BIC) give ambiguous
+results or when we need to justify model choice to stakeholders who want
+statistical rigor.
+
+```{r likelihood_ratio_tests}
+#| echo: true
+
+write_lines("\n--- Testing Model03 vs Model04 (adding linear csc) ---", stdout())
+anova(telco_model03_coxph, telco_model04_coxph, test = "LRT")
+
+write_lines("\n--- Testing Model04 vs Model05 (linear vs factor) ---", stdout())
+anova(telco_model04_coxph, telco_model05_coxph, test = "LRT")
+```
+
+**Interpreting the results:**
+
+  - **Model 03 vs Model 04**: Adding custservicecalls (one parameter) should
+    yield p ≪ 0.001, strongly rejecting the null. This confirms what we saw in
+    the coefficient estimates: customer service calls are highly predictive.
+  - **Model 04 vs Model 05**: This tests linear vs discretised. If p < 0.05,
+    the binned specification captures non-linearity the linear model misses. If
+    p > 0.05, the simpler linear model is sufficient. Check the degrees of
+    freedom: Model 05 adds 3 parameters (4 bins - 1 baseline = 3 coefficients)
+    versus Model 04's single slope.
+
+**Degrees of freedom note**: Model 05 uses 3 additional parameters compared to
+Model 04 (custservicecalls_cat has 4 levels, requiring 3 dummy variables).
+Model 06 (spline with 4 knots) uses similar degrees of freedom. The LRT
+accounts for this when computing the chi-squared statistic.
+
+**Why we don't test Model 05 vs Model 06**: These models aren't nested. Both
+capture non-linearity but in different ways (bins vs smooth splines). To
+compare them, we rely on AIC/BIC and domain considerations (interpretability,
+stakeholder preferences).
+
+
+# Validating Model Improvement with Residuals
+
+We've built models and assessed them with summary statistics, but how do we
+*confirm* that adding predictors genuinely improved model fit? One powerful
+diagnostic is comparing residual patterns before and after adding covariates.
+
+**The logic**: If a covariate captures meaningful variation in churn hazard,
+including it in the model should "absorb" that variation, leaving residuals
+that are less patterned and closer to noise. If residuals still show strong
+patterns after including the covariate, either:
+
+  1. The functional form is wrong (e.g., linear when relationship is non-linear)
+  2. The covariate isn't predictive
+  3. There are other unmeasured confounders
+
+We'll compare martingale residuals from the null model (Model 00) to residuals
+from the fitted model (Model 05). This is particularly revealing for
+custservicecalls, which we explored exhaustively in earlier sections.
+
+## Residuals from Model 05
+
+```{r calculate_fitted_model_residuals}
+#| echo: true
+
+telco_model05_resid_m <- telco_model05_coxph |> residuals(type = "martingale")
+
+telco_fitted_assess_tbl <- telco_churn_cat_tbl |>
+  mutate(
+    resid_null  = telco_model00_resid_m,
+    resid_model = telco_model05_resid_m
+    )
+```
+
+### Comparing Residual Patterns
+
+```{r compare_residual_patterns}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 5
+
+null_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = custservicecalls, y = resid_null)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "firebrick") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "Customer Service Calls",
+    y     = "Martingale Residual",
+    title = "Null Model Residuals"
+    ) +
+  theme_minimal()
+
+fitted_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = custservicecalls, y = resid_model)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "firebrick") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "Customer Service Calls",
+    y     = "Martingale Residual",
+    title = "Fitted Model Residuals"
+    ) +
+  theme_minimal()
+
+plot_grid(
+  null_resid_plot,
+  fitted_resid_plot,
+  ncol   = 2,
+  labels = c("A", "B")
+  )
+```
+
+**What to look for:**
+
+  - **Panel A (Null Model)**: The LOESS smoother should show a clear positive
+    trend. Higher custservicecalls → more positive residuals → model
+    under-predicts hazard. This is the pattern we identified earlier.
+  - **Panel B (Model 05)**: The LOESS should be much flatter, hovering near
+    zero. This indicates Model 05 has successfully captured the relationship
+    between custservicecalls and churn hazard. Any remaining trend would
+    suggest functional form misspecification.
+
+The visual comparison provides intuitive confirmation: if Panel B looks like
+random scatter around zero, the model has done its job.
+
+## Checking for Remaining Patterns
+
+Having confirmed that Model 05 captures custservicecalls, we should check
+whether residuals reveal *additional* predictive patterns in other covariates.
+If they do, those covariates might be candidates for future model expansion.
+
+We'll examine two variables not currently in the model: daytime minutes and
+international minutes. These usage metrics might correlate with customer
+engagement or satisfaction.
+
+```{r check_remaining_patterns}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 5
+
+daymins_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = daymins, y = resid_model)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "Daytime Minutes",
+    y     = "Martingale Residual",
+    title = "Residuals vs Daytime Minutes"
+    ) +
+  theme_minimal()
+
+intlmins_resid_plot <- ggplot(
+    telco_fitted_assess_tbl,
+    aes(x = intlmins, y = resid_model)
+    ) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  geom_smooth(method = "loess", se = FALSE, colour = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x     = "International Minutes",
+    y     = "Martingale Residual",
+    title = "Residuals vs International Minutes"
+    ) +
+  theme_minimal()
+
+plot_grid(
+  daymins_resid_plot,
+  intlmins_resid_plot,
+  ncol   = 2,
+  labels = c("A", "B")
+  )
+```
+
+**Interpreting these plots:**
+
+  - **Flat LOESS**: No relationship between the covariate and residuals. The
+    current model adequately captures all systematic variation. Including this
+    variable likely wouldn't improve predictions.
+  - **Trending LOESS**: A non-zero trend indicates the covariate contains
+    information the model hasn't used. This suggests adding the variable might
+    improve fit.
+
+**What you'll likely see**: For this dataset, daytime minutes and
+international minutes probably show weak or no trends. Customer service calls
+dominate the predictive signal. However, residual plots are always worth
+checking—they can reveal unexpected patterns that summary statistics miss.
+
+**Future modeling directions**: If either plot shows a strong pattern, consider:
+
+  - Adding the variable to the model
+  - Discretising or spline transformation if the relationship is non-linear
+  - Interaction terms (e.g., does the effect of daytime minutes depend on
+    having a voicemail plan?)
+
+## Summary of Residual Validation
+
+Through systematic residual analysis, we:
+
+  1. Identified `custservicecalls` as the strongest continuous predictor
+  1. Tested three approaches to modeling its effect (linear, discretised, spline)
+  1. Demonstrated substantial model improvement through concordance and AIC
+  1. Confirmed that residual patterns are reduced after including the predictor
+
+This workflow—residual exploration, variable selection, model fitting,
+and diagnostic checking—provides a principled approach to building
+robust Cox proportional hazards models.
+
+
+## Conclusions and Recommendations
+
+  - **Preferred specification**: If the LRT indicates significant improvement
+    and AIC/BIC decrease, choose Model 05 (discretised `custservicecalls`) with
+    `vmailplan` and `intlplan`. It balances performance and interpretability.
+  - **Simpler alternative**: If non-linearity is not statistically supported,
+    Model 04 (linear `custservicecalls`) is sufficient and easier to explain.
+  - **Exploratory flexibility**: Use Model 06 (splines) to explore nuanced
+    non-linear effects. When presenting results, include plots and clear
+    explanations as spline coefficients are not directly interpretable.
+  - **Always validate PH**: Confirm proportional hazards via `cox.zph()` for
+    each model and review residual plots to ensure no remaining structure.
+  - **Communicate clearly**: Report hazard ratios with confidence intervals and
+    a readable baseline (e.g., 0–1 calls) versus higher-call bins; avoid
+    jargon when presenting to non-technical stakeholders.
+  - **Next steps**: Consider interactions (e.g., service calls × vmailplan),
+    additional covariates indicated by residual patterns, and calibration
+    assessments if the goal is prediction.
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: true
+#| message: true
+
+sessioninfo::session_info()
+```

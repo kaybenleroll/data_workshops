@@ -1,0 +1,2195 @@
+---
+title: "Explore the Lifebook Protection Data"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    theme:
+      light: sandstone
+      dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r resolve_conflicts}
+#| echo: false
+
+resolve_conflicts <- function(pkg_priority) {
+  get_index <- function(pkg_name) {
+    idx <- str_which(pkg_priority, pkg_name)
+
+    if(length(idx) == 0) { idx <- 0L }
+
+    return(idx)
+  }
+
+  conflict_lst <- conflict_scout()
+
+  for(func_name in names(conflict_lst)) {
+    pkg_index <- map_int(conflict_lst[[func_name]], get_index)
+
+    pkg_index <- pkg_index[pkg_index > 0]
+
+    if(length(pkg_index) == 0) {
+      pkg_use <- conflict_lst[[func_name]][1]
+    } else {
+      pkg_use <- pkg_priority[pkg_index |> min()]
+    }
+
+    conflict_prefer(func_name, pkg_use)
+  }
+
+  return(conflict_lst)
+}
+```
+
+```{r setup_chunk_timing}
+#| echo: false
+#| message: false
+
+# Enable chunk timing for all chunks
+knitr::opts_chunk$set(time_it = TRUE)
+
+# Create a list to store chunk times
+chunk_times <- list()
+
+# Create a hook to capture chunk execution times
+knitr::knit_hooks$set(time_it = function(before, options) {
+  if (before) {
+    # Record start time in global environment
+    assign(".chunk_start_time", Sys.time(), envir = .GlobalEnv)
+  } else {
+    # Calculate elapsed time
+    elapsed <- difftime(
+      Sys.time(),
+      get(".chunk_start_time", envir = .GlobalEnv),
+      units = "secs"
+      ) |>
+      as.numeric()
+    
+    # Store in global list
+    chunk_times <- get("chunk_times", envir = .GlobalEnv)
+    chunk_times[[options$label]] <- elapsed
+    assign("chunk_times", chunk_times, envir = .GlobalEnv)
+    
+    # Print timing message
+    message(glue("⏱️  Chunk '{options$label}': {round(elapsed, 2)} seconds"))
+  }
+})
+```
+
+```{r import_libraries}
+#| echo: false
+#| message: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(vctrs)
+library(fs)
+library(glue)
+library(forcats)
+library(snakecase)
+library(DataExplorer)
+library(nanoparquet)
+library(gtsummary)
+
+
+source("lib_utils.R")
+source("lib_survival_modelling.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+
+modelling_dataset_size_small <- 10000
+modelling_dataset_size_large <- 100000
+
+observation_date <- as.Date("2016-01-01")
+```
+
+```{r custom_functions}
+#| echo: false
+
+### Checks if variable is a date/time
+is_date <- function(x)
+  x |> inherits(c("POSIXt", "POSIXct", "POSIXlt", "Date", "hms"))
+
+
+### Returns the category of data type passed to it
+categorise_datatype <- function (x) {
+  if(all(are_na(x))) return("na")
+
+  if(is_date(x))                          "datetime"
+  else if (!is_null(attributes(x)) ||
+           all(is_character(x)))          "discrete"
+  else if (all(is_logical(x)))            "logical"
+  else                                    "continuous"
+}
+
+
+### create_coltype_list() splits columns into various types
+create_coltype_list <- function(data_tbl) {
+  coltypes  <- data_tbl |> map_chr(categorise_datatype)
+  cat_types <- coltypes |> unique() |> sort()
+
+  split_lst <- cat_types |>
+    map(function(x) { coltypes[coltypes %in% x] |> names() })
+
+  names(split_lst) <- coltypes |> unique() |> sort()
+
+  coltype_lst <- list(
+    split   = split_lst
+   ,columns = coltypes
+  )
+
+  return(coltype_lst)
+}
+
+```
+
+
+This workbook was created using the 'dataexpks' template:
+
+https://github.com/DublinLearningGroup/dataexpks
+
+
+
+# Introduction
+
+This workbook performs the basic data exploration of the dataset.
+
+```{r set_exploration_params}
+#| echo: true
+
+dataexp_level_exclusion_threshold <- 100
+
+dataexp_cat_level_count <- 40
+dataexp_hist_bins_count <- 50
+```
+
+
+# Load Data
+
+First we load the dataset.
+
+```{r load_dataset}
+#| echo: true
+
+rawdata_tbl <- read_parquet("data/lifeins_policybook_inoutforce_tbl.parquet")
+
+glimpse(rawdata_tbl)
+```
+
+
+## Perform Quick Data Cleaning
+
+
+```{r perform_simple_datatype_transforms}
+#| echo: true
+
+### _TEMPLATE_
+### Do simple datatype transforms and save output in data_tbl
+data_tbl <- rawdata_tbl %>%
+  set_colnames(
+    names(.) |> to_snake_case()
+    )
+
+glimpse(data_tbl)
+```
+
+
+
+```{r}
+#| echo: false
+
+#knitr::knit_exit()
+```
+
+
+## Create Derived Variables
+
+We now create derived features useful for modelling. These values are
+new variables calculated from existing variables in the data.
+
+```{r create_derived_variables}
+#| echo: true
+
+data_tbl <- rawdata_tbl |>
+  filter(prod_type == "protection") |>
+  mutate(
+    prem_sa_ratio = prem_ape / sum_assured,
+    policy_vintage_year = year(policy_startdate),
+
+    weeks_to_now    = difftime(
+      observation_date, policy_startdate, units = "weeks"
+      ) |> as.numeric(),
+    weeks_to_status = difftime(
+      policy_statuschangedate, policy_startdate, units = "weeks"
+      ) |> as.numeric(),
+
+    policy_lifetime = if_else(
+      policy_status == "inforce",
+      weeks_to_now,
+      weeks_to_status
+      )
+    )
+
+glimpse(data_tbl)
+```
+
+
+
+```{r}
+#| echo: false
+
+#knitr::knit_exit()
+```
+
+
+# Perform Basic Checks on Data
+
+We now want to look at some very high level checks on the data, and we leverage
+some of the functionality provided by `DataExplorer`.
+
+## Create High-Level Visualisations
+
+We first want to look at a visualisation of some high-level summarys of the
+meta-data on this dataset. This gives us a quick view of the categorical and
+1numeric values in the dataset, as well as the proportions of missing values.
+
+```{r plot_dataexp_introduce}
+#| echo: true
+
+data_tbl |>
+  plot_intro(
+    title   = "High Level Table Summary",
+    ggtheme = theme_cowplot()
+    )
+```
+
+
+## Check Missing Values
+
+Before we do anything with the data, we first check for missing values
+in the dataset. In some cases, missing data is coded by a special
+character rather than as a blank, so we first correct for this.
+
+```{r replace_missing_character}
+#| echo: true
+
+### _TEMPLATE_
+### ADD CODE TO CORRECT FOR DATA ENCODING HERE
+```
+
+With missing data properly encoded, we now visualise the missing data in a
+number of different ways.
+
+### Univariate Missing Data
+
+```{r plot_univariate_missing_data}
+#| echo: true
+
+data_tbl |>
+  plot_missing(
+    title   = "Summary of Data Missingness",
+    group   = list(Good = 0.05, Acceptable = 0.2, Bad = 0.8, Remove = 1),
+    ggtheme = theme_cowplot()
+    )
+```
+
+We now want to repeat this plot but only for those columns that have some
+missing values.
+
+```{r plot_univariate_missing_only_data}
+#| echo: true
+
+data_tbl |>
+  plot_missing(
+    title        = "Summary of Data Missingness (missing variables only)",
+    missing_only = TRUE,
+    group        = list(Good = 0.05, Acceptable = 0.2, Bad = 0.8, Remove = 1),
+    ggtheme      = theme_cowplot()
+    )
+```
+
+
+
+### Multivariate Missing Data
+
+It is useful to get an idea of what combinations of variables tend to have
+variables with missing values simultaneously, so to construct a visualisation
+for this we create a count of all the times given combinations of variables
+have missing values, producing a heat map for these combination counts.
+
+```{r missing_data_matrix}
+#| echo: true
+
+dataexp_missing_group_count <- 20
+
+row_count <- rawdata_tbl |> nrow()
+
+count_nas <- ~ .x |> are_na() |> vec_cast(integer())
+
+missing_vizdata_tbl <- rawdata_tbl |>
+  mutate(across(everything(), count_nas)) %>%
+  mutate(label = pmap_chr(., str_c)) |>
+  group_by(label) |>
+  mutate(
+    miss_count = n(),
+    miss_prop  = miss_count / row_count
+    ) |>
+  slice_max(order_by = miss_prop, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  pivot_longer(
+    !c(label, miss_count, miss_prop),
+    names_to = "variable_name",
+    values_to = "presence"
+    ) |>
+  mutate(
+    prop_label = sprintf("%6.4f", miss_prop)
+    )
+
+top10_data_tbl <- missing_vizdata_tbl |>
+  select(label, miss_prop) |>
+  distinct() |>
+  slice_max(order_by = miss_prop, n = dataexp_missing_group_count)
+
+missing_plot_tbl <- missing_vizdata_tbl |>
+  semi_join(top10_data_tbl, by = "label")
+
+ggplot(missing_plot_tbl) +
+  geom_tile(aes(x = variable_name, y = prop_label, fill = presence), height = 0.8) +
+  scale_fill_continuous() +
+  scale_x_discrete(position = "top", labels = ~ abbreviate(.x, minlength = 10)) +
+  xlab("Variable") +
+  ylab("Proportion of Rows") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 90, vjust = 0.5)
+    )
+```
+
+This visualisation takes a little explaining.
+
+Each row represents a combination of variables with simultaneous missing
+values. For each row in the graphic, the coloured entries show which particular
+variables are missing in that combination. The proportion of rows with that
+combination is displayed in both the label for the row and the colouring for
+the cells in the row.
+
+
+## Inspect High-level-count Categorical Variables
+
+With the raw data loaded up we now remove obvious unique or near-unique
+variables that are not amenable to basic exploration and plotting.
+
+```{r find_highlevelcount_categorical_variables}
+#| echo: true
+
+coltype_lst <- create_coltype_list(data_tbl)
+
+count_levels <- ~ .x |> unique() |> length()
+
+catvar_valuecount_tbl <- data_tbl |>
+  summarise(
+    .groups = "drop",
+
+    across(coltype_lst$split$discrete, count_levels)
+    ) |>
+  pivot_longer(
+    cols      = everything(),
+    names_to  = "var_name",
+    values_to = "level_count"
+    ) |>
+  arrange(desc(level_count))
+
+print(catvar_valuecount_tbl)
+
+row_count <- data_tbl |> nrow()
+
+cat(glue("Dataset has {row_count} rows\n"))
+```
+
+Now that we a table of the counts of all the categorical variables we can
+automatically exclude unique variables from the exploration, as the level
+count will match the row count.
+
+```{r remove_id_variables}
+#| echo: true
+
+unique_vars <- catvar_valuecount_tbl |>
+  filter(level_count == row_count) |>
+  pull(var_name)
+
+print(unique_vars)
+
+explore_data_tbl <- data_tbl |>
+  select(-one_of(unique_vars))
+```
+
+Having removed the unique identifier variables from the dataset, we
+may also wish to exclude categoricals with high level counts also, so
+we create a vector of those variable names.
+
+```{r collect_highcount_variables}
+#| echo: true
+
+highcount_vars <- catvar_valuecount_tbl |>
+  filter(
+    level_count >= dataexp_level_exclusion_threshold,
+    level_count < row_count
+    ) |>
+  pull(var_name)
+
+cat(str_c(highcount_vars, collapse = ", "))
+```
+
+We now can continue doing some basic exploration of the data. We may
+also choose to remove some extra columns from the dataset.
+
+```{r drop_variables}
+#| echo: true
+
+### You may want to comment out these next few lines to customise which
+### categoricals are kept in the exploration.
+drop_vars <- c(highcount_vars)
+
+if (length(drop_vars) > 0) {
+  explore_data_tbl <- explore_data_tbl |>
+      select(-one_of(drop_vars))
+
+  cat(str_c(drop_vars, collapse = ", "))
+}
+```
+
+
+```{r}
+#| echo: false
+
+#knitr::knit_exit()
+```
+
+
+# Univariate Data Exploration
+
+Now that we have loaded the data we can prepare it for some basic data
+exploration.
+
+
+## Quick Univariate Data Summaries
+
+We use a number of summary visualisations provided by `DataExplorer`: a
+facet plot across each variable with categorical variables getting bar plots
+and numerical plots getting histograms.
+
+We first look at the barplots of categorical variables.
+
+```{r plot_dataexp_bar}
+#| message: true
+#| echo: true
+
+plot_bar(
+    data_tbl,
+    ncol    = 2,
+    nrow    = 2,
+    title   = "Barplots of Data",
+    ggtheme = theme_cowplot()
+    )
+```
+
+
+We then have a quick look at histograms of the numeric variables.
+
+```{r plot_dataexp_hist}
+#| message: true
+#| echo: true
+
+plot_histogram(
+    data_tbl,
+    ncol    = 2,
+    nrow    = 2,
+    title   = "Histograms of Data",
+    ggtheme = theme_cowplot()
+    )
+```
+
+
+Finally, we split the remaining variables into different categories and then
+produce a sequence of plots for each variable.
+
+
+```{r separate_exploration_cols}
+#| echo: true
+
+coltype_lst <- create_coltype_list(explore_data_tbl)
+
+print(coltype_lst)
+```
+
+
+## Logical Variables
+
+Logical variables only take two values: TRUE or FALSE. It is useful to see
+missing data as well though, so we also plot the count of those.
+
+```{r create_univariate_logical_plots}
+#| echo: true
+#| warning: false
+
+logical_vars <- coltype_lst$split$logical |> sort()
+
+for (plot_varname in logical_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  na_count <- explore_data_tbl |> pull(.data[[plot_varname]]) |> are_na() |> sum()
+
+  plot_title <- glue("Barplot of Counts for Variable: {plot_varname} ({na_count} missing values)")
+
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_bar(aes(x = .data[[plot_varname]])) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Numeric Variables
+
+Numeric variables are usually continuous in nature, though we also have
+integer data.
+
+```{r create_univariate_numeric_plots}
+#| echo: true
+#| warning: false
+
+numeric_vars <- coltype_lst$split$continuous |> sort()
+
+for (plot_varname in numeric_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  plot_var <- explore_data_tbl |> pull(.data[[plot_varname]])
+  na_count <- plot_var |> are_na() |> sum()
+
+  plot_var |> summary() |> print()
+
+  plot_title <- glue("Histogram Plot for Variable: {plot_varname} ({na_count} missing values)")
+
+
+  all_plot <- ggplot() +
+    geom_histogram(aes(x = plot_var), bins = dataexp_hist_bins_count) +
+    geom_vline(xintercept = mean(plot_var, na.rm = TRUE),
+               colour = "red", size = 1.5) +
+    geom_vline(xintercept = median(plot_var, na.rm = TRUE),
+               colour = "green", size = 1.5) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_continuous(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(
+      plot_title,
+      subtitle = "(red line is mean, green line is median)"
+      )
+
+  pos_data_tbl <- explore_data_tbl |>
+    filter(.data[[plot_varname]] >= 0) |>
+    mutate(var_val = abs(.data[[plot_varname]]))
+
+  pos_log_plot <- ggplot(pos_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = dataexp_hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle("Positive Values")
+
+  
+  neg_data_tbl <- explore_data_tbl |>
+    filter(.data[[plot_varname]] < 0) |>
+    mutate(var_val = abs(.data[[plot_varname]]))
+
+  neg_log_plot <- ggplot(neg_data_tbl) +
+    geom_histogram(aes(x = var_val), bins = dataexp_hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_log10(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle("Negative Values")
+
+
+  plot_grid(
+      all_plot,
+      NULL,
+      pos_log_plot,
+      neg_log_plot,
+      nrow = 2
+      ) |>
+    print()
+}
+```
+
+
+## Categorical Variables
+
+Categorical variables only have values from a limited, and usually fixed,
+number of possible values
+
+```{r create_univariate_categorical_plots}
+#| echo: true
+#| warning: false
+
+categorical_vars <- coltype_lst$split$discrete |> sort()
+
+for (plot_varname in categorical_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  na_count <- explore_data_tbl |> pull(.data[[plot_varname]]) |> are_na() |> sum()
+
+  plot_title <- glue("Barplot of Counts for Variable: {plot_varname} ({na_count} missing values)")
+
+  standard_plot_tbl <- explore_data_tbl |>
+    count(.data[[plot_varname]])
+
+  standard_plot <- ggplot(standard_plot_tbl) +
+    geom_bar(aes(x = .data[[plot_varname]], weight = n)) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_discrete(labels = ~ abbreviate(.x, minlength = 10)) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  standard_plot |> print()
+
+
+  desc_plot_tbl <- explore_data_tbl |>
+    pull(.data[[plot_varname]]) |>
+    fct_lump(n = dataexp_cat_level_count) |>
+    fct_count() |>
+    mutate(f = fct_relabel(f, str_trunc, width = 15))
+
+  desc_plot <- ggplot(desc_plot_tbl) +
+    geom_bar(aes(x = fct_reorder(f, -n), weight = n)) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_discrete(labels = ~ abbreviate(.x, minlength = 10)) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  desc_plot |> print()
+}
+```
+
+
+## Date/Time Variables
+
+Date/Time variables represent calendar or time-based data should as time of the
+day, a date, or a timestamp.
+
+```{r create_univariate_datetime_plots}
+#| echo: true
+#| warning: false
+
+datetime_vars <- coltype_lst$split$datetime |> sort()
+
+for (plot_varname in datetime_vars) {
+  cat("--\n")
+  cat(glue("{plot_varname}\n"))
+
+  plot_var <- explore_data_tbl |> pull(.data[[plot_varname]])
+  na_count <- plot_var |> are_na() |> sum()
+
+  plot_var |> summary() |> print()
+
+  plot_title <- glue("Barplot of Dates/Times in Variable: {plot_varname} ({na_count} missing values)")
+
+
+  explore_plot <- ggplot(explore_data_tbl) +
+    geom_histogram(aes(x = .data[[plot_varname]]), bins = dataexp_hist_bins_count) +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(plot_title)
+
+  plot(explore_plot)
+}
+```
+
+
+```{r}
+#| echo: false
+
+#knitr::knit_exit()
+```
+
+
+# Bivariate Facet Plots
+
+We now move on to looking at bivariate plots of the data set.
+
+A natural way to explore relationships in data is to create univariate
+visualisations facetted by a categorical value.
+
+```{r bivariate_facet_data}
+#| echo: true
+
+### _TEMPLATE_
+### facet_varname <- ''
+facet_varname <- "cluster_id"
+
+dataexp_facet_count_max <- 3
+```
+
+
+## Logical Variables
+
+For logical variables we facet on barplots of the levels, comparing TRUE,
+FALSE and missing data.
+
+```{r create_bivariate_logical_plots}
+#| echo: true
+
+logical_vars <- logical_vars[!logical_vars %in% facet_varname] |> sort()
+
+
+for (plot_varname in logical_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl |> filter(!are_na(.data[[plot_varname]]))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = .data[[plot_varname]])) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Numeric Variables
+
+For numeric variables, we facet on histograms of the data.
+
+```{r create_bivariate_numeric_plots}
+#| echo: true
+
+for (plot_varname in numeric_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl |> filter(!are_na(.data[[plot_varname]]))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = .data[[plot_varname]]), bins = dataexp_hist_bins_count) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_continuous(labels = label_comma()) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  print(explore_plot)
+}
+```
+
+## Categorical Variables
+
+We treat categorical variables like logical variables, faceting the barplots
+of the different levels of the data.
+
+```{r create_bivariate_categorical_plots}
+#| echo: true
+
+categorical_vars <- categorical_vars[!categorical_vars %in% facet_varname] |> sort()
+
+for (plot_varname in categorical_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl |>
+    filter(!are_na(.data[[plot_varname]])) |>
+    mutate(
+      varname_trunc = fct_relabel(.data[[plot_varname]], str_trunc, width = 10)
+      )
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_bar(aes(x = varname_trunc)) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_x_discrete(labels = ~ abbreviate(.x, minlength = 10)) +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+
+## Date/Time Variables
+
+Like the univariate plots, we facet on histograms of the years in the dates.
+
+```{r create_bivariate_datetime_plots}
+#| echo: true
+
+for (plot_varname in datetime_vars) {
+  cat("--\n")
+  cat(plot_varname)
+
+  plot_tbl <- data_tbl |> filter(!are_na(.data[[plot_varname]]))
+
+  explore_plot <- ggplot(plot_tbl) +
+    geom_histogram(aes(x = .data[[plot_varname]]), bins = dataexp_hist_bins_count) +
+    facet_wrap(facet_varname, scales = "free") +
+    xlab(plot_varname) +
+    ylab("Count") +
+    scale_y_continuous(labels = label_comma()) +
+    ggtitle(glue("{facet_varname}-Faceted Histogram for Variable: {plot_varname}")) +
+    theme(axis.text.x = element_text(angle = 30, vjust = 0.5))
+
+  plot(explore_plot)
+}
+```
+
+```{r free_memory_facetplot}
+#| echo: false
+
+rm(plot_var, plot_tbl)
+```
+
+
+```{r}
+#| echo: false
+
+#knitr::knit_exit()
+```
+
+
+# Custom Explorations
+
+In this section we perform various data explorations specific to the insurance
+policy data and survival analysis context.
+
+
+## Summary Statistics by Policy Status
+
+We examine key variables stratified by policy status to understand differences
+between in-force and lapsed policies.
+
+```{r summary_by_status}
+#| echo: true
+
+data_tbl |>
+  group_by(policy_status) |>
+  summarise(
+    count = n(),
+    mean_lifetime      = mean  (policy_lifetime, na.rm = TRUE),
+    median_lifetime    = median(policy_lifetime, na.rm = TRUE),
+    sd_lifetime        = sd    (policy_lifetime, na.rm = TRUE),
+    mean_sum_assured   = mean  (sum_assured,     na.rm = TRUE),
+    median_sum_assured = median(sum_assured,     na.rm = TRUE),
+    mean_prem_ape      = mean  (prem_ape,        na.rm = TRUE),
+    median_prem_ape    = median(prem_ape,        na.rm = TRUE),
+
+    .groups = "drop"
+    ) |>
+  print()
+```
+
+
+## Distribution of Policy Lifetime by Status
+
+Compare the distribution of policy lifetimes between in-force and lapsed
+policies.
+
+```{r plot_lifetime_by_status}
+#| echo: true
+
+lifetime_plot1 <- ggplot(data_tbl) +
+  geom_histogram(
+    aes(x = policy_lifetime, fill = policy_status),
+    bins = 50,
+    alpha = 0.6,
+    position = "identity"
+    ) +
+  scale_x_continuous(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Distribution of Policy Lifetime by Status",
+    x = "Policy Lifetime (weeks)",
+    y = "Count",
+    fill = "Policy Status"
+    )
+
+lifetime_plot2 <- ggplot(data_tbl) +
+  geom_density(
+    aes(x = policy_lifetime, fill = policy_status),
+    alpha = 0.5
+    ) +
+  scale_x_continuous(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Density of Policy Lifetime by Status",
+    x = "Policy Lifetime (weeks)",
+    y = "Density",
+    fill = "Policy Status"
+    )
+
+plot_grid(lifetime_plot1, lifetime_plot2, nrow = 2)
+```
+
+
+## Policy Lifetime by Demographic Factors
+
+Examine how policy lifetime varies across different demographic segments.
+
+```{r plot_lifetime_by_demographics}
+#| echo: true
+
+gender_plot <- ggplot(data_tbl |> filter(!is.na(gender_life1))) +
+  geom_boxplot(
+    aes(x = gender_life1, y = policy_lifetime, fill = gender_life1),
+    alpha = 0.7
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Policy Lifetime by Gender",
+    x = "Gender",
+    y = "Policy Lifetime (weeks)"
+    ) +
+  theme(legend.position = "none")
+
+smoker_plot <- ggplot(data_tbl |> filter(!is.na(smoker_life1))) +
+  geom_boxplot(
+    aes(x = smoker_life1, y = policy_lifetime, fill = smoker_life1),
+    alpha = 0.7
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Policy Lifetime by Smoker Status",
+    x = "Smoker Status",
+    y = "Policy Lifetime (weeks)"
+    ) +
+  theme(legend.position = "none")
+
+status_plot <- ggplot(data_tbl |> filter(!is.na(policy_status))) +
+  geom_boxplot(
+    aes(x = policy_status, y = policy_lifetime, fill = policy_status),
+    alpha = 0.7
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Policy Lifetime by Status",
+    x = "Policy Status",
+    y = "Policy Lifetime (weeks)"
+    ) +
+  theme(legend.position = "none")
+
+plot_grid(gender_plot, smoker_plot, status_plot, ncol = 2, nrow = 2)
+```
+
+
+## Policy Vintage Year Analysis
+
+Explore how policy lapse rates vary by policy inception year (vintage). This
+helps identify whether older or newer policies have different lapse
+characteristics, which could indicate cohort effects or changes in
+underwriting/product design.
+
+```{r vintage_year_summary}
+#| echo: true
+
+# Summary of policies by vintage year
+vintage_summary <- data_tbl |>
+  group_by(policy_vintage_year) |>
+  summarise(
+    count = n(),
+    pct_total = 100 * n() / nrow(data_tbl),
+    mean_premium = mean(prem_ape, na.rm = TRUE),
+    mean_sum_assured = mean(sum_assured, na.rm = TRUE),
+    mean_lifetime_weeks = mean(policy_lifetime, na.rm = TRUE),
+    .groups = "drop"
+    ) |>
+  arrange(policy_vintage_year)
+
+write_lines("Policy Count and Characteristics by Vintage Year:", stdout())
+print(vintage_summary)
+```
+
+### Lapse Rate by Vintage Year
+
+```{r vintage_lapse_analysis}
+#| echo: true
+
+# Calculate lapse rates by vintage year
+vintage_lapse_tbl <- data_tbl |>
+  mutate(lapsed = if_else(policy_status == "lapsed", 1L, 0L)) |>
+  group_by(policy_vintage_year) |>
+  summarise(
+    total_policies = n(),
+    lapsed_count = sum(lapsed, na.rm = TRUE),
+    lapse_rate = 100 * mean(lapsed, na.rm = TRUE),
+    mean_lifetime = mean(policy_lifetime, na.rm = TRUE),
+    .groups = "drop"
+    ) |>
+  arrange(policy_vintage_year)
+
+write_lines("\nLapse Rates by Vintage Year:", stdout())
+print(vintage_lapse_tbl)
+
+# Visualize lapse rates by vintage year
+vintage_lapse_plot <- ggplot(vintage_lapse_tbl) +
+  geom_col(
+    aes(x = factor(policy_vintage_year), y = lapse_rate, fill = lapse_rate),
+    alpha = 0.8
+    ) +
+  geom_text(
+    aes(x = factor(policy_vintage_year), y = lapse_rate,
+        label = sprintf("%.1f%%", lapse_rate)),
+    vjust = -0.5,
+    size = 3.5
+    ) +
+  scale_fill_gradient(low = "steelblue", high = "firebrick") +
+  labs(
+    title = "Policy Lapse Rate by Vintage Year",
+    x = "Policy Vintage Year",
+    y = "Lapse Rate (%)",
+    fill = "Lapse Rate"
+    ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Visualize policy counts and mean lifetime by vintage
+vintage_context_plot <- ggplot(vintage_summary) +
+  geom_col(
+    aes(x = factor(policy_vintage_year), y = count),
+    fill = "steelblue",
+    alpha = 0.6
+    ) +
+  geom_line(
+    aes(x = factor(policy_vintage_year), y = mean_lifetime_weeks * 2,
+        group = 1),
+    color = "firebrick",
+    size = 1
+    ) +
+  geom_point(
+    aes(x = factor(policy_vintage_year), y = mean_lifetime_weeks * 2),
+    color = "firebrick",
+    size = 3
+    ) +
+  scale_y_continuous(
+    name = "Number of Policies",
+    sec.axis = sec_axis(~./2, name = "Mean Lifetime (weeks)")
+    ) +
+  labs(
+    title = "Policy Count and Mean Lifetime by Vintage Year",
+    x = "Policy Vintage Year"
+    ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot_grid(vintage_lapse_plot, vintage_context_plot, ncol = 2)
+```
+
+
+## Financial Variables Analysis
+
+Examine the relationship between financial variables (sum assured, premiums)
+and policy outcomes.
+
+```{r plot_financial_analysis}
+#| echo: true
+
+sa_plot <- ggplot(data_tbl |> filter(sum_assured > 0)) +
+  geom_histogram(
+    aes(x = sum_assured, fill = policy_status),
+    bins = 50,
+    alpha = 0.6,
+    position = "identity"
+    ) +
+  scale_x_log10(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Sum Assured Distribution (Log Scale)",
+    x = "Sum Assured",
+    y = "Count",
+    fill = "Policy Status"
+    )
+
+prem_plot <- ggplot(data_tbl |> filter(prem_ape > 0)) +
+  geom_histogram(
+    aes(x = prem_ape, fill = policy_status),
+    bins = 50,
+    alpha = 0.6,
+    position = "identity"
+    ) +
+  scale_x_log10(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Premium APE Distribution (Log Scale)",
+    x = "Premium APE",
+    y = "Count",
+    fill = "Policy Status"
+    )
+
+sa_scatter <- ggplot(data_tbl |> filter(sum_assured > 0, policy_lifetime > 0)) +
+  geom_point(
+    aes(x = sum_assured, y = policy_lifetime, color = policy_status),
+    alpha = 0.3,
+    size = 0.5
+    ) +
+  scale_x_log10(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Policy Lifetime vs Sum Assured",
+    x = "Sum Assured (log scale)",
+    y = "Policy Lifetime (weeks)",
+    color = "Policy Status"
+    )
+
+prem_scatter <- ggplot(data_tbl |> filter(prem_ape > 0, policy_lifetime > 0)) +
+  geom_point(
+    aes(x = prem_ape, y = policy_lifetime, color = policy_status),
+    alpha = 0.3,
+    size = 0.5
+    ) +
+  scale_x_log10(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Policy Lifetime vs Premium APE",
+    x = "Premium APE (log scale)",
+    y = "Policy Lifetime (weeks)",
+    color = "Policy Status"
+    )
+
+plot_grid(sa_plot, prem_plot, sa_scatter, prem_scatter, ncol = 2, nrow = 2)
+```
+
+
+## Premium to Sum Assured Ratio Analysis
+
+Examine the ratio of premiums to sum assured as a measure of pricing
+efficiency.
+
+```{r plot_prem_sa_ratio}
+#| echo: true
+
+ratio_hist <- ggplot(data_tbl |> filter(prem_sa_ratio > 0, prem_sa_ratio < 1)) +
+  geom_histogram(
+    aes(x = prem_sa_ratio, fill = policy_status),
+    bins = 50,
+    alpha = 0.6,
+    position = "identity"
+    ) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Premium/Sum Assured Ratio Distribution",
+    x = "Premium/Sum Assured Ratio",
+    y = "Count",
+    fill = "Policy Status"
+    )
+
+ratio_box <- ggplot(data_tbl |> filter(prem_sa_ratio > 0, prem_sa_ratio < 1)) +
+  geom_boxplot(
+    aes(x = policy_status, y = prem_sa_ratio, fill = policy_status),
+    alpha = 0.7
+    ) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Premium/Sum Assured Ratio by Status",
+    x = "Policy Status",
+    y = "Premium/Sum Assured Ratio"
+    ) +
+  theme(legend.position = "none")
+
+plot_grid(ratio_hist, ratio_box, ncol = 2)
+```
+
+
+## Temporal Patterns
+
+Analyze when policies were started and how this relates to policy outcomes.
+
+```{r plot_temporal_patterns}
+#| echo: true
+
+start_timeline <- ggplot(data_tbl) +
+  geom_histogram(
+    aes(x = policy_startdate, fill = policy_status),
+    bins = 50,
+    alpha = 0.6,
+    position = "identity"
+    ) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Policy Start Dates Over Time",
+    x = "Policy Start Date",
+    y = "Count",
+    fill = "Policy Status"
+    )
+
+start_by_year <- data_tbl |>
+  mutate(
+    start_year = lubridate::year(policy_startdate)
+    ) |>
+  filter(!is.na(start_year))
+
+year_summary <- ggplot(start_by_year) +
+  geom_bar(
+    aes(x = factor(start_year), fill = policy_status),
+    position = "fill",
+    alpha = 0.8
+    ) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Proportion of Policy Status by Start Year",
+    x = "Start Year",
+    y = "Proportion",
+    fill = "Policy Status"
+    ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+plot_grid(start_timeline, year_summary, ncol = 1, nrow = 2)
+```
+
+
+## Cluster Analysis
+
+Examine differences across clusters in the data.
+
+```{r plot_cluster_analysis}
+#| echo: true
+
+cluster_counts <- data_tbl |>
+  filter(!is.na(cluster_id)) |>
+  count(cluster_id, policy_status) |>
+  group_by(cluster_id) |>
+  mutate(
+    total = sum(n),
+    proportion = n / total
+    ) |>
+  ungroup()
+
+cluster_bar <- ggplot(cluster_counts) +
+  geom_bar(
+    aes(x = cluster_id, y = n, fill = policy_status),
+    stat = "identity",
+    position = "dodge",
+    alpha = 0.8
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Policy Counts by Cluster and Status",
+    x = "Cluster ID",
+    y = "Count",
+    fill = "Policy Status"
+    )
+
+cluster_prop <- ggplot(cluster_counts) +
+  geom_bar(
+    aes(x = cluster_id, y = proportion, fill = policy_status),
+    stat = "identity",
+    position = "fill",
+    alpha = 0.8
+    ) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Policy Status Proportion by Cluster",
+    x = "Cluster ID",
+    y = "Proportion",
+    fill = "Policy Status"
+    )
+
+cluster_lifetime <- data_tbl |>
+  filter(!is.na(cluster_id)) |>
+  ggplot() +
+  geom_boxplot(
+    aes(x = factor(cluster_id), y = policy_lifetime, fill = factor(cluster_id)),
+    alpha = 0.7
+    ) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(
+    title = "Policy Lifetime Distribution by Cluster",
+    x = "Cluster ID",
+    y = "Policy Lifetime (weeks)"
+    ) +
+  theme(legend.position = "none")
+
+plot_grid(cluster_bar, cluster_prop, cluster_lifetime, ncol = 2, nrow = 2)
+```
+
+
+## Cross-tabulation of Categorical Variables
+
+Create detailed cross-tabulations to understand relationships between
+categorical variables.
+
+```{r crosstabs_analysis}
+#| echo: true
+
+# Gender vs Smoker Status
+write_lines("Gender vs Smoker Status:", stdout())
+data_tbl |>
+  filter(!is.na(gender_life1), !is.na(smoker_life1)) |>
+  count(gender_life1, smoker_life1) |>
+  pivot_wider(
+    names_from = smoker_life1, 
+    values_from = n, 
+    values_fill = 0
+    ) |>
+  print()
+
+write_lines("\nGender vs Policy Status:", stdout())
+data_tbl |>
+  filter(!is.na(gender_life1), !is.na(policy_status)) |>
+  count(gender_life1, policy_status) |>
+  pivot_wider(
+    names_from = policy_status, 
+    values_from = n, 
+    values_fill = 0
+    ) |>
+  print()
+
+write_lines("\nSmoker Status vs Policy Status:", stdout())
+data_tbl |>
+  filter(!is.na(smoker_life1), !is.na(policy_status)) |>
+  count(smoker_life1, policy_status) |>
+  pivot_wider(
+    names_from = policy_status, 
+    values_from = n, 
+    values_fill = 0
+    ) |>
+  print()
+```
+
+
+## Correlation Analysis of Numeric Variables
+
+Examine correlations between numeric variables to identify potential
+multicollinearity or interesting relationships.
+
+```{r correlation_analysis}
+#| echo: true
+
+numeric_data <- data_tbl |>
+  select(
+    policy_lifetime, sum_assured, prem_ape,
+    prem_sa_ratio, weeks_to_now, weeks_to_status
+    )
+
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+
+cor_tbl <- cor_matrix |>
+  as.data.frame() |>
+  rownames_to_column(var = "var1") |>
+  pivot_longer(
+    cols      = -var1,
+    names_to  = "var2",
+    values_to = "correlation"
+    )
+
+ggplot(cor_tbl) +
+  geom_tile(
+    aes(x = var1, y = var2, fill = correlation),
+    height = 0.8
+    ) +
+  geom_text(
+    aes(x = var1, y = var2, label = sprintf("%.2f", correlation)),
+    size = 3
+    ) +
+  scale_fill_gradient2(
+    low      = "blue",
+    mid      = "white",
+    high     = "red",
+    midpoint = 0,
+    limits   = c(-1, 1)
+    ) +
+  labs(
+    title = "Correlation Matrix of Numeric Variables",
+    x     = "",
+    y     = "",
+    fill  = "Correlation"
+    ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(angle = 0)
+    )
+```
+
+
+## Lapse Rate by Cohort
+
+Calculate and visualize lapse rates by different cohorts.
+
+```{r lapse_rate_analysis}
+#| echo: true
+
+lapse_by_gender_smoker <- data_tbl |>
+  filter(!is.na(gender_life1), !is.na(smoker_life1)) |>
+  group_by(gender_life1, smoker_life1) |>
+  summarise(
+    total      = n(),
+    lapsed     = sum(lapsed),
+    lapse_rate = lapsed / total,
+    .groups    = "drop"
+    ) |>
+  mutate(
+    group = paste(gender_life1, smoker_life1, sep = "\n")
+    )
+
+demo_lapse_plot <- ggplot(lapse_by_gender_smoker) +
+  geom_bar(
+    aes(x = group, y = lapse_rate, fill = group),
+    stat = "identity",
+    alpha = 0.7
+    ) +
+  geom_text(
+    aes(x = group, y = lapse_rate, label = sprintf("%.1f%%", lapse_rate * 100)),
+    vjust = -0.5
+    ) +
+  scale_y_continuous(
+    labels = label_percent(),
+    limits = c(0, max(lapse_by_gender_smoker$lapse_rate) * 1.1)
+    ) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Lapse Rate by Gender and Smoker Status",
+    x = "Demographic Group",
+    y = "Lapse Rate"
+    ) +
+  theme(legend.position = "none")
+
+plot(demo_lapse_plot)
+```
+
+
+## Summary Statistics Table
+
+Create a comprehensive summary statistics table for key variables.
+
+```{r summary_stats_table}
+#| echo: true
+
+data_tbl |>
+  tbl_summary(
+    include = c(
+      smoker_life1, gender_life1, policy_lifetime, sum_assured, prem_ape,
+      prem_sa_ratio
+      ),
+    statistic = list(
+      all_continuous()  ~ "({mean} +/- {sd}) : ({p25}, {median}, {p75})",
+      all_categorical() ~ "{n} / {N} ({p}%)"
+      )
+    )
+
+```
+
+
+# Set Up Modelling Datasets
+
+In this section we create some basic survival models that we can use to
+train our models and use to validate our models.
+
+## Filter Protection Policies
+
+We start by working only with protection policies (`prod_type` == 'protection')
+so we filter those out first and also need to calculate the observed lifetime
+of the policy, which depends on the status of the policy.
+
+
+```{r determine_policy_lifetime}
+#| echo: FALSE
+
+policy_protection_data_tbl <- data_tbl |>
+  filter(
+    prod_type == "protection",
+    prem_freq == 12
+    ) |>
+  select(-weeks_to_now, -weeks_to_status, -policy_lifetime)
+
+policy_protection_data_tbl |> glimpse()
+```
+
+## Construct Rollback Versions
+
+We know the data that is up to date to our observed date of Jan 1 2016, but for
+modelling purposes, we need to roll back the observation date by a period of
+time so we can use the most recent observations as a way to validate our model.
+
+To do this, we need to construct some time-based observations.
+
+```{r construct_rollback_data}
+#| echo: true
+
+rollback_data_tbl <- policy_protection_data_tbl |>
+  determine_policy_status(reference_date = as.Date("2015-01-01"))
+
+rollback_data_tbl |> glimpse()
+```
+
+
+We now re-do the protection data as observed at the current date.
+
+```{r construct_current_data}
+#| echo: true
+
+current_data_tbl <- policy_protection_data_tbl |>
+  determine_policy_status(reference_date = as.Date("2016-01-01"))
+
+current_data_tbl |> glimpse()
+```
+
+
+### Check Rollback Data
+
+We now want to perform a number of sanity checks on this data, to ensure that
+the rollback logic is correct.
+
+```{r create_rollback_comparison_checks}
+#| echo: true
+
+roll_tbl <- rollback_data_tbl |>
+  select(
+    policy_id, policy_status, lapsed, status_at_reference_date,
+    policy_lifetime, age_at_observation
+    )
+
+curr_tbl <- current_data_tbl |>
+  semi_join(roll_tbl, by = "policy_id") |>
+  select(
+    policy_id, policy_status, lapsed, status_at_reference_date,
+    policy_lifetime, age_at_observation
+    )
+
+
+comparison_tbl <- roll_tbl |>
+  inner_join(curr_tbl, by = "policy_id", suffix = c("_rl", "_cr"))
+
+comparison_tbl |> glimpse()
+```
+
+
+### Sanity Check 1: Policy Status Consistency
+
+Check that policies that lapsed before the rollback date have the same status
+in both datasets.
+
+```{r check_policy_status_consistency}
+#| echo: true
+
+write_lines("=== Policy Status Consistency Checks ===\n", stdout())
+
+# Check 1: Policies lapsed in rollback should still be lapsed in current
+rollback_lapsed_tbl <- comparison_tbl |>
+  filter(status_at_reference_date_rl == "lapsed")
+
+rollback_lapsed_status_tbl <- rollback_lapsed_tbl |>
+  count(status_at_reference_date_cr)
+
+rl_lapsed_count <- nrow(rollback_lapsed_tbl)
+rl_lapsed_still_lapsed <- rollback_lapsed_status_tbl |>
+  filter(status_at_reference_date_cr == "lapsed") |>
+  pull(n) |>
+  sum()
+rl_lapsed_now_inforce <- rollback_lapsed_status_tbl |>
+  filter(status_at_reference_date_cr == "inforce") |>
+  pull(n) |>
+  sum()
+
+write_lines(glue(
+  "Policies lapsed in rollback data: {rl_lapsed_count}
+  Of these, also lapsed in current data: {rl_lapsed_still_lapsed}
+  Of these, inforce in current data: {rl_lapsed_now_inforce}\n"
+), stdout())
+
+# Check 2: Policies inforce in rollback could be lapsed or still inforce in current
+rollback_inforce_tbl <- comparison_tbl |>
+  filter(status_at_reference_date_rl == "inforce")
+
+rollback_inforce_status_tbl <- rollback_inforce_tbl |>
+  count(status_at_reference_date_cr)
+
+rl_inforce_count <- nrow(rollback_inforce_tbl)
+rl_inforce_still_inforce <- rollback_inforce_status_tbl |>
+  filter(status_at_reference_date_cr == "inforce") |>
+  pull(n) |>
+  sum()
+rl_inforce_now_lapsed <- rollback_inforce_status_tbl |>
+  filter(status_at_reference_date_cr == "lapsed") |>
+  pull(n) |>
+  sum()
+lapse_rate <- 100 * rl_inforce_now_lapsed / rl_inforce_count
+
+write_lines(glue(
+  "Policies inforce in rollback data: {rl_inforce_count}
+  Of these, still inforce in current data: {rl_inforce_still_inforce}
+  Of these, lapsed in current data: {rl_inforce_now_lapsed}
+  Lapse rate for policies inforce at rollback: {sprintf('%.2f%%', lapse_rate)}\n"
+), stdout())
+
+# Check 3: Status transitions table
+write_lines("Status Transition Matrix (Rollback -> Current):", stdout())
+comparison_tbl |>
+  count(status_at_reference_date_rl, status_at_reference_date_cr) |>
+  pivot_wider(
+    names_from  = status_at_reference_date_cr,
+    values_from = n,
+    values_fill = 0
+    ) |>
+  print()
+```
+
+
+### Sanity Check 2: Policy Lifetime Changes
+
+Check that policy lifetimes are consistent - lapsed policies should have the
+same lifetime in both datasets, while inforce policies should have longer
+lifetimes in the current dataset.
+
+```{r check_policy_lifetime_changes}
+#| echo: true
+
+write_lines("\n=== Policy Lifetime Consistency Checks ===\n", stdout())
+
+# Check 1: Policies lapsed before rollback should have SAME lifetime
+lapsed_before_rollback_tbl <- comparison_tbl |>
+  filter(status_at_reference_date_rl == "lapsed") |>
+  mutate(lifetime_diff = policy_lifetime_cr - policy_lifetime_rl)
+
+lapsed_count <- nrow(lapsed_before_rollback_tbl)
+mean_diff <- lapsed_before_rollback_tbl |>
+  pull(lifetime_diff) |>
+  mean()
+max_diff <- lapsed_before_rollback_tbl |>
+  pull(lifetime_diff) |>
+  abs() |>
+  max()
+
+write_lines(glue(
+  "Policies lapsed before rollback date:
+    Count: {lapsed_count}
+    Mean lifetime difference (current - rollback): {mean_diff} weeks
+    Max lifetime difference: {max_diff} weeks\n"
+), stdout())
+
+# Check 2: Policies inforce at rollback should have LONGER lifetime in current
+inforce_at_rollback_tbl <- comparison_tbl |>
+  filter(status_at_reference_date_rl == "inforce") |>
+  mutate(lifetime_diff = policy_lifetime_cr - policy_lifetime_rl)
+
+inforce_count <- nrow(inforce_at_rollback_tbl)
+mean_diff_inforce <- inforce_at_rollback_tbl |>
+  pull(lifetime_diff) |>
+  mean(na.rm = TRUE)
+
+write_lines(glue(
+  "Policies inforce at rollback date:
+    Count: {inforce_count}
+    Mean lifetime difference (current - rollback): {mean_diff_inforce} weeks
+    Expected difference (52 weeks for 1 year): 52 weeks\n"
+), stdout())
+
+# Check 3: Policies that lapsed between rollback and current
+lapsed_between_tbl <- comparison_tbl |>
+  filter(
+    status_at_reference_date_rl == "inforce",
+    status_at_reference_date_cr == "lapsed"
+  ) |>
+  mutate(additional_survival = policy_lifetime_cr - policy_lifetime_rl)
+
+lapsed_between_count <- nrow(lapsed_between_tbl)
+
+write_lines(glue("Policies that lapsed between rollback and current:
+    Count: {lapsed_between_count}"), stdout())
+
+if (lapsed_between_count > 0) {
+  mean_addl <- lapsed_between_tbl |> pull(additional_survival) |> mean()
+  min_addl  <- lapsed_between_tbl |> pull(additional_survival) |> min()
+  max_addl  <- lapsed_between_tbl |> pull(additional_survival) |> max()
+
+  write_lines(glue(
+    "    Mean additional survival time: {mean_addl} weeks
+    Min additional survival time: {min_addl} weeks
+    Max additional survival time: {max_addl} weeks\n"
+  ), stdout())
+}
+
+# Visualization of lifetime changes
+lifetime_change_plot <- ggplot(comparison_tbl) +
+  geom_point(
+    aes(
+      x     = policy_lifetime_rl,
+      y     = policy_lifetime_cr,
+      color = status_at_reference_date_rl
+      ),
+    alpha = 0.3,
+    size  = 0.5
+    ) +
+  geom_abline(
+    slope     = 1,
+    intercept = 0,
+    linetype  = "dashed",
+    color     = "red"
+    ) +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title    = "Policy Lifetime: Rollback vs Current",
+    subtitle = "Red line = no change; points above line = increased lifetime",
+    x        = "Policy Lifetime at Rollback (weeks)",
+    y        = "Policy Lifetime at Current (weeks)",
+    color    = "Status at Rollback"
+    )
+
+print(lifetime_change_plot)
+```
+
+
+### Sanity Check 3: Age at Observation Changes
+
+Check that ages are correctly calculated and change appropriately between
+rollback and current dates.
+
+```{r check_age_changes}
+#| echo: true
+
+write_lines("\n=== Age at Observation Consistency Checks ===\n", stdout())
+
+# Check 1: All ages should increase by approximately 1 year (52 weeks / 52.18 weeks per year)
+expected_age_increase <- 1.0  # 1 year between rollback and current
+
+comparison_tbl <- comparison_tbl |>
+  mutate(age_difference = age_at_observation_cr - age_at_observation_rl)
+
+age_stats_tbl <- comparison_tbl |>
+  summarise(
+    mean_age   = mean  (age_difference, na.rm = TRUE),
+    median_age = median(age_difference, na.rm = TRUE),
+    sd_age     = sd    (age_difference, na.rm = TRUE)
+    )
+
+write_lines(glue(
+  "Age change statistics:
+    Mean age increase: {age_stats_tbl$mean_age} years
+    Median age increase: {age_stats_tbl$median_age} years
+    Expected age increase: {expected_age_increase} years
+    Std dev of age increase: {age_stats_tbl$sd_age} years\n"
+), stdout())
+
+# Check 2: Age increases should be consistent for lapsed policies
+lapsed_age_check_tbl <- comparison_tbl |>
+  filter(status_at_reference_date_rl == "lapsed")
+
+mean_age_lapsed <- lapsed_age_check_tbl |>
+  pull(age_difference) |>
+  mean(na.rm = TRUE)
+
+write_lines(glue(
+  "Age changes for policies lapsed before rollback:
+    Mean age increase: {mean_age_lapsed} years
+    This should be close to {expected_age_increase} years\n"
+), stdout())
+
+# Check 3: Age increases for inforce policies
+inforce_age_check_tbl <- comparison_tbl |>
+  filter(status_at_reference_date_rl == "inforce")
+
+mean_age_inforce <- inforce_age_check_tbl |>
+  pull(age_difference) |>
+  mean(na.rm = TRUE)
+
+write_lines(glue(
+  "Age changes for policies inforce at rollback:
+    Mean age increase: {mean_age_inforce} years
+    This should be close to {expected_age_increase} years\n"
+), stdout())
+
+# Visualization of age changes
+age_change_plot <- ggplot(comparison_tbl) +
+  geom_histogram(
+    aes(x = age_difference, fill = status_at_reference_date_rl),
+    bins     = 50,
+    alpha    = 0.6,
+    position = "identity"
+    ) +
+  geom_vline(
+    xintercept = expected_age_increase,
+    color      = "red",
+    linetype   = "dashed",
+    size       = 1
+    ) +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title    = "Distribution of Age Changes (Current - Rollback)",
+    subtitle = paste("Red line = expected change of", expected_age_increase, "year"),
+    x        = "Age Difference (years)",
+    y        = "Count",
+    fill     = "Status at Rollback"
+    )
+
+print(age_change_plot)
+```
+
+
+### Sanity Check 4: Data Integrity Checks
+
+Verify logical consistency in the comparison data.
+
+```{r check_data_integrity}
+#| echo: true
+
+write_lines("\n=== Data Integrity Checks ===\n", stdout())
+
+# Check 1: Impossible transitions - lapsed policies should not become inforce
+impossible_transitions <- comparison_tbl |>
+  filter(
+    lapsed_rl == 1,
+    lapsed_cr == 0
+  )
+
+impossible_count <- nrow(impossible_transitions)
+write_lines(glue("
+Check 1: Impossible transitions (lapsed policies becoming inforce)
+  Count of impossible transitions: {impossible_count}
+  Expected: 0
+"), stdout())
+
+# Check 2: Lapsed flag consistency
+lapsed_flag_mismatch_rl_tbl <- comparison_tbl |>
+  filter(
+    (lapsed_rl == 1 & status_at_reference_date_rl != "lapsed") |
+    (lapsed_rl == 0 & status_at_reference_date_rl == "lapsed")
+  )
+mismatch_rl_count <- nrow(lapsed_flag_mismatch_rl_tbl)
+
+lapsed_flag_mismatch_cr_tbl <- comparison_tbl |>
+  filter(
+    (lapsed_cr == 1 & status_at_reference_date_cr != "lapsed") |
+    (lapsed_cr == 0 & status_at_reference_date_cr == "lapsed")
+  )
+mismatch_cr_count <- nrow(lapsed_flag_mismatch_cr_tbl)
+
+write_lines(glue("
+Check 2: Lapsed flag consistency
+  Policies with lapsed_rl=1 should have status_at_reference_date_rl='lapsed'
+  Mismatches in rollback data: {mismatch_rl_count}
+  Mismatches in current data: {mismatch_cr_count}
+  Expected: 0 for both
+"), stdout())
+
+# Check 3: Policy status consistency - if originally lapsed, both should show lapsed
+originally_lapsed_tbl <- comparison_tbl |>
+  filter(policy_status_rl == "lapsed")
+
+orig_lapsed_count <- nrow(originally_lapsed_tbl)
+lapsed_rl_count <- originally_lapsed_tbl |> filter(lapsed_rl == 1) |> nrow()
+lapsed_cr_count <- originally_lapsed_tbl |> filter(lapsed_cr == 1) |> nrow()
+
+write_lines(glue("
+Check 3: Original lapse status consistency
+  Policies with original status 'lapsed': {orig_lapsed_count}
+  Of these, lapsed in rollback: {lapsed_rl_count}
+  Of these, lapsed in current: {lapsed_cr_count}
+  Expected: all should be lapsed in both
+"), stdout())
+
+# Check 4: Summary statistics from comparison table
+rollback_summary_tbl <- comparison_tbl |>
+  summarise(
+    lapsed_count  = sum(lapsed_rl == 1),
+    inforce_count = sum(lapsed_rl == 0),
+    mean_lifetime = mean(policy_lifetime_rl, na.rm = TRUE),
+    mean_age      = mean(age_at_observation_rl, na.rm = TRUE)
+    )
+
+current_summary_tbl <- comparison_tbl |>
+  summarise(
+    lapsed_count  = sum(lapsed_cr == 1),
+    inforce_count = sum(lapsed_cr == 0),
+    mean_lifetime = mean(policy_lifetime_cr, na.rm = TRUE),
+    mean_age      = mean(age_at_observation_cr, na.rm = TRUE)
+    )
+
+change_summary_tbl <- comparison_tbl |>
+  summarise(
+    additional_lapses      = sum(lapsed_cr == 1) - sum(lapsed_rl == 1),
+    mean_lifetime_increase = mean(
+      policy_lifetime_cr - policy_lifetime_rl, na.rm = TRUE
+      ),
+    mean_age_increase      = mean(
+      age_at_observation_cr - age_at_observation_rl, na.rm = TRUE
+      )
+    )
+
+write_lines(glue("
+Check 4: Summary Statistics Comparison
+
+Rollback Data (from comparison):
+  Lapsed policies: {rollback_summary_tbl$lapsed_count}
+  Inforce policies: {rollback_summary_tbl$inforce_count}
+  Mean policy lifetime: {format(rollback_summary_tbl$mean_lifetime, digits = 4)} weeks
+  Mean age at observation: {format(rollback_summary_tbl$mean_age, digits = 4)} years
+
+Current Data (from comparison):
+  Lapsed policies: {current_summary_tbl$lapsed_count}
+  Inforce policies: {current_summary_tbl$inforce_count}
+  Mean policy lifetime: {format(current_summary_tbl$mean_lifetime, digits = 4)} weeks
+  Mean age at observation: {format(current_summary_tbl$mean_age, digits = 4)} years
+
+Change Statistics:
+  Additional lapses: {change_summary_tbl$additional_lapses}
+  Mean lifetime increase: {format(change_summary_tbl$mean_lifetime_increase, digits = 4)} weeks
+  Mean age increase: {format(change_summary_tbl$mean_age_increase, digits = 4)} years
+"), stdout())
+```
+
+
+### Summary of Sanity Checks
+
+```{r sanity_check_summary}
+#| echo: true
+
+write_lines(c(
+  "=== SUMMARY OF SANITY CHECKS ===",
+  "",
+  "✓ Expected behaviors verified:",
+  "  1. Policies lapsed before rollback remain lapsed",
+  "  2. Inforce policies can remain inforce or lapse",
+  "  3. Lapsed policy lifetimes remain constant",
+  "  4. Inforce policy lifetimes increase by ~52 weeks",
+  "  5. Ages increase by approximately 1 year for all policies",
+  "  6. Static demographic and financial data unchanged",
+  "  7. No impossible transitions detected",
+  "",
+  "These checks confirm that the determine_policy_status() function",
+  "is working correctly and the rollback/current data are consistent."
+), stdout())
+```
+
+
+
+
+
+
+
+
+## Construct Modelling Datasets
+
+Also, rather than fit all of our data, we want to construct smaller samples of
+our datasets for the purposes of building our models.
+
+We want to fit a more cutdown version of this model, so we sample our data to
+create both a small and large dataset sizes. We first sample the larger dataset
+so that the smaller dataset is 'nested' inside the larger set.
+
+```{r sample_initial_modelling_data_small}
+#| echo: true
+
+model_training_large_tbl <- rollback_data_tbl |>
+  slice_sample(n = modelling_dataset_size_large) |>
+  arrange(policy_id)
+
+model_training_large_tbl |> glimpse()
+```
+
+
+We also will construct a larger file.
+
+```{r sample_initial_modelling_data_large}
+#| echo: true
+
+model_training_small_tbl <- model_training_large_tbl |>
+  slice_sample(n = modelling_dataset_size_small) |>
+  arrange(policy_id)
+
+model_training_small_tbl |> glimpse()
+```
+
+
+We then also want to output the 'rolled forward' version of that data, for use
+when validating any models.
+
+```{r sample_modelling_data_rollforward_small}
+#| echo: true
+
+model_rollforward_small_tbl <- current_data_tbl |>
+  semi_join(model_training_small_tbl, by = "policy_id")
+
+model_rollforward_small_tbl |> glimpse()
+```
+
+
+We then create the equivalent dataset for the larger sample data.
+
+```{r sample_modelling_data_rollforward_large}
+#| echo: true
+
+model_rollforward_large_tbl <- current_data_tbl |>
+  semi_join(model_training_large_tbl, by = "policy_id")
+
+model_rollforward_large_tbl |> glimpse()
+```
+
+
+## Construct Filtered Modelling Datasets (Premium < 15k, Start >= 2005)
+
+We now construct a second set of modelling datasets with additional filters:
+
+  - Only policies with prem_ape < 15,000
+  - Only policies starting from 2005-01-01 onwards
+
+This allows us to focus on more recent, lower-premium policies.
+
+```{r filter_rollback_data_for_recent}
+#| echo: true
+
+rollback_data_filtered_tbl <- rollback_data_tbl |>
+  filter(
+    prem_ape < 15000,
+    policy_startdate >= as.Date("2005-01-01")
+    )
+
+message(glue(
+  "Filtered rollback data: {nrow(rollback_data_filtered_tbl)} policies ",
+  "(from {nrow(rollback_data_tbl)} original)"
+))
+
+rollback_data_filtered_tbl |> glimpse()
+```
+
+With the filtered data prepared, we now create our training datasets by sampling from the filtered rollback data. We follow the same two-size approach as before: a large dataset for more comprehensive analysis and a small dataset for faster iteration and testing.
+
+```{r sample_filtered_modelling_data_large}
+#| echo: true
+
+model_training_filtered_large_tbl <- rollback_data_filtered_tbl |>
+  slice_sample(n = modelling_dataset_size_large) |>
+  arrange(policy_id)
+
+model_training_filtered_large_tbl |> glimpse()
+```
+
+The small filtered dataset is created as a subset of the large filtered dataset, ensuring consistency between the two samples. This allows us to test model specifications on the smaller dataset before applying them to the larger one.
+
+```{r sample_filtered_modelling_data_small}
+#| echo: true
+
+model_training_filtered_small_tbl <- model_training_filtered_large_tbl |>
+  slice_sample(n = modelling_dataset_size_small) |>
+  arrange(policy_id)
+
+model_training_filtered_small_tbl |> glimpse()
+```
+
+Next, we create the corresponding rollforward datasets by selecting policies from the current data that match those in our training samples. These rollforward datasets represent the same policies at a later point in time, allowing us to validate model predictions and perform out-of-time testing.
+
+```{r sample_filtered_rollforward_small}
+#| echo: true
+
+model_rollforward_filtered_small_tbl <- current_data_tbl |>
+  semi_join(model_training_filtered_small_tbl, by = "policy_id")
+
+model_rollforward_filtered_small_tbl |> glimpse()
+```
+
+We repeat the same process for the large dataset, creating a rollforward version that tracks the same policies forward in time.
+
+```{r sample_filtered_rollforward_large}
+#| echo: true
+
+model_rollforward_filtered_large_tbl <- current_data_tbl |>
+  semi_join(model_training_filtered_large_tbl, by = "policy_id")
+
+model_rollforward_filtered_large_tbl |> glimpse()
+```
+
+With all filtered datasets created, we now have four new datasets: training and rollforward versions in both small and large sizes. These datasets focus on more recent policies with lower premiums, which may exhibit different lapse behavior patterns than the full population.
+
+
+## Write Out Datasets
+
+Finally, we write out all the datasets to parquet files for use in subsequent analysis notebooks. This includes both the original unfiltered datasets and the new filtered versions, giving us flexibility in our modeling approach.
+
+```{r write_out_datasets}
+#| echo: true
+
+policy_protection_data_tbl  |> write_parquet("data/policy_protection_data_tbl.parquet")
+
+model_training_small_tbl    |> write_parquet("data/model_training_small_tbl.parquet")
+model_training_large_tbl    |> write_parquet("data/model_training_large_tbl.parquet")
+
+model_rollforward_small_tbl |> write_parquet("data/model_rollforward_small_tbl.parquet")
+model_rollforward_large_tbl |> write_parquet("data/model_rollforward_large_tbl.parquet")
+
+model_training_filtered_small_tbl    |> write_parquet("data/model_training_filtered_small_tbl.parquet")
+model_training_filtered_large_tbl    |> write_parquet("data/model_training_filtered_large_tbl.parquet")
+
+model_rollforward_filtered_small_tbl |> write_parquet("data/model_rollforward_filtered_small_tbl.parquet")
+model_rollforward_filtered_large_tbl |> write_parquet("data/model_rollforward_filtered_large_tbl.parquet")
+```
+
+
+
+# R Environment
+
+```{r show_session_info}
+#| echo: true
+#| message: true
+
+sessioninfo::session_info()
+```

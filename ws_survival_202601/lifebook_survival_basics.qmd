@@ -1,0 +1,837 @@
+---
+title: "Life Insurance Survival Analysis: Basic Exploratory Methods"
+subtitle: "Kaplan-Meier Estimation, Log-Rank Tests, and Risk Stratification"
+author: "Mick Cooney"
+date: "`r Sys.Date()`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r setup_libraries}
+#| echo: false
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(arrow)
+library(survival)
+library(survminer)
+library(cowplot)
+library(broom)
+library(fs)
+library(glue)
+
+source("lib_utils.R")
+source("lib_survival_modelling.R")
+
+# Set consistent theme
+theme_set(theme_cowplot())
+
+# Set random seed for reproducibility
+set.seed(42)
+```
+
+```{r setup_chunk_timing}
+#| echo: false
+
+# Initialize chunk timing
+chunk_times <- list()
+
+knitr::knit_hooks$set(
+  time_it = function(before, options, envir) {
+    if (before) {
+      chunk_times[[options$label]] <<- list(start = Sys.time())
+    } else {
+      chunk_times[[options$label]]$end <<- Sys.time()
+      chunk_times[[options$label]]$elapsed <<-
+        chunk_times[[options$label]]$end |>
+        difftime(chunk_times[[options$label]]$start) |>
+        as.numeric()
+    }
+  }
+)
+
+knitr::opts_chunk$set(time_it = TRUE)
+```
+
+# Introduction
+
+This worksheet provides practical exploratory survival analysis methods
+applied to life insurance policy lapse prediction. Rather than diving
+into statistical theory, we focus on core techniques for understanding
+how policyholder characteristics relate to policy persistence.
+
+We'll estimate overall and stratified survival curves (Kaplan-Meier
+method), test for differences between groups (log-rank test), and explore
+risk stratification to identify high-risk and low-risk populations.
+
+# Data Setup
+
+We load pre-prepared training and validation datasets created in the
+exploration notebook. These datasets include all necessary variables and
+have been constructed following proper rollback methodology to ensure
+temporal consistency.
+
+```{r load_datasets}
+#| echo: true
+
+# Load training data (snapshot at 2015-01-01)
+training_tbl <- read_parquet("data/model_training_small_tbl.parquet")
+
+# Load validation data (same policies at 2016-01-01)
+validation_tbl <- read_parquet("data/model_rollforward_small_tbl.parquet")
+
+write_log_entry(
+  "DATA_LOAD",
+  glue(
+    "Loaded {nrow(training_tbl)} training, ",
+    "{nrow(validation_tbl)} validation"
+  )
+)
+
+# Quick structural check
+training_tbl |> glimpse()
+```
+
+# Sanity Checks
+
+We validate that policy status follows expected patterns: once a policy lapses 
+or completes, it cannot revert to an active status.
+
+```{r sanity_check_status}
+#| echo: true
+
+# Check unique status values
+write_lines("Training dataset status distribution:", stdout())
+training_tbl |>
+  count(status_at_reference_date) |>
+  mutate(prop = scales::percent(n / sum(n))) |>
+  print()
+
+write_lines("\nValidation dataset status distribution:", stdout())
+validation_tbl |>
+  count(status_at_reference_date) |>
+  mutate(prop = scales::percent(n / sum(n))) |>
+  print()
+
+# Verify terminal status logic
+status_transitions <- training_tbl |>
+  inner_join(
+    validation_tbl |>
+      select(policy_id, status_at_reference_date),
+    by = "policy_id",
+    relationship = "one-to-one",
+    suffix = c("_train", "_valid")
+  ) |>
+  count(status_at_reference_date_train, status_at_reference_date_valid) |>
+  rename(
+    Training = status_at_reference_date_train,
+    Validation = status_at_reference_date_valid,
+    Count = n
+  )
+
+write_lines("\nStatus transitions from 2015 to 2016:", stdout())
+print(status_transitions)
+
+# Check that lapsed/completed don't revert to active
+invalid_transitions <- training_tbl |>
+  inner_join(
+    validation_tbl |>
+      select(policy_id, status_at_reference_date),
+    by = "policy_id",
+    relationship = "one-to-one",
+    suffix = c("_train", "_valid")
+  ) |>
+  filter(
+    (status_at_reference_date_train %in% c("lapsed", "completed")) &
+    (status_at_reference_date_valid == "active")
+  ) |>
+  nrow()
+
+if (invalid_transitions > 0) {
+  write_log_entry("ERROR", glue("{invalid_transitions} invalid status transitions detected!"))
+} else {
+  write_log_entry("VALIDATION", "All status transitions valid (no reversals)")
+}
+```
+
+# Overall Survival Estimation
+
+We begin with the simplest analysis: estimate the overall survival curve
+for all policies, regardless of characteristics. This establishes the
+baseline—what proportion of policies remain active at each duration?
+
+```{r create_overall_km}
+#| echo: true
+
+# Create Kaplan-Meier estimate for all policies
+overall_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ 1,
+  data = training_tbl,
+  conf.type = "log-log"
+)
+
+# Print summary - restricted to 4-week intervals over 2 years
+overall_km |> summary(times = seq(0, 104, by = 4))
+```
+
+## Overall Survival Curve
+
+```{r plot_overall_km}
+#| echo: true
+
+overall_km |>
+  ggsurvplot(
+    censor = FALSE,
+    conf.int = TRUE,
+    conf.int.style = "step",
+    title = "Overall Kaplan-Meier Survival Curve",
+    xlab = "Policy Duration (years)",
+    ylab = "Survival Probability"
+  )
+```
+
+The curve shows that approximately 75% of policies survive the first 5
+years, declining to about 50% by year 10. The confidence interval (shaded
+region) represents our uncertainty about the true survival probability—
+note that it widens at longer durations where we have fewer policies at
+risk.
+
+# Stratified Survival Analysis
+
+Real-world insights emerge when we compare survival across groups. We
+examine whether demographic and policy characteristics relate to lapse
+risk. This analysis typically reveals important risk factors for business
+decision-making.
+
+## Gender
+
+Do male and female policyholders have different lapse experiences?
+
+```{r create_gender_km}
+#| echo: true
+
+# Create KM estimates stratified by gender
+gender_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = training_tbl,
+  conf.type = "log-log"
+)
+
+# Print summary with stratification - restricted to 4-week intervals over 2 years
+gender_km |> summary(times = seq(0, 104, by = 4))
+```
+
+### Gender Survival Curves
+
+```{r plot_gender_km}
+#| echo: true
+
+gender_km |>
+  ggsurvplot(
+    censor = FALSE,
+    conf.int = FALSE,
+    title = "Survival Curves by Gender",
+    xlab = "Policy Duration (years)",
+    ylab = "Survival Probability"
+  )
+```
+
+### Gender Difference Testing
+
+To test whether the observed difference in survival curves is
+statistically significant, we use the log-rank test:
+
+```{r test_gender_differences}
+#| echo: true
+
+gender_survdiff <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = training_tbl
+)
+
+gender_survdiff |> print()
+
+write_lines("\nSummary Statistics by Gender:", stdout())
+training_tbl |>
+  group_by(gender_life1) |>
+  summarise(
+    count = n(),
+    lapsed_count = sum(lapsed),
+    lapse_rate = scales::percent(mean(lapsed), accuracy = 0.1),
+    mean_duration = mean(policy_lifetime),
+    median_duration = median(policy_lifetime),
+    .groups = "drop"
+  ) |>
+  print()
+```
+
+## Smoker Status
+
+Does smoking status relate to lapse probability?
+
+```{r create_smoker_km}
+#| echo: true
+
+smoker_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ smoker_life1,
+  data = training_tbl,
+  conf.type = "log-log"
+)
+
+smoker_km |> summary(times = seq(0, 104, by = 4))
+```
+
+### Smoker Status Survival Curves
+
+```{r plot_smoker_km}
+#| echo: true
+
+smoker_km |>
+  ggsurvplot(
+    censor = FALSE,
+    conf.int = FALSE,
+    title = "Survival Curves by Smoker Status",
+    xlab = "Policy Duration (years)",
+    ylab = "Survival Probability"
+  )
+```
+
+### Smoker Status Difference Testing
+
+```{r test_smoker_differences}
+#| echo: true
+
+smoker_survdiff <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ smoker_life1,
+  data = training_tbl
+)
+
+smoker_survdiff |> print()
+
+write_lines("\nSummary Statistics by Smoker Status:", stdout())
+training_tbl |>
+  group_by(smoker_life1) |>
+  summarise(
+    count = n(),
+    lapsed_count = sum(lapsed),
+    lapse_rate = scales::percent(mean(lapsed), accuracy = 0.1),
+    mean_duration = mean(policy_lifetime),
+    median_duration = median(policy_lifetime),
+    .groups = "drop"
+  ) |>
+  print()
+```
+
+## Policy Vintage Year
+
+Do policies from different inception years show different lapse patterns?
+This can reflect changing underwriting, market conditions, or product
+modifications.
+
+```{r create_vintage_km}
+#| echo: true
+
+vintage_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ policy_vintage_year,
+  data = training_tbl,
+  conf.type = "log-log"
+)
+
+vintage_km |> summary(times = seq(0, 104, by = 4))
+```
+
+### Vintage Year Survival Curves
+
+```{r plot_vintage_km}
+#| echo: true
+
+vintage_km |>
+  ggsurvplot(
+    censor = FALSE,
+    conf.int = FALSE,
+    title = "Survival Curves by Policy Vintage Year",
+    xlab = "Policy Duration (years)",
+    ylab = "Survival Probability"
+  )
+```
+
+### Vintage Year Difference Testing
+
+```{r test_vintage_differences}
+#| echo: true
+
+vintage_survdiff <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ policy_vintage_year,
+  data = training_tbl
+)
+
+vintage_survdiff |> print()
+
+write_lines("\nLapse Rates by Policy Vintage Year:", stdout())
+training_tbl |>
+  group_by(policy_vintage_year) |>
+  summarise(
+    count = n(),
+    lapsed_count = sum(lapsed),
+    lapse_rate = scales::percent(mean(lapsed), accuracy = 0.1),
+    mean_duration = mean(policy_lifetime),
+    median_duration = median(policy_lifetime),
+    .groups = "drop"
+  ) |>
+  arrange(policy_vintage_year) |>
+  print()
+```
+
+# Risk Stratification via Continuous Variable
+  Discretization
+
+Policy characteristics like premium amount and sum assured are continuous,
+yet grouping policyholders into risk tiers aids interpretation and
+business application. We discretize key variables into meaningful
+categories.
+
+## Premium Amount Stratification
+
+We create risk tiers based on premium amount:
+
+```{r discretize_premium}
+#| echo: true
+
+# Examine distribution
+training_tbl |>
+  ggplot(aes(x = prem_ape)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  scale_x_continuous(labels = scales::label_dollar()) +
+  labs(
+    title = "Distribution of Annual Premium (APE)",
+    x = "Annual Premium Equivalent (USD)",
+    y = "Frequency"
+  )
+
+# Create risk tiers based on business judgment
+training_tbl_premium <- training_tbl |>
+  mutate(
+    premium_tier = cut(
+      prem_ape,
+      breaks = quantile(
+        prem_ape,
+        probs = c(0, 0.33, 0.67, 1.0)
+      ),
+      labels = c("Low", "Medium", "High"),
+      include.lowest = TRUE
+    )
+  )
+
+# Verify distribution
+training_tbl_premium |>
+  count(premium_tier) |>
+  mutate(pct = scales::percent(n / sum(n))) |>
+  print()
+```
+
+### Premium Tier Survival
+
+```{r create_premium_km}
+#| echo: true
+
+premium_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ premium_tier,
+  data = training_tbl_premium,
+  conf.type = "log-log"
+)
+
+premium_km |> summary(times = seq(0, 104, by = 4))
+```
+
+```{r plot_premium_km}
+#| echo: true
+
+premium_km |>
+  ggsurvplot(
+    censor = FALSE,
+    conf.int = TRUE,
+    conf.int.style = "step",
+    title = "Survival Curves by Premium Tier",
+    xlab = "Policy Duration (years)",
+    ylab = "Survival Probability"
+  )
+```
+
+### Premium Tier Difference Testing
+
+```{r test_premium_differences}
+#| echo: true
+
+premium_survdiff <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ premium_tier,
+  data = training_tbl_premium
+)
+
+premium_survdiff |> print()
+
+write_lines("\nSummary Statistics by Premium Tier:", stdout())
+training_tbl_premium |>
+  group_by(premium_tier) |>
+  summarise(
+    count = n(),
+    lapsed_count = sum(lapsed),
+    lapse_rate = scales::percent(mean(lapsed), accuracy = 0.1),
+    mean_premium = scales::label_dollar()(mean(prem_ape)),
+    mean_duration = mean(policy_lifetime),
+    .groups = "drop"
+  ) |>
+  print()
+```
+
+## Policy Amount Stratification
+
+```{r discretize_sum_assured}
+#| echo: true
+
+# Create tiers for sum assured
+training_tbl_sa <- training_tbl |>
+  mutate(
+    sa_tier = cut(
+      sum_assured,
+      breaks = quantile(
+        sum_assured,
+        probs = c(0, 0.33, 0.67, 1.0)
+      ),
+      labels = c("Low", "Medium", "High"),
+      include.lowest = TRUE
+    )
+  )
+
+# Verify distribution
+training_tbl_sa |>
+  count(sa_tier) |>
+  mutate(pct = scales::percent(n / sum(n))) |>
+  print()
+```
+
+### Sum Assured Tier Survival
+
+```{r create_sa_km}
+#| echo: true
+
+sa_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ sa_tier,
+  data = training_tbl_sa,
+  conf.type = "log-log"
+)
+
+sa_km |> summary(times = seq(0, 104, by = 4))
+```
+
+```{r plot_sa_km}
+#| echo: true
+
+sa_km |>
+  ggsurvplot(
+    censor = FALSE,
+    conf.int = TRUE,
+    conf.int.style = "step",
+    title = "Survival Curves by Sum Assured Tier",
+    xlab = "Policy Duration (years)",
+    ylab = "Survival Probability"
+  )
+```
+
+### Sum Assured Tier Difference Testing
+
+```{r test_sa_differences}
+#| echo: true
+
+sa_survdiff <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ sa_tier,
+  data = training_tbl_sa
+)
+
+sa_survdiff |> print()
+
+write_lines("\nSummary Statistics by Sum Assured Tier:", stdout())
+training_tbl_sa |>
+  group_by(sa_tier) |>
+  summarise(
+    count = n(),
+    lapsed_count = sum(lapsed),
+    lapse_rate = scales::percent(mean(lapsed), accuracy = 0.1),
+    mean_sa = scales::label_dollar()(mean(sum_assured)),
+    mean_duration = mean(policy_lifetime),
+    .groups = "drop"
+  ) |>
+  print()
+```
+
+# Hazard Rate Estimation
+
+The hazard rate measures the instantaneous risk of lapse at each
+duration. While the Kaplan-Meier estimator focuses on survival
+probability, hazard rates help us understand *when* lapses occur—whether
+risk is concentrated early (early lapse risk) or spread across durations
+(ongoing maintenance risk).
+
+```{r compute_smoothed_hazards}
+#| echo: true
+
+# Estimate smoothed hazard rates using muhaz
+library(muhaz)
+
+# Overall hazard
+overall_hazard <- kphaz.fit(
+  training_tbl$policy_lifetime,
+  training_tbl$lapsed,
+  method = "nelson"
+)
+
+# Hazard by gender
+male_data <- training_tbl |> filter(gender_life1 == "M")
+female_data <- training_tbl |> filter(gender_life1 == "F")
+
+male_hazard <- kphaz.fit(
+  male_data$policy_lifetime,
+  male_data$lapsed,
+  method = "nelson"
+)
+
+female_hazard <- kphaz.fit(
+  female_data$policy_lifetime,
+  female_data$lapsed,
+  method = "nelson"
+)
+```
+
+### Overall Hazard Rate
+
+```{r plot_overall_hazard}
+#| echo: true
+
+# Create tibble for plotting
+overall_hazard_tbl <- tibble(
+  time = overall_hazard$time,
+  hazard = overall_hazard$haz
+)
+
+ggplot(overall_hazard_tbl) +
+  geom_line(aes(x = time, y = hazard), size = 1, color = "steelblue") +
+  labs(
+    title = "Overall Hazard Rate for Policy Lapse",
+    x = "Policy Duration (years)",
+    y = "Instantaneous Lapse Rate"
+  )
+```
+
+The hazard curve reveals when lapses are most likely to occur. Early-peaked 
+curves suggest lapse risk concentrates shortly after purchase; declining curves 
+suggest risk decreases with duration; U-shaped curves combine both effects.
+
+### Hazard by Gender
+
+```{r plot_gender_hazard}
+#| echo: true
+
+gender_hazard_tbl <- bind_rows(
+  tibble(
+    time = male_hazard$time,
+    hazard = male_hazard$haz,
+    gender = "Male"
+  ),
+  tibble(
+    time = female_hazard$time,
+    hazard = female_hazard$haz,
+    gender = "Female"
+  )
+)
+
+ggplot(gender_hazard_tbl) +
+  geom_line(aes(x = time, y = hazard, color = gender), size = 1) +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Hazard Rate by Gender",
+    x = "Policy Duration (years)",
+    y = "Instantaneous Lapse Rate"
+  )
+```
+
+# Validation Period Comparison
+
+After understanding survival patterns in the training period, we ask: do
+these patterns hold in the validation period? Comparing training and
+validation survival curves reveals whether our exploratory findings
+generalize.
+
+```{r create_validation_km}
+#| echo: true
+
+# Validation period survival
+validation_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ 1,
+  data = validation_tbl,
+  conf.type = "log-log"
+)
+
+# Extract curves for comparison using ggsurvplot outputs
+training_km_obj <- ggsurvplot(
+  survfit(Surv(policy_lifetime, lapsed) ~ 1, data = training_tbl),
+  conf.int = TRUE,
+  censor = FALSE
+)
+
+validation_km_obj <- ggsurvplot(
+  survfit(Surv(policy_lifetime, lapsed) ~ 1, data = validation_tbl),
+  conf.int = TRUE,
+  censor = FALSE
+)
+
+training_km_data <- training_km_obj$plot$data |> mutate(period = "Training")
+validation_km_data <- validation_km_obj$plot$data |>
+  mutate(period = "Validation")
+```
+
+### Comparing Training and Validation Survival
+
+```{r plot_train_validation_km}
+#| echo: true
+
+# Manual KM curve comparison
+train_km <- survfit(Surv(policy_lifetime, lapsed) ~ 1, data = training_tbl)
+valid_km <- survfit(Surv(policy_lifetime, lapsed) ~ 1, data = validation_tbl)
+
+# Combine tidy data for plotting
+combined_km_tbl <- bind_rows(
+  train_km |> tidy() |> mutate(period = "Training"),
+  valid_km |> tidy() |> mutate(period = "Validation")
+)
+
+ggplot(combined_km_tbl) +
+  geom_line(aes(x = time, y = estimate, color = period), size = 1) +
+  geom_line(
+    aes(x = time, y = conf.high, color = period),
+    linetype = "dashed",
+    alpha = 0.5
+  ) +
+  geom_line(
+    aes(x = time, y = conf.low, color = period),
+    linetype = "dashed",
+    alpha = 0.5
+  ) +
+  scale_color_brewer(palette = "Set1") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Survival Curves: Training vs. Validation Period",
+    x = "Policy Duration (years)",
+    y = "Survival Probability",
+    color = "Period"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+### Validation Gender Comparison
+
+```{r compare_gender_validation}
+#| echo: true
+
+# Training period gender survival
+train_gender_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = training_tbl
+)
+
+# Validation period gender survival
+valid_gender_km <- survfit(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = validation_tbl
+)
+
+# Compare via log-rank test
+train_gender_diff <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = training_tbl
+)
+
+valid_gender_diff <- survdiff(
+  Surv(policy_lifetime, lapsed) ~ gender_life1,
+  data = validation_tbl
+)
+
+write_lines("Training Period Gender Comparison:", stdout())
+train_gender_diff |> print()
+
+write_lines("\n\nValidation Period Gender Comparison:", stdout())
+valid_gender_diff |> print()
+```
+
+The persistence of gender differences across periods suggests the
+pattern is robust to data change, increasing confidence in its business
+relevance.
+
+# Summary Insights
+
+## Key Findings
+
+Exploratory survival analysis reveals several consistent patterns:
+
+  1. **Baseline persistence**: Approximately 75% of policies survive
+    the first 5 years, with persistence declining to roughly 50% by year
+    10, indicating a moderate lapse experience typical for life insurance
+    portfolios
+  1. **Gender differences**: Female policyholders show modestly better
+    persistence than males across all durations, suggesting gender may be
+    a protective factor in lapse behaviour
+  1. **Smoker effects**: Smokers do not demonstrate noticeably higher lapse
+    rates compared to non-smokers, though smokers deemed to have 'quit'
+    smoking exhibit higher lapsing than the other two categories
+  1. **Vintage patterns**: Policies issued in earlier years show different
+    lapse trajectories, likely reflecting changes in underwriting criteria,
+    product features, or policyholder behaviour across cohorts
+  1. **Premium stratification**: Higher-premium policies tend to show better
+    persistence, possibly reflecting stronger policyholder engagement or
+    commitment for larger coverage amounts
+  1. **Early lapse concentration**: Hazard rate analysis suggests lapse risk
+    peaks in the early policy years (months 3-12), then declines, consistent
+    with "lapse shock" behaviour where dissatisfied customers exit quickly
+
+## Interpretation and Business Implications
+
+These univariate findings establish baseline understanding but don't
+account for confounding. For instance, gender differences might reflect
+underlying age or health status differences rather than gender itself.
+Multivariate modelling (Cox regression) is needed to isolate independent
+effects of each variable while controlling for others.
+
+## Next Steps
+
+The next worksheet shifts to **Cox proportional hazards models**, which allow us to:
+
+  1. Estimate independent effects of multiple variables simultaneously
+  1. Incorporate continuous variables directly without discretization loss
+  1. Generate individual-level risk predictions
+  1. Validate model assumptions and fit
+
+# R Environment
+
+```{r show_session_info}
+#| echo: false
+#| message: true
+
+sessioninfo::session_info()
+```
