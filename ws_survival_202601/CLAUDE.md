@@ -6,15 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Educational workshop on survival analysis using R and the telco churn dataset. Primary output is rendered HTML workshop materials from Quarto notebooks.
 
-**Key technologies:** R 4.5.1, Quarto, survival/survminer packages, tidyverse, Docker (rocker/tidyverse)
+**Key technologies:** R 4.5.1, Quarto, survival/survminer packages, tidyverse, Podman (rocker/tidyverse)
 
 ## Common Commands
 
 ```bash
-# Build and run Docker container
-just docker-build-image     # Build Docker image
-just docker-run-image       # Start container with RStudio Server
-just docker-bash            # Enter container shell
+# Build and run Podman container
+just podman-build-image     # Build container image
+just podman-run-image       # Start container with RStudio Server
+just podman-bash            # Enter container shell
 
 # Render Quarto notebooks
 just worksheet              # Render worksheet_survival.qmd
@@ -85,11 +85,11 @@ Intro text:
 
 ## Key Files
 
-- `AGENTS.md` - Comprehensive AI agent guidelines with full code style, Docker setup, and patterns
+- `AGENTS.md` - Comprehensive AI agent guidelines with full code style, Podman setup, and patterns
 - `lib_utils.R` - Utility functions (all have roxygen2 documentation)
 
 ## Dependencies
 
 Core packages: survival, survminer, muhaz, tidyverse, arrow, qs, cowplot, furrr
 
-See AGENTS.md for complete R code style guidelines, Docker configuration details, and troubleshooting.
+See AGENTS.md for complete R code style guidelines, Podman configuration details, and troubleshooting.

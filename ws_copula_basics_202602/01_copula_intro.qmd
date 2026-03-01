@@ -1,0 +1,192 @@
+---
+title: "Introduction to Copulas (Part 1: Basics and Elliptical Copulas)"
+author: "Mick Cooney <mcooney@describedata.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(copula)
+library(VineCopula)
+library(GGally)
+library(lattice)
+library(scatterplot3d)
+library(broom)
+library(arrow)
+library(qs2)
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "copula")
+  )
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+# Introduction
+
+In many real-world applications, we are interested in the joint behavior of multiple random variables. While marginal distributions describe the behavior of each variable individually, they do not capture how the variables move together.
+
+**Copulas** are mathematical tools that allow us to separate the modeling of marginal distributions from the modeling of the dependence structure between them.
+
+## Sklar's Theorem
+
+Sklar's Theorem is the foundation of copula theory. It states that any multivariate cumulative distribution function (CDF) $H(x, y)$ can be expressed in terms of its marginal CDFs $F(x)$ and $G(y)$, and a copula $C$:
+
+$$H(x, y) = C(F(x), G(y))$$
+
+where $C$ is a joint distribution function with uniform marginals on $[0, 1]$.
+
+Conversely, given a copula $C$ and marginals $F$ and $G$, $C(F(x), G(y))$ defines a valid bivariate distribution.
+
+# Probability Integral Transform (PIT)
+
+The core idea behind copulas is the Probability Integral Transform. If $X$ is a continuous random variable with CDF $F$, then $U = F(X)$ is uniformly distributed on $[0, 1]$.
+
+Let's illustrate this with an example.
+
+```{r pit_example}
+# Generate some data from a Gamma distribution
+n_sim <- 5000
+shape <- 2
+rate  <- 0.5
+
+x <- rgamma(n_sim, shape = shape, rate = rate)
+u <- pgamma(x, shape = shape, rate = rate)
+
+data_tbl <- tibble(x = x, u = u)
+
+plot_x <- ggplot(data_tbl, aes(x = x)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, fill = "steelblue", alpha = 0.7) +
+  stat_function(fun = dgamma, args = list(shape = shape, rate = rate), color = "red", linewidth = 1) +
+  labs(title = "Original Gamma Distribution", x = "X", y = "Density")
+
+plot_u <- ggplot(data_tbl, aes(x = u)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, fill = "darkorange", alpha = 0.7) +
+  geom_hline(yintercept = 1, color = "red", linetype = "dashed") +
+  labs(title = "PIT-transformed Uniform Distribution", x = "U = F(X)", y = "Density")
+
+plot_grid(plot_x, plot_u, ncol = 2)
+```
+
+# Visualizing Dependence
+
+When we have two variables, we can look at their joint distribution. If we transform both to uniform marginals using PIT, we can see the "copula" structure.
+
+## Independent Variables
+
+```{r independence_viz}
+x1 <- rnorm(n_sim)
+x2 <- rnorm(n_sim)
+
+u1 <- pnorm(x1)
+u2 <- pnorm(x2)
+
+indep_tbl <- tibble(u1 = u1, u2 = u2)
+
+ggplot(indep_tbl, aes(x = u1, y = u2)) +
+  geom_point(alpha = 0.2, size = 0.5) +
+  labs(title = "Independence Copula (Scatter Plot on [0,1]^2)", x = "U1", y = "U2")
+```
+
+## Dependent Variables
+
+```{r dependence_viz}
+# Generate dependent variables using a multivariate normal
+sigma <- matrix(c(1, 0.7, 0.7, 1), 2, 2)
+z <- MASS::mvrnorm(n_sim, mu = c(0, 0), Sigma = sigma)
+
+u1_dep <- pnorm(z[, 1])
+u2_dep <- pnorm(z[, 2])
+
+dep_tbl <- tibble(u1 = u1_dep, u2 = u2_dep)
+
+ggplot(dep_tbl, aes(x = u1, y = u2)) +
+  geom_point(alpha = 0.2, size = 0.5) +
+  labs(title = "Gaussian Copula (rho = 0.7)", x = "U1", y = "U2")
+```
+
+# Elliptical Copulas
+
+Elliptical copulas are derived from elliptical distributions (like Normal or t).
+
+## Gaussian Copula
+
+The Gaussian copula is the most common. It is defined by its correlation matrix.
+
+```{r gaussian_copula_demo}
+# Using the 'copula' package
+gauss_cop <- normalCopula(param = 0.5, dim = 2)
+persp(gauss_cop, dCopula, main = "Gaussian Copula Density")
+contour(gauss_cop, dCopula, main = "Gaussian Copula Density Contours")
+```
+
+## t-Copula
+
+The t-copula adds a degree of freedom parameter, allowing for "tail dependence" (more extreme events occurring together).
+
+```{r t_copula_demo}
+t_cop <- tCopula(param = 0.5, dim = 2, df = 2)
+persp(t_cop, dCopula, main = "t-Copula Density (df = 2)")
+contour(t_cop, dCopula, main = "t-Copula Density Contours (df = 2)")
+```
+
+# Exercise 1: Exploring Parameters
+
+Try changing the correlation parameter `rho` and the degrees of freedom `df` for the t-copula. How does the scatter plot on the uniform square change?
+
+```{r exercise_1}
+# YOUR CODE HERE
+# Hint: use tCopula(param = ..., df = ...) and rCopula(n, copula)
+```
+
+# Summary
+
+In this part, we learned:
+- Copulas separate marginals from dependence.
+- PIT transforms any continuous variable to a Uniform(0,1).
+- Elliptical copulas (Gaussian and t) are easy to use but have specific properties.
+
+In the next part, we will look at Archimedean copulas and how to fit copulas to real data.

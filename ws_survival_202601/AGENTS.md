@@ -5,7 +5,7 @@ This document provides guidance for AI assistants (GitHub Copilot, etc.) working
 ## 🎯 Quick Context
 
 **What is this?** Educational workshop on survival analysis using R and the telco churn dataset  
-**Primary tool:** RStudio Server in Docker (rocker/tidyverse)  
+**Primary tool:** RStudio Server in Podman (rocker/tidyverse)  
 **Key technologies:** R, Quarto (qmd), survival package, survminer, tidyverse  
 **Workshop structure:** Sequential multi-part workflow where later parts depend on earlier outputs  
 **Current parts:** Part 1 (KM/exploratory) → Part 2 (Cox regression) with data/model persistence between parts  
@@ -79,18 +79,18 @@ Some introductory text:
 **Why This Matters:**
 - Without blank line before: List merges with preceding paragraph
 - With blank lines between items: Renders as separate lists
-- Without proper indentation: Markdown doesn't recognize as list
+- Without proper indentation: Markdown does not recognize as list
 - Manual numbering (1. 2. 3.): Fragile when reordering/adding items
 
-## 🐳 Docker/Podman Setup
+## 🐳 Podman Setup
 
 ### Standard Container Launch
 ```bash
 # Use Justfile command (recommended)
-just docker-run-image
+just podman-run-image
 
-# Manual command (for reference - uses Docker, not Podman)
-docker run --rm -d \
+# Manual command (explicit Podman)
+podman run --rm -d \
   --userns=keep-id \
   -e RUNROOTLESS=false \
   -p "127.0.0.1:8787:8787" \
@@ -113,31 +113,31 @@ docker run --rm -d \
 - **GitHub Copilot mount** - Persists authentication across container restarts
 - **Project mount** - Maps to /home/rstudio/surv_workshop (not /project)
 
-### Docker Image Management
+### Podman Image Management
 ```bash
-# Build Docker image
-just docker-build-image
+# Build image
+just podman-build-image
 
 # Rebuild from scratch (no cache)
-just docker-rebuild-image
+just podman-rebuild-image
 
 # Stop container
-just docker-stop-image
+just podman-stop-image
 
 # Remove container
-just docker-rm
+just podman-rm
 
 # Restart container
-just docker-restart
+just podman-restart
 
 # Enter container shell
-just docker-bash
+just podman-bash
 
 # View container logs
-just docker-logs
+just podman-logs
 
 # Check container status
-just docker-status
+just podman-status
 ```
 
 ### SSH Tunneling for Remote Access
@@ -163,7 +163,7 @@ just worksheet
 just initial_survival_models  # Part 1: Initial survival models and exploratory analysis
 just expanded_coxph_models    # Part 2: Cox regression (requires Part 1 first!)
 
-# CONTAINER RENDERING (uses Docker, no host R/Quarto needed)
+# CONTAINER RENDERING (uses Podman, no host R/Quarto needed)
 just render-container initial_survival_models
 just render-container expanded_coxph_models
 just render-container-sequence    # Render current workshop sequence in container
@@ -898,7 +898,7 @@ set.seed(42)  # Project standard seed
 ### "Resource temporarily unavailable" with furrr
 **Symptom:** Parallel processing crashes  
 **Cause:** Thread explosion from linear algebra libraries  
-**Solution:** Set threading environment variables in Docker:
+**Solution:** Set threading environment variables in the container:
 ```bash
 -e OPENBLAS_NUM_THREADS=1
 -e OMP_NUM_THREADS=1
@@ -906,7 +906,7 @@ set.seed(42)  # Project standard seed
 ```
 
 ### "Permission denied" on volume mounts
-**Symptom:** Container can't read/write files  
+**Symptom:** Container cannot read or write files  
 **Cause:** SELinux blocking access  
 **Solution 1:** Add `:Z` suffix: `-v ./data:/data:Z`  
 **Solution 2:** Disable SELinux: `--security-opt label=disable`
@@ -921,7 +921,7 @@ combined <- data1 |>
   filter(!is.na(key))
 ```
 
-### Container won't start with RUNROOTLESS=true
+### Container will not start with RUNROOTLESS=true
 **Symptom:** rocker/tidyverse fails to start  
 **Cause:** Image needs root for setup  
 **Solution:** Use `RUNROOTLESS=false`
@@ -973,11 +973,11 @@ combined <- data1 |>
 - [ ] All library files have roxygen2 documentation
 - [ ] Column names standardized to snake_case
 - [ ] Join relationships explicitly specified
-- [ ] Threading environment variables set in Docker
+- [ ] Threading environment variables set in Podman
 - [ ] Tested with small sample first
 - [ ] Random seeds set for reproducibility
 - [ ] Expensive computations cached
-- [ ] Docker container running with proper volumes
+- [ ] Podman container running with proper volumes
 
 ### Data Quality Checks
 ```r
@@ -1018,10 +1018,10 @@ data |> summarise(duplicates = n() - n_distinct(key_column))
 - Am I following the project's naming conventions?
 - Do I understand the domain context?
 - Have I included roxygen2 documentation for new functions?
-- Will this work with the Docker environment?
+- Will this work with the Podman environment?
 - Are there similar implementations I can learn from?
 - Have I considered computational cost?
-- Is this change consistent with the project's goals?
+- Is this change consistent with the project goals?
 - Am I using `write_lines(text, stdout())` for Quarto output?
 - Are all tibbles named with `_tbl` suffix?
 - Are join relationships explicitly specified?
@@ -1075,14 +1075,14 @@ The Justfile implements content-based caching:
 
 ### Container vs Host Rendering
 **Container rendering (RECOMMENDED):**
-- Uses Docker container for rendering (no host R/Quarto needed)
+- Uses Podman container for rendering (no host R/Quarto needed)
 - Targets: `render-container`, `render-container-all`, `render-container-sequence`
-- Requires container running (`just docker-run-image`)
+- Requires container running (`just podman-run-image`)
 
 **Host rendering:**
 - Requires Quarto + R installed on host system
 - Targets: `render-host`, `render-host-all`
-- Useful for quick edits when Docker isn't running
+- Useful for quick edits when the container is not running
 
 ### Dependency Ordering
 - `render-container-all` enforces sequential rendering (primary notebooks in dependency order)
@@ -1110,11 +1110,11 @@ GROUPID=$(id -g)
 ## 🚀 Quick Start
 
 ```bash
-# 1. Build Docker image (first time only)
-just docker-build-image
+# 1. Build image (first time only)
+just podman-build-image
 
-# 2. Start Docker container
-just docker-run-image
+# 2. Start container
+just podman-run-image
 
 # 3. Setup SSH tunnel (if remote)
 just ssh-tunnel

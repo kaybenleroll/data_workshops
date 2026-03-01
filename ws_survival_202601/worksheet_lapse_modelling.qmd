@@ -980,6 +980,7 @@ print(model_comparison_tbl)
 
 best_model_idx <- which.min(model_comparison_tbl$AIC)
 best_model_name <- model_comparison_tbl$model[best_model_idx]
+best_model <- model_list[[best_model_idx]]
 
 write_lines(glue("Best model by AIC: Model {best_model_name}"), stdout())
 ```
@@ -991,19 +992,28 @@ write_lines(glue("Best model by AIC: Model {best_model_name}"), stdout())
 #| echo: true
 #| fig-height: 10
 
-best_model <- lapse_model08_coxph
+# Use model07 for forest plot (model08 has splines which ggforest can't handle)
+# Model07 is the best non-spline model
+forest_model <- lapse_model07_coxph
 
-# ggforest requires unique rownames; create a safe copy with synthetic ids
+# ggforest requires data frame with unique row names
 forest_data <- training_pos_tbl |>
   ungroup() |>
-  mutate(.rowid = make.unique(as.character(row_number()))) |>
-  relocate(.rowid) |>
   as.data.frame()
 
-rownames(forest_data) <- forest_data$.rowid
-forest_data$.rowid <- NULL
+rownames(forest_data) <- paste0("row_", seq_len(nrow(forest_data)))
 
-ggforest(best_model, data = forest_data)
+# Create forest plot for non-spline model
+ggforest(forest_model, data = forest_data)
+
+write_lines(
+  "\nNote: Forest plot uses Model 07 (best non-spline model).",
+  stdout()
+  )
+write_lines(
+  "Model 08 includes pspline terms which cannot be visualized in forest plots.",
+  stdout()
+  )
 ```
 
 
@@ -1102,12 +1112,12 @@ write_lines(
   glue(
     "\n=== MODEL PERFORMANCE SUMMARY ===\n\n",
     "Lapse Prediction:\n",
-    "  Predicted: {comma(sprintf('%.0f', metrics$predicted_lapses))} policies\n",
-    "  Actual:    {comma(sprintf('%.0f', metrics$actual_lapses))} policies\n",
+    "  Predicted: {comma(metrics$predicted_lapses, accuracy = 1)} policies\n",
+    "  Actual:    {comma(metrics$actual_lapses, accuracy = 1)} policies\n",
     "  Error:     {sprintf('%.1f%%', metrics$lapse_error_pct)}\n\n",
     "Premium at Risk:\n",
-    "  Predicted: £{comma(sprintf('%.0f', metrics$predicted_premium_loss))}\n",
-    "  Actual:    £{comma(sprintf('%.0f', metrics$actual_premium_loss))}\n",
+    "  Predicted: £{comma(metrics$predicted_premium_loss, accuracy = 1)}\n",
+    "  Actual:    £{comma(metrics$actual_premium_loss, accuracy = 1)}\n",
     "  Error:     {sprintf('%.1f%%', metrics$premium_error_pct)}\n"
     ),
   stdout()
@@ -1142,8 +1152,8 @@ if (abs(metrics$premium_error_pct) < 10) {
    calibration.
 
 3. **Premium at Risk**: Model predicts
-   £`r comma(sprintf("%.0f", metrics$predicted_premium_loss))` in annual
-   premium at risk vs actual £`r comma(sprintf("%.0f", metrics$actual_premium_loss))`.
+   £`r comma(metrics$predicted_premium_loss, accuracy = 1)` in annual
+   premium at risk vs actual £`r comma(metrics$actual_premium_loss, accuracy = 1)`.
 
 4. **Key Risk Factors**: Demographics (gender, smoker), financial variables
    (premium, sum assured), age, policy vintage, and cluster membership all

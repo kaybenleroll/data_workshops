@@ -1,0 +1,136 @@
+# =============================================================================
+# PROJECT CONFIGURATION
+# =============================================================================
+
+# Docker image naming
+PROJECT_USER    := "kaybenleroll"
+PROJECT_NAME    := "ws_copula_basics_202602"
+PROJECT_TAG     := "latest"
+IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
+
+# RStudio Server credentials
+DOCKER_USER     := "rstudio"
+DOCKER_PASS     := "CHANGEME"
+
+# User/group mapping for file permissions in container
+DOCKER_UID      := `id -u`
+DOCKER_GID      := `id -g`
+
+# Directory configuration
+PWD             := `pwd`
+RSTUDIO_PORT    := "8787"
+PROJECT_FOLDER  := "copula_workshop"
+CONTAINER_NAME  := "copula-workshop"
+
+# Build and logging configuration
+OUTPUT_LOG      := "quarto_render_output.log"
+DOCKER_BUILD_ARGS := ""
+
+# =============================================================================
+# DEFAULT TARGET
+# =============================================================================
+
+default:
+	@just --list
+
+# =============================================================================
+# RENDERING TARGETS
+# =============================================================================
+
+all: intro modelling
+
+_needs_rebuild output *sources:
+	#!/usr/bin/env bash
+	mkdir -p .just-cache
+	combined_hash=$(cat {{sources}} 2>/dev/null | md5sum | cut -d' ' -f1)
+	cache_file=".just-cache/$(basename {{output}}).md5"
+	if [ ! -f {{output}} ] || 
+	   [ ! -f "$cache_file" ] || 
+	   [ "$combined_hash" != "$(cat $cache_file 2>/dev/null)" ]; then
+		echo "$combined_hash" > "$cache_file"
+		exit 0
+	else
+		echo "$(basename {{output}}) is up to date"
+		exit 1
+	fi
+
+_render-qmd qmd_file:
+	#!/usr/bin/env bash
+	qmd_file="{{qmd_file}}"
+	html_file="${qmd_file%.qmd}.html"
+	all_deps="$qmd_file lib_utils.R"
+	if just _needs_rebuild "$html_file" $all_deps; then
+		echo "TIMESTAMP: $(date) - Rendering $qmd_file" >> {{OUTPUT_LOG}} 2>&1
+		quarto render "$qmd_file" --to html >> {{OUTPUT_LOG}} 2>&1
+		echo "TIMESTAMP: $(date) - Finished $qmd_file" >> {{OUTPUT_LOG}} 2>&1
+	fi
+
+intro:
+	@echo "▶ Rendering Part 1: Introduction to Copulas..."
+	@just _render-qmd 01_copula_intro.qmd
+	@echo "✓ Part 1 complete"
+
+modelling: intro
+	@echo "▶ Rendering Part 2: Copula Modelling and Tail Dependence..."
+	@just _render-qmd 02_copula_modelling.qmd
+	@echo "✓ Part 2 complete"
+
+# Container Rendering
+render-container file:
+	#!/usr/bin/env bash
+	qmd="{{file}}"
+	if [[ "$qmd" != *.qmd ]]; then qmd="${qmd}.qmd"; fi
+	if [ ! -f "$qmd" ]; then echo "Error: $qmd not found"; exit 1; fi
+	docker exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} 
+		quarto render "$qmd" --to html
+
+render-container-all:
+	@just render-container 01_copula_intro
+	@just render-container 02_copula_modelling
+
+# =============================================================================
+# DOCKER TARGETS
+# =============================================================================
+
+docker-build-image:
+	docker build -t {{IMAGE_TAG}} 
+		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` 
+		{{DOCKER_BUILD_ARGS}} 
+		-f Dockerfile .
+
+docker-run-image:
+	docker run --rm -d 
+	  --userns=keep-id 
+	  -e RUNROOTLESS=false 
+	  -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" 
+	  -e USER={{DOCKER_USER}} 
+	  -e PASSWORD={{DOCKER_PASS}} 
+	  -e USERID={{DOCKER_UID}} 
+	  -e GROUPID={{DOCKER_GID}} 
+	  -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}:z" 
+	  -v "{{PWD}}/.rstudio_copilot:/home/rstudio/.config/github-copilot:rw" 
+	  --name {{CONTAINER_NAME}} 
+	  {{IMAGE_TAG}}
+
+docker-stop-image:
+	docker stop {{CONTAINER_NAME}} || true
+
+docker-rm: docker-stop-image
+	docker rm {{CONTAINER_NAME}} || true
+
+docker-restart: docker-stop-image docker-run-image
+
+docker-bash:
+	docker exec -u {{DOCKER_USER}} -it {{CONTAINER_NAME}} bash
+
+# =============================================================================
+# CLEANING
+# =============================================================================
+
+clean-all:
+	rm -fv *.html
+	rm -rf *_cache/
+	rm -rf *_files/
+	rm -rf .just-cache/
+	rm -rfv precompute/*.parquet precompute/*.qs
+	rm -fv {{OUTPUT_LOG}}
