@@ -1,0 +1,550 @@
+---
+title: "Workshop: Introduction to Copulas"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(copula)
+library(VineCopula)
+library(rvinecopulib)
+library(GGally)
+library(lattice)
+library(scatterplot3d)
+library(broom)
+library(arrow)
+library(qs2)
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "copula", "rvinecopulib")
+  )
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+# Foundations of Dependency: Beyond Simple Correlation
+
+In many real-world applications, we are interested in how multiple random variables 
+behave together. While we often have a good handle on individual variables—like 
+the height of a wave or the number of insurance claims in a year—it is the 
+**joint behavior** that usually creates the most risk.
+
+## The "Aggregation Problem" and the Lego Analogy
+
+Traditional statistics often forces us into "one-size-fits-all" multivariate 
+distributions. For example, the Multivariate Normal distribution requires that 
+every variable follows a Normal distribution. In reality, data is messy: you 
+might have a Gamma-distributed frequency of events linked to a Lognormal-distributed 
+severity of costs.
+
+**Copulas** solve this through the **Separation Principle**. Think of your 
+multivariate model like a set of Lego bricks:
+
+1.  **The Bricks (Marginals)**: You choose the best "brick" (distribution) for 
+    each individual variable.
+
+2.  **The Connectors (Copula)**: The copula is the specialized "peg" that 
+    describes exactly how those bricks snap together, independent of their 
+    shape or color.
+
+## The Engine: Probability Integral Transform (PIT)
+
+The magic that allows us to separate the "bricks" from the "connectors" is the 
+**Probability Integral Transform (PIT)**. It acts as a universal translator. 
+
+If you take any continuous data and pass it through its own Cumulative 
+Distribution Function (CDF), you end up with a value between 0 and 1—essentially 
+its "percentile rank." By converting everything to this uniform scale, we can 
+link variables that have completely different units (like "Degrees Celsius" and 
+"Megawatts") without the units getting in the way.
+
+The following plots demonstrate this "uniformization" and show what a high-correlation 
+relationship looks like once we've moved into this "Copula Space."
+
+```{r theory_viz}
+#| echo: true
+#| fig-cap: "PIT and Copula Visualisation"
+
+n_sim <- 5000
+
+# PIT Demonstration: Transforming Gamma to Uniform
+x <- rgamma(n_sim, shape = 2, rate = 0.5)
+u <- pgamma(x, shape = 2, rate = 0.5)
+
+plot_pit <- ggplot(tibble(u = u), aes(x = u)) +
+  geom_histogram(bins = 30, fill = "darkorange", alpha = 0.7) +
+  geom_hline(yintercept = n_sim/30, color = "red", linetype = "dashed") +
+  labs(
+    x = "U = F(X) (Percentile Rank)",
+    y = "Count",
+    title = "PIT: Gamma to Uniform"
+    )
+
+# Dependence Visualization: Gaussian Copula
+sigma <- matrix(c(1, 0.8, 0.8, 1), 2, 2)
+z     <- MASS::mvrnorm(n_sim, mu = c(0, 0), Sigma = sigma)
+u_dep <- pnorm(z) |> as_tibble(.name_repair = "unique")
+
+plot_dep <- ggplot(u_dep, aes(x = ...1, y = ...2)) +
+  geom_point(alpha = 0.2, size = 0.5, color = "steelblue") +
+  labs(
+    x = "U1 (Variable A Rank)",
+    y = "U2 (Variable B Rank)",
+    title = "Dependency in Copula Space (rho = 0.8)"
+    )
+
+plot_grid(plot_pit, plot_dep, ncol = 2)
+```
+
+# The Copula Zoo: Families and their "Tail Signatures"
+
+Not all dependencies are created equal. Correlation tells us how variables 
+move *on average*, but in risk management, we care about the **extremes**. 
+This is where different "families" of copulas come into play.
+
+## Rank Correlation: Measuring the "Order" of Things
+
+Traditional correlation (Pearson’s $r$) is obsessed with straight lines. If 
+your relationship is curved, Pearson's $r$ will underestimate its strength. 
+In copula modelling, we use **Rank Correlation** (like Kendall’s Tau). It 
+doesn't care about the scale or the units; it only cares about the *order* of 
+the values. It is invariant to transformations—whether you model loss in 
+Dollars or Log-Dollars, the rank correlation stays the same.
+
+```{r rank_correlation_viz}
+#| echo: true
+#| fig-cap: "Pearson vs. Kendall Correlation under Non-Linear Transformation"
+
+# Exponential relationship
+x_lin <- seq(1, 10, length.out = 100)
+y_exp <- exp(x_lin) + rnorm(100, sd = 1000)
+
+cor_p <- cor(x_lin, y_exp, method = "pearson")
+cor_k <- cor(x_lin, y_exp, method = "kendall")
+
+tibble(x = x_lin, y = y_exp) |>
+  ggplot(aes(x = x, y = y)) +
+  geom_point(color = "darkblue") +
+  labs(
+    title = "The Limit of Linear Correlation",
+    subtitle = glue("Pearson r = {round(cor_p, 3)} (Low) vs. Kendall tau = {round(cor_k, 3)} (High)"),
+    caption = "Pearson misses the strength of the curved relationship; Kendall sees the perfect order."
+  )
+```
+
+## Tail Dependence: "Ride-or-Die" vs. "Fair-Weather Friends"
+
+This is perhaps the most critical concept in copula theory. It describes how 
+likely two variables are to "crash" or "boom" together.
+
+*   **Fair-Weather Friends (Gaussian Copula)**: These variables look correlated 
+    in normal times, but as you move to the extreme edges, they actually become 
+    independent. This "asymptotic independence" is why Gaussian models 
+    famously failed during the 2008 financial crisis—they assumed that 
+    just because two markets hadn't crashed together *recently*, they 
+    *couldn't* crash together in the extreme.
+
+*   **Ride-or-Die (t-Copula, Gumbel, Clayton)**: These exhibit **Tail Dependence**. 
+    If Variable A is in its worst 1%, Variable B is highly likely to be there 
+    too. 
+
+### Visualizing the "Corners" of Risk
+
+The plots below show how different families concentrate their risk in different 
+"corners" of the uniform space.
+
+```{r archimedean_viz}
+#| echo: true
+#| fig-cap: "Tail Dependence Signatures in Archimedean Copulas"
+
+n_plot <- 2000
+
+# Helper to simulate and plot
+plot_arch_comp <- function(family, param_val, title_text, color_val) {
+  if (family == "clayton") {
+    cop <- claytonCopula(param = param_val, dim = 2)
+  } else if (family == "gumbel") {
+    cop <- gumbelCopula(param = param_val, dim = 2)
+  } else {
+    cop <- frankCopula(param = param_val, dim = 2)
+  }
+  
+  u_sim_tbl <- rCopula(n_plot, cop) |>
+    as_tibble()
+  
+  ggplot(u_sim_tbl, aes(x = V1, y = V2)) +
+    geom_point(alpha = 0.3, color = color_val, size = 0.5) +
+    labs(
+      x     = "Rank U1",
+      y     = "Rank U2",
+      title = title_text
+      ) +
+    theme_minimal()
+}
+
+# Clayton (Lower Tail - Droughts/Crashes)
+p1 <- plot_arch_comp("clayton", 2, "Clayton (Lower Tail Concentration)", "darkgreen")
+# Gumbel (Upper Tail - Heatwaves/Booms)
+p2 <- plot_arch_comp("gumbel", 2, "Gumbel (Upper Tail Concentration)", "firebrick")
+# Frank (Symmetric - No Tail dependence)
+p3 <- plot_arch_comp("frank", 5, "Frank (Symmetric / No Tails)", "purple")
+# Student's t (Both Tails - Heavy Tails)
+cop_t <- tCopula(param = 0.5, df = 2, dim = 2)
+u_t   <- rCopula(n_plot, cop_t) |> as_tibble()
+p4    <- ggplot(u_t, aes(x=V1, y=V2)) + geom_point(alpha=0.3, color="blue", size=0.5) +
+         labs(title="Student's t (Both Tails)", x="U1", y="U2") + theme_minimal()
+
+plot_grid(p1, p2, p3, p4, ncol = 2)
+```
+
+## The Critical Role of Degrees of Freedom ($df$)
+
+In the **Student's t-Copula**, the $df$ parameter is our "dial" for tail risk. 
+Low $df$ means extreme events happen together very often. As $df$ increases, 
+the t-copula slowly turns into a Gaussian copula, and that joint tail risk 
+evaporates.
+
+```{r t_copula_viz}
+#| echo: true
+#| fig-cap: "The 'Normalization' of the t-Copula as df Increases"
+
+n_plot  <- 2000
+rho_fix <- 0.5
+
+# Helper to simulate and plot
+plot_t_comp <- function(df_val, title_text, color_val) {
+  if (is.infinite(df_val)) {
+    cop <- normalCopula(param = rho_fix, dim = 2)
+  } else {
+    cop <- tCopula(param = rho_fix, df = df_val, dim = 2)
+  }
+  
+  u_sim_tbl <- rCopula(n_plot, cop) |>
+    as_tibble(.name_repair = "unique")
+  
+  ggplot(u_sim_tbl, aes(x = ...1, y = ...2)) +
+    geom_point(alpha = 0.4, color = color_val, size = 0.6) +
+    labs(x = "U1", y = "U2", title = title_text) +
+    theme_minimal()
+}
+
+p1_t <- plot_t_comp(1, "t (df=1): Heavy Tails", "firebrick")
+p2_t <- plot_t_comp(30, "t (df=30): Almost Gaussian", "darkblue")
+
+plot_grid(p1_t, p2_t, ncol = 2)
+```
+
+# Real-World Scenarios: Modelling Compounding Risk
+
+In risk management, **compounding risk** occurs when multiple "bad" things 
+happen at once. Copulas allow us to model these dependencies explicitly, 
+even when the types of data are very different.
+
+## Case Study: Insurance - Frequency and Severity
+
+Imagine a year with a high number of storm events (Frequency). If those 
+storms are also individually more severe (Severity), the total annual loss 
+balloons. This is compounding risk.
+
+```{r compounding_risk_sim}
+#| echo: true
+
+simulate_total_costs <- function(n_years, rho, lambda, shp, rt) {
+  cop   <- normalCopula(param = rho, dim = 2)
+  u_sim <- rCopula(n_years, cop)
+  n_events <- qpois(u_sim[, 1], lambda = lambda)
+  
+  total_costs <- map_dbl(
+    1:n_years,
+    function(i) {
+      n <- n_events[i]
+      if (n == 0) return(0)
+      sev_p <- u_sim[i, 2]
+      year_sev <- qgamma(sev_p, shape = shp, rate = rt)
+      return(n * year_sev)
+    })
+  return(total_costs)
+}
+
+# Run simulations across correlation levels
+n_years <- 10000
+costs_indep <- simulate_total_costs(n_years, 0.0, 10, 2, 0.02)
+costs_high  <- simulate_total_costs(n_years, 0.7, 10, 2, 0.02)
+
+cost_data_tbl <- tibble(
+  correlation = rep(c("0.0 (Indep)", "0.7 (High)"), each = n_years),
+  total_cost  = c(costs_indep, costs_high)
+)
+```
+
+### The Impact on the "Tail"
+
+Observe how high correlation doesn't just change the average; it dramatically 
+increases the probability of extreme, "bankrupting" years.
+
+```{r cost_density}
+#| echo: true
+#| fig-cap: "Compounding Risk: Impact of Correlation on Annual Loss"
+
+ggplot(cost_data_tbl, aes(x = total_cost, fill = correlation)) +
+  geom_density(alpha = 0.4) +
+  scale_x_log10(labels = dollar) +
+  labs(x = "Total Annual Cost (Log Scale)", title = "Log Scale: Seeing the Tail Risk")
+```
+
+## Diverse Coupling Examples
+
+Copulas can link any two metrics that share a common environmental or 
+economic driver.
+
+### Public Health: Correlating Discrete Events
+
+High pharmacy sales of flu medication often coincide with high ER admissions. 
+Modeling these as independent would underestimate the peak load on the city’s 
+healthcare system.
+
+```{r public_health_discrete}
+#| echo: true
+#| fig-cap: "Correlated Public Health Indicators (Discrete-Discrete)"
+
+# Moderate-High Correlation
+rho_health <- 0.65
+cop_health <- normalCopula(param = rho_health, dim = 2)
+u_health   <- rCopula(2000, cop_health)
+
+# Map to Marginals (Negative Binomial and Poisson)
+sales  <- qnbinom(u_health[, 1], mu = 200, size = 20)
+er_adm <- qpois(u_health[, 2], lambda = 15)
+
+health_data_tbl <- tibble(Sales = sales, ER = er_adm)
+
+ggplot(health_data_tbl, aes(x = Sales, y = ER)) +
+  geom_jitter(alpha = 0.3, color = "darkred") +
+  labs(x = "Daily Pharmacy Sales", y = "ER Admissions", title = "Public Health Coupling")
+```
+
+### Agriculture: Discrete-Continuous Coupling (Drought Risk)
+
+In agriculture, we might model the number of rainy days (Discrete) against 
+the final crop yield percentage (Continuous). Low rainfall is strongly 
+linked to low yields, a classic "lower tail" dependency.
+
+```{r agriculture_coupling}
+#| echo: true
+#| fig-cap: "Rainfall Frequency vs. Crop Yield (Discrete-Continuous)"
+
+# Clayton Copula captures 'Lower Tail Dependence'
+cop_agri <- claytonCopula(param = 1.5, dim = 2)
+u_agri   <- rCopula(2000, cop_agri)
+
+rain_days  <- qpois(u_agri[, 1], lambda = 12)
+crop_yield <- qbeta(u_agri[, 2], shape1 = 5, shape2 = 2)
+
+agri_data_tbl <- tibble(Rain = rain_days, Yield = crop_yield * 100)
+
+ggplot(agri_data_tbl, aes(x = Rain, y = Yield)) +
+  geom_jitter(alpha = 0.3, color = "darkgreen") +
+  labs(x = "Rainy Days per Month", y = "Crop Yield (% of Max)", title = "Agriculture Coupling: Drought Risk")
+```
+
+### Energy: Continuous-Continuous Coupling (Heatwaves)
+
+Extreme heatwaves drive non-linear spikes in electricity demand as air 
+conditioning units work harder. This relationship is concentrated in the 
+"upper tail."
+
+```{r energy_coupling}
+#| echo: true
+#| fig-cap: "Energy Coupling: Heatwaves and Power Demand"
+
+# Gumbel Copula for 'Upper Tail Dependence' (Heat -> Demand)
+cop_energy <- gumbelCopula(param = 2.5, dim = 2)
+u_energy   <- rCopula(2000, cop_energy)
+
+temp   <- qgamma(u_energy[, 1], shape = 20, rate = 0.8)
+demand <- qlnorm(u_energy[, 2], meanlog = 5, sdlog = 0.3)
+
+energy_data_tbl <- tibble(Temp = temp, Demand = demand)
+
+ggplot(energy_data_tbl, aes(x = Temp, y = Demand)) +
+  geom_point(alpha = 0.2, color = "orange") +
+  labs(x = "Peak Temp (°C)", y = "Demand (MW)", title = "Physical Coupling: Heat vs. Demand")
+```
+
+# The Empirical Detective: Fitting Copulas to Data
+
+In practice, we don't start with the copula; we start with raw data. 
+Finding the right dependency structure is a three-step detective process 
+called **Inference Functions for Margins (IFM)**.
+
+## The IFM Workflow
+
+1.  **Marginal Estimation**: Fit the best distributions to each variable 
+    independently (the "bricks").
+
+2.  **Transformation (PIT)**: Use the fitted CDFs to move the data into 
+    uniform "Copula Space."
+
+3.  **Selection and Fitting**: Choose the copula family that best describes 
+    the "corners" of the data.
+
+## A "Recovery Test": Proving the Method
+
+Let's see if we can "recover" the true dependency from our earlier 
+Energy example. We know the truth was a **Gumbel Copula**.
+
+```{r recovery_pit}
+#| echo: true
+#| fig-cap: "The Copula Space: Revealing the Hidden Structure"
+
+# Transform raw data back to uniform scale (pseudo-observations)
+u_energy_tbl <- pobs(energy_data_tbl) |>
+  as_tibble() |>
+  set_colnames(c("U1", "U2"))
+
+ggplot(u_energy_tbl, aes(x = U1, y = U2)) +
+  geom_point(alpha = 0.2, color = "darkblue") +
+  labs(x = "Temp Rank", y = "Demand Rank", title = "Copula Space: Pure Dependency")
+```
+
+### Automated Selection (AIC/BIC)
+
+Using `rvinecopulib`, we can automatically test all families and select 
+the best one.
+
+```{r recovery_fitting}
+#| echo: true
+
+# Select best bivariate copula
+fit_energy <- bicop(data = as.matrix(u_energy_tbl), family_set = "all")
+print(fit_energy)
+```
+
+The algorithm correctly identifies the Gumbel family, proving we can 
+extract dependency structures from raw observations.
+
+## The Danger of Choosing the Wrong Model
+
+What if we chose a Gaussian model when the truth was Gumbel? We would 
+severely underestimate how often extreme heat and extreme demand happen 
+together.
+
+```{r model_comparison}
+#| echo: true
+
+# Fit various families to the same data
+fit_gauss   <- bicop(as.matrix(u_energy_tbl), family_set = "gaussian")
+fit_frank   <- bicop(as.matrix(u_energy_tbl), family_set = "frank")
+
+# Compare AIC (Lower is better)
+model_comparison_tbl <- tibble(
+  Model  = c("Gumbel (True)", "Gaussian", "Frank"),
+  AIC    = c(AIC(fit_energy), AIC(fit_gauss), AIC(fit_frank))
+) |> arrange(AIC)
+
+knitr::kable(model_comparison_tbl, digits = 1, caption = "Model Selection via AIC")
+```
+
+# Scaling Complexity: Multivariate and Vine Copulas
+
+The real world isn't just 2D. But as we add more variables, standard 
+multivariate copulas become too rigid.
+
+## The Trivariate Challenge
+
+Imagine adding **Humidity** to our heat/demand model. We now have three 
+variables, all influencing each other.
+
+```{r trivariate_energy}
+#| echo: true
+#| fig-cap: "3D Visualization of Trivariate Dependencies"
+
+cop_3d <- gumbelCopula(param = 3, dim = 3)
+u_3d   <- rCopula(2000, cop_3d)
+
+temp_3d   <- qgamma(u_3d[, 1], shape = 20, rate = 0.8)
+humid_3d  <- qbeta(u_3d[, 2], shape1 = 2, shape2 = 5) * 100
+demand_3d <- qlnorm(u_3d[, 3], meanlog = 5, sdlog = 0.3)
+
+scatterplot3d(
+  temp_3d, humid_3d, demand_3d, pch = 16, color = alpha("orange", 0.3),
+  xlab = "Temp", ylab = "Humid", zlab = "Demand", main = "3D Dependency"
+)
+```
+
+## Vine Copulas: Building with Lego
+
+**Vine Copulas** solve the high-dimension problem by using **Bivariate 
+Copulas as building blocks**. Instead of one giant 50-dimensional equation, 
+we build a "vine" of simple 2D connections. This allows every pair of 
+variables to have its own unique "Ride-or-Die" or "Fair-Weather" relationship.
+
+```{r vine_intro}
+#| echo: true
+
+# Automatically fit a Vine Copula to our 3D data
+vine_fit <- vinecop(pobs(cbind(temp_3d, humid_3d, demand_3d)), family_set = "all")
+summary(vine_fit)
+```
+
+# Summary of the Copula Workflow
+
+1.  **PIT**: Transform data to ranks to see the hidden dependence.
+
+2.  **Visualize**: Check the "corners" of the Copula Space for tail risk.
+
+3.  **Select**: Use AIC/BIC to find the right family (Lego connector).
+
+4.  **Simulate**: Generate extreme scenarios to Stress-test your risk models.
+
+# R Environment
+
+```{r session_info}
+#| echo: true
+
+sessioninfo::session_info()
+```
