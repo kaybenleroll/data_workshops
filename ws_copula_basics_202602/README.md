@@ -1,37 +1,38 @@
 # Workshop: Introduction to Copulas
 
-This workshop covers the basic concepts of copulas using R.
+This workshop covers the basic concepts of copulas using R, focusing on
+elliptical and Archimedean copulas, and the modeling process.
 
 ## Content
 
-- **Part 1: Introduction to Copulas**
+- **Introduction to Copulas**
   - Sklar's Theorem
   - Probability Integral Transform (PIT)
   - Elliptical Copulas (Gaussian and t)
-- **Part 2: Copula Modelling**
   - Archimedean Copulas (Clayton, Gumbel, Frank)
   - Tail Dependence
   - Fitting and Selection using `VineCopula`
 
 ## How to use this workshop
 
-This workshop is designed to be run in a containerized environment using Podman (or Docker) and `just`.
+This workshop is designed to be run in a containerized environment using Podman
+and `just`.
 
 ### Prerequisites
 
-- `podman` (or `docker`)
+- `podman`
 - `just`
 
 ### Getting Started
 
 1.  **Build the container image:**
     ```bash
-    just docker-build-image
+    just podman-build-image
     ```
 
 2.  **Run the container:**
     ```bash
-    just docker-run-image
+    just podman-run-image
     ```
     This will start RStudio Server on `http://localhost:8787`. The default username is `rstudio` and the password is `CHANGEME`.
 
@@ -43,8 +44,7 @@ This workshop is designed to be run in a containerized environment using Podman 
 
 ## Structure
 
-- `01_copula_intro.qmd`: Part 1 of the workshop.
-- `02_copula_modelling.qmd`: Part 2 of the workshop.
+- `ws_copula_basics.qmd`: Main workshop notebook.
 - `lib_utils.R`: Utility functions.
 - `Dockerfile`: Container definition.
-- `Justfile`: Automation tasks.
+- `Justfile`: Automation tasks (using podman).

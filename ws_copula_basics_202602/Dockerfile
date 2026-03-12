@@ -1,5 +1,8 @@
 FROM rocker/tidyverse:4.5.1
 
+#COPY build/Rprofile.site /usr/local/lib/R/etc/
+#COPY build/Renviron.site /usr/local/lib/R/etc/
+
 ENV TZ=Europe/Dublin
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
@@ -21,6 +24,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     libgsl-dev \
     libnlopt-dev \
     libomp-dev \
+    cmake \
     p7zip-full \
     pbzip2 \
     plocate \
@@ -77,6 +81,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     pryr \
     qs2 \
     quarto \
+    rvinecopulib \
     scatterplot3d \
     sessioninfo \
     snakecase \
@@ -85,6 +90,21 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     tidymodels \
     VineCopula
 
+
+WORKDIR /tmp
+
+COPY build/docker_install_sys_rpkgs.R /tmp
+RUN Rscript /tmp/docker_install_sys_rpkgs.R
+
+RUN git clone https://github.com/lindenb/makefile2graph.git \
+  && cd makefile2graph \
+  && make \
+  && make install
+
+RUN cp -r $HOME/.R /home/rstudio \
+  && chown -R rstudio:rstudio /home/rstudio/.R
+
+# Enable GitHub Copilot and configure session timeouts
 RUN mkdir -p /etc/rstudio && \
   echo "copilot-enabled=1" >> /etc/rstudio/rsession.conf && \
   echo "session-timeout-minutes=120" >> /etc/rstudio/rsession.conf && \
@@ -96,10 +116,12 @@ USER rstudio
 
 COPY build/rstudio-prefs.json /home/rstudio/.config/rstudio/rstudio-prefs.json
 
-USER root
-RUN chown -R rstudio:rstudio /home/rstudio
+COPY build/docker_install_user_rpkgs.R /tmp/docker_install_user_rpkgs.R
+RUN Rscript /tmp/docker_install_user_rpkgs.R
 
-USER rstudio
+USER root
+RUN chown -R rstudio:rstudio /home/rstudio \
+  && chmod ugo+rx /home/rstudio
 
 ARG BUILD_DATE
 
