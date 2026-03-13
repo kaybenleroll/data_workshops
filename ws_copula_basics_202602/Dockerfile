@@ -64,6 +64,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     broom \
     conflicted \
     copula \
+    copulaData \
     cowplot \
     DataExplorer \
     directlabels \
@@ -71,6 +72,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     fs \
     furrr \
     GGally \
+    ggraph \
     gt \
     gtsummary \
     jsonlite \
@@ -85,8 +87,10 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     scatterplot3d \
     sessioninfo \
     snakecase \
+    styler \
     tictoc \
     tidybayes \
+    tidygraph \
     tidymodels \
     VineCopula
 
