@@ -2,6 +2,8 @@
 # PROJECT CONFIGURATION
 # =============================================================================
 
+set shell := ["bash", "-c"]
+
 # Docker image naming
 PROJECT_USER    := "kaybenleroll"
 PROJECT_NAME    := "ws_copula_basics_202602"
@@ -76,9 +78,8 @@ _render-qmd-host-orchestrated qmd_file:
     echo "TIMESTAMP: $(date) - $qmd_file is $REBUILD_STATUS" >> {{OUTPUT_LOG}} 2>&1
   fi
 
-basics HOST_PORT="8790" PASSWORD="copula":
+basics HOST_PORT="8790" PASSWORD="copula": (_ensure-container-running HOST_PORT PASSWORD)
   @echo "▶ Rendering Copula Basics..."
-  @just _ensure-container-running "{{HOST_PORT}}" "{{PASSWORD}}"
   @just _render-qmd-host-orchestrated ws_copula_basics.qmd
   @echo "✓ Basics complete"
 
