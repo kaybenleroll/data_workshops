@@ -121,7 +121,7 @@ podman-rebuild-image:
     {{DOCKER_BUILD_ARGS}} \
     -f Dockerfile .
 
-podman-run-image HOST_PORT='{{RSTUDIO_PORT}}' PASSWORD='{{DOCKER_PASS}}':
+podman-run-image HOST_PORT=RSTUDIO_PORT PASSWORD=DOCKER_PASS:
   podman run --rm -d \
     --userns=keep-id \
     -e RUNROOTLESS=false \
