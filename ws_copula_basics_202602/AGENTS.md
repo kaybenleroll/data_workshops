@@ -6,16 +6,32 @@
 - **Tooling**: Prioritize using the `Justfile` targets for all container and rendering operations.
 
 ## R Coding Standards
-- **Variable Naming**: Use `snake_case`. Tibbles should have a `_tbl` suffix (e.g., `data_tbl`). Matrices should have a `_mat` suffix if necessary for clarity.
+- **General Style**: Adhere to the [Tidyverse style guide](https://style.tidyverse.org/) for R code.
+- **Indentation**: ALWAYS use 2 spaces for indentation.
 - **Assignment**: Use the `<-` operator with spaces (e.g., `x <- 10`). Align `<-` in blocks when it improves readability.
-- **Function Calls**:
-  - For multi-line function definitions or calls, the closing parenthesis `)` must be on its own line, indented to the same level as the start of the call.
-  - Multi-line arguments should be aligned or consistently indented.
+- **Function Calls (Multi-line)**: For multi-line function definitions or calls, place the closing parenthesis `)` on its own line, indented to the same level as the *first argument* of the function call. Example:
+  ```r
+  my_function(
+    argument_one = value1,
+    argument_two = value2
+    ) # Closing parenthesis aligns with 'argument_one'
+  ```
 - **ggplot2**:
   - Use `labs()` for all labeling.
   - Order `labs()` arguments as: `x`, `y`, `title`, `subtitle`.
-  - In multi-line `labs()` calls, place the closing `)` on its own line.
 - **Piping**: Prefer the native pipe `|>` for standard transformations.
+- **`tibble` and `options`**: Ensure clear alignment for arguments.
+  ```r
+  tibble(
+    var_one = value1,
+    var_two = value2
+    )
+
+  options(
+    width = 80L,
+    warn  = 1
+    )
+  ```
 
 ## Rendering and Documentation
 - Maintain a formal and technical tone in all workshop documentation.
