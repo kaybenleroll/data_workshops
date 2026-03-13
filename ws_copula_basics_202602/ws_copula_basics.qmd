@@ -38,6 +38,7 @@ library(furrr)
 library(glue)
 library(fs)
 library(copula)
+library(copulaData)
 library(VineCopula)
 library(rvinecopulib)
 library(GGally)
@@ -51,13 +52,13 @@ source("lib_utils.R")
 
 conflict_lst <- resolve_conflicts(
   c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "copula", "rvinecopulib")
-  )
+)
 
 options(
   width    = 80L,
   warn     = 1,
   mc.cores = parallelly::availableCores()
-  )
+)
 
 set.seed(42)
 
@@ -122,7 +123,7 @@ plot_pit <- ggplot(tibble(u = u), aes(x = u)) +
     x     = "U = F(X) (Percentile Rank)",
     y     = "Count",
     title = "PIT: Gamma to Uniform"
-    )
+  )
 
 # Dependence Visualization: Gaussian Copula
 sigma <- matrix(c(1, 0.8, 0.8, 1), 2, 2)
@@ -135,7 +136,7 @@ plot_dep <- ggplot(u_dep, aes(x = ...1, y = ...2)) +
     x     = "U1 (Variable A Rank)",
     y     = "U2 (Variable B Rank)",
     title = "Dependency in Copula Space (rho = 0.8)"
-    )
+  )
 
 plot_grid(plot_pit, plot_dep, ncol = 2)
 ```
@@ -173,7 +174,7 @@ tibble(x = x_lin, y = y_exp) |>
     title    = "The Limit of Linear Correlation",
     subtitle = glue("Pearson r = {round(cor_p, 3)} (Low) vs. Kendall tau = {round(cor_k, 3)} (High)"),
     caption  = "Pearson misses the strength of the curved relationship; Kendall sees the perfect order."
-    )
+  )
 ```
 
 ## Tail Dependence: "Ride-or-Die" vs. "Fair-Weather Friends"
@@ -212,17 +213,17 @@ plot_arch_comp <- function(family, param_val, title_text, color_val) {
   } else {
     cop <- frankCopula(param = param_val, dim = 2)
   }
-  
+
   u_sim_tbl <- rCopula(n_plot, cop) |>
     as_tibble()
-  
+
   ggplot(u_sim_tbl, aes(x = V1, y = V2)) +
     geom_point(alpha = 0.3, color = color_val, size = 0.5) +
     labs(
       x     = "Rank U1",
       y     = "Rank U2",
       title = title_text
-      ) +
+    ) +
     theme_minimal()
 }
 
@@ -264,10 +265,10 @@ plot_t_comp <- function(df_val, title_text, color_val) {
   } else {
     cop <- tCopula(param = rho_fix, df = df_val, dim = 2)
   }
-  
+
   u_sim_tbl <- rCopula(n_plot, cop) |>
     as_tibble(.name_repair = "unique")
-  
+
   ggplot(u_sim_tbl, aes(x = ...1, y = ...2)) +
     geom_point(alpha = 0.4, color = color_val, size = 0.6) +
     labs(x = "U1", y = "U2", title = title_text) +
@@ -309,7 +310,7 @@ simulate_total_costs <- function(n_years, rho, lambda, shp, rt) {
       year_sev <- qgamma(sev_p, shape = shp, rate = rt)
       return(n * year_sev)
     }
-    )
+  )
   return(total_costs)
 }
 
@@ -321,7 +322,7 @@ costs_high  <- simulate_total_costs(n_years, 0.7, 10, 2, 0.02)
 cost_data_tbl <- tibble(
   correlation = rep(c("0.0 (Indep)", "0.7 (High)"), each = n_years),
   total_cost  = c(costs_indep, costs_high)
-  )
+)
 ```
 
 ### The Impact on the "Tail"
@@ -487,7 +488,7 @@ fit_frank   <- bicop(as.matrix(u_energy_tbl), family_set = "frank")
 model_comparison_tbl <- tibble(
   Model  = c("Gumbel (True)", "Gaussian", "Frank"),
   AIC    = c(AIC(fit_energy), AIC(fit_gauss), AIC(fit_frank))
-  ) |>
+) |>
   arrange(AIC)
 
 knitr::kable(model_comparison_tbl, digits = 1, caption = "Model Selection via AIC")
@@ -495,45 +496,105 @@ knitr::kable(model_comparison_tbl, digits = 1, caption = "Model Selection via AI
 
 # Scaling Complexity: Multivariate and Vine Copulas
 
-The real world isn't just 2D. But as we add more variables, standard 
-multivariate copulas become too rigid.
+The real world is rarely bivariate. In finance, engineering, and 
+environmental science, we often need to model the joint behavior of 
+dozens of variables. This introduces the **Curse of Dimensionality**: 
+as the number of variables grows, the complexity of capturing every 
+pairwise and joint interaction increases exponentially.
 
-## The Trivariate Challenge
+## Multivariate Continuous Data: The Uranium Case Study
 
-Imagine adding **Humidity** to our heat/demand model. We now have three 
-variables, all influencing each other.
+A classic high-dimensional example is the **Uranium exploration dataset** 
+(Cook & Johnson, 1986). It contains concentrations of 7 chemical elements 
+in 655 water samples. Capturing the "fingerprint" of these relationships 
+allows geologists to identify anomalous patterns indicative of mineral 
+deposits.
 
-```{r trivariate_energy}
+```{r uranium_analysis}
 #| echo: true
-#| fig-cap: "3D Visualization of Trivariate Dependencies"
+#| fig-cap: "Pairwise Dependencies in 7D Uranium Data"
 
-cop_3d <- gumbelCopula(param = 3, dim = 3)
-u_3d   <- rCopula(2000, cop_3d)
+data(uranium, package = "copula")
 
-temp_3d   <- qgamma(u_3d[, 1], shape = 20, rate = 0.8)
-humid_3d  <- qbeta(u_3d[, 2], shape1 = 2, shape2 = 5) * 100
-demand_3d <- qlnorm(u_3d[, 3], meanlog = 5, sdlog = 0.3)
+# Focus on a few elements for clarity: Uranium, Lithium, Cobalt, Titanium
+uranium_sub <- uranium |>
+  as_tibble() |>
+  select(U, Li, Co, Ti)
 
-scatterplot3d(
-  temp_3d, humid_3d, demand_3d, pch = 16, color = alpha("orange", 0.3),
-  xlab = "Temp", ylab = "Humid", zlab = "Demand", main = "3D Dependency"
-  )
+# Visualize the dependencies using ranks
+ggpairs(
+  pobs(uranium_sub),
+  lower = list(continuous = wrap("points", alpha = 0.3, size = 0.5, color = "darkblue")),
+  title = "Copula Space (Ranks) for Uranium Data"
+)
 ```
 
-## Vine Copulas: Building with Lego
+Notice how different pairs exhibit different structures—some are tight and 
+symmetric, others are sparse. A standard multivariate Gaussian copula 
+would force a single, symmetric "average" structure on all these pairs, 
+potentially missing the physical constraints of the geochemistry.
 
-**Vine Copulas** solve the high-dimension problem by using **Bivariate 
-Copulas as building blocks**. Instead of one giant 50-dimensional equation, 
-we build a "vine" of simple 2D connections. This allows every pair of 
-variables to have its own unique "Ride-or-Die" or "Fair-Weather" relationship.
+## Financial Contagion: The DAX Index
 
-```{r vine_intro}
+In finance, we care about **contagion**—the phenomenon where assets that 
+are uncorrelated during normal times suddenly crash together during a 
+crisis. The `daxreturns` dataset (daily log-returns of major DAX 
+components) from the `VineCopula` package illustrates this.
+
+```{r dax_analysis}
 #| echo: true
 
-# Automatically fit a Vine Copula to our 3D data
-vine_fit <- vinecop(pobs(cbind(temp_3d, humid_3d, demand_3d)), family_set = "all")
-summary(vine_fit)
+data(daxreturns, package = "VineCopula")
+
+# Focus on first few assets
+dax_sub <- daxreturns[, 1:5]
+
+# Fit a multivariate Student-t copula vs. Gaussian using rvinecopulib
+# The Student-t captures the 'Ride-or-Die' crashing together
+fit_gauss_multi <- bicop(pobs(dax_sub[, 1:2]), family_set = "gaussian")
+fit_t_multi     <- bicop(pobs(dax_sub[, 1:2]), family_set = "t")
+
+model_comp_dax <- tibble(
+  Model = c("Gaussian", "Student-t"),
+  AIC   = c(AIC(fit_gauss_multi), AIC(fit_t_multi))
+)
+
+knitr::kable(model_comp_dax, caption = "Contagion Check: Gaussian vs. t-Copula (DAX)")
 ```
+
+The superior fit of the Student-t model confirms that market components 
+exhibit significant tail dependence—they crash together far more often 
+than a Gaussian model would predict.
+
+## Vine Copulas: The Modular Solution
+
+How do we scale this to 50 variables without losing the unique 
+"tail signatures" of each pair? We use **Vine Copulas**.
+
+Vine Copulas break down a high-dimensional distribution into a 
+hierarchy of **Bivariate Copulas**. 
+
+1.  **Trees**: We organize variables into "trees." The first tree links 
+    the strongest pairs.
+2.  **Conditioning**: The second tree links variables *conditional* on 
+    the relationships in the first tree.
+3.  **Flexibility**: You can use a Clayton connector for one pair and a 
+    Gumbel for another.
+
+```{r vine_deep_dive}
+#| echo: true
+#| fig-cap: "Visualizing a Fitted Vine Structure"
+
+# Fit an R-vine (Regular Vine) to the DAX data
+dax_vine <- vinecop(pobs(dax_sub), family_set = "all")
+
+# Plot the first tree of the vine (the most important dependencies)
+plot(dax_vine, tree = 1)
+```
+
+The vine structure automatically prioritizes the most important physical 
+or economic connections, providing a "map" of how risk propagates 
+through the system.
 
 # Summary of the Copula Workflow
 
