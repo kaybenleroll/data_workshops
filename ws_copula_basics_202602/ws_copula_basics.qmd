@@ -479,12 +479,12 @@ What if we chose a Gaussian model when the truth was Gumbel? We would
 severely underestimate how often extreme heat and extreme demand happen 
 together.
 
-```{r model_comparison}
+```{r model_comparison_energy}
 #| echo: true
 
 # Fit various families to the same data
 fit_gauss   <- bicop(as.matrix(u_energy_tbl), family_set = "gaussian")
-fit_frank   <- bicop(as.matrix(u_energy_tbl), family_set = "frank")
+fit_frank   <- bicop(as.matrix(u_energy_tbl), family_set = "gaussian")
 
 # Compare AIC (Lower is better)
 model_comparison_tbl <- tibble(
@@ -574,14 +574,32 @@ How do we scale this to 50 variables without losing the unique
 "tail signatures" of each pair? We use **Vine Copulas**.
 
 Vine Copulas break down a high-dimensional distribution into a 
-hierarchy of **Bivariate Copulas**. 
+hierarchy of **Bivariate Copulas**. This is called **Pair-Copula 
+Construction (PCC)**.
 
-1.  **Trees**: We organize variables into "trees." The first tree links 
-    the strongest pairs.
-2.  **Conditioning**: The second tree links variables *conditional* on 
-    the relationships in the first tree.
-3.  **Flexibility**: You can use a Clayton connector for one pair and a 
-    Gumbel for another.
+### The Pair-Copula Construction (PCC)
+
+Think of it like building a complex house (your high-dimensional joint 
+distribution) out of simple bricks (bivariate copulas). Each brick 
+connects just two variables, but those connections can be conditional 
+on other variables.
+
+A 5-dimensional problem might involve:
+1.  **Level 1**: Linking (1,2), (2,3), (3,4), (4,5) — unconditional pairs.
+2.  **Level 2**: Linking (1,3 | 2), (2,4 | 3), (3,5 | 4) — conditional pairs.
+3.  **Level 3**: Linking (1,4 | 2,3), (2,5 | 3,4) — higher-order conditional pairs.
+
+### Vine Structures: C-Vines and D-Vines
+
+This hierarchical decomposition allows for incredible flexibility. The 
+way we organize these bivariate copulas defines the "vine" structure:
+
+*   **C-Vines (Canonical Vines)**: Useful when there is a central "pilot" 
+    variable that influences everything else (e.g., the S&P 500 driving 
+    individual stocks). This central variable forms the root of a tree.
+*   **D-Vines (Drawable Vines)**: Useful for variables with a natural 
+    ordering, like a time series or a chain of physical processes. Each 
+    variable is linked only to its direct "neighbors" in a chain.
 
 ```{r vine_deep_dive}
 #| echo: true
@@ -597,16 +615,6 @@ plot(dax_vine, tree = 1)
 The vine structure automatically prioritizes the most important physical 
 or economic connections, providing a "map" of how risk propagates 
 through the system.
-
-## Comparison of Vine Structures: C-Vines vs. D-Vines
-
-Different problems require different "vines":
-
-*   **C-Vines (Canonical Vines)**: Useful when there is a central "pilot" 
-    variable that influences everything else (e.g., the S&P 500 driving 
-    individual stocks).
-*   **D-Vines (Drawable Vines)**: Useful for variables with a natural 
-    ordering, like a time series or a chain of physical processes.
 
 ```{r vine_structure_comp}
 #| echo: true
@@ -627,18 +635,35 @@ vine_comparison <- tibble(
 knitr::kable(vine_comparison, caption = "Vine Structure Comparison (DAX Data)")
 ```
 
-# Stress-Testing and Simulation: Practical Risk Measures
+### Vine Truncation: Managing High Dimensions
+
+For very high-dimensional problems (hundreds of variables), fitting a full 
+vine can be computationally intensive and lead to overfitting. **Truncation** 
+is a technique where we limit the "depth" of the vine, assuming that 
+higher-order conditional dependencies (e.g., $(X_1, X_5 | X_2, X_3, X_4)$) 
+become less important. A "1-truncated" vine only models unconditional 
+bivariate dependencies.
+
+### Stress-Testing and Simulation: Practical Risk Measures
 
 The ultimate goal of copula modeling is to generate realistic "stress 
 scenarios." Once we have a fitted vine, we can simulate thousands of 
 years of joint behavior to calculate risk measures like **Value-at-Risk 
-(VaR)**.
+(VaR)** and **Expected Shortfall (ES)**.
 
-## Portfolio Risk Simulation
+#### Conditional Simulation: What if the Worst Happens?
+
+A key advantage of copulas is the ability to perform **conditional 
+simulations**. For instance, what if one specific market (e.g., Germany) 
+experiences a 1% drop? What is the expected impact on the rest of the 
+portfolio, given this condition? This helps quantify systemic risk.
+
+#### Portfolio Risk Simulation (VaR and ES)
 
 Let's assume an equal-weighted portfolio of the 5 DAX components. We 
 want to know the 1-day 99% VaR—the loss we only expect to see once 
-every 100 days.
+every 100 days. The Expected Shortfall then tells us the average loss 
+given that the VaR threshold has been breached.
 
 ```{r portfolio_sim}
 #| echo: true
@@ -672,7 +697,35 @@ knitr::kable(risk_measures, digits = 4, caption = "Portfolio Risk: Vine Copula S
 The **Expected Shortfall (ES)** tells us the average loss given that the 
 VaR threshold has been breached. Copula models provide a much more 
 realistic estimate of ES because they capture the "crashing together" 
-behavior of assets.
+behavior of assets, which simple linear correlation models often miss.
+
+## Other Real-World Applications (Conceptual)
+
+Beyond finance, copulas are invaluable in:
+
+*   **Hydrology**: Modeling joint probabilities of rainfall and river flow 
+    to assess flood risk, or correlating drought severity across regions.
+*   **Insurance**: Analyzing multi-line insurance products where different 
+    types of claims (e.g., property, casualty, life) might be dependent 
+    during systemic events. For example, a major hurricane could cause 
+    both property damage and life insurance claims.
+*   **Engineering**: Assessing the reliability of multi-component systems 
+    where component failures are not independent.
+*   **Supply Chain Risk**: Modeling how disruptions in one part of a supply 
+    chain might propagate and impact other parts.
+
+## Challenges and Limitations
+
+Despite their power, copulas are not a silver bullet. Key challenges include:
+
+*   **Model Selection**: Choosing the "best" copula family and vine structure 
+    can be complex, especially with high-dimensional data.
+*   **Computational Burden**: Fitting and simulating high-dimensional vine 
+    copulas can be computationally intensive.
+*   **Marginal Specification**: Errors in modeling the marginal distributions 
+    will propagate into the copula model.
+*   **Interpretability**: Interpreting complex vine structures can be less 
+    intuitive than simple correlation matrices.
 
 # Summary of the Copula Workflow
 
