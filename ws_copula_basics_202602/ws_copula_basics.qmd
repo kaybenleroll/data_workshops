@@ -44,6 +44,8 @@ library(rvinecopulib)
 library(GGally)
 library(lattice)
 library(scatterplot3d)
+library(ggraph)
+library(tidygraph)
 library(broom)
 library(arrow)
 library(qs2)
@@ -595,6 +597,82 @@ plot(dax_vine, tree = 1)
 The vine structure automatically prioritizes the most important physical 
 or economic connections, providing a "map" of how risk propagates 
 through the system.
+
+## Comparison of Vine Structures: C-Vines vs. D-Vines
+
+Different problems require different "vines":
+
+*   **C-Vines (Canonical Vines)**: Useful when there is a central "pilot" 
+    variable that influences everything else (e.g., the S&P 500 driving 
+    individual stocks).
+*   **D-Vines (Drawable Vines)**: Useful for variables with a natural 
+    ordering, like a time series or a chain of physical processes.
+
+```{r vine_structure_comp}
+#| echo: true
+
+# Fit a C-vine structure
+fit_cvine <- vinecop(pobs(dax_sub), structure = cvine_structure(1:5))
+
+# Fit a D-vine structure
+fit_dvine <- vinecop(pobs(dax_sub), structure = dvine_structure(1:5))
+
+# Compare based on Log-Likelihood
+vine_comparison <- tibble(
+  Structure = c("C-Vine", "D-Vine"),
+  LogLik    = c(logLik(fit_cvine), logLik(fit_dvine)),
+  AIC       = c(AIC(fit_cvine), AIC(fit_dvine))
+)
+
+knitr::kable(vine_comparison, caption = "Vine Structure Comparison (DAX Data)")
+```
+
+# Stress-Testing and Simulation: Practical Risk Measures
+
+The ultimate goal of copula modeling is to generate realistic "stress 
+scenarios." Once we have a fitted vine, we can simulate thousands of 
+years of joint behavior to calculate risk measures like **Value-at-Risk 
+(VaR)**.
+
+## Portfolio Risk Simulation
+
+Let's assume an equal-weighted portfolio of the 5 DAX components. We 
+want to know the 1-day 99% VaR—the loss we only expect to see once 
+every 100 days.
+
+```{r portfolio_sim}
+#| echo: true
+
+# 1. Simulate ranks from our fitted DAX vine
+n_sim_risk <- 5000
+u_sim_risk <- rvinecop(n_sim_risk, dax_vine)
+
+# 2. Map back to 'returns' space (assuming Empirical Marginals for simplicity)
+# In a real model, we would use GARCH or heavy-tailed marginals
+sim_returns <- matrix(NA, nrow = n_sim_risk, ncol = 5)
+for (j in 1:5) {
+  sim_returns[, j] <- quantile(dax_sub[, j], probs = u_sim_risk[, j])
+}
+
+# 3. Calculate Portfolio Return (Equal Weighted)
+portfolio_returns <- rowMeans(sim_returns)
+
+# 4. Calculate Risk Measures
+var_99 <- quantile(portfolio_returns, 0.01)
+es_99  <- mean(portfolio_returns[portfolio_returns <= var_99])
+
+risk_measures <- tibble(
+  Measure = c("99% Value-at-Risk (VaR)", "99% Expected Shortfall (ES)"),
+  Value   = c(var_99, es_99)
+)
+
+knitr::kable(risk_measures, digits = 4, caption = "Portfolio Risk: Vine Copula Simulation")
+```
+
+The **Expected Shortfall (ES)** tells us the average loss given that the 
+VaR threshold has been breached. Copula models provide a much more 
+realistic estimate of ES because they capture the "crashing together" 
+behavior of assets.
 
 # Summary of the Copula Workflow
 
