@@ -3,6 +3,7 @@
 # =============================================================================
 
 set shell := ["bash", "-c"]
+set dotenv-load := true
 
 # Docker image naming
 PROJECT_USER    := "kaybenleroll"
@@ -12,7 +13,7 @@ IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
 
 # RStudio Server credentials
 DOCKER_USER     := "rstudio"
-DOCKER_PASS     := "CHANGEME"
+DOCKER_PASS     := env_var_or_default("DOCKER_PASS", "CHANGEME")
 
 # User/group mapping for file permissions in container
 DOCKER_UID      := `id -u`
@@ -20,7 +21,7 @@ DOCKER_GID      := `id -g`
 
 # Directory configuration
 PWD             := `pwd`
-RSTUDIO_PORT    := "8790"
+RSTUDIO_PORT    := env_var_or_default("RSTUDIO_PORT", "8790")
 
 PROJECT_FOLDER  := "copula_workshop"
 CONTAINER_NAME  := "copula-workshop"
@@ -78,17 +79,17 @@ _render-qmd-host-orchestrated qmd_file:
     echo "TIMESTAMP: $(date) - $qmd_file is $REBUILD_STATUS" >> {{OUTPUT_LOG}} 2>&1
   fi
 
-basics HOST_PORT="8790" PASSWORD="copula": (_ensure-container-running HOST_PORT PASSWORD)
+basics: _ensure-container-running
   @echo "▶ Rendering Copula Basics..."
   @just _render-qmd-host-orchestrated ws_copula_basics.qmd
   @echo "✓ Basics complete"
 
-_ensure-container-running HOST_PORT=RSTUDIO_PORT PASSWORD=DOCKER_PASS:
+_ensure-container-running:
   @if [ "$(just _is-container-running)" != "true" ]; then \
     echo "Container not running. Stopping and removing any old container, then starting a new one..."; \
     just podman-stop-image; \
     just podman-rm; \
-    just podman-run-image "{{HOST_PORT}}" "{{PASSWORD}}"; \
+    just podman-run-image; \
     sleep 5; \
   else \
     echo "Container already running. Reusing existing container..."; \
@@ -125,13 +126,13 @@ podman-rebuild-image:
     {{DOCKER_BUILD_ARGS}} \
     -f Dockerfile .
 
-podman-run-image HOST_PORT=RSTUDIO_PORT PASSWORD=DOCKER_PASS:
+podman-run-image:
   podman run --rm -d \
     --userns=keep-id \
     -e RUNROOTLESS=false \
-    -p "127.0.0.1:{{HOST_PORT}}:8787" \
+    -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" \
     -e USER={{DOCKER_USER}} \
-    -e PASSWORD={{PASSWORD}} \
+    -e PASSWORD={{DOCKER_PASS}} \
     -e USERID={{DOCKER_UID}} \
     -e GROUPID={{DOCKER_GID}} \
     -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}:z" \
