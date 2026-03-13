@@ -76,19 +76,22 @@ _render-qmd-host-orchestrated qmd_file:
     echo "TIMESTAMP: $(date) - $qmd_file is $REBUILD_STATUS" >> {{OUTPUT_LOG}} 2>&1
   fi
 
-basics:
+basics HOST_PORT="8790" PASSWORD="copula":
   @echo "▶ Rendering Copula Basics..."
+  @just _ensure-container-running "{{HOST_PORT}}" "{{PASSWORD}}"
+  @just _render-qmd-host-orchestrated ws_copula_basics.qmd
+  @echo "✓ Basics complete"
+
+_ensure-container-running HOST_PORT=RSTUDIO_PORT PASSWORD=DOCKER_PASS:
   @if [ "$(just _is-container-running)" != "true" ]; then \
     echo "Container not running. Stopping and removing any old container, then starting a new one..."; \
     just podman-stop-image; \
     just podman-rm; \
-    just podman-run-image "8790" "copula"; \
+    just podman-run-image "{{HOST_PORT}}" "{{PASSWORD}}"; \
     sleep 5; \
   else \
     echo "Container already running. Reusing existing container..."; \
   fi
-  @just _render-qmd-host-orchestrated ws_copula_basics.qmd
-  @echo "✓ Basics complete"
 
 # Container Rendering
 render-container file:
