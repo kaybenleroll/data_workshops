@@ -117,10 +117,10 @@ u <- pgamma(x, shape = 2, rate = 0.5)
 
 plot_pit <- ggplot(tibble(u = u), aes(x = u)) +
   geom_histogram(bins = 30, fill = "darkorange", alpha = 0.7) +
-  geom_hline(yintercept = n_sim/30, color = "red", linetype = "dashed") +
+  geom_hline(yintercept = n_sim / 30, color = "red", linetype = "dashed") +
   labs(
-    x = "U = F(X) (Percentile Rank)",
-    y = "Count",
+    x     = "U = F(X) (Percentile Rank)",
+    y     = "Count",
     title = "PIT: Gamma to Uniform"
     )
 
@@ -132,8 +132,8 @@ u_dep <- pnorm(z) |> as_tibble(.name_repair = "unique")
 plot_dep <- ggplot(u_dep, aes(x = ...1, y = ...2)) +
   geom_point(alpha = 0.2, size = 0.5, color = "steelblue") +
   labs(
-    x = "U1 (Variable A Rank)",
-    y = "U2 (Variable B Rank)",
+    x     = "U1 (Variable A Rank)",
+    y     = "U2 (Variable B Rank)",
     title = "Dependency in Copula Space (rho = 0.8)"
     )
 
@@ -170,10 +170,10 @@ tibble(x = x_lin, y = y_exp) |>
   ggplot(aes(x = x, y = y)) +
   geom_point(color = "darkblue") +
   labs(
-    title = "The Limit of Linear Correlation",
+    title    = "The Limit of Linear Correlation",
     subtitle = glue("Pearson r = {round(cor_p, 3)} (Low) vs. Kendall tau = {round(cor_k, 3)} (High)"),
-    caption = "Pearson misses the strength of the curved relationship; Kendall sees the perfect order."
-  )
+    caption  = "Pearson misses the strength of the curved relationship; Kendall sees the perfect order."
+    )
 ```
 
 ## Tail Dependence: "Ride-or-Die" vs. "Fair-Weather Friends"
@@ -235,8 +235,10 @@ p3 <- plot_arch_comp("frank", 5, "Frank (Symmetric / No Tails)", "purple")
 # Student's t (Both Tails - Heavy Tails)
 cop_t <- tCopula(param = 0.5, df = 2, dim = 2)
 u_t   <- rCopula(n_plot, cop_t) |> as_tibble()
-p4    <- ggplot(u_t, aes(x=V1, y=V2)) + geom_point(alpha=0.3, color="blue", size=0.5) +
-         labs(title="Student's t (Both Tails)", x="U1", y="U2") + theme_minimal()
+p4    <- ggplot(u_t, aes(x = V1, y = V2)) +
+  geom_point(alpha = 0.3, color = "blue", size = 0.5) +
+  labs(title = "Student's t (Both Tails)", x = "U1", y = "U2") +
+  theme_minimal()
 
 plot_grid(p1, p2, p3, p4, ncol = 2)
 ```
@@ -294,31 +296,32 @@ balloons. This is compounding risk.
 #| echo: true
 
 simulate_total_costs <- function(n_years, rho, lambda, shp, rt) {
-  cop   <- normalCopula(param = rho, dim = 2)
-  u_sim <- rCopula(n_years, cop)
+  cop      <- normalCopula(param = rho, dim = 2)
+  u_sim    <- rCopula(n_years, cop)
   n_events <- qpois(u_sim[, 1], lambda = lambda)
-  
+
   total_costs <- map_dbl(
     1:n_years,
     function(i) {
       n <- n_events[i]
       if (n == 0) return(0)
-      sev_p <- u_sim[i, 2]
+      sev_p    <- u_sim[i, 2]
       year_sev <- qgamma(sev_p, shape = shp, rate = rt)
       return(n * year_sev)
-    })
+    }
+    )
   return(total_costs)
 }
 
 # Run simulations across correlation levels
-n_years <- 10000
+n_years     <- 10000
 costs_indep <- simulate_total_costs(n_years, 0.0, 10, 2, 0.02)
 costs_high  <- simulate_total_costs(n_years, 0.7, 10, 2, 0.02)
 
 cost_data_tbl <- tibble(
   correlation = rep(c("0.0 (Indep)", "0.7 (High)"), each = n_years),
   total_cost  = c(costs_indep, costs_high)
-)
+  )
 ```
 
 ### The Impact on the "Tail"
@@ -484,7 +487,8 @@ fit_frank   <- bicop(as.matrix(u_energy_tbl), family_set = "frank")
 model_comparison_tbl <- tibble(
   Model  = c("Gumbel (True)", "Gaussian", "Frank"),
   AIC    = c(AIC(fit_energy), AIC(fit_gauss), AIC(fit_frank))
-) |> arrange(AIC)
+  ) |>
+  arrange(AIC)
 
 knitr::kable(model_comparison_tbl, digits = 1, caption = "Model Selection via AIC")
 ```
@@ -513,7 +517,7 @@ demand_3d <- qlnorm(u_3d[, 3], meanlog = 5, sdlog = 0.3)
 scatterplot3d(
   temp_3d, humid_3d, demand_3d, pch = 16, color = alpha("orange", 0.3),
   xlab = "Temp", ylab = "Humid", zlab = "Demand", main = "3D Dependency"
-)
+  )
 ```
 
 ## Vine Copulas: Building with Lego
