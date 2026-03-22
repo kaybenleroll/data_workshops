@@ -24,10 +24,17 @@ default:
 # Presentation Rendering
 # ============================================================================
 
-# Render Bayesian Survival Analysis presentation
+# Render Bayesian Survival Analysis presentation (local)
 render-talk:
 	@echo "TIMESTAMP: $(date) - Rendering bayesian_survival_talk.qmd"
 	quarto render bayesian_survival_talk.qmd --to revealjs
+	@echo "TIMESTAMP: $(date) - Finished rendering"
+
+# Render presentation inside running Docker container
+docker-render-talk:
+	@echo "TIMESTAMP: $(date) - Rendering inside container {{CONTAINER_NAME}}"
+	docker exec -u {{DOCKER_USER}} {{CONTAINER_NAME}} bash -c \
+	  "cd /home/{{DOCKER_USER}}/{{PROJECT_FOLDER}} && quarto render bayesian_survival_talk.qmd --to revealjs"
 	@echo "TIMESTAMP: $(date) - Finished rendering"
 
 # Convert presentation to PDF (podman/docker aware)
@@ -52,8 +59,11 @@ pdf-talk:
 	    /slides/bayesian_survival_talk.pdf; \
 	fi
 
-# Full workflow: render presentation and create PDF
+# Full workflow: render presentation and create PDF (local)
 all: render-talk pdf-talk
+
+# Full workflow inside container: render presentation and create PDF
+docker-all: docker-render-talk pdf-talk
 
 # ============================================================================
 # Cleaning
