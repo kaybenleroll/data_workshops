@@ -4,6 +4,7 @@ author: "Mick Cooney <mickcooney@gmail.com>"
 editor: source
 format:
   revealjs:
+    embed-resources: true
     theme: night
     highlight: pygments
     controls: true

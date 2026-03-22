@@ -9,3 +9,6 @@ temp*
 
 *.log
 
+data/lapse1_sim_cashflow_tbl.parquet
+data/lapse2_sim_cashflow_tbl.parquet
+
