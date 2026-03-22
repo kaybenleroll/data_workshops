@@ -9,7 +9,7 @@ This repository contains all the files for the various workshops and talks I giv
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
 | October 2023 | **Data Do's and Don'ts** | Best practices and common pitfalls in data science workflows. | [📁 View](./talk_dpff_datastart_202310) |
-| May 2022 | **Reproducible Research 2.0** | Advanced techniques for ensuring reproducible data science workflows. | [📁 View](./talk_dds_reproresearch_202205) |
+| May 2022 | **Reproducible Research 2.0** | Best practices and advanced techniques for ensuring code and data reproducibility. | [📁 View](./talk_dds_reproresearch_202205) |
 
 ### 🎲 Gaming & Fun
 
@@ -21,20 +21,20 @@ This repository contains all the files for the various workshops and talks I giv
 
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
-| November 2023 | **Demystifying Data** | Introduction to data science concepts and extracting value from raw data. | [📁 View](./talk_cirdas_master_202311) |
-| September 2022 | **Demystifying Data** | Extracting value from unrefined data sources. | [📁 View](./talk_cirdas_axa_202209) |
-| May 2022 | **Demystifying Data** | Core data science principles and data refinement. | [📁 View](./talk_cirdas_master_202205) |
+| November 2023 | **Demystifying Data** | Core data science principles and techniques for extracting value from unrefined data sources. | [📁 View](./talk_cirdas_master_202311) |
+| September 2022 | **Demystifying Data** | Core data science principles and techniques for extracting value from unrefined data sources. | [📁 View](./talk_cirdas_axa_202209) |
+| May 2022 | **Demystifying Data** | Core data science principles and techniques for extracting value from unrefined data sources. | [📁 View](./talk_cirdas_master_202205) |
 
 ### 📊 Bayesian Methods & Probabilistic Modelling
 
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
-| March 2026 | **Survival Analysis with Stan** | Practical exploratory survival analysis applied to lapse prediction. | [📁 View](./talk_dds_survivalbayes_202603) |
-| December 2025 | **Survival Analysis with Stan** | Bayesian survival modeling using Stan for time-to-event data. | [📁 View](./talk_bm_survivalbayes_202512) |
-| April 2025 | **BTYD Modelling with Stan** | Buy 'Til You Die modeling using Bayesian methods in Stan. | [📁 View](./talk_dds_btydbayes_202504) |
-| June 2023 | **BTYD Modelling with Stan** | Statistical distributions of transactions and Bayesian BTYD models. | [📁 View](./talk_idsc_btydbayes_202306) |
+| March 2026 | **Survival Analysis with Stan** | Practical exploratory survival analysis and modeling applied to policy lapse prediction. | [📁 View](./talk_dds_survivalbayes_202603) |
+| December 2025 | **Survival Analysis with Stan** | Practical exploratory survival analysis and modeling applied to policy lapse prediction. | [📁 View](./talk_bm_survivalbayes_202512) |
+| April 2025 | **BTYD Modelling with Stan** | Using Bayesian methods and Stan to fit Buy 'Til You Die models for customer lifetime value. | [📁 View](./talk_dds_btydbayes_202504) |
+| June 2023 | **BTYD Modelling with Stan** | Using Bayesian methods and Stan to fit Buy 'Til You Die models for customer lifetime value. | [📁 View](./talk_idsc_btydbayes_202306) |
 | May 2023 | **Fraud Modelling with Probabilistic Graphical Models** | Applying Probabilistic Graphical Models (PGMs) to detect fraudulent behavior. | [📁 View](./talk_citi_pgmfraud_202305) |
-| November 2022 | **BTYD Modelling with Stan** | Bayesian Buy 'Til You Die models for customer lifetime value. | [📁 View](./talk_bm_btydbayes_202211) |
+| November 2022 | **BTYD Modelling with Stan** | Using Bayesian methods and Stan to fit Buy 'Til You Die models for customer lifetime value. | [📁 View](./talk_bm_btydbayes_202211) |
 
 ### 🛡️ Insurance, Finance & Actuarial Science
 
@@ -91,7 +91,7 @@ Pre-2022 talks and workshops archived in the [`oldertalks/`](./oldertalks) direc
 | Date | Type | Title | Description | Link |
 | :--- | :--- | :--- | :--- | :--- |
 | January 2021 | 🛠️ Workshop | **Building the Customer and Product Modelling** | End-to-end data science workflow for retail customer and product modeling. | [📁 View](./oldertalks/ws_soupnuts_202101) |
-| May 2020 | 🎙️ Talk | **Reproducible Research 2.0** | Best practices for code and data reproducibility. | [📁 View](./oldertalks/talk_dds_reproresearch_202005) |
+| May 2020 | 🎙️ Talk | **Reproducible Research 2.0** | Best practices and advanced techniques for ensuring code and data reproducibility. | [📁 View](./oldertalks/talk_dds_reproresearch_202005) |
 
 ### 🎲 Gaming & Fun
 
@@ -103,20 +103,20 @@ Pre-2022 talks and workshops archived in the [`oldertalks/`](./oldertalks) direc
 
 | Date | Type | Title | Description | Link |
 | :--- | :--- | :--- | :--- | :--- |
-| February 2021 | 🎙️ Talk | **The Virtues of Simplicity** | Why simple models often outperform complex ones in practice. | [📁 View](./oldertalks/talk_ucc_simplicity_202102) |
-| June 2020 | 🎙️ Talk | **The Virtues of Simplicity** | Advocating for simplicity in modeling and data analysis. | [📁 View](./oldertalks/talk_gaas_simple_202006) |
+| February 2021 | 🎙️ Talk | **The Virtues of Simplicity** | Why simple models often outperform complex ones in real-world data science applications. | [📁 View](./oldertalks/talk_ucc_simplicity_202102) |
+| June 2020 | 🎙️ Talk | **The Virtues of Simplicity** | Why simple models often outperform complex ones in real-world data science applications. | [📁 View](./oldertalks/talk_gaas_simple_202006) |
 | January 2020 | 🛠️ Workshop | **Dublin Data Science Workshop on Bootstrap Methods** | Statistical inference and resampling techniques using the bootstrap. | [📁 View](./oldertalks/ws_bootstrap_202001) |
-| November 2019 | 🎙️ Talk | **The Virtues of Simplicity** | Fsforum simple overview. | [📁 View](./oldertalks/talk_fsforum_simple_201911) |
-| October 2019 | 🎙️ Talk | **Why R?** | Ucd whyr overview. | [📁 View](./oldertalks/talk_ucd_whyr_201910) |
-| September 2019 | 🛠️ Workshop | **Workshop: Queueing** | Foundational concepts in queuing theory. | [📁 View](./oldertalks/ws_queueing_201909) |
+| November 2019 | 🎙️ Talk | **The Virtues of Simplicity** | Why simple models often outperform complex ones in real-world data science applications. | [📁 View](./oldertalks/talk_fsforum_simple_201911) |
+| October 2019 | 🎙️ Talk | **Why R?** | Advocating for R as the premier language for statistical computing and data science. | [📁 View](./oldertalks/talk_ucd_whyr_201910) |
+| September 2019 | 🛠️ Workshop | **Workshop: Queueing** | Foundational concepts and mathematics in queuing theory. | [📁 View](./oldertalks/ws_queueing_201909) |
 | June 2019 | 🎙️ Talk | **Terrorism as a Virus** | Idsc terrorism overview. | [📁 View](./oldertalks/talk_idsc_terrorism_201906) |
 | January 2019 | 🛠️ Workshop | **Dublin Data Science Workshop on Time Series Analysis** | Analyzing quantitative data measured over time as stochastic processes. | [📁 View](./oldertalks/ws_timeseries_201901) |
 | November 2018 | 🛠️ Workshop | **Data Exploration for Census Socio-economic Dataset** | Dataexp overview. | [📁 View](./oldertalks/ws_dataexp_201811) |
-| September 2018 | 🎙️ Talk | **Why R?** | Dpdev whyr overview. | [📁 View](./oldertalks/talk_dpdev_whyr_201809) |
-| September 2018 | 🎙️ Talk | **Why R?** | Ucd whyr overview. | [📁 View](./oldertalks/talk_ucd_whyr_201809) |
-| March 2018 | 🛠️ Workshop | **Dublin Data Science Workshop on the Statistical Analysis of Networks** | Network overview. | [📁 View](./oldertalks/ws_network_201803) |
+| September 2018 | 🎙️ Talk | **Why R?** | Advocating for R as the premier language for statistical computing and data science. | [📁 View](./oldertalks/talk_dpdev_whyr_201809) |
+| September 2018 | 🎙️ Talk | **Why R?** | Advocating for R as the premier language for statistical computing and data science. | [📁 View](./oldertalks/talk_ucd_whyr_201809) |
+| March 2018 | 🛠️ Workshop | **Dublin Data Science Workshop on the Statistical Analysis of Networks** | Exploring the statistical properties of network structures. | [📁 View](./oldertalks/ws_network_201803) |
 | January 2018 | 🎙️ Talk | **Data Exploration for the Bank Marketing Dataset** | Dds dataexpks overview. | [📁 View](./oldertalks/talk_dds_dataexpks_201801) |
-| November 2017 | 🎙️ Talk | **An Introduction to Probability using Simulation** | Introduction to probability using limit theorems and simulation. | [📁 View](./oldertalks/talk_datafest_intro_201711) |
+| November 2017 | 🎙️ Talk | **An Introduction to Probability using Simulation** | Introduction to probability concepts through computational simulation. | [📁 View](./oldertalks/talk_datafest_intro_201711) |
 | November 2016 | 🎙️ Talk | **Talk: Reprsrch** | Reprsrch overview. | [📁 View](./oldertalks/jltalk_reprsrch_201611) |
 | June 2016 | 🛠️ Workshop | **Workshop: Dd** | Dd overview. | [📁 View](./oldertalks/ws_dd_201606) |
 | April 2016 | 🎙️ Talk | **Talk: Bm** | Bm overview. | [📁 View](./oldertalks/talk_bm_201604) |
@@ -141,8 +141,8 @@ Pre-2022 talks and workshops archived in the [`oldertalks/`](./oldertalks) direc
 | Date | Type | Title | Description | Link |
 | :--- | :--- | :--- | :--- | :--- |
 | October 2020 | 🎙️ Talk | **Exploring Life Insurance Data** | Bayesian approaches to analyzing life insurance datasets. | [📁 View](./oldertalks/talk_sonia_bayes_202010) |
-| September 2020 | 🛠️ Workshop | **Dublin Data Science Workshop on Probabilistic Graphical Models** | Introduction to PGMs and Bayesian networks. | [📁 View](./oldertalks/ws_pgm_202009) |
-| November 2019 | 🎙️ Talk | **An Introduction to Bayesian Analysis and Bayesian Regression in R** | Remetrica bayesian overview. | [📁 View](./oldertalks/talk_remetrica_bayesian_201911) |
+| September 2020 | 🛠️ Workshop | **Dublin Data Science Workshop on Probabilistic Graphical Models** | Introduction to Probabilistic Graphical Models and Bayesian networks. | [📁 View](./oldertalks/ws_pgm_202009) |
+| November 2019 | 🎙️ Talk | **An Introduction to Bayesian Analysis and Bayesian Regression in R** | Foundational overview of Bayesian regression and statistical analysis in R. | [📁 View](./oldertalks/talk_remetrica_bayesian_201911) |
 | October 2019 | 🎙️ Talk | **An Introduction to Particle Filters** | Hdm partfilt overview. | [📁 View](./oldertalks/talk_hdm_partfilt_201910) |
 | October 2019 | 🛠️ Workshop | **Dublin Data Science Workshop on Bayesian Data Analysis** | Bayesian overview. | [📁 View](./oldertalks/ws_bayesian_201910) |
 | August 2019 | 🎙️ Talk | **An Introduction to Bayesian Regression and Hierarchical Models** | Dds bayesreg overview. | [📁 View](./oldertalks/talk_dds_bayesreg_201908) |
@@ -159,13 +159,13 @@ Pre-2022 talks and workshops archived in the [`oldertalks/`](./oldertalks) direc
 
 | Date | Type | Title | Description | Link |
 | :--- | :--- | :--- | :--- | :--- |
-| February 2021 | 🎙️ Talk | **Data, Big or Otherwise, in the Insurance Industry** | The evolving role of data and analytics in the insurance industry. | [📁 View](./oldertalks/talk_ul_datainsurance_202102) |
-| May 2020 | 🎙️ Talk | **An Introduction to Insurance Pricing, GLMs and Model Validation** | Core actuarial pricing models and Generalized Linear Models. | [📁 View](./oldertalks/talk_datafest_carins_202005) |
+| February 2021 | 🎙️ Talk | **Data, Big or Otherwise, in the Insurance Industry** | The evolving role of data, analytics, and machine learning in the modern insurance industry. | [📁 View](./oldertalks/talk_ul_datainsurance_202102) |
+| May 2020 | 🎙️ Talk | **An Introduction to Insurance Pricing, GLMs and Model Validation** | Foundational concepts in actuarial pricing and the use of Generalized Linear Models. | [📁 View](./oldertalks/talk_datafest_carins_202005) |
 | March 2019 | 🎙️ Talk | **An Introduction to Options and Risk Margining** | Dds optionsmargin overview. | [📁 View](./oldertalks/talk_dds_optionsmargin_201903) |
-| February 2019 | 🎙️ Talk | **An Introduction to Insurance Pricing, GLMs and Model Validation** | Iyjd carins overview. | [📁 View](./oldertalks/talk_iyjd_carins_201902) |
-| September 2018 | 🛠️ Workshop | **Dublin Data Science Workshop on Survival Analysis** | Analyzing time-to-event data and estimating survival distributions. | [📁 View](./oldertalks/ws_survival_201809) |
-| February 2018 | 🎙️ Talk | **Data, Big or Otherwise, in the Insurance Industry** | Qmul actuaries overview. | [📁 View](./oldertalks/talk_qmul_actuaries_201802) |
-| February 2018 | 🎙️ Talk | **Data, Big or Otherwise, in the Insurance Industry** | Wcabel data overview. | [📁 View](./oldertalks/talk_wcabel_data_201802) |
+| February 2019 | 🎙️ Talk | **An Introduction to Insurance Pricing, GLMs and Model Validation** | Foundational concepts in actuarial pricing and the use of Generalized Linear Models. | [📁 View](./oldertalks/talk_iyjd_carins_201902) |
+| September 2018 | 🛠️ Workshop | **Dublin Data Science Workshop on Survival Analysis** | Survival overview. | [📁 View](./oldertalks/ws_survival_201809) |
+| February 2018 | 🎙️ Talk | **Data, Big or Otherwise, in the Insurance Industry** | The evolving role of data, analytics, and machine learning in the modern insurance industry. | [📁 View](./oldertalks/talk_qmul_actuaries_201802) |
+| February 2018 | 🎙️ Talk | **Data, Big or Otherwise, in the Insurance Industry** | The evolving role of data, analytics, and machine learning in the modern insurance industry. | [📁 View](./oldertalks/talk_wcabel_data_201802) |
 | November 2017 | 🎙️ Talk | **Insurance: A New Frontier for Data Science** | Datafest insur overview. | [📁 View](./oldertalks/talk_datafest_insur_201711) |
 | August 2017 | 🎙️ Talk | **The Cannonball Run** | Dds carins overview. | [📁 View](./oldertalks/talk_dds_carins_201708) |
 | February 2017 | 🎙️ Talk | **Pricing Car Insurance** | Carinspricing overview. | [📁 View](./oldertalks/talk_carinspricing_201702) |
