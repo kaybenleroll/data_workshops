@@ -1,0 +1,47 @@
+{
+    "panes": {
+        "quadrants": [
+            "Source",
+            "Console",
+            "TabSet1",
+            "TabSet2"
+        ],
+        "tabSet1": [
+            "Environment",
+            "History",
+            "Connections",
+            "Build",
+            "VCS",
+            "Presentation"
+        ],
+        "tabSet2": [
+            "Files",
+            "Plots",
+            "Packages",
+            "Help",
+            "Viewer",
+            "Presentations"
+        ],
+        "console_left_on_top": false,
+        "console_right_on_top": true
+    },
+    "show_diagnostics_other": true,
+    "auto_append_newline": true,
+    "strip_trailing_whitespace": true,
+    "default_project_location": "~",
+    "wrap_tab_navigation": false,
+    "reuse_sessions_for_project_links": true,
+    "initial_working_directory": "~",
+    "rainbow_parentheses": true,
+    "default_sweave_engine": "knitr",
+    "spelling_dictionary_language": "en_GB",
+    "posix_terminal_shell": "bash",
+    "source_with_echo": true,
+    "jobs_tab_visibility": "shown",
+    "indent_guides": "rainbowfills",
+    "show_doc_outline_rmd": true,
+    "show_rmd_render_command": true,
+    "python_type": "system",
+    "python_version": "3.12.3",
+    "python_path": "/usr/bin/python3.12"
+}

@@ -1,0 +1,329 @@
+---
+title: "Workshop: Advanced Queuing Theory"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(glue)
+library(simmer)
+library(simmer.plot)
+library(queueing)
+
+source("lib_utils.R")
+source("lib_queueing.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "simmer", "queueing")
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+# Introduction
+
+This second session of the queuing theory workshop focuses on more complex
+scenarios where the basic M/M/1 or M/M/c assumptions are relaxed or extended.
+
+**Topics covered:**
+- **Finite Capacity (M/M/1/K)**: When the queue cannot grow indefinitely.
+- **Impatience**: Balking (refusing to join) and Reneging (leaving after waiting).
+- **Priority Queues**: Handling different classes of customers.
+- **Networks of Queues**: Tandem queues and Jackson networks.
+- **Optimal Staffing**: Balancing the cost of waiting vs. the cost of servers.
+
+
+# Finite Capacity Queues (M/M/1/K)
+
+In many real-world systems, the space for waiting is limited (e.g., a small
+waiting room, a buffer in a network router, or a finite number of phone lines).
+
+When a customer arrives and the system is at its capacity **K**, the customer is
+**blocked** and leaves the system immediately.
+
+## Key Metrics for M/M/1/K
+
+For an M/M/1/K queue with arrival rate λ and service rate μ:
+
+- **Blocking Probability ($P_K$)**: The probability that an arriving customer
+  finds the system full.
+- **Effective Arrival Rate ($\lambda_{eff}$)**: $\lambda_{eff} = \lambda(1 - P_K)$.
+  Only these customers actually enter the system.
+- **Utilization**: $ho_{eff} = \lambda_{eff} / \mu = 1 - P_0$.
+
+```{r mm1k_example}
+#| echo: true
+
+lambda_router <- 10  # packets per ms
+mu_router <- 12      # capacity to process 12 packets per ms
+k_buffer <- 5        # buffer size 5 (including one being processed)
+
+metrics_k5 <- calculate_mm1k_metrics(lambda_router, mu_router, k_buffer)
+metrics_k20 <- calculate_mm1k_metrics(lambda_router, mu_router, 20)
+
+write_lines(
+  glue(
+    "=== ROUTER BUFFER ANALYSIS (K=5) ===
+
+",
+    "Arrival rate: {lambda_router}
+",
+    "Service rate: {mu_router}
+",
+    "Blocking Prob (Pk): {percent(metrics_k5$Pk, accuracy = 0.01)}
+",
+    "Avg wait: {round(metrics_k5$W, 4)} ms
+
+",
+    "COMPARED TO K=20:
+",
+    "Blocking Prob (Pk): {percent(metrics_k20$Pk, accuracy = 0.01)}
+",
+    "Avg wait: {round(metrics_k20$W, 4)} ms"
+    ),
+  stdout()
+  )
+```
+
+**Trade-off**: Increasing buffer size (K) reduces the probability of losing
+packets but increases the average wait time for those that enter.
+
+
+# Impatience: Balking and Reneging
+
+In human-centric systems, customers are not infinitely patient.
+
+## Balking
+**Balking** occurs when a customer arrives, sees a long queue, and decides not
+to join at all.
+
+## Reneging
+**Reneging** occurs when a customer joins the queue but leaves before being
+served because the wait is too long.
+
+```{r simulate_reneging}
+#| echo: true
+
+lambda <- 10
+mu <- 8  # System is unstable (ρ > 1) without reneging!
+
+# Patients will wait at most 0.5 hours on average
+patience_mean <- 0.5
+
+customer_traj <- trajectory("Patient") |>
+  renege_in(function() rexp(1, 1/patience_mean), out = trajectory() |> log_("Reneging")) |>
+  seize("doctor", 1) |>
+  renege_abort() |>
+  timeout(function() rexp(1, mu)) |>
+  release("doctor", 1)
+
+sim_env <- simmer() |>
+  add_resource("doctor", 1) |>
+  add_generator("patient", customer_traj, function() rexp(1, lambda)) |>
+  run(until = 100)
+
+arrivals <- get_mon_arrivals(sim_env)
+n_reneged <- sum(!arrivals$finished)
+
+write_lines(
+  glue(
+    "Simulation with λ={lambda}, μ={mu}
+",
+    "Total arrivals: {nrow(arrivals)}
+",
+    "Customers reneged: {n_reneged} ({percent(n_reneged/nrow(arrivals))})
+",
+    "Avg wait (finished): {round(mean(arrivals$wait_time[arrivals$finished]), 2)}"
+    ),
+  stdout()
+  )
+```
+
+
+# Priority Queues
+
+Often, some customers are more "important" than others (e.g., emergency room
+triage, premium support tiers).
+
+## Non-Preemptive Priority
+A high-priority customer goes to the front of the line but does not interrupt a
+service already in progress.
+
+## Preemptive Priority
+A high-priority customer immediately interrupts the current service. The
+interrupted customer returns to the queue.
+
+```{r priority_simulation}
+#| echo: true
+
+# Priority 2 is high, Priority 1 is low
+traj_high <- trajectory() |>
+  set_prioritization(c(2, 0, FALSE)) |>
+  seize("server", 1) |>
+  timeout(function() rexp(1, 10)) |>
+  release("server", 1)
+
+traj_low <- trajectory() |>
+  set_prioritization(c(1, 0, FALSE)) |>
+  seize("server", 1) |>
+  timeout(function() rexp(1, 10)) |>
+  release("server", 1)
+
+sim_env_prio <- simmer() |>
+  add_resource("server", 1) |>
+  add_generator("high", traj_high, function() rexp(1, 2)) |>
+  add_generator("low", traj_low, function() rexp(1, 6)) |>
+  run(until = 500)
+
+arrivals_prio <- get_mon_arrivals(sim_env_prio) |>
+  mutate(priority = if_else(str_detect(name, "high"), "High", "Low"))
+
+arrivals_prio |>
+  group_by(priority) |>
+  summarise(
+    avg_wait = mean(wait_time),
+    n = n()
+  )
+```
+
+
+# Networks of Queues
+
+In many systems, a customer must pass through multiple stages of service.
+
+## Tandem Queues
+Queue 1 → Queue 2 → ... → Exit.
+
+**Burke's Theorem**: The output process of an M/M/c queue in steady state is a
+Poisson process with the same rate λ as the input process.
+
+This means if Stage 1 is M/M/1 and Stage 2 is M/M/1, we can analyze them
+independently as long as Stage 1 is stable.
+
+```{r tandem_simulation}
+#| echo: true
+
+tandem_traj <- trajectory() |>
+  seize("stage1", 1) |>
+  timeout(function() rexp(1, 15)) |>
+  release("stage1", 1) |>
+  seize("stage2", 1) |>
+  timeout(function() rexp(1, 12)) |>
+  release("stage2", 1)
+
+sim_env_tandem <- simmer() |>
+  add_resource("stage1", 1) |>
+  add_resource("stage2", 1) |>
+  add_generator("customer", tandem_traj, function() rexp(1, 10)) |>
+  run(until = 1000)
+
+get_mon_resources(sim_env_tandem) |>
+  group_by(resource) |>
+  summarise(utilization = mean(server))
+```
+
+
+# Optimal Staffing and Economics
+
+We want to find the number of servers **c** that minimizes total cost:
+
+$$
+	ext{Total Cost} = 	ext{Cost of Service} + 	ext{Cost of Waiting}
+$$
+$$
+TC(c) = c \cdot C_s + L \cdot C_w
+$$
+
+Where:
+- $C_s$: Cost per server per unit time.
+- $C_w$: Cost of customer waiting per unit time.
+
+```{r optimization_example}
+#| echo: true
+
+lambda <- 20
+mu <- 8
+cost_server <- 50   # $50/hour per agent
+cost_wait <- 100    # $100/hour per waiting customer (lost productivity/goodwill)
+
+find_optimal_c <- function(lambda, mu, cs, cw) {
+  results <- tibble(c = ceiling(lambda/mu + 1):15) |>
+    mutate(
+      metrics = map(c, ~calculate_mmc_metrics(lambda, mu, .x)),
+      L = map_dbl(metrics, ~.x$L),
+      service_cost = c * cs,
+      wait_cost = L * cw,
+      total_cost = service_cost + wait_cost
+    )
+  return(results)
+}
+
+opt_results <- find_optimal_c(lambda, mu, cost_server, cost_wait)
+
+ggplot(opt_results, aes(x = c, y = total_cost)) +
+  geom_line() +
+  geom_point(aes(color = total_cost == min(total_cost)), size = 3) +
+  scale_color_manual(values = c("black", "red"), guide = "none") +
+  labs(title = "Total Cost vs. Number of Servers",
+       subtitle = glue("Optimal c = {opt_results$c[which.min(opt_results$total_cost)]}"),
+       x = "Number of Servers (c)", y = "Total Cost ($/hr)")
+```
+
+
+# Summary of Advanced Concepts
+
+1. **Finite Capacity**: Leads to blocking; increases effective service rate but
+   loses customers.
+2. **Impatience**: Critical for modeling human behavior; can stabilize
+   otherwise unstable systems (at a cost).
+3. **Priority**: Crucial for SLA management; improves high-priority wait times
+   at the expense of low-priority ones.
+4. **Networks**: Complex dependencies; tandem systems can sometimes be
+   decomposed.
+5. **Optimization**: Queuing theory isn't just about math; it's about making
+   business decisions.
+
+# R Environment
+
+```{r session_info}
+#| echo: true
+
+sessioninfo::session_info()
+```

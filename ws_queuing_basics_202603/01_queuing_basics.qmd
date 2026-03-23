@@ -1,0 +1,1178 @@
+---
+title: "Workshop: Introduction to Queuing Theory"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(glue)
+library(simmer)
+library(simmer.plot)
+library(queueing)
+
+source("lib_utils.R")
+source("lib_queueing.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "simmer", "queueing")
+  )
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+
+# Introduction and Basic Concepts
+
+## What is Queueing Theory?
+
+Queueing theory is the mathematical study of waiting lines (queues). It provides
+analytical tools to predict and optimize the performance of systems where
+customers (or jobs, packets, vehicles, etc.) arrive to receive service.
+
+**Real-world applications include:**
+
+  - **Banking**: Teller lines, ATM networks
+  - **Healthcare**: Emergency departments, clinic appointments
+  - **Call centers**: Customer service agents
+  - **Manufacturing**: Production lines, machine shops
+  - **Computing**: Server loads, network routers, job scheduling
+  - **Transportation**: Toll booths, airport security, traffic lights
+
+Queueing theory helps answer questions like:
+
+  - How many servers do I need to meet service level targets?
+  - What is the average wait time customers will experience?
+  - How does variability in service times affect performance?
+  - Is it better to have one pooled queue or separate queues?
+
+
+## Workshop Materials
+
+All code and materials for this workshop are available on GitHub:
+**https://github.com/kaybenleroll/data_workshops**
+
+This workshop requires the following R packages:
+
+  - `queueing`: Analytical queue calculations
+  - `simmer`: Discrete-event simulation
+  - `simmer.plot`: Visualization for simmer
+  - `tidyverse`: Data manipulation and visualization
+  - `cowplot`: Plot themes and arrangement
+
+
+## Core Components of a Queueing System
+
+Every queueing system has six components:
+
+### Arrival Process
+
+How customers enter the system:
+
+  - **Rate**: How frequently arrivals occur (λ = lambda)
+  - **Pattern**: Regular, random (Poisson), scheduled
+  - **Batch vs. individual**: Do customers arrive one at a time or in groups?
+
+### Service Process
+
+How long service takes:
+
+  - **Rate**: How quickly service completes (μ = mu)
+  - **Distribution**: Constant, exponential, general
+  - **Servers**: How many are working in parallel?
+
+### Number of Servers (c)
+
+  - Single server (c = 1)
+  - Multiple servers in parallel (c > 1)
+
+### Queue Capacity (K)
+
+  - **Infinite**: Queue can grow without bound
+  - **Finite**: Maximum queue length (blocking or balking)
+
+### Population Size (N)
+
+  - **Infinite**: Unlimited potential customers
+  - **Finite**: Fixed customer pool (e.g., machines in a shop)
+
+### Queue Discipline
+
+The rule for selecting who gets served next:
+
+  - **FIFO** (First-In-First-Out): Most common
+  - **LIFO** (Last-In-First-Out): Stack-like
+  - **Priority**: Different classes served preferentially
+  - **Processor sharing**: All customers served simultaneously
+
+
+## Kendall Notation (A/B/c/K/N/D)
+
+Queueing systems are described using **Kendall notation**:
+
+$$
+\text{A / B / c / K / N / D}
+$$
+
+Where:
+
+  - **A**: Arrival process distribution
+  - **B**: Service time distribution
+  - **c**: Number of servers
+  - **K**: System capacity (default: ∞)
+  - **N**: Population size (default: ∞)
+  - **D**: Queue discipline (default: FIFO)
+
+**Common distribution codes:**
+
+  - **M**: Markovian (exponential, memoryless)
+  - **D**: Deterministic (constant)
+  - **G**: General (arbitrary distribution)
+  - **Er**: Erlang distribution
+  - **H**: Hyperexponential
+
+**Examples:**
+
+  - **M/M/1**: Poisson arrivals, exponential service, 1 server
+  - **M/M/c**: Poisson arrivals, exponential service, c servers
+  - **M/D/1**: Poisson arrivals, constant service, 1 server
+  - **M/G/1**: Poisson arrivals, general service distribution, 1 server
+
+When K, N, and D are omitted, they default to ∞, ∞, and FIFO.
+
+
+# Foundational Probability
+
+## The Poisson Process
+
+A **Poisson process** models random arrivals at a constant average rate λ
+(lambda). Key properties:
+
+  - Arrivals occur independently
+  - Arrival rate is constant over time
+  - Exactly one arrival occurs in an infinitesimal time interval
+  - **Memoryless**: Past arrivals don't affect future arrivals
+
+The number of arrivals in time interval $t$ follows a Poisson distribution:
+
+$$
+P(N(t) = n) = \frac{(\lambda t)^n e^{-\lambda t}}{n!}
+$$
+
+With mean and variance both equal to $\lambda t$.
+
+```{r visualize_poisson_process}
+#| echo: true
+#| fig-height: 6
+
+lambda <- 5  # 5 arrivals per hour
+
+arrivals <- simulate_poisson_arrivals(n = 100, lambda = lambda)
+
+ggplot(tibble(arrival_time = arrivals), aes(x = arrival_time)) +
+  geom_histogram(bins = 20, fill = "steelblue", alpha = 0.7) +
+  labs(
+    title = "Poisson Arrivals Over Time",
+    subtitle = glue("λ = {lambda} arrivals/hour, n = 100 arrivals"),
+    x = "Time (hours)",
+    y = "Number of Arrivals"
+    )
+```
+
+## The Exponential Distribution
+
+If arrivals follow a Poisson process with rate λ, then the **time between
+consecutive arrivals** (interarrival time) follows an exponential distribution:
+
+$$
+f(t) = \lambda e^{-\lambda t}, \quad t \geq 0
+$$
+
+With mean $E[T] = 1/\lambda$ and variance $Var[T] = 1/\lambda^2$.
+
+```{r exponential_distribution}
+#| echo: true
+#| fig-height: 6
+
+lambda <- 5
+t_seq <- seq(0, 2, length.out = 200)
+
+exponential_tbl <- tibble(
+  t = t_seq,
+  density = dexp(t, rate = lambda),
+  cumulative = pexp(t, rate = lambda)
+  )
+
+density_plot <- ggplot(exponential_tbl, aes(x = t, y = density)) +
+  geom_line(colour = "firebrick", linewidth = 1.2) +
+  geom_area(fill = "firebrick", alpha = 0.2) +
+  labs(
+    title = "Exponential Distribution (Interarrival Times)",
+    subtitle = glue("λ = {lambda}, Mean = {round(1/lambda, 2)}"),
+    x = "Time",
+    y = "Probability Density"
+    )
+
+cdf_plot <- ggplot(exponential_tbl, aes(x = t, y = cumulative)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  labs(
+    title = "Cumulative Distribution Function",
+    x = "Time",
+    y = "P(T ≤ t)"
+    )
+
+plot_grid(density_plot, cdf_plot, ncol = 2)
+```
+
+
+### Memoryless Property
+
+The exponential distribution has a unique property: it is **memoryless**. If a
+customer has been waiting for time $s$, the remaining wait time has the same
+distribution as the original wait:
+
+$$
+P(T > s + t \mid T > s) = P(T > t)
+$$
+
+This means "time already spent waiting doesn't reduce future expected wait."
+
+```{r demonstrate_memoryless}
+#| echo: true
+
+lambda <- 5
+n_samples <- 10000
+
+all_waits <- rexp(n_samples, rate = lambda)
+
+s_cutoff <- 0.1
+conditional_waits <- all_waits[all_waits > s_cutoff] - s_cutoff
+
+write_lines(
+  glue(
+    "Unconditional wait: Mean = {round(mean(all_waits), 3)}\n",
+    "Conditional wait (given T > {s_cutoff}): Mean = {round(mean(conditional_waits), 3)}\n",
+    "Theoretical mean: {round(1/lambda, 3)}"
+    ),
+  stdout()
+  )
+```
+
+
+## Other Service Time Distributions
+
+While exponential service is common in theory, real systems often have different
+distributions:
+
+  - **Deterministic (constant)**: Automated systems, toll booths
+  - **Erlang**: Sum of k exponential stages (less variable than exponential)
+  - **Hyperexponential**: Mixture of exponentials (more variable)
+  - **General**: Any distribution characterized by mean and variance
+
+
+# Key Performance Metrics
+
+## Utilization (ρ)
+
+**Utilization** measures the fraction of time servers are busy:
+
+$$
+\rho = \frac{\lambda}{c \mu}
+$$
+
+Where:
+
+  - λ = arrival rate
+  - μ = service rate per server
+  - c = number of servers
+
+**Interpretation:**
+
+  - ρ = 0.7 means servers busy 70% of time
+  - ρ < 1 is required for system stability
+  - ρ approaching 1 causes explosive queue growth
+
+```{r visualize_utilization}
+#| echo: true
+#| fig-height: 6
+
+rho_values <- seq(0.1, 0.95, by = 0.05)
+L_values <- rho_values / (1 - rho_values)  # M/M/1 formula
+
+ggplot(tibble(rho = rho_values, L = L_values), aes(x = rho, y = L)) +
+  geom_line(colour = "firebrick", linewidth = 1.2) +
+  geom_point(colour = "steelblue", size = 2) +
+  scale_x_continuous(labels = percent) +
+  labs(
+    title = "The Hockey Stick Effect",
+    subtitle = "Average number in system (L) vs utilization (ρ) for M/M/1 queue",
+    x = "Utilization (ρ)",
+    y = "Average Number in System (L)"
+    )
+```
+
+
+## Queue Lengths
+
+  - **L**: Average number of customers in the system (queue + service)
+  - **Lq**: Average number of customers waiting in queue (not being served)
+
+Relationship: $L = L_q + \rho$ (for single-server queues)
+
+
+## Waiting Times
+
+  - **W**: Average time a customer spends in the system (sojourn time)
+  - **Wq**: Average time a customer spends waiting in queue
+
+Relationship: $W = W_q + 1/\mu$ (wait + service)
+
+
+## Little's Law
+
+The most fundamental result in queueing theory:
+
+$$
+L = \lambda W \quad \text{and} \quad L_q = \lambda W_q
+$$
+
+**Interpretation**: Average number in system equals arrival rate times average
+time in system.
+
+**Why it matters**:
+
+  - Universal: Applies to any stable queueing system
+  - Requires no assumptions about distributions
+  - Connects length and time metrics
+
+```{r demonstrate_littles_law}
+#| echo: true
+
+lambda <- 4
+mu <- 5
+
+metrics <- calculate_mm1_metrics(lambda, mu)
+
+write_lines(
+  glue(
+    "M/M/1 Queue with λ = {lambda}, μ = {mu}\n\n",
+    "L = {round(metrics$L, 3)}\n",
+    "λ × W = {lambda} × {round(metrics$W, 3)} = {round(lambda * metrics$W, 3)}\n\n",
+    "Lq = {round(metrics$Lq, 3)}\n",
+    "λ × Wq = {lambda} × {round(metrics$Wq, 3)} = {round(lambda * metrics$Wq, 3)}\n\n",
+    "Little's Law verified!"
+    ),
+  stdout()
+  )
+```
+
+
+# M/M/1 Queue Analysis
+
+## Model Description
+
+The **M/M/1 queue** is the simplest and most important queueing model:
+
+  - **M**: Poisson arrivals (Markovian, exponential interarrival times)
+  - **M**: Exponential service times
+  - **1**: Single server
+
+Despite its simplicity, the M/M/1 model provides intuition for more complex
+systems and is exactly solvable.
+
+
+## Steady-State Results
+
+For an M/M/1 queue with arrival rate λ and service rate μ:
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| Utilization | $\rho = \lambda/\mu$ | Fraction of time server busy |
+| Prob(n customers) | $P_n = (1-\rho)\rho^n$ | Geometric distribution |
+| Avg in system | $L = \frac{\rho}{1-\rho}$ | Total customers present |
+| Avg in queue | $L_q = \frac{\rho^2}{1-\rho}$ | Waiting customers only |
+| Avg time in system | $W = \frac{1}{\mu - \lambda}$ | Total time per customer |
+| Avg wait time | $W_q = \frac{\rho}{\mu - \lambda}$ | Queue wait only |
+| Prob(empty) | $P_0 = 1 - \rho$ | System is idle |
+
+**Stability condition**: $\lambda < \mu$ (equivalently $\rho < 1$)
+
+
+## Example: Bank Teller
+
+A small bank branch has one teller. Customers arrive at rate 8 per hour.
+Service takes 6 minutes on average.
+
+```{r bank_teller_example}
+#| echo: true
+
+lambda_bank <- 8      # customers per hour
+mu_bank <- 60 / 6     # 60/6 = 10 customers per hour
+
+metrics_bank <- calculate_mm1_metrics(lambda_bank, mu_bank)
+
+write_lines(
+  glue(
+    "=== BANK TELLER ANALYSIS ===\n\n",
+    "Arrival rate: {lambda_bank} customers/hour\n",
+    "Service rate: {mu_bank} customers/hour\n",
+    "Average service time: {round(1/mu_bank * 60, 1)} minutes\n\n",
+    "PERFORMANCE METRICS:\n",
+    "Utilization: {percent(metrics_bank$rho, accuracy = 0.1)}\n",
+    "Avg customers in system: {round(metrics_bank$L, 2)}\n",
+    "Avg customers in queue: {round(metrics_bank$Lq, 2)}\n",
+    "Avg time in system: {round(metrics_bank$W * 60, 1)} minutes\n",
+    "Avg wait time: {round(metrics_bank$Wq * 60, 1)} minutes\n",
+    "Prob(empty system): {percent(metrics_bank$P0, accuracy = 0.1)}"
+    ),
+  stdout()
+  )
+```
+
+**Interpretation**: Customers wait an average of 24 minutes in queue, and
+the teller is busy 80% of the time. The queue has an average of 3.2 waiting
+customers.
+
+
+## Sensitivity Analysis
+
+What happens if arrival rate increases to 9 customers per hour?
+
+```{r sensitivity_analysis}
+#| echo: true
+
+lambda_high <- 9
+metrics_high <- calculate_mm1_metrics(lambda_high, mu_bank)
+
+comparison_tbl <- tibble(
+  scenario = c("Baseline", "Increased Arrivals"),
+  lambda = c(lambda_bank, lambda_high),
+  rho = c(metrics_bank$rho, metrics_high$rho),
+  Lq = c(metrics_bank$Lq, metrics_high$Lq),
+  Wq_min = c(metrics_bank$Wq * 60, metrics_high$Wq * 60)
+  )
+
+print(comparison_tbl)
+```
+
+**Key insight**: A 12.5% increase in arrival rate (8→9) causes wait time to
+more than double! This is the "hockey stick effect" — performance degrades
+rapidly as ρ → 1.
+
+
+## State Probabilities
+
+The M/M/1 queue has a geometric steady-state distribution:
+
+```{r plot_state_probabilities}
+#| echo: true
+#| fig-height: 6
+
+n_states <- 0:10
+rho <- metrics_bank$rho
+prob_n <- (1 - rho) * rho^n_states
+
+ggplot(tibble(n = n_states, prob = prob_n), aes(x = n, y = prob)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.8) +
+  scale_y_continuous(labels = percent) +
+  labs(
+    title = "Steady-State Probability Distribution",
+    subtitle = glue("M/M/1 queue with ρ = {percent(rho, accuracy = 0.1)}"),
+    x = "Number of Customers in System (n)",
+    y = "Probability P(n)"
+    )
+```
+
+
+# M/M/c Queue (Multi-Server)
+
+## Model Description
+
+The **M/M/c queue** extends M/M/1 to multiple servers working in parallel:
+
+  - Single queue, c servers
+  - Customers form one line and go to next available server
+  - Same arrival and service rates as M/M/1
+
+Common applications: call centers, bank branches, checkout lanes.
+
+
+## Key Results
+
+For M/M/c with arrival rate λ, service rate μ per server, and c servers:
+
+  - **Per-server utilization**: $\rho = \lambda / (c\mu)$
+  - **Erlang C formula** gives probability a customer must wait:
+
+$$
+C(c, \rho c) = \frac{P_0 (c\rho)^c / c!}{1 - \rho}
+$$
+
+Where $P_0$ is found by normalizing probabilities to sum to 1.
+
+  - **Average wait time**: $W_q = \frac{C(c, \rho c)}{c\mu - \lambda}$
+  - **Average time in system**: $W = W_q + 1/\mu$
+
+
+## Example: Call Center Staffing
+
+A call center receives 60 calls per hour. Each call takes 5 minutes on
+average. Management wants to know how many agents are needed.
+
+```{r call_center_example}
+#| echo: true
+
+lambda_cc <- 60        # calls per hour
+mu_cc <- 60 / 5        # 12 calls per hour per agent
+
+c_values <- 6:10
+
+comparison_lst <- map(c_values, function(c) {
+  metrics <- calculate_mmc_metrics(lambda_cc, mu_cc, c)
+  tibble(
+    servers = c,
+    rho = metrics$rho,
+    Pw = metrics$Pw,
+    Wq_seconds = metrics$Wq * 3600,
+    L = metrics$L
+    )
+  }) |>
+  bind_rows()
+
+print(comparison_lst)
+```
+
+**Interpretation**: With 9 agents, about 49% of callers wait, with average
+wait of 64 seconds. Adding one more agent (to 10) dramatically improves
+service: only 17% wait, and average wait drops to 11 seconds.
+
+
+## The Pooling Effect
+
+Why is one queue with c servers better than c separate M/M/1 queues?
+
+**Pooling reduces variability**: When servers share a queue, idle capacity can
+be used immediately. With separate queues, an idle server can't help other
+queues.
+
+```{r demonstrate_pooling}
+#| echo: true
+
+lambda_total <- 15  # total arrivals per hour
+mu <- 5             # service rate per server
+c <- 4              # number of servers
+
+pooled_metrics <- calculate_mmc_metrics(lambda_total, mu, c)
+
+lambda_each <- lambda_total / c
+separate_metrics <- calculate_mm1_metrics(lambda_each, mu)
+
+write_lines(
+  glue(
+    "=== POOLING VS SEPARATE QUEUES ===\n\n",
+    "Scenario: {c} servers, {lambda_total} total arrivals/hour\n\n",
+    "POOLED (M/M/{c}):\n",
+    "  Avg wait time: {round(pooled_metrics$Wq * 60, 2)} minutes\n",
+    "  Avg in queue: {round(pooled_metrics$Lq, 2)}\n\n",
+    "SEPARATE (4x M/M/1):\n",
+    "  Avg wait time: {round(separate_metrics$Wq * 60, 2)} minutes\n",
+    "  Avg in queue: {round(separate_metrics$Lq, 2)}\n\n",
+    "Improvement: {percent((separate_metrics$Wq - pooled_metrics$Wq) / separate_metrics$Wq)}"
+    ),
+  stdout()
+  )
+```
+
+
+# M/D/1 Queue (Deterministic Service)
+
+## Model Description
+
+The **M/D/1 queue** has:
+
+  - Poisson arrivals (same as M/M/1)
+  - **Deterministic (constant) service time**
+  - Single server
+
+Applications: Automated systems, toll booths with electronic payment, some
+manufacturing processes.
+
+
+## Key Results
+
+For M/D/1 with arrival rate λ and service time $d = 1/\mu$:
+
+| Metric | Formula | vs M/M/1 |
+|--------|---------|----------|
+| Utilization | $\rho = \lambda/\mu$ | Same |
+| Avg in queue | $L_q = \frac{\rho^2}{2(1-\rho)}$ | Exactly half |
+| Avg wait time | $W_q = \frac{\rho}{2\mu(1-\rho)}$ | Exactly half |
+
+**Key insight**: Eliminating service time variability (going from exponential
+to deterministic) cuts queue length in half!
+
+
+## Example: Toll Booth Comparison
+
+Compare human operators (variable service, ~30 sec average) to automated
+system (fixed 30 sec).
+
+```{r toll_booth_comparison}
+#| echo: true
+
+lambda_toll <- 100    # vehicles per hour
+service_time <- 30 / 3600  # 30 seconds in hours
+mu_toll <- 1 / service_time
+
+mm1_metrics <- calculate_mm1_metrics(lambda_toll, mu_toll)
+md1_metrics <- calculate_md1_metrics(lambda_toll, mu_toll)
+
+rho <- lambda_toll / mu_toll
+
+write_lines(
+  glue(
+    "=== TOLL BOOTH COMPARISON ===\n\n",
+    "Arrival rate: {lambda_toll} vehicles/hour\n",
+    "Service time: 30 seconds\n",
+    "Utilization: {percent(rho, accuracy = 0.1)}\n\n",
+    "HUMAN OPERATORS (M/M/1 - Variable Service):\n",
+    "  Avg vehicles in queue: {round(mm1_metrics$Lq, 2)}\n",
+    "  Avg wait time: {round(mm1_metrics$Wq * 3600, 1)} seconds\n\n",
+    "AUTOMATED (M/D/1 - Fixed Service):\n",
+    "  Avg vehicles in queue: {round(md1_metrics$Lq, 2)}\n",
+    "  Avg wait time: {round(md1_metrics$Wq * 3600, 1)} seconds\n\n",
+    "Reduction: {percent((mm1_metrics$Lq - md1_metrics$Lq) / mm1_metrics$Lq)}"
+    ),
+  stdout()
+  )
+```
+
+
+## Visualize M/M/1 vs M/D/1
+
+```{r plot_mm1_vs_md1}
+#| echo: true
+#| fig-height: 6
+
+rho_range <- seq(0.1, 0.95, by = 0.05)
+
+comparison_tbl <- tibble(
+  rho = rho_range,
+  MM1_Lq = rho^2 / (1 - rho),
+  MD1_Lq = rho^2 / (2 * (1 - rho))
+  ) |>
+  pivot_longer(
+    cols = c(MM1_Lq, MD1_Lq),
+    names_to = "queue_type",
+    values_to = "Lq"
+    )
+
+ggplot(comparison_tbl, aes(x = rho, y = Lq, colour = queue_type)) +
+  geom_line(linewidth = 1.2) +
+  scale_x_continuous(labels = percent) +
+  scale_colour_manual(
+    values = c("MM1_Lq" = "firebrick", "MD1_Lq" = "steelblue"),
+    labels = c("MM1_Lq" = "M/M/1 (Variable Service)", "MD1_Lq" = "M/D/1 (Fixed Service)")
+    ) +
+  labs(
+    title = "Impact of Service Time Variability",
+    subtitle = "Average queue length (Lq) vs utilization",
+    x = "Utilization (ρ)",
+    y = "Average Queue Length (Lq)",
+    colour = "Queue Type"
+    )
+```
+
+
+# M/G/1 Queue (General Service)
+
+## Model Description
+
+The **M/G/1 queue** is the most general single-server model:
+
+  - Poisson arrivals (same as M/M/1)
+  - **General service time distribution** (any distribution)
+  - Only requires mean and variance of service time
+
+This model covers M/M/1 (exponential) and M/D/1 (deterministic) as special
+cases.
+
+
+## Pollaczek-Khinchine Formula
+
+For M/G/1 with arrival rate λ, mean service time $1/\mu$, and service time
+variance $\sigma^2$:
+
+$$
+L_q = \frac{\rho^2(1 + C_s^2)}{2(1 - \rho)}
+$$
+
+Where $C_s = \sigma / (1/\mu)$ is the **coefficient of variation** of service
+time.
+
+**Special cases:**
+
+  - $C_s = 0$ (deterministic): M/D/1
+  - $C_s = 1$ (exponential): M/M/1
+  - $C_s > 1$ (high variability): Worse than M/M/1
+
+**Key insight**: Higher service time variability → longer queues.
+
+
+## Example: Hospital Emergency Department
+
+An ED has Poisson arrivals at rate 1.2 patients per hour. Treatment times are
+highly variable:
+
+  - Mean treatment time: 45 minutes
+  - Standard deviation: 60 minutes (high variability!)
+
+```{r hospital_ed_example}
+#| echo: true
+
+lambda_ed <- 1.2
+treatment_mean <- 45 / 60  # 0.75 hours
+treatment_sd <- 60 / 60    # 1.0 hour
+treatment_var <- treatment_sd^2
+
+mg1_metrics <- calculate_mg1_metrics(lambda_ed, treatment_mean, treatment_var)
+
+write_lines(
+  glue(
+    "=== HOSPITAL EMERGENCY DEPARTMENT ===\n\n",
+    "Arrival rate: {lambda_ed} patients/hour\n",
+    "Mean treatment time: {treatment_mean * 60} minutes\n",
+    "SD treatment time: {treatment_sd * 60} minutes\n",
+    "Coefficient of variation: {round(mg1_metrics$Cs, 2)}\n\n",
+    "PERFORMANCE METRICS:\n",
+    "Utilization: {percent(mg1_metrics$rho, accuracy = 0.1)}\n",
+    "Avg patients in queue: {round(mg1_metrics$Lq, 2)}\n",
+    "Avg wait time: {round(mg1_metrics$Wq * 60, 1)} minutes"
+    ),
+  stdout()
+  )
+```
+
+
+## Impact of Reducing Variability
+
+What if the ED standardizes treatment protocols to reduce variability (SD = 30
+min)?
+
+```{r reduce_variability}
+#| echo: true
+
+treatment_sd_reduced <- 30 / 60  # 0.5 hour
+treatment_var_reduced <- treatment_sd_reduced^2
+
+mg1_metrics_reduced <- calculate_mg1_metrics(
+  lambda_ed,
+  treatment_mean,
+  treatment_var_reduced
+  )
+
+write_lines(
+  glue(
+    "BASELINE (SD = 60 min):\n",
+    "  Avg wait: {round(mg1_metrics$Wq * 60, 1)} minutes\n",
+    "  Cs = {round(mg1_metrics$Cs, 2)}\n\n",
+    "REDUCED VARIABILITY (SD = 30 min):\n",
+    "  Avg wait: {round(mg1_metrics_reduced$Wq * 60, 1)} minutes\n",
+    "  Cs = {round(mg1_metrics_reduced$Cs, 2)}\n\n",
+    "Improvement: {percent((mg1_metrics$Wq - mg1_metrics_reduced$Wq) / mg1_metrics$Wq)}"
+    ),
+  stdout()
+  )
+```
+
+**Conclusion**: Reducing service time variability improves performance, even
+without changing the average service time!
+
+
+# Discrete-Event Simulation with simmer
+
+## Introduction to Discrete-Event Simulation
+
+**Why simulate** when we have analytical formulas?
+
+  1. **Validation**: Confirm analytical results are correct
+  1. **Complex scenarios**: Time-varying rates, priorities, finite capacity
+  1. **Distributions**: Explore beyond exponential service times
+  1. **Transient behavior**: Startup effects, peak hours
+
+**simmer** is a modern R package for discrete-event simulation (DES).
+
+
+## Building a Basic M/M/1 Simulation
+
+Let's simulate the bank teller example and compare to analytical results.
+
+```{r simulate_mm1_basic}
+#| echo: true
+
+lambda <- 8
+mu <- 10
+
+customer_trajectory <- trajectory("Customer") |>
+  seize("teller", 1) |>
+  timeout(function() rexp(1, mu)) |>
+  release("teller", 1)
+
+sim_env <- simmer("BankSimulation") |>
+  add_resource("teller", capacity = 1) |>
+  add_generator("customer", customer_trajectory, function() rexp(1, lambda)) |>
+  run(until = 1000)
+
+sim_results <- run_queue_simulation(sim_env, until = 1000, warmup = 100)
+
+write_lines(
+  glue(
+    "=== SIMULATION RESULTS ===\n\n",
+    "Customers served: {sim_results$n_served}\n",
+    "Avg wait time: {round(sim_results$avg_wait * 60, 2)} minutes\n",
+    "Avg system time: {round(sim_results$avg_system_time * 60, 2)} minutes\n",
+    "Utilization: {percent(sim_results$utilization, accuracy = 0.1)}\n",
+    "Avg queue length: {round(sim_results$avg_queue_length, 2)}"
+    ),
+  stdout()
+  )
+```
+
+
+## Comparing Analytical vs Simulated
+
+```{r compare_analytical_simulated}
+#| echo: true
+
+analytical_metrics <- calculate_mm1_metrics(lambda, mu)
+
+comparison_tbl <- tibble(
+  Metric = c("Utilization (ρ)", "Avg in System (L)", "Avg Wait (Wq)", "Avg Time (W)"),
+  Analytical = c(
+    analytical_metrics$rho,
+    analytical_metrics$L,
+    analytical_metrics$Wq,
+    analytical_metrics$W
+    ),
+  Simulated = c(
+    sim_results$utilization,
+    NA,  # We didn't compute L from simulation
+    sim_results$avg_wait,
+    sim_results$avg_system_time
+    ),
+  Pct_Diff = percent((Simulated - Analytical) / Analytical, accuracy = 0.1)
+  )
+
+print(comparison_tbl, n = Inf)
+```
+
+**Note**: Simulation results should be close to analytical values. Small
+differences are due to random variation — run longer simulations for closer
+convergence.
+
+
+## Visualizing Simulation Output
+
+```{r plot_simulation_output}
+#| echo: true
+
+# Create simple comparison visualization
+comparison_visual <- tibble(
+  metric = c("Utilization", "Avg Wait (min)", "Avg System Time (min)"),
+  analytical = c(
+    analytical_metrics$rho,
+    analytical_metrics$Wq * 60,
+    analytical_metrics$W * 60
+  ),
+  simulated = c(
+    sim_results$utilization,
+    sim_results$avg_wait * 60,
+    sim_results$avg_system_time * 60
+  )
+)
+
+comparison_visual |>
+  pivot_longer(cols = c(analytical, simulated), names_to = "type", values_to = "value") |>
+  ggplot(aes(x = metric, y = value, fill = type)) +
+  geom_col(position = "dodge") +
+  scale_fill_brewer(palette = "Set1") +
+  labs(
+    title = "Analytical vs Simulated Results",
+    x = "Metric",
+    y = "Value",
+    fill = "Method"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+# Advanced Simulation Examples
+
+## Multi-Server Simulation (M/M/c)
+
+Extend the simulation to multiple servers.
+
+```{r simulate_mmc}
+#| echo: true
+
+lambda_cc <- 100
+mu_cc <- 12
+c_servers <- 10
+
+customer_trajectory_cc <- trajectory("Caller") |>
+  seize("agent", 1) |>
+  timeout(function() rexp(1, mu_cc)) |>
+  release("agent", 1)
+
+sim_env_cc <- simmer("CallCenterSimulation") |>
+  add_resource("agent", capacity = c_servers) |>
+  add_generator(
+    "caller",
+    customer_trajectory_cc,
+    function() rexp(1, lambda_cc)
+    ) |>
+  run(until = 100)
+
+sim_results_cc <- run_queue_simulation(sim_env_cc, until = 100, warmup = 10)
+
+analytical_cc <- calculate_mmc_metrics(lambda_cc, mu_cc, c_servers)
+
+write_lines(
+  glue(
+    "=== CALL CENTER SIMULATION ===\n\n",
+    "ANALYTICAL:\n",
+    "  Prob(wait): {percent(analytical_cc$Pw, accuracy = 0.1)}\n",
+    "  Avg wait: {round(analytical_cc$Wq * 3600, 1)} seconds\n\n",
+    "SIMULATED:\n",
+    "  Callers served: {sim_results_cc$n_served}\n",
+    "  Avg wait: {round(sim_results_cc$avg_wait * 3600, 1)} seconds\n",
+    "  Utilization: {percent(sim_results_cc$utilization, accuracy = 0.1)}"
+    ),
+  stdout()
+  )
+```
+
+
+## Time-Varying Arrival Rates
+
+Real systems often have time-varying demand (e.g., call centers with peak hours).
+Rather than implementing time-varying arrivals in the simulation (which requires
+complex closure handling), we'll demonstrate the concept with a simple comparison.
+
+```{r time_varying_arrivals}
+#| echo: true
+
+# Simulate steady-state with peak hour rate
+lambda_peak <- 10
+mu <- 5
+c <- 3
+
+# Simulate steady-state with off-peak hour rate
+lambda_offpeak <- 2
+
+peak_metrics <- calculate_mmc_metrics(lambda_peak, mu, c)
+offpeak_metrics <- calculate_mmc_metrics(lambda_offpeak, mu, c)
+
+comparison_tv <- tibble(
+  period = c("Off-Peak (2-8am, 5-11pm)", "Peak Hours (8am-5pm)"),
+  arrival_rate = c(lambda_offpeak, lambda_peak),
+  utilization = c(offpeak_metrics$rho, peak_metrics$rho),
+  avg_wait_seconds = c(
+    offpeak_metrics$Wq * 3600,
+    peak_metrics$Wq * 3600
+  ),
+  prob_wait = c(offpeak_metrics$Pw, peak_metrics$Pw)
+)
+
+write_lines("Time-Varying Demand Analysis (3 agents):", stdout())
+print(comparison_tv)
+
+write_lines(
+  glue(
+    "\nKey insight: With time-varying demand, staffing must account for peak hours.\n",
+    "Peak hour utilization is {percent(peak_metrics$rho, accuracy = 0.1)},\n",
+    "while off-peak is only {percent(offpeak_metrics$rho, accuracy = 0.1)}."
+  ),
+  stdout()
+)
+```
+
+
+# Practical Exercises
+
+## Exercise 1: Bank Teller Analysis
+
+A bank teller serves customers at rate 12 per hour. Customers arrive at rate
+9 per hour.
+
+**Tasks:**
+
+  1. Calculate utilization, average queue length, and average wait time
+  1. Use the `calculate_mm1_metrics()` function
+  1. What happens if arrival rate increases to 11 per hour?
+  1. Validate your results with a simulation
+
+```{r exercise1_solution}
+#| echo: true
+
+lambda_ex1 <- 9
+mu_ex1 <- 12
+
+metrics_ex1 <- calculate_mm1_metrics(lambda_ex1, mu_ex1)
+
+write_lines(
+  glue(
+    "Exercise 1 Solution:\n",
+    "Utilization: {percent(metrics_ex1$rho, accuracy = 0.1)}\n",
+    "Avg in queue: {round(metrics_ex1$Lq, 2)}\n",
+    "Avg wait: {round(metrics_ex1$Wq * 60, 1)} minutes"
+    ),
+  stdout()
+  )
+```
+
+
+## Exercise 2: Call Center Staffing
+
+A call center receives 80 calls per hour. Each call takes 4 minutes on average.
+Management wants average wait time under 20 seconds.
+
+**Tasks:**
+
+  1. How many agents are needed?
+  1. Use `calculate_mmc_metrics()` to test different server counts
+  1. What is the utilization at the optimal staffing level?
+
+```{r exercise2_solution}
+#| echo: true
+
+lambda_ex2 <- 80
+mu_ex2 <- 60 / 4  # 15 calls per hour
+
+target_wait_seconds <- 20
+
+for (c in 6:10) {
+  metrics_ex2 <- calculate_mmc_metrics(lambda_ex2, mu_ex2, c)
+  wait_seconds <- metrics_ex2$Wq * 3600
+
+  write_lines(
+    glue(
+      "c = {c}: Wq = {round(wait_seconds, 1)} sec, ",
+      "ρ = {percent(metrics_ex2$rho, accuracy = 0.1)}"
+      ),
+    stdout()
+    )
+
+  if (wait_seconds < target_wait_seconds) {
+    write_lines(glue("\nOptimal: {c} agents"), stdout())
+    break
+    }
+}
+```
+
+
+## Exercise 3: System Comparison
+
+Compare M/M/1, M/D/1, and M/G/1 (with Cv=1.5) at utilization ρ = 0.75.
+
+**Tasks:**
+
+  1. Calculate Lq for each queue type
+  1. Visualize the comparison using `plot_queue_comparison()`
+
+```{r exercise3_solution}
+#| echo: true
+#| fig-height: 6
+
+lambda_ex3 <- 6
+mu_ex3 <- 8  # ρ = 0.75
+
+plot_queue_comparison(lambda_ex3, mu_ex3, c("MM1", "MD1", "MG1"), service_cv = 1.5)
+```
+
+
+# Summary and Extensions
+
+## Key Takeaways
+
+  1. **Little's Law** ($L = \lambda W$) is universal and fundamental
+  1. **Utilization near 1** causes explosive queue growth (hockey stick effect)
+  1. **Reducing variability** improves performance even without changing averages
+  1. **Pooling resources** (M/M/c) is better than separate queues
+  1. **Simulation validates** analytical results and handles complex scenarios
+
+
+## Beyond This Workshop
+
+### Networks of Queues
+
+Real systems often involve multiple interconnected queues:
+
+  - **Tandem queues**: Output of one queue feeds into another
+  - **Jackson networks**: Multiple queues with routing
+  - **Open vs. closed networks**: External arrivals vs. fixed population
+
+### Advanced Topics
+
+  - **Priority queues**: Different customer classes
+  - **Impatient customers**: Balking (refuse to join) and reneging (leave queue)
+  - **Batch arrivals/service**: Groups of customers
+  - **Non-stationary systems**: Time-varying rates and staffing
+  - **Optimization**: Finding optimal staffing levels
+
+
+### Recommended Resources
+
+  - **Books**:
+    - Kleinrock, "Queueing Systems" (classic reference)
+    - Gross & Harris, "Fundamentals of Queueing Theory"
+  - **R Packages**:
+    - `queueing`: Analytical models
+    - `simmer`: Discrete-event simulation
+    - `queuecomputer`: Queue network simulation
+
+
+# R Environment
+
+```{r session_info}
+#| echo: true
+
+sessioninfo::session_info()
+```
