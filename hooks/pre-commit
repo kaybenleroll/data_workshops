@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Pre-commit hook: Prevent commits directly to master branch
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "$BRANCH" = "master" ]; then
+  echo ""
+  echo "ERROR: Direct commits to 'master' branch are not allowed!"
+  echo ""
+  echo "Workflow:"
+  echo ""
+  echo "   1. Create GitHub issue:     gh issue create"
+  echo "   2. Create feature branch:   just branch {issue-number} {talk-or-ws-dir}"
+  echo "   3. Make changes and commit on feature branch"
+  echo "   4. Create PR:               gh pr create"
+  echo "   5. Merge PR:                gh pr merge {number} --squash"
+  echo ""
+  echo "To fix now:"
+  echo "   1. Undo staged changes:     git reset HEAD"
+  echo "   2. Create issue and branch, then re-stage and commit there"
+  echo ""
+  exit 1
+fi
+
+exit 0

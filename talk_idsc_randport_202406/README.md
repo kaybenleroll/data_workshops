@@ -25,3 +25,9 @@ The slides for each of the talks are available at the following URLS:
 [Talk 07 - So You Want to Data?](ws_07_started.html)
 
 [Talk 08 - Recap](ws_08_recap.html)
+
+
+## HTML Files
+
+- [Idsc2024 Mcooney Random Portfolios](./idsc2024_mcooney_random_portfolios.html)
+- [Run Random Portfolio Work](./run_random_portfolio_work.html)

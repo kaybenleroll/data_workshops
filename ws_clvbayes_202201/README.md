@@ -1,0 +1,15 @@
+# Workshop Files
+
+- [Consolidate Btyd Models](./consolidate_btyd_models.html)
+- [Exploring Retail Data](./exploring_retail_data.html)
+- [Fit Bgnbd Models](./fit_bgnbd_models.html)
+- [Fit Externaldata Pnbd Lambda Mn Models](./fit_externaldata_pnbd_lambda_mn_models.html)
+- [Fit Externaldata Pnbd Models](./fit_externaldata_pnbd_models.html)
+- [Fit Pnbd Lambda Mn Models](./fit_pnbd_lambda_mn_models.html)
+- [Generate Transaction Datasets](./generate_transaction_datasets.html)
+- [Initial Lifetime Models](./initial_lifetime_models.html)
+- [Initial Monetary Models](./initial_monetary_models.html)
+- [Initial Pnbd Models](./initial_pnbd_models.html)
+- [Initial Tnx Frequency Models](./initial_tnx_frequency_models.html)
+- [Intro Bayes](./intro_bayes.html)
+- [Retrieve Retail Data](./retrieve_retail_data.html)
