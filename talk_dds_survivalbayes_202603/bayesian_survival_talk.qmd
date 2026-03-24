@@ -16,6 +16,7 @@ format:
     progress: true
     css: styles.css
     mathjax: true
+    embed-resources: true
 ---
 
 ```{r knit_opts}
@@ -458,19 +459,63 @@ plot_grid(
       title = "KM Survival Curve by Smoker Status",
       x     = "Policy Lifetime (weeks)",
       y     = "Estimated S(t)",
-      color = "Smoker"
+      color = "Smoker",
+      fill  = "Smoker"
       ),
   km_gender_plot$plot +
     labs(
       title = "KM Survival Curve by Gender",
       x     = "Policy Lifetime (weeks)",
       y     = "Estimated S(t)",
-      color = "Gender"
+      color = "Gender",
+      fill  = "Gender"
       ),
   nrow = 2
   )
 ```
 
+---
+
+```{r km_plots_all}
+#| echo: false
+
+km_all_plot$plot + 
+  labs(
+    title = "KM Survival Curve: All Policies",
+    x     = "Policy Lifetime (weeks)",
+    y     = "Estimated S(t)"
+    )
+```
+
+---
+
+```{r km_plots_smoker}
+#| echo: false
+
+km_smoker_plot$plot +
+  labs(
+    title = "KM Survival Curve by Smoker Status",
+    x     = "Policy Lifetime (weeks)",
+    y     = "Estimated S(t)",
+    color = "Smoker",
+    fill  = "Smoker"
+    )
+```
+
+---
+
+```{r km_plots_gender}
+#| echo: false
+
+km_gender_plot$plot +
+  labs(
+    title = "KM Survival Curve by Gender",
+    x     = "Policy Lifetime (weeks)",
+    y     = "Estimated S(t)",
+    color = "Gender",
+    fill  = "Gender"
+    )
+```
 
 
 # Parametric Models
