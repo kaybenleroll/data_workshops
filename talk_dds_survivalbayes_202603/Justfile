@@ -1,21 +1,22 @@
 # Project configuration
-PROJECT_USER    := "kaybenleroll"
-PROJECT_NAME    := "bm-talk-survival"
-PROJECT_TAG     := "latest"
-IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
-DOCKER_USER     := "rstudio"
-DOCKER_PASS     := "CHANGEME"
-DOCKER_UID      := `id -u`
-DOCKER_GID      := `id -g`
-PWD             := `pwd`
-RSTUDIO_PORT    := "8787"
-PROJECT_FOLDER  := "bayes_surv"
-CONTAINER_NAME  := "bayes-surv"
+PROJECT_USER      := "kaybenleroll"
+PROJECT_NAME      := "bm-talk-survival"
+PROJECT_TAG       := "latest"
+IMAGE_TAG         := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
+PODMAN_USER       := "rstudio"
+PODMAN_PASS       := "CHANGEME"
+PODMAN_UID        := `id -u`
+PODMAN_GID        := `id -g`
+PWD               := `pwd`
+RSTUDIO_PORT      := "8787"
+PROJECT_FOLDER    := "bayes_surv"
+CONTAINER_NAME    := "bayes-surv"
 
-DOCKER_BUILD_ARGS := ""
+PODMAN_BUILD_ARGS := ""
 
-# Container runtime (prefers podman if available)
-OCI := `command -v podman >/dev/null 2>&1 && echo podman || echo docker`
+# Container runtime
+PODMAN := "podman"
+
 # List available recipes
 default:
 	@just --list
@@ -24,33 +25,22 @@ default:
 # Presentation Rendering
 # ============================================================================
 
-# Render Bayesian Survival Analysis presentation
+# Render Bayesian Survival Analysis presentation via Quarto
 render-talk:
 	@echo "TIMESTAMP: $(date) - Rendering bayesian_survival_talk.qmd"
 	quarto render bayesian_survival_talk.qmd --to revealjs
 	@echo "TIMESTAMP: $(date) - Finished rendering"
 
-# Convert presentation to PDF (podman/docker aware)
+# Convert presentation to PDF using decktape inside a container
 pdf-talk:
-	@if command -v podman >/dev/null 2>&1; then \
-	  echo "Using podman"; \
-	  podman run --rm -t \
-	    --userns=keep-id \
-	    -v "`pwd`:/slides:Z" \
-	    astefanutti/decktape:3.12.0 \
-	    --size 1920x1080 \
-	    /slides/bayesian_survival_talk.html \
-	    /slides/bayesian_survival_talk.pdf; \
-	else \
-	  echo "Using docker"; \
-	  docker run --rm -t \
-	    -u "`id -u`:`id -g`" \
-	    -v "`pwd`:/slides" \
-	    astefanutti/decktape:3.12.0 \
-	    --size 1920x1080 \
-	    /slides/bayesian_survival_talk.html \
-	    /slides/bayesian_survival_talk.pdf; \
-	fi
+	@echo "Using {{PODMAN}}"
+	{{PODMAN}} run --rm -t \
+	  --userns=keep-id \
+	  -v "{{PWD}}:/slides:Z" \
+	  astefanutti/decktape:3.12.0 \
+	  --size 1920x1080 \
+	  /slides/bayesian_survival_talk.html \
+	  /slides/bayesian_survival_talk.pdf
 
 # Full workflow: render presentation and create PDF
 all: render-talk pdf-talk
@@ -76,55 +66,59 @@ clean-pdfs:
 clean-all: clean-html clean-pdfs clean-models
 
 # ============================================================================
-# Docker Commands
+# Podman Commands
 # ============================================================================
 
-# Build Docker image
-docker-build:
-	docker build -t {{IMAGE_TAG}} \
+# Build Podman image
+podman-build:
+	{{PODMAN}} build -t {{IMAGE_TAG}} \
 		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
-		{{DOCKER_BUILD_ARGS}} \
-		-f Dockerfile . 2>&1 | tee -a docker_build.log
+		{{PODMAN_BUILD_ARGS}} \
+		-f Dockerfile . 2>&1 | tee -a podman_build.log
 
-# Show Docker build context
-docker-show-context:
-	docker build -f build/context.dockerfile -t context-image .
-	docker run --rm -it context-image find /tmp/build
-	docker rmi context-image
+# Show Podman build context
+podman-show-context:
+	{{PODMAN}} build -f build/context.dockerfile -t context-image .
+	{{PODMAN}} run --rm -it context-image find /tmp/build
+	{{PODMAN}} rmi context-image
 
-# Run Docker container with RStudio
-docker-run:
-	docker run --rm -d \
+# Run Podman container with RStudio
+podman-run:
+	{{PODMAN}} run --rm -d \
 	  --userns=keep-id \
 	  -e RUNROOTLESS=false \
 	  -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" \
-	  -e USER={{DOCKER_USER}} \
-	  -e PASSWORD={{DOCKER_PASS}} \
-	  -e USERID={{DOCKER_UID}} \
-	  -e GROUPID={{DOCKER_GID}} \
-	  -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}:z" \
+	  -e USER={{PODMAN_USER}} \
+	  -e PASSWORD={{PODMAN_PASS}} \
+	  -e USERID={{PODMAN_UID}} \
+	  -e GROUPID={{PODMAN_GID}} \
+	  -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}:Z" \
 	  -v "{{PWD}}/.rstudio_copilot:/home/rstudio/.config/github-copilot:rw" \
 	  --name {{CONTAINER_NAME}} \
 	  {{IMAGE_TAG}}
 	@echo "RStudio Server running at http://127.0.0.1:{{RSTUDIO_PORT}}"
-	@echo "Username: {{DOCKER_USER}}"
-	@echo "Password: {{DOCKER_PASS}}"
+	@echo "Username: {{PODMAN_USER}}"
+	@echo "Password: {{PODMAN_PASS}}"
 
-# Stop Docker container
-docker-stop:
-	docker stop {{CONTAINER_NAME}}
+# Stop Podman container
+podman-stop:
+	{{PODMAN}} stop {{CONTAINER_NAME}}
 
-# Enter Docker container bash
-docker-bash:
-	docker exec -u {{DOCKER_USER}} -it {{CONTAINER_NAME}} bash
+# Remove Podman container completely
+podman-rm: podman-stop
+	{{PODMAN}} rm {{CONTAINER_NAME}}
 
-# Fix Docker container permissions
-docker-fix-permissions:
-	docker exec {{CONTAINER_NAME}} bash -c "chown -R {{DOCKER_USER}}:{{DOCKER_USER}} /home/{{DOCKER_USER}}"
+# Enter Podman container bash
+podman-bash:
+	{{PODMAN}} exec -u {{PODMAN_USER}} -it {{CONTAINER_NAME}} bash
 
-# View Docker container logs
-docker-logs:
-	docker logs {{CONTAINER_NAME}}
+# Fix Podman container permissions (if files get owned by the container user)
+podman-fix-permissions:
+	{{PODMAN}} unshare chown -R {{PODMAN_UID}}:{{PODMAN_GID}} "{{PWD}}"
 
-# Full Docker workflow: build, run, and show access info
-docker-setup: docker-build docker-run
+# View Podman container logs
+podman-logs:
+	{{PODMAN}} logs {{CONTAINER_NAME}}
+
+# Full Podman workflow: build, run, and show access info
+podman-setup: podman-build podman-run

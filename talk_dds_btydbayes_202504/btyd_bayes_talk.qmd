@@ -6,6 +6,7 @@ date: "Wednesday, April 30 2025"
 editor: source
 format:
   revealjs:
+    embed-resources: true
     theme: night
     highlight: pygments
     controls: true
