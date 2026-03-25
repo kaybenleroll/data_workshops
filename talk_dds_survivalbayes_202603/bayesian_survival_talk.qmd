@@ -548,12 +548,222 @@ Can also model $h(t)$ or $H(t)$
 \
 
 
-Accelerate Failure Time (AFT) models
+- **Quality control**: manufacturing time to failure
+- **Customer churn**: time to subscription cancellation
+- **Clinical trials**: time to disease recurrence or death
+
+
+# Accelerated Failure Time (AFT)
+
+---
+
+$log(T) = \mu + \mathbf{x}^\top \beta + \sigma \epsilon$
 
 \
 
 
-Quality control for manufacturing 
+::: {.left-align}
+- $\epsilon$: error term (e.g. Gumbel, Normal, Logistic)
+- $\sigma$: scale parameter
+- $\exp(\beta)$: **Acceleration Factor (AF)**
+:::
+
+---
+
+$$
+\begin{align*}
+S_1(t) &= S_0 \, \left(\frac{t}{AF}\right) \\
+\\
+h_1(t) &= \left(\frac{1}{AF}\right) \cdot h_0 \, \left(\frac{t}{AF}\right)
+\end{align*}
+$$
+
+
+
+
+## Fragility Example: Survival
+
+```{r aft_data_prep}
+#| echo: false
+
+lambda <- 10
+t_seq  <- seq(0.1, 30, length.out = 200)
+
+aft_fragility_data_tbl <- expand_grid(
+    t  = t_seq,
+    AF = c(0.5, 1, 2)
+    ) |>
+  mutate(
+    group    = factor(
+      AF,
+      levels = c(0.5, 1, 2),
+      labels = c("AF=0.5 (Accelerated)", "Baseline (AF=1)", "AF=2 (Decelerated)")
+      ),
+    k        = 1.5,
+    survival = exp(-(t / (lambda * AF))^k),
+    hazard   = (k / (lambda * AF)) * (t / (lambda * AF))^(k - 1),
+    log_t    = log(t),
+    density  = dnorm(log_t, mean = log(10) + log(AF), sd = 0.5)
+    )
+
+aft_infant_data_tbl <- expand_grid(
+    t  = t_seq,
+    AF = c(0.5, 1, 2)
+    ) |>
+  mutate(
+    group    = factor(
+      AF,
+      levels = c(0.5, 1, 2),
+      labels = c("AF=0.5 (Accelerated)", "Baseline (AF=1)", "AF=2 (Decelerated)")
+      ),
+    k        = 0.5,
+    survival = exp(-(t / (lambda * AF))^k),
+    hazard   = (k / (lambda * AF)) * (t / (lambda * AF))^(k - 1),
+    log_t    = log(t),
+    density  = dnorm(log_t, mean = log(10) + log(AF), sd = 1.0)
+    )
+```
+
+```{r fig_aft_frag_surv}
+#| echo: false
+#| fig-align: center
+
+aft_fragility_data_tbl |>
+  ggplot(aes(x = t, y = survival, color = group)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    x     = "Time",
+    y     = "Survival S(t)",
+    color = "Condition",
+    title = "Visualising Survival Times (Fragility / Wear-out)"
+    )
+```
+
+## Fragility Example: Hazard
+
+```{r fig_aft_frag_haz}
+#| echo: false
+#| fig-align: center
+
+aft_fragility_data_tbl |>
+  ggplot(aes(x = t, y = hazard, color = group)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    x     = "Time",
+    y     = "Hazard h(t)",
+    color = "Condition",
+    title = "Visualising Hazards (Fragility / Wear-out)"
+    )
+```
+
+## Fragility Example: Log-Time
+
+```{r fig_aft_frag_logt}
+#| echo: false
+#| fig-align: center
+
+aft_fragility_data_tbl |>
+  ggplot(aes(x = log_t, y = density, fill = group)) +
+  geom_area(alpha = 0.5, color = "white") +
+  labs(
+    x    = "log(Time)",
+    y    = "Density",
+    fill = "Condition",
+    title = "Density Estimates of Time-to-Failure (Fragility)"
+    )
+```
+
+## Infant Mortality: Survival
+
+```{r fig_aft_inf_surv}
+#| echo: false
+#| fig-align: center
+
+aft_infant_data_tbl |>
+  ggplot(aes(x = t, y = survival, color = group)) +
+  geom_line(linewidth = 1.2) +
+  labs(
+    x     = "Time",
+    y     = "Survival S(t)",
+    color = "Condition",
+    title = "Visualising Survival Times (Infant Mortality)"
+    )
+```
+
+## Infant Mortality: Hazard
+
+```{r fig_aft_inf_haz}
+#| echo: false
+#| fig-align: center
+
+aft_infant_data_tbl |>
+  ggplot(aes(x = t, y = hazard, color = group)) +
+  geom_line(linewidth = 1.2) +
+  coord_cartesian(ylim = c(0, 0.5)) +
+  labs(
+    x     = "Time",
+    y     = "Hazard h(t)",
+    color = "Condition",
+    title = "Visualising Hazards (Infant Mortality)"
+    )
+```
+
+## Infant Mortality: Log-Time
+
+```{r fig_aft_inf_logt}
+#| echo: false
+#| fig-align: center
+
+aft_infant_data_tbl |>
+  ggplot(aes(x = log_t, y = density, fill = group)) +
+  geom_area(alpha = 0.5, color = "white") +
+  labs(
+    x    = "log(Time)",
+    y    = "Density",
+    fill = "Condition",
+    title = "Density Estimates of Time-to-Failure (Infant Mortality)"
+    )
+```
+
+## Interpreting AF and Risk
+
+\
+
+
+AF scales **time**, not **hazard**
+
+\
+
+
+($AF > 1 \implies$ longer life).
+
+
+---
+
+
+**Fragility ($k > 1$)**
+
+Hazard is lower at *all* times.
+
+\
+
+
+**Infant Mortality ($k < 1$)**
+
+Early hazard is *higher*, late hazard is *lower*.
+
+
+
+---
+
+
+**Hazards cross!**
+
+\
+
+
+AFT handles this naturally, Proportional Hazards fails.
+
 
 
 # Semi-parametric Models
