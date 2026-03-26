@@ -34,10 +34,33 @@ default:
 	@just --list
 
 # =============================================================================
-# RENDERING TARGETS
+# RENDERING TARGETS (Local or Inside Container)
 # =============================================================================
 
 all: basics advanced
+
+basics:
+	@just _render 01_queuing_basics
+
+advanced:
+	@just _render 02_advanced_queuing
+
+_render name:
+	@echo "▶ Rendering {{name}}..."
+	@just _render-qmd {{name}}
+	@echo "✓ {{name}} complete"
+
+_render-qmd qmd:
+	#!/usr/bin/env bash
+	file="{{qmd}}"
+	[[ "$file" != *.qmd ]] && file="${file}.qmd"
+	html="${file%.qmd}.html"
+	deps="$file lib_utils.R lib_queueing.R"
+	if just _needs_rebuild "$html" $deps; then
+		echo "TIMESTAMP: $(date) - Rendering $file" >> {{OUTPUT_LOG}} 2>&1
+		quarto render "$file" --to html >> {{OUTPUT_LOG}} 2>&1
+		echo "TIMESTAMP: $(date) - Finished $file" >> {{OUTPUT_LOG}} 2>&1
+	fi
 
 _needs_rebuild output *sources:
 	#!/usr/bin/env bash
@@ -54,57 +77,37 @@ _needs_rebuild output *sources:
 		exit 1
 	fi
 
-_render-qmd qmd_file:
-	#!/usr/bin/env bash
-	qmd_file="{{qmd_file}}"
-	html_file="${qmd_file%.qmd}.html"
-	all_deps="$qmd_file lib_utils.R lib_queueing.R"
-	if just _needs_rebuild "$html_file" $all_deps; then
-		echo "TIMESTAMP: $(date) - Rendering $qmd_file" >> {{OUTPUT_LOG}} 2>&1
-		quarto render "$qmd_file" --to html >> {{OUTPUT_LOG}} 2>&1
-		echo "TIMESTAMP: $(date) - Finished $qmd_file" >> {{OUTPUT_LOG}} 2>&1
-	fi
+# =============================================================================
+# CONTAINER OPERATIONS (From Outside)
+# =============================================================================
 
-basics:
-	@echo "▶ Rendering Queuing Theory Basics..."
-	@just _render-qmd 01_queuing_basics.qmd
-	@echo "✓ Basics complete"
+# Run any target inside the container
+container target:
+	@podman exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
+		just {{target}}
 
-advanced:
-	@echo "▶ Rendering Advanced Queuing Theory..."
-	@just _render-qmd 02_advanced_queuing.qmd
-	@echo "✓ Advanced complete"
+# Shortcut for rendering everything in the container
+all-container:
+	@just container all
 
-# Container Rendering
+# Shortcut for rendering a specific file in the container
 render-container file:
-	#!/usr/bin/env bash
-	qmd="{{file}}"
-	if [[ "$qmd" != *.qmd ]]; then qmd="${qmd}.qmd"; fi
-	if [ ! -f "$qmd" ]; then echo "Error: $qmd not found"; exit 1; fi
-	podman exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
-		quarto render "$qmd" --to html
-
-render-container-all:
-	@just render-container 01_queuing_basics
-	@just render-container 02_advanced_queuing
+	@just container _render {{file}}
 
 # =============================================================================
-# PODMAN TARGETS
+# IMAGE MANAGEMENT
 # =============================================================================
 
-podman-build-image:
-	podman build -t {{IMAGE_TAG}} \
+image-build *args:
+	podman build {{args}} -t {{IMAGE_TAG}} \
 		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
 		{{DOCKER_BUILD_ARGS}} \
 		-f Dockerfile .
 
-podman-rebuild-image:
-	podman build --no-cache -t {{IMAGE_TAG}} \
-		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
-		{{DOCKER_BUILD_ARGS}} \
-		-f Dockerfile .
+image-rebuild:
+	@just image-build --no-cache
 
-podman-run-image:
+image-run:
 	podman run --rm -d \
 	  --userns=keep-id \
 	  -e RUNROOTLESS=false \
@@ -118,22 +121,22 @@ podman-run-image:
 	  --name {{CONTAINER_NAME}} \
 	  {{IMAGE_TAG}}
 
-podman-stop-image:
+image-stop:
 	podman stop {{CONTAINER_NAME}} || true
 
-podman-rm: podman-stop-image
+image-rm: image-stop
 	podman rm {{CONTAINER_NAME}} || true
 
-podman-restart: podman-stop-image podman-run-image
+image-restart: image-stop image-run
 
-podman-bash:
+image-shell:
 	podman exec -u {{DOCKER_USER}} -it {{CONTAINER_NAME}} bash
 
 # =============================================================================
 # CLEANING
 # =============================================================================
 
-clean-all:
+clean:
 	rm -fv *.html
 	rm -rf *_cache/
 	rm -rf *_files/

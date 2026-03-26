@@ -5,7 +5,7 @@ exclude:
   - "**/*.pdf"
   - "**/*.log"
   - "**/*.Rproj"
-  - "**/*.html"
+
   - "**/*.rds"
   - "**/*.parquet"
   - "**/*.qs"
