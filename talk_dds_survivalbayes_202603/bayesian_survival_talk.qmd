@@ -339,16 +339,14 @@ Models need to account for this
 ---
 
 ::: {.left-align}
-Survival function, $S(t)$:
+*Survival* function, $S(t)$:
 :::
 
 $$
 S(t) = P(T > t), \, 0 \leq t \leq \infty
 $$
 
-\
-
-
+---
 
 ::: {.left-align}
 *Cumulative Hazard* function, $\Lambda(t)$:
@@ -358,7 +356,8 @@ $$
 S(t) = e^{-\Lambda(t)}
 $$
 
----
+\
+
 
 ::: {.left-align}
 *Hazard* function, $\lambda(t)$:
@@ -368,11 +367,15 @@ $$
 \lambda(t) = \lim_{\delta t \to 0^+} \frac{P(t \le T < t + \delta t \;|\; T \ge t)}{\delta t}
 $$
 
+---
+
+Key Relationship
+
 \
 
 
 $$
-\implies S(t) = e^{- \int_0^t \lambda(\tau) \, d\tau}
+S(t) = e^{-\Lambda(t)} = e^{- \int_0^t \lambda(\tau) \, d\tau}
 $$
 
 ---
@@ -581,7 +584,11 @@ $$
 
 
 
-## Fragility Example: Survival
+## Fragility Examples
+
+
+### Survival
+
 
 ```{r aft_data_prep}
 #| echo: false
@@ -639,7 +646,8 @@ aft_fragility_data_tbl |>
     )
 ```
 
-## Fragility Example: Hazard
+### Hazard
+
 
 ```{r fig_aft_frag_haz}
 #| echo: false
@@ -656,7 +664,8 @@ aft_fragility_data_tbl |>
     )
 ```
 
-## Fragility Example: Log-Time
+### Log-Time
+
 
 ```{r fig_aft_frag_logt}
 #| echo: false
@@ -673,7 +682,11 @@ aft_fragility_data_tbl |>
     )
 ```
 
-## Infant Mortality: Survival
+## Infant Mortality
+
+
+### Survival
+
 
 ```{r fig_aft_inf_surv}
 #| echo: false
@@ -690,7 +703,9 @@ aft_infant_data_tbl |>
     )
 ```
 
-## Infant Mortality: Hazard
+
+### Hazard
+
 
 ```{r fig_aft_inf_haz}
 #| echo: false
@@ -708,7 +723,9 @@ aft_infant_data_tbl |>
     )
 ```
 
-## Infant Mortality: Log-Time
+
+### Log-Time
+
 
 ```{r fig_aft_inf_logt}
 #| echo: false
@@ -724,6 +741,7 @@ aft_infant_data_tbl |>
     title = "Density Estimates of Time-to-Failure (Infant Mortality)"
     )
 ```
+
 
 ## Interpreting AF and Risk
 
