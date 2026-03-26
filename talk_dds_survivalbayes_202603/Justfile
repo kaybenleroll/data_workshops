@@ -24,7 +24,7 @@ MOUNT_Z_CAP := if OCI == "podman" { ":Z" } else { "" }
 
 # List available recipes
 default:
-	@just --list
+  @just --list
 
 # ============================================================================
 # Presentation Rendering (Local)
@@ -32,20 +32,20 @@ default:
 
 # Render Bayesian Survival Analysis presentation via Quarto
 render-talk:
-	@echo "TIMESTAMP: $(date) - Rendering bayesian_survival_talk.qmd"
-	quarto render bayesian_survival_talk.qmd --to revealjs
-	@echo "TIMESTAMP: $(date) - Finished rendering"
+  @echo "TIMESTAMP: $(date) - Rendering bayesian_survival_talk.qmd"
+  quarto render bayesian_survival_talk.qmd --to revealjs
+  @echo "TIMESTAMP: $(date) - Finished rendering"
 
 # Convert presentation to PDF using decktape inside a container
 pdf-talk:
-	@echo "Using {{OCI}} to render PDF with decktape"
-	{{OCI}} run --rm -t \
-	  {{OCI_FLAGS}} \
-	  -v "{{PWD}}:/slides{{MOUNT_Z_CAP}}" \
-	  astefanutti/decktape:3.12.0 \
-	  --size 1920x1080 \
-	  /slides/bayesian_survival_talk.html \
-	  /slides/bayesian_survival_talk.pdf
+  @echo "Using {{OCI}} to render PDF with decktape"
+  {{OCI}} run --rm -t \
+    {{OCI_FLAGS}} \
+    -v "{{PWD}}:/slides{{MOUNT_Z_CAP}}" \
+    astefanutti/decktape:3.12.0 \
+    --size 1920x1200 \
+    /slides/bayesian_survival_talk.html \
+    /slides/bayesian_survival_talk.pdf
 
 # Full workflow: render presentation and create PDF
 all: render-talk pdf-talk
@@ -56,16 +56,16 @@ all: render-talk pdf-talk
 
 # Clean Stan model files
 clean-models:
-	rm -fv stan_model/*.qs
+  rm -fv stan_model/*.qs
 
 # Clean generated HTML presentations
 clean-html:
-	rm -fv bayesian_survival_talk.html
-	rm -rfv bayesian_survival_talk_files
+  rm -fv bayesian_survival_talk.html
+  rm -rfv bayesian_survival_talk_files
 
 # Clean generated PDFs
 clean-pdfs:
-	rm -fv bayesian_survival_talk.pdf
+  rm -fv bayesian_survival_talk.pdf
 
 # Clean all generated files
 clean-all: clean-html clean-pdfs clean-models
@@ -76,77 +76,77 @@ clean-all: clean-html clean-pdfs clean-models
 
 # Build image
 podman-build:
-	{{OCI}} build -t {{IMAGE_TAG}} \
-		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
-		{{PODMAN_BUILD_ARGS}} \
-		-f Dockerfile . 2>&1 | tee -a podman_build.log
+  {{OCI}} build -t {{IMAGE_TAG}} \
+    --build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
+    {{PODMAN_BUILD_ARGS}} \
+    -f Dockerfile . 2>&1 | tee -a podman_build.log
 
 # Build image without cache
 podman-rebuild:
-	{{OCI}} build --no-cache -t {{IMAGE_TAG}} \
-		--build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
-		{{PODMAN_BUILD_ARGS}} \
-		-f Dockerfile . 2>&1 | tee -a podman_build.log
+  {{OCI}} build --no-cache -t {{IMAGE_TAG}} \
+    --build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
+    {{PODMAN_BUILD_ARGS}} \
+    -f Dockerfile . 2>&1 | tee -a podman_build.log
 
 # Show build context
 podman-show-context:
-	{{OCI}} build -f build/context.dockerfile -t context-image .
-	{{OCI}} run --rm -it context-image find /tmp/build
-	{{OCI}} rmi context-image
+  {{OCI}} build -f build/context.dockerfile -t context-image .
+  {{OCI}} run --rm -it context-image find /tmp/build
+  {{OCI}} rmi context-image
 
 # Run container with RStudio
 podman-run:
-	{{OCI}} run --rm -d \
-	  {{OCI_FLAGS}} \
-	  -e RUNROOTLESS=false \
-	  -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" \
-	  -e USER={{CONTAINER_USER}} \
-	  -e PASSWORD={{CONTAINER_PASS}} \
-	  -e USERID={{CONTAINER_UID}} \
-	  -e GROUPID={{CONTAINER_GID}} \
-	  -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}{{MOUNT_Z}}" \
-	  -v "{{PWD}}/.rstudio_copilot:/home/rstudio/.config/github-copilot:rw" \
-	  --name {{CONTAINER_NAME}} \
-	  {{IMAGE_TAG}}
-	@echo "RStudio Server running at http://127.0.0.1:{{RSTUDIO_PORT}}"
-	@echo "Username: {{CONTAINER_USER}}"
-	@echo "Password: {{CONTAINER_PASS}}"
+  {{OCI}} run --rm -d \
+    {{OCI_FLAGS}} \
+    -e RUNROOTLESS=false \
+    -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" \
+    -e USER={{CONTAINER_USER}} \
+    -e PASSWORD={{CONTAINER_PASS}} \
+    -e USERID={{CONTAINER_UID}} \
+    -e GROUPID={{CONTAINER_GID}} \
+    -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}{{MOUNT_Z}}" \
+    -v "{{PWD}}/.rstudio_copilot:/home/rstudio/.config/github-copilot:rw" \
+    --name {{CONTAINER_NAME}} \
+    {{IMAGE_TAG}}
+  @echo "RStudio Server running at http://127.0.0.1:{{RSTUDIO_PORT}}"
+  @echo "Username: {{CONTAINER_USER}}"
+  @echo "Password: {{CONTAINER_PASS}}"
 
 # Stop container
 podman-stop:
-	{{OCI}} stop {{CONTAINER_NAME}}
+  {{OCI}} stop {{CONTAINER_NAME}}
 
 # Remove container
 podman-rm:
-	{{OCI}} rm -f {{CONTAINER_NAME}}
+  {{OCI}} rm -f {{CONTAINER_NAME}}
 
 # Remove image
 podman-rmi:
-	{{OCI}} rmi {{IMAGE_TAG}}
+  {{OCI}} rmi {{IMAGE_TAG}}
 
 # Enter container bash
 podman-bash:
-	{{OCI}} exec -u {{CONTAINER_USER}} -it {{CONTAINER_NAME}} bash
+  {{OCI}} exec -u {{CONTAINER_USER}} -it {{CONTAINER_NAME}} bash
 
 # Fix container permissions
 podman-fix-permissions:
-	{{OCI}} exec {{CONTAINER_NAME}} bash -c "chown -R {{CONTAINER_USER}}:{{CONTAINER_USER}} /home/{{CONTAINER_USER}}"
+  {{OCI}} exec {{CONTAINER_NAME}} bash -c "chown -R {{CONTAINER_USER}}:{{CONTAINER_USER}} /home/{{CONTAINER_USER}}"
 
 # View container logs
 podman-logs:
-	{{OCI}} logs {{CONTAINER_NAME}}
+  {{OCI}} logs {{CONTAINER_NAME}}
 
 # List containers
 podman-ps:
-	{{OCI}} ps -a --filter name={{CONTAINER_NAME}}
+  {{OCI}} ps -a --filter name={{CONTAINER_NAME}}
 
 # List images
 podman-images:
-	{{OCI}} images {{IMAGE_TAG}}
+  {{OCI}} images {{IMAGE_TAG}}
 
 # Prune unused data
 podman-prune:
-	{{OCI}} system prune -f
+  {{OCI}} system prune -f
 
 # Full setup: build and run
 podman-setup: podman-build podman-run
@@ -157,21 +157,21 @@ podman-setup: podman-build podman-run
 
 # Render HTML inside the container
 podman-render-html:
-	{{OCI}} run --rm \
-	  {{OCI_FLAGS}} \
-	  -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}{{MOUNT_Z}}" \
-	  {{IMAGE_TAG}} \
-	  quarto render /home/rstudio/{{PROJECT_FOLDER}}/bayesian_survival_talk.qmd --to revealjs
+  {{OCI}} run --rm \
+    {{OCI_FLAGS}} \
+    -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}{{MOUNT_Z}}" \
+    {{IMAGE_TAG}} \
+    quarto render /home/rstudio/{{PROJECT_FOLDER}}/bayesian_survival_talk.qmd --to revealjs
 
 # Render PDF inside the container (uses decktape image)
 podman-render-pdf:
-	{{OCI}} run --rm -t \
-	  {{OCI_FLAGS}} \
-	  -v "{{PWD}}:/slides{{MOUNT_Z_CAP}}" \
-	  astefanutti/decktape:3.12.0 \
-	  --size 1920x1080 \
-	  /slides/bayesian_survival_talk.html \
-	  /slides/bayesian_survival_talk.pdf
+  {{OCI}} run --rm -t \
+    {{OCI_FLAGS}} \
+    -v "{{PWD}}:/slides{{MOUNT_Z_CAP}}" \
+    astefanutti/decktape:3.12.0 \
+    --size 1920x1200 \
+    /slides/bayesian_survival_talk.html \
+    /slides/bayesian_survival_talk.pdf
 
 # Render both HTML and PDF using containerized tools
 podman-render-all: podman-render-html podman-render-pdf
