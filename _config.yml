@@ -1,0 +1,34 @@
+exclude:
+  - "**/*.qmd"
+  - "**/*.Rmd"
+  - "**/*.R"
+  - "**/*.pdf"
+  - "**/*.log"
+  - "**/*.Rproj"
+  - "**/*.html"
+  - "**/*.rds"
+  - "**/*.parquet"
+  - "**/*.qs"
+  - "**/*.shp"
+  - "**/*.zip"
+  - "**/*.csv"
+  - "**/Justfile"
+  - "**/Makefile"
+  - "**/Dockerfile"
+  - "**/data"
+  - "**/stan_code"
+  - "**/stan_model"
+  - "**/build"
+  - "**/*.cache"
+  - "**/*_files"
+  - "**/_site"
+  - ".jekyll-cache"
+  - "mise.toml"
+  - "AGENTS.md"
+  - "CLAUDE.md"
+  - "GEMINI.md"
+
+jekyll-optional-front-matter:
+  enabled: false
+plugins:
+  - jekyll-readme-index

@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+_site/
+.jekyll-cache/
+.quarto/
+*_cache/
+*_files/
+build/
+*.log

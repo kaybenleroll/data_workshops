@@ -2,3 +2,4 @@
 just   = "latest"
 gh     = "latest"
 python = "latest"
+"npm:@github/copilot" = "latest"
