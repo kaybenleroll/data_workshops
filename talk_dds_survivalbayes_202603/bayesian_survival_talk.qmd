@@ -269,7 +269,7 @@ Nothing to lose...
 \
 
 
-Try using survival analysis instead
+Try using Survival Analysis instead
 
 
 
@@ -278,18 +278,18 @@ Try using survival analysis instead
 \
 
 
-*Time-to-Event* modelling
+*Time-to-Event* Modelling
 
 \
 
 
-Origins in medical statistics
+Origins in Medical Statistics
 
 
 \
 
 
-Cancer research
+Cancer Research
 
 
 ## Censoring and Truncation
@@ -351,7 +351,7 @@ $$
 
 
 ::: {.left-align}
-*Cumulative Hazard* function, $\Lambda(t)$:
+Cumulative Hazard function, $\Lambda(t)$:
 :::
 
 $$
@@ -361,7 +361,7 @@ $$
 ---
 
 ::: {.left-align}
-*Hazard* function, $\lambda(t)$:
+Hazard function, $\lambda(t)$:
 :::
 
 $$
@@ -539,7 +539,7 @@ Regression methods on parameters
 
 ---
 
-Can also model $\lambda(t)$ or $\Lambda(t)$
+Can also model $h(t)$ or $H(t)$
 
 
 
@@ -572,9 +572,9 @@ $log(T) = \mu + \mathbf{x}^\top \beta + \sigma \epsilon$
 
 $$
 \begin{align*}
-S_1(t) &= S_0\left(\frac{t}{AF}\right) \\
+S_1(t) &= S_0 \, \left(\frac{t}{AF}\right) \\
 \\
-\lambda_1(t) &= \left(\frac{1}{AF}\right) \; \lambda_0 \, \left(\frac{t}{AF}\right)
+h_1(t) &= \left(\frac{1}{AF}\right) \cdot h_0 \, \left(\frac{t}{AF}\right)
 \end{align*}
 $$
 
@@ -813,9 +813,7 @@ Estimation (partial likelihood):
 :::
 
 $$
-L(\beta) = \prod_{i \in \mathcal{D}}
-  \frac{\exp(\mathbf{x}_i^\top \beta)}
-       {\sum_{j \in R(t_i)} \exp(\mathbf{x}_j^\top \beta)}
+L(\beta) = \prod_{i \in \mathcal{D}} \frac{\exp(\mathbf{x}_i^\top \beta)}{\sum_{j \in R(t_i)} \exp(\mathbf{x}_j^\top \beta)}
 $$
 
 ::: {.left-align}
