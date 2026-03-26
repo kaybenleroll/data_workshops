@@ -2,10 +2,8 @@ exclude:
   - "**/*.qmd"
   - "**/*.Rmd"
   - "**/*.R"
-  - "**/*.pdf"
   - "**/*.log"
   - "**/*.Rproj"
-
   - "**/*.rds"
   - "**/*.parquet"
   - "**/*.qs"
@@ -27,7 +25,6 @@ exclude:
   - "AGENTS.md"
   - "CLAUDE.md"
   - "GEMINI.md"
-
 jekyll-optional-front-matter:
   enabled: false
 plugins:
