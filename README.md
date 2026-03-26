@@ -1,3 +1,8 @@
+---
+title: Data Workshops and Talks
+permalink: /
+---
+
 # Data Workshops and Talks
 
 This repository contains all the files for the various workshops and talks I give at various meetups and conferences.
