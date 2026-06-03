@@ -1,0 +1,167 @@
+# Project configuration
+PROJECT_USER    := "kaybenleroll"
+PROJECT_NAME    := "sonia-talk-llm"
+PROJECT_TAG     := "latest"
+IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
+CONTAINER_USER  := "rstudio"
+CONTAINER_PASS  := "soniatalk"
+CONTAINER_UID   := `id -u`
+CONTAINER_GID   := `id -g`
+PWD             := `pwd`
+RSTUDIO_PORT    := "8787"
+PROJECT_FOLDER  := "sonia_talk"
+CONTAINER_NAME  := "sonia-talk"
+
+PODMAN_BUILD_ARGS := ""
+
+# Container runtime (prefers podman if available)
+OCI := `command -v podman >/dev/null 2>&1 && echo podman || echo docker`
+
+# Container flags based on runtime
+OCI_FLAGS := if OCI == "podman" { "--userns=keep-id" } else { "-u " + CONTAINER_UID + ":" + CONTAINER_GID }
+MOUNT_Z   := if OCI == "podman" { ":z" } else { "" }
+MOUNT_Z_CAP := if OCI == "podman" { ":Z" } else { "" }
+
+# List available recipes
+default:
+  @just --list
+
+# ============================================================================
+# Presentation Rendering (Local)
+# ============================================================================
+
+# Render presentation via Quarto
+render-talk:
+  @echo "TIMESTAMP: $(date) - Rendering talk_sonia_202606.qmd"
+  quarto render talk_sonia_202606.qmd --to revealjs
+  @echo "TIMESTAMP: $(date) - Finished rendering"
+
+# Convert presentation to PDF using decktape inside a container
+pdf-talk:
+  @echo "Using {{OCI}} to render PDF with decktape"
+  {{OCI}} run --rm -t \
+    {{OCI_FLAGS}} \
+    -v "{{PWD}}:/slides{{MOUNT_Z_CAP}}" \
+    astefanutti/decktape:3.12.0 \
+    --size 1920x1200 \
+    /slides/talk_sonia_202606.html \
+    /slides/talk_sonia_202606.pdf
+
+# Full workflow: render presentation and create PDF
+all: render-talk pdf-talk
+
+# ============================================================================
+# Cleaning
+# ============================================================================
+
+# Clean generated HTML presentations
+clean-html:
+  rm -fv talk_sonia_202606.html
+  rm -rfv talk_sonia_202606_files
+
+# Clean generated PDFs
+clean-pdfs:
+  rm -fv talk_sonia_202606.pdf
+
+# Clean all generated files
+clean-all: clean-html clean-pdfs
+
+# ============================================================================
+# Podman/Container Commands
+# ============================================================================
+
+# Build image
+podman-build-image:
+  {{OCI}} build -t {{IMAGE_TAG}} \
+    --build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
+    {{PODMAN_BUILD_ARGS}} \
+    -f Dockerfile . 2>&1 | tee -a podman_build.log
+
+# Build image without cache
+podman-rebuild-image:
+  {{OCI}} build --no-cache -t {{IMAGE_TAG}} \
+    --build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
+    {{PODMAN_BUILD_ARGS}} \
+    -f Dockerfile . 2>&1 | tee -a podman_build.log
+
+
+# Run container with RStudio
+podman-run-image:
+  {{OCI}} run --rm -d \
+    {{OCI_FLAGS}} \
+    -e RUNROOTLESS=false \
+    -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" \
+    -e USER={{CONTAINER_USER}} \
+    -e PASSWORD={{CONTAINER_PASS}} \
+    -e USERID={{CONTAINER_UID}} \
+    -e GROUPID={{CONTAINER_GID}} \
+    -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}{{MOUNT_Z}}" \
+    --name {{CONTAINER_NAME}} \
+    {{IMAGE_TAG}}
+  @echo "RStudio Server running at http://127.0.0.1:{{RSTUDIO_PORT}}"
+  @echo "Username: {{CONTAINER_USER}}"
+  @echo "Password: {{CONTAINER_PASS}}"
+
+# Stop container
+podman-stop:
+  {{OCI}} stop {{CONTAINER_NAME}}
+
+# Remove container
+podman-rm:
+  {{OCI}} rm -f {{CONTAINER_NAME}}
+
+# Remove image
+podman-rmi:
+  {{OCI}} rmi {{IMAGE_TAG}}
+
+# Enter container bash
+podman-bash:
+  {{OCI}} exec -u {{CONTAINER_USER}} -it {{CONTAINER_NAME}} bash
+
+# Fix container permissions
+podman-fix-permissions:
+  {{OCI}} exec {{CONTAINER_NAME}} bash -c "chown -R {{CONTAINER_USER}}:{{CONTAINER_USER}} /home/{{CONTAINER_USER}}"
+
+# View container logs
+podman-logs:
+  {{OCI}} logs {{CONTAINER_NAME}}
+
+# List containers
+podman-ps:
+  {{OCI}} ps -a --filter name={{CONTAINER_NAME}}
+
+# List images
+podman-images:
+  {{OCI}} images {{IMAGE_TAG}}
+
+# Prune unused data
+podman-prune:
+  {{OCI}} system prune -f
+
+# Full setup: build and run
+podman-setup: podman-build-image podman-run-image
+
+# ============================================================================
+# Containerized Rendering
+# ============================================================================
+
+# Render HTML inside the container
+podman-render-html:
+  {{OCI}} run --rm \
+    {{OCI_FLAGS}} \
+    -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}{{MOUNT_Z}}" \
+    {{IMAGE_TAG}} \
+    quarto render /home/rstudio/{{PROJECT_FOLDER}}/talk_sonia_202606.qmd --to revealjs
+
+# Render PDF inside the container (uses decktape image)
+podman-render-pdf:
+  {{OCI}} run --rm -t \
+    {{OCI_FLAGS}} \
+    -v "{{PWD}}:/slides{{MOUNT_Z_CAP}}" \
+    astefanutti/decktape:3.12.0 \
+    --size 1920x1200 \
+    /slides/talk_sonia_202606.html \
+    /slides/talk_sonia_202606.pdf
+
+# Render both HTML and PDF using containerized tools
+podman-render-all: podman-render-html podman-render-pdf
