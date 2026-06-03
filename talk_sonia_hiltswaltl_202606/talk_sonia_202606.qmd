@@ -1,0 +1,94 @@
+---
+title: "How I Learned to Stop Worrying and Love the LLM"
+author: "Mick Cooney <mcooney@describedata.com>"
+editor: source
+format:
+  revealjs:
+    embed-resources: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+    mathjax: true
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(arrow)
+library(qs)
+library(scales)
+library(cowplot)
+library(glue)
+library(gt)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+theme_set(theme_cowplot())
+
+set.seed(42)
+```
+
+# Introduction
+
+# A Brief History of AI
+
+# ChatGPT
+
+# ClaudeCode / OpenCode / Gemini / Copilot
+
+# Kompreno Planning Tool
+
+# Further Reading
+
+\
+
+
+[Something Big is Happening](https://shumer.dev/something-big-is-happening)
+
+\
+
+
+[On Bullshit](https://en.wikipedia.org/wiki/On_Bullshit)
+
+# Thank You!
+
+::: {style="font-size: 0.7em;"}
+
+
+
+:::
+
+
+
+
+
+
+
+
+
+
