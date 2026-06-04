@@ -52,6 +52,7 @@ This repository contains all the files for the various workshops and talks I giv
 
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
+| June 2026 | **How I Learned to Stop Worrying and Love the LLM** | A personal journey into LLM-assisted development tools and what they mean for practitioners. | [📁 View](./talk_sonia_hiltswaltl_202606/talk_sonia_202606.html) |
 | November 2024 | **RAG** | Overview of Retrieval-Augmented Generation (RAG) for chatbots. | [📁 View](./talk_chatbot_genai_202411/talk_genai.html) |
 
 ## 🛠️ Workshops
