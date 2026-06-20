@@ -1,0 +1,11 @@
+
+.rstudio_copilot/
+
+*_files/
+*_cache/
+
+tmp*
+temp*
+
+*.log
+
