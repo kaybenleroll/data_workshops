@@ -1,0 +1,1514 @@
+---
+title: "Workshop: Introduction to Information Theory — Part 1: Foundations"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(entropy)
+library(infotheo)
+library(ggraph)
+library(tidygraph)
+library(broom)
+
+source("lib_utils.R")
+source("lib_information_theory.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "entropy", "infotheo")
+)
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+)
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+
+# The Big Idea: Quantifying Surprise
+
+> *"Information is the resolution of uncertainty."*
+> — Claude Shannon
+
+In 1948, Claude Shannon published a paper called *A Mathematical Theory of
+Communication* that changed the world. He set out to answer a deceptively
+simple question: **how do you measure the amount of information in a message?**
+
+The answer he found — *entropy* — turned out to be one of the most
+far-reaching concepts in all of science. It connects probability theory,
+thermodynamics, computer science, statistics, and even biology.
+
+Before diving into formulas, let us build intuition.
+
+## Surprise as the Core Unit
+
+Consider two statements:
+
+1. *"The sun rose this morning."*
+2. *"A seven-headed dragon landed on the roof of Dublin Castle."*
+
+Statement 1 contains almost no information — it is near-certain, so it
+surprises you not at all. Statement 2 contains an enormous amount of
+information precisely because it is so unexpected.
+
+This is the key insight: **information content is inversely related to
+probability**. Likely events carry little information; unlikely events carry a
+lot. We formalise this with the *self-information* (or *surprisal*) of an
+event $x$:
+
+$$
+I(x) = -\log_2 P(x)
+$$
+
+The choice of base 2 is conventional and gives us a unit called the **bit**
+(binary digit). Base $e$ gives *nats*, base 10 gives *dits* (or *hartleys*).
+
+```{r self_information_demo}
+#| echo: true
+#| fig-cap: "Self-information grows as probability falls. A certain event carries 0 bits; a 1-in-1024 event carries 10 bits."
+
+p_seq <- seq(0.001, 1, by = 0.001)
+
+surprisal_tbl <- tibble(
+  probability      = p_seq,
+  self_information = -log2(p_seq)
+)
+
+ggplot(surprisal_tbl, aes(x = probability, y = self_information)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_vline(
+    xintercept = c(0.5, 0.25, 0.125),
+    linetype   = "dashed",
+    colour     = "firebrick",
+    alpha      = 0.7
+  ) +
+  annotate(
+    "text",
+    x     = c(0.5, 0.25, 0.125),
+    y     = 9,
+    label = c("p=0.5\n(1 bit)", "p=0.25\n(2 bits)", "p=0.125\n(3 bits)"),
+    hjust = -0.1,
+    size  = 3.5
+  ) +
+  labs(
+    title    = "Self-Information: How Surprising is an Event?",
+    subtitle = "I(x) = -log₂ P(x)",
+    x        = "Probability P(x)",
+    y        = "Self-Information I(x) [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+Surprisal is the atomic unit behind many practical systems:
+
+- In compression, rare symbols get longer codewords because they carry more
+  surprisal.
+- In anomaly detection, very low-probability events are flagged precisely
+  because they contain high information content under the baseline model.
+- In forecasting, a model that assigns high probability to what actually
+  happens yields lower average surprisal (better predictive quality).
+
+## Workshop Materials
+
+All code and materials for this workshop are available on GitHub:
+**https://github.com/kaybenleroll/data_workshops**
+
+This workshop requires the following R packages:
+
+- `entropy`: Entropy estimation from data
+- `infotheo`: Mutual information and discretisation tools
+- `ggraph` / `tidygraph`: Graph-based diagram visualisation
+- `tidyverse`: Data manipulation and visualisation
+- `cowplot`: Plot theming and arrangement
+- `furrr`: Parallel purrr operations
+
+
+# Shannon Entropy: Expected Surprise
+
+The self-information $I(x)$ tells us how surprising *one specific event* is.
+But what we usually want is: **on average, how surprising are outcomes of this
+random variable?** That average surprise is **Shannon entropy**.
+
+$$
+H(X) = -\sum_{x \in \mathcal{X}} P(x) \log_2 P(x)
+= \mathbb{E}\bigl[-\log_2 P(X)\bigr]
+$$
+
+The zero-probability convention $0 \cdot \log_2(0) = 0$ is standard and
+consistent with the limit $\lim_{p \to 0^+} p \log p = 0$.
+
+Shannon entropy has several deep properties that make it the canonical measure
+of uncertainty:
+
+- **Continuity**: tiny changes in probabilities produce tiny changes in entropy.
+- **Maximum at uniformity**: for fixed support size, entropy is maximized by the
+  uniform distribution.
+- **Additivity for independent systems**: if $X \perp Y$, then
+  $H(X, Y) = H(X) + H(Y)$.
+- **Chain-rule compatibility**: uncertainty decomposes naturally via
+  $H(X, Y) = H(X) + H(Y|X)$.
+
+Together, these properties formalize why entropy is not just one possible
+uncertainty score, but effectively the unique one (up to a scale constant)
+under broad and intuitive axioms.
+
+## The Coin Flip Thought Experiment
+
+The most intuitive example is a biased coin with heads probability $p$.
+
+```{r coin_entropy_plot}
+#| echo: true
+#| fig-cap: "Entropy of a biased coin. Maximum uncertainty at p=0.5 (exactly 1 bit). Entropy falls to 0 at both extremes — a certain outcome has no surprise."
+
+p_vals  <- seq(0, 1, by = 0.001)
+entropy_coin <- map_dbl(p_vals, function(p) {
+  shannon_entropy(c(p, 1 - p))
+})
+
+tibble(p = p_vals, entropy = entropy_coin) |>
+  ggplot(aes(x = p, y = entropy)) +
+  geom_line(colour = "darkorange", linewidth = 1.3) +
+  geom_point(
+    data = tibble(p = 0.5, entropy = 1),
+    colour = "firebrick", size = 4
+  ) +
+  annotate("text", x = 0.5, y = 1.05, label = "H = 1 bit\n(fair coin)", hjust = 0.5) +
+  scale_x_continuous(labels = label_number(accuracy = 0.1)) +
+  labs(
+    title    = "Binary Entropy Function H(p)",
+    subtitle = "H(p) = -p log₂(p) - (1-p) log₂(1-p)",
+    x        = "P(Heads) = p",
+    y        = "Entropy H(p) [bits]"
+  )
+```
+
+Key observations from this plot:
+
+- **Certainty → Zero entropy**: when $p = 0$ or $p = 1$, the outcome is
+  perfectly predictable; there is nothing to learn.
+- **Maximum uncertainty at $p = 0.5$**: a fair coin is maximally unpredictable
+  and has $H = 1$ bit — exactly the amount of information that one binary
+  question ("is it heads?") can resolve.
+- **Symmetry**: the curve is symmetric around $p = 0.5$.
+
+## Entropy Grows with the Number of Outcomes
+
+For a die with $k$ equally likely faces, entropy is $H = \log_2 k$.
+
+```{r entropy_vs_outcomes}
+#| echo: true
+#| fig-cap: "Entropy of a fair k-sided die grows as log₂(k)."
+
+die_tbl <- tibble(
+  k       = 2:64,
+  entropy = map_dbl(2:64, function(k) shannon_entropy(rep(1/k, k)))
+)
+
+ggplot(die_tbl, aes(x = k, y = entropy)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  geom_point(
+    data   = filter(die_tbl, k %in% c(2, 4, 6, 8, 16, 32, 64)),
+    colour = "firebrick",
+    size   = 3
+  ) +
+  annotate(
+    "text",
+    x     = c(2, 6),
+    y     = c(shannon_entropy(rep(1/2, 2)) - 0.25, shannon_entropy(rep(1/6, 6)) + 0.2),
+    label = c("Coin (1 bit)", "Fair die (~2.6 bits)"),
+    size  = 3.5
+  ) +
+  scale_x_continuous(breaks = c(2, 4, 8, 16, 32, 64)) +
+  labs(
+    title = "Entropy of a Fair k-Sided Die",
+    x     = "Number of Outcomes k",
+    y     = "H(X) [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+This curve is a direct complexity baseline:
+
+- If your source has effectively $k$ equiprobable states, you should budget
+  about $\log_2(k)$ bits/symbol for lossless encoding.
+- Adding categories (states/classes) increases uncertainty sublinearly, not
+  linearly.
+- In modeling, this helps calibrate whether a prediction task is intrinsically
+  low-entropy (easy) or high-entropy (hard).
+
+## Uniform Distributions Maximise Entropy
+
+A fundamental theorem of information theory states that, among all
+distributions over a finite alphabet of size $k$, the **uniform distribution
+maximises entropy** ($H = \log_2 k$). Any bias toward particular outcomes
+reduces entropy.
+
+```{r entropy_vs_bias}
+#| echo: true
+#| fig-cap: "Entropy drops as one outcome is made more probable. The uniform distribution (dashed line) is always the maximum."
+
+compute_biased_entropy <- function(p_dominant, k) {
+  remaining <- (1 - p_dominant) / (k - 1)
+  shannon_entropy(c(p_dominant, rep(remaining, k - 1)))
+}
+
+k_vals    <- c(2, 4, 8, 16)
+p_dom_seq <- seq(1/max(k_vals), 0.999, by = 0.01)
+
+bias_tbl <- cross_df(list(k = k_vals, p_dominant = p_dom_seq)) |>
+  filter(p_dominant >= 1/k) |>
+  mutate(
+    entropy_bits = map2_dbl(p_dominant, k, compute_biased_entropy),
+    uniform_h    = log2(k),
+    k_label      = glue("k = {k} outcomes")
+  )
+
+ggplot(bias_tbl, aes(x = p_dominant, y = entropy_bits, colour = factor(k))) +
+  geom_line(linewidth = 1) +
+  geom_hline(
+    data    = distinct(bias_tbl, k, uniform_h, k_label),
+    aes(yintercept = uniform_h, colour = factor(k)),
+    linetype = "dashed",
+    alpha    = 0.6
+  ) +
+  facet_wrap(~k_label, scales = "free_y") +
+  scale_colour_brewer(palette = "Set1", guide = "none") +
+  labs(
+    title    = "Entropy Decreases as One Outcome Dominates",
+    subtitle = "Dashed line = maximum entropy (uniform distribution)",
+    x        = "Probability of Dominant Outcome",
+    y        = "Entropy [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+Entropy reduction from dominance is exactly what compression exploits:
+
+- If a few outcomes dominate, shorter expected code lengths are possible.
+- If outcomes are near-uniform, gains from lossless compression are limited.
+- In risk terms, dominance often means predictability concentration, which can
+  be valuable for control but dangerous if the dominant state shifts.
+
+## Simulating Entropy Estimation
+
+In practice, we rarely know the true distribution. We estimate entropy from
+data. How quickly does the estimate converge as we collect more samples?
+
+```{r entropy_convergence}
+#| echo: true
+#| fig-cap: "Entropy estimates converge to the true value (red dashed line) but are biased downward at small samples — known as the Miller-Madow bias."
+
+# True distribution: loaded 6-sided die
+true_probs <- c(0.30, 0.20, 0.20, 0.15, 0.10, 0.05)
+true_H     <- shannon_entropy(true_probs)
+
+sample_sizes <- c(10, 25, 50, 100, 250, 500, 1000, 2500, 5000)
+
+conv_tbl <- simulate_entropy_convergence(
+  probs        = true_probs,
+  sample_sizes = sample_sizes,
+  n_reps       = 200L
+)
+
+conv_summary <- conv_tbl |>
+  group_by(n) |>
+  summarise(
+    mean_h  = mean(entropy_estimate),
+    lo      = quantile(entropy_estimate, 0.1),
+    hi      = quantile(entropy_estimate, 0.9),
+    .groups = "drop"
+  )
+
+ggplot(conv_summary, aes(x = n)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), fill = "steelblue", alpha = 0.3) +
+  geom_line(aes(y = mean_h), colour = "steelblue", linewidth = 1.2) +
+  geom_hline(yintercept = true_H, colour = "firebrick", linetype = "dashed") +
+  annotate("text", x = 5000, y = true_H + 0.02,
+           label = glue("True H = {round(true_H, 3)} bits"), hjust = 1.1, colour = "firebrick") +
+  scale_x_log10(labels = label_comma()) +
+  labs(
+    title    = "Convergence of Entropy Estimate with Sample Size",
+    subtitle = "Shaded band: 10th–90th percentile over 200 replications",
+    x        = "Sample Size n (log scale)",
+    y        = "Estimated Entropy [bits]"
+  )
+```
+
+The downward bias at small samples is well known — the empirical distribution
+has fewer "occupied" bins, systematically underestimating entropy. Several
+bias-corrected estimators exist (e.g., the Miller-Madow correction); the
+`entropy` package implements many of them.
+
+```{r entropy_package_demo}
+#| echo: true
+
+# Compare naive estimator vs. bias-corrected (MM = Miller-Madow, JS = James-Stein)
+set.seed(123)
+small_sample <- sample(1:6, size = 30, replace = TRUE, prob = true_probs)
+counts_30    <- tabulate(small_sample, nbins = 6)
+
+naive_h <- entropy_from_counts(counts_30)
+mm_h    <- entropy::entropy(counts_30, method = "MM",  unit = "log2")
+js_h    <- entropy::entropy(counts_30, method = "SG",  unit = "log2")
+
+cat(glue(
+  "True entropy        : {round(true_H, 4)} bits\n",
+  "Naive (plug-in)     : {round(naive_h, 4)} bits\n",
+  "Miller-Madow (MM)   : {round(mm_h,   4)} bits\n",
+  "Shrinkage (SG)      : {round(js_h,   4)} bits\n"
+))
+```
+
+### Why This Matters in Practice
+
+Entropy estimation is often done under data scarcity. That means estimator
+choice is not cosmetic:
+
+- For small samples, naive estimates can understate uncertainty and lead to
+  overconfident conclusions.
+- Bias-corrected estimators are useful whenever you compare uncertainty across
+  groups with different sample sizes.
+- In feature screening, entropy bias can propagate directly into mutual
+  information rankings.
+
+
+# Rényi Entropy: A Family of Entropies
+
+Shannon entropy is the most famous member of a broader family. The **Rényi
+entropy** of order $\alpha$ is:
+
+$$
+H_\alpha(X) = \frac{1}{1 - \alpha} \log_2 \left( \sum_{x} P(x)^\alpha \right)
+$$
+
+Different values of $\alpha$ emphasise different aspects of a distribution:
+
+| $\alpha$ | Name | Emphasis |
+|----------|------|----------|
+| 0 | Hartley entropy | Support size only — ignores probabilities |
+| 1 (limit) | Shannon entropy | Average surprise |
+| 2 | Collision entropy | Probability of drawing the same value twice |
+| $\infty$ | Min-entropy | Worst-case / most likely outcome |
+
+The family is ordered: $H_0 \geq H_1 \geq H_2 \geq \cdots \geq H_\infty$.
+This ordering reflects that higher $\alpha$ places more weight on larger
+probabilities (i.e., less uncertainty is measured).
+
+```{r renyi_family_plot}
+#| echo: true
+#| fig-cap: "Rényi entropy as a function of alpha for two distributions. The family interpolates between Hartley entropy (alpha=0) and min-entropy (alpha→∞). Shannon entropy (alpha=1) is the most natural choice."
+
+# Two illustrative distributions
+p_uniform  <- rep(1/8, 8)
+p_skewed   <- c(0.50, 0.25, 0.10, 0.05, 0.04, 0.03, 0.02, 0.01)
+
+alpha_seq <- c(seq(0.1, 0.9, 0.05), seq(1.1, 10, 0.2))
+
+renyi_tbl <- tibble(
+  alpha   = alpha_seq,
+  uniform = map_dbl(alpha_seq, ~renyi_entropy(p_uniform, .x)),
+  skewed  = map_dbl(alpha_seq, ~renyi_entropy(p_skewed,  .x))
+) |>
+  pivot_longer(-alpha, names_to = "distribution", values_to = "entropy")
+
+# Add Shannon points (alpha = 1)
+shannon_points <- tibble(
+  alpha        = 1,
+  distribution = c("uniform", "skewed"),
+  entropy      = c(shannon_entropy(p_uniform), shannon_entropy(p_skewed))
+)
+
+ggplot(renyi_tbl, aes(x = alpha, y = entropy, colour = distribution)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(data = shannon_points, size = 4, shape = 18) +
+  annotate("text", x = 1, y = 3.4, label = "Shannon\n(α=1)", size = 3.5, hjust = -0.1) +
+  scale_colour_manual(
+    values = c("uniform" = "steelblue", "skewed" = "darkorange"),
+    labels = c("Uniform (8 outcomes)", "Skewed (8 outcomes)")
+  ) +
+  labs(
+    title    = "Rényi Entropy Family",
+    subtitle = "Higher α emphasises the most probable outcomes more heavily",
+    x        = "Order α",
+    y        = "Rényi Entropy [bits]",
+    colour   = "Distribution"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+### Why This Matters in Practice
+
+Rényi entropy gives you a tunable lens on uncertainty:
+
+- Lower $\alpha$ values emphasize coverage and support size.
+- Higher $\alpha$ values emphasize concentration and worst-case dominance.
+- Security and reliability applications often care more about high-$\alpha$
+  regimes (collision/min-entropy) than Shannon entropy alone.
+
+## Collision Entropy and Password Strength
+
+Rényi-2 (collision entropy) has a natural security interpretation. If an
+adversary tries to guess a password by drawing uniformly, the probability of
+success in one guess is:
+
+$$
+P(\text{collision}) = \sum_x P(x)^2 = 2^{-H_2(X)}
+$$
+
+```{r renyi_security_demo}
+#| echo: true
+#| fig-cap: "Comparing password distributions via Rényi entropy. The collision probability determines how many guesses an attacker needs."
+
+# Simulated password strength distributions
+english_letter_freq <- c(8.2, 1.5, 2.8, 4.3, 12.7, 2.2, 2.0, 6.1, 7.0, 0.15,
+                         0.77, 4.0, 2.4, 6.7, 7.5, 1.9, 0.1, 6.0, 6.3, 9.1,
+                         2.8, 0.98, 2.4, 0.15, 2.0, 0.074)
+english_letter_freq <- english_letter_freq / sum(english_letter_freq)
+
+# For i.i.d. letters, entropy over 4-char strings is 4x letter entropy.
+english_h1_char <- shannon_entropy(english_letter_freq)
+english_h2_char <- renyi_entropy(english_letter_freq, alpha = 2)
+english_hinf_char <- renyi_entropy(english_letter_freq, alpha = Inf)
+
+password_tbl <- tribble(
+  ~scheme,               ~support_size, ~hartley_bits,         ~shannon_bits,            ~collision_bits,             ~min_entropy_bits,            ~collision_prob,
+  "PIN (0000-9999)",    10000,         log2(10000),           log2(10000),              log2(10000),                 log2(10000),                  1 / 10000,
+  "4-letter English",   26^4,          log2(26^4),            4 * english_h1_char,      4 * english_h2_char,         4 * english_hinf_char,        2^(-4 * english_h2_char),
+  "6-char alphanumeric",62^6,          log2(62^6),            log2(62^6),               log2(62^6),                  log2(62^6),                   1 / (62^6)
+)
+
+password_tbl |>
+  select(-support_size, -collision_prob) |>
+  pivot_longer(-scheme, names_to = "measure", values_to = "bits") |>
+  mutate(
+    measure = factor(measure, levels = c("hartley_bits", "shannon_bits", "collision_bits", "min_entropy_bits"),
+                     labels = c("H₀ (Hartley)", "H₁ (Shannon)", "H₂ (Collision)", "H∞ (Min-entropy)"))
+  ) |>
+  ggplot(aes(x = scheme, y = bits, fill = measure)) +
+  geom_col(position = "dodge") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title  = "Password Strength: Rényi Entropy Family",
+    x      = "Password Scheme",
+    y      = "Entropy [bits]",
+    fill   = "Entropy Order"
+  ) +
+  theme(
+    axis.text.x  = element_text(angle = 20, hjust = 1),
+    legend.position = "bottom"
+  )
+```
+
+### Why This Matters in Practice
+
+Different entropy orders answer different security questions:
+
+- Shannon entropy reflects average-case uncertainty.
+- Collision entropy relates to repeated-guess collision risk.
+- Min-entropy reflects worst-case predictability and is often the most
+  conservative credential-strength metric.
+
+
+# Joint and Conditional Entropy
+
+So far we have measured uncertainty about a single variable. Information theory
+extends naturally to **multiple variables** through joint and conditional
+entropy.
+
+## The Entropy Chain Rule
+
+For two discrete random variables $X$ and $Y$ with joint distribution
+$P(X, Y)$:
+
+$$
+H(X, Y) = -\sum_x \sum_y P(x, y) \log_2 P(x, y)
+$$
+
+$$
+H(Y \mid X) = H(X, Y) - H(X)
+$$
+
+The chain rule $H(X, Y) = H(X) + H(Y \mid X)$ states: *total uncertainty
+equals uncertainty about $X$ plus the remaining uncertainty about $Y$ once $X$
+is known*.
+
+## Simulating Joint Entropy
+
+```{r joint_entropy_demo}
+#| echo: true
+#| fig-cap: "Joint distribution between weather and umbrella-carrying. The joint entropy H(X,Y) = H(X) + H(Y|X)."
+
+# Weather: Sunny / Rainy — P(Sunny) = 0.7
+# Umbrella given weather (conditional)
+# P(Umbrella | Rainy) = 0.90, P(Umbrella | Sunny) = 0.05
+
+weather_probs <- c(Sunny = 0.7, Rainy = 0.3)
+umbrella_given_weather <- matrix(
+  c(0.95, 0.05,   # Sunny: no umbrella, umbrella
+    0.10, 0.90),  # Rainy: no umbrella, umbrella
+  nrow = 2, byrow = TRUE,
+  dimnames = list(c("Sunny", "Rainy"), c("No Umbrella", "Umbrella"))
+)
+
+# Joint distribution: P(W=w, U=u) = P(U|W) * P(W)
+joint <- sweep(umbrella_given_weather, MARGIN = 1, weather_probs, `*`)
+
+h_weather   <- shannon_entropy(weather_probs)
+h_joint     <- joint_entropy(joint)
+h_cond      <- conditional_entropy(joint)
+h_umbrella  <- shannon_entropy(colSums(joint))
+mi_wu       <- mutual_information(joint)
+
+cat(glue(
+  "H(Weather)         = {round(h_weather,  4)} bits\n",
+  "H(Umbrella)        = {round(h_umbrella, 4)} bits\n",
+  "H(Weather, Umbr.)  = {round(h_joint,    4)} bits\n",
+  "H(Umbrella|Weather)= {round(h_cond,     4)} bits\n",
+  "I(Weather;Umbrella)= {round(mi_wu,      4)} bits\n",
+  "\nCheck: H(W) + H(U|W) = {round(h_weather + h_cond, 4)} ≈ H(W,U) = {round(h_joint, 4)}\n"
+))
+```
+
+### Why This Matters in Practice
+
+The chain rule is a blueprint for staged decision systems:
+
+- In triage, you first resolve broad uncertainty (e.g., segment/risk band),
+  then conditional uncertainty within that segment.
+- In diagnostics, each measurement should ideally reduce conditional entropy.
+- In process design, low $H(Y|X)$ means the upstream variable $X$ is genuinely
+  informative, not just correlated by chance.
+
+```{r joint_entropy_heatmap}
+#| echo: true
+#| fig-cap: "Joint distribution P(Weather, Umbrella). The off-diagonal cells (unexpected combinations) have low probability — the variables are highly dependent."
+
+joint |>
+  as_tibble(rownames = "weather") |>
+  pivot_longer(-weather, names_to = "umbrella", values_to = "prob") |>
+  mutate(
+    label = glue("{round(prob * 100, 1)}%"),
+    info  = round(-log2(prob), 2)
+  ) |>
+  ggplot(aes(x = umbrella, y = weather, fill = prob)) +
+  geom_tile(colour = "white", linewidth = 1.5) +
+  geom_text(aes(label = label), colour = "white", size = 7, fontface = "bold") +
+  scale_fill_gradient(low = "steelblue", high = "firebrick", labels = label_percent()) +
+  labs(
+    title = "Joint Distribution P(Weather, Umbrella)",
+    x     = "Umbrella",
+    y     = "Weather",
+    fill  = "Probability"
+  )
+```
+
+## Independence vs. Dependence
+
+When $X$ and $Y$ are independent, $H(X, Y) = H(X) + H(Y)$ — joint entropy is
+purely additive. **Any dependence reduces joint entropy below this sum.**
+
+```{r independence_vs_dependence}
+#| echo: true
+#| fig-cap: "Scanning over the conditional probability P(Y=1 | X=1), moving from independence to full dependence. Joint entropy decreases monotonically as dependence increases."
+
+# X: fair coin. Y depends on X to varying degrees.
+p_x1 <- 0.5
+
+dep_seq <- seq(0.5, 1.0, by = 0.01)
+
+dep_tbl <- tibble(
+  p_y1_given_x1 = dep_seq
+) |>
+  mutate(
+    # P(Y=1|X=0) mirrors so that P(Y=1) = 0.5
+    p_y1_given_x0 = 1 - dep_seq,
+    joint = map2(p_y1_given_x1, p_y1_given_x0, function(p11, p10) {
+      matrix(
+        c(p_x1 * (1 - p11), p_x1 * p11,
+          (1 - p_x1) * (1 - p10), (1 - p_x1) * p10),
+        nrow = 2, ncol = 2
+      )
+    }),
+    h_joint  = map_dbl(joint, joint_entropy),
+    h_x      = shannon_entropy(c(p_x1, 1 - p_x1)),
+    h_y      = map_dbl(joint, ~shannon_entropy(colSums(.x))),
+    h_indep  = h_x + h_y,
+    mi       = map_dbl(joint, mutual_information)
+  )
+
+p1_dep <- ggplot(dep_tbl, aes(x = p_y1_given_x1)) +
+  geom_line(aes(y = h_joint, colour = "H(X,Y)"), linewidth = 1.2) +
+  geom_line(aes(y = h_indep, colour = "H(X)+H(Y) [independence]"),
+            linetype = "dashed", linewidth = 1) +
+  scale_colour_manual(values = c("steelblue", "darkorange")) +
+  labs(x = "P(Y=1 | X=1)", y = "Entropy [bits]", colour = NULL) +
+  theme(legend.position = "bottom")
+
+p2_dep <- ggplot(dep_tbl, aes(x = p_y1_given_x1, y = mi)) +
+  geom_line(colour = "firebrick", linewidth = 1.2) +
+  labs(x = "P(Y=1 | X=1)", y = "Mutual Information [bits]")
+
+plot_grid(p1_dep, p2_dep, ncol = 2, labels = c("A", "B"))
+```
+
+### Why This Matters in Practice
+
+The dependence scan is useful for feature engineering and monitoring:
+
+- As dependence increases, MI rises even when marginals are unchanged.
+- Joint entropy drops relative to $H(X)+H(Y)$, indicating less total uncertainty
+  than under an independence assumption.
+- This is exactly the signal exploited in redundancy reduction and
+  interaction-aware models.
+
+
+# Mutual Information
+
+Mutual information $I(X; Y)$ measures how much knowing $X$ tells us about
+$Y$ (and vice versa — it is symmetric):
+
+$$
+I(X; Y) = H(X) + H(Y) - H(X, Y)
+= H(X) - H(X \mid Y)
+= H(Y) - H(Y \mid X)
+$$
+
+An equivalent KL-divergence form makes it clear that $I(X;Y) \geq 0$, with
+equality if and only if $X$ and $Y$ are independent:
+
+$$
+I(X; Y) = \sum_{x,y} P(x, y) \log_2 \frac{P(x, y)}{P(x) P(y)}
+= D_{\text{KL}}\bigl(P_{XY} \| P_X \otimes P_Y\bigr)
+$$
+
+Two complementary ways to think about MI are useful in practice:
+
+- **Uncertainty reduction view**:
+  $I(X;Y) = H(Y) - H(Y|X)$. Knowing $X$ reduces uncertainty about $Y$ by
+  exactly $I(X;Y)$ bits on average.
+- **Distribution gap view**:
+  $I(X;Y)$ is the KL gap between the real joint distribution and the product of
+  marginals. If the joint truly factorizes, there is no dependence to exploit,
+  so MI is zero.
+
+This is why MI is broadly useful in feature selection, representation learning,
+and dependency diagnostics: it quantifies any predictable structure between two
+variables, not just linear comovement.
+
+Another key theoretical property is the **data processing inequality**:
+if $X \to Z \to Y$ is a Markov chain (you only observe $X$ through a possibly
+lossy transformation $Z$), then
+
+$$
+I(X;Y) \le I(Z;Y)
+$$
+
+In plain terms: post-processing cannot create information that was not already
+present.
+
+Why should we care operationally? Because MI is a direct answer to questions
+like:
+
+- "How informative is this feature about the target?"
+- "How much signal survives after compression or transformation?"
+- "Is this sensor/channel worth adding, or is it redundant?"
+
+If you think in terms of prediction, MI is "how many bits of uncertainty about
+the target disappear once this input is known". If MI is tiny, the variable may
+still correlate weakly, but it carries little decision-relevant information.
+
+## Toy MI Calculations
+
+The fastest way to make MI intuitive is to compute it on three simple cases:
+
+1. Independent variables (MI should be 0)
+2. Perfectly coupled variables (MI should equal entropy of either variable)
+3. Noisy coupling (MI should sit between 0 and the perfect-coupling value)
+
+```{r toy_mi_examples}
+#| echo: true
+
+# 1) Independent binary variables
+joint_indep <- matrix(c(0.25, 0.25,
+                        0.25, 0.25), nrow = 2, byrow = TRUE)
+
+# 2) Perfect coupling (Y = X)
+joint_perfect <- matrix(c(0.50, 0.00,
+                          0.00, 0.50), nrow = 2, byrow = TRUE)
+
+# 3) Noisy coupling: Y equals X with prob 0.8
+joint_noisy <- matrix(c(0.40, 0.10,
+                        0.10, 0.40), nrow = 2, byrow = TRUE)
+
+toy_mi_tbl <- tibble(
+  case = c("Independent", "Perfect coupling", "Noisy coupling (80% accurate)"),
+  h_x  = c(shannon_entropy(rowSums(joint_indep)),
+           shannon_entropy(rowSums(joint_perfect)),
+           shannon_entropy(rowSums(joint_noisy))),
+  h_y  = c(shannon_entropy(colSums(joint_indep)),
+           shannon_entropy(colSums(joint_perfect)),
+           shannon_entropy(colSums(joint_noisy))),
+  h_y_given_x = c(conditional_entropy(joint_indep),
+                  conditional_entropy(joint_perfect),
+                  conditional_entropy(joint_noisy)),
+  mi_bits = c(mutual_information(joint_indep),
+              mutual_information(joint_perfect),
+              mutual_information(joint_noisy))
+)
+
+toy_mi_tbl |> knitr::kable(digits = 4, caption = "Toy Mutual Information Calculations")
+```
+
+You can read this table as a diagnostic playbook:
+
+- If $H(Y|X)$ is almost as large as $H(Y)$, then $X$ tells you little about
+  $Y$ (low MI).
+- If $H(Y|X)$ is near zero, then $X$ nearly determines $Y$ (high MI).
+- In practice, most real systems look like the noisy middle case.
+
+## The Information Venn Diagram
+
+```{r venn_diagram}
+#| echo: true
+#| fig-cap: "The information-theoretic Venn diagram. Overlapping area = I(X;Y). Non-overlapping areas = conditional entropies. Total area = H(X,Y)."
+
+# Draw the classic Venn diagram manually
+circle_data <- tibble(
+  x      = c(-0.75, 0.75),
+  y      = c(0, 0),
+  r      = c(1.5, 1.5),
+  label  = c("X", "Y"),
+  lx     = c(-1.5, 1.5)
+)
+
+theta <- seq(0, 2 * pi, length.out = 200)
+
+circle_tbl <- circle_data |>
+  pmap_dfr(function(x, y, r, label, lx) {
+    tibble(
+      cx    = x + r * cos(theta),
+      cy    = y + r * sin(theta),
+      group = label
+    )
+  })
+
+ggplot() +
+  geom_polygon(
+    data    = filter(circle_tbl, group == "X"),
+    aes(x = cx, y = cy),
+    fill    = "steelblue",
+    alpha   = 0.4,
+    colour  = "steelblue",
+    linewidth = 1
+  ) +
+  geom_polygon(
+    data    = filter(circle_tbl, group == "Y"),
+    aes(x = cx, y = cy),
+    fill    = "darkorange",
+    alpha   = 0.4,
+    colour  = "darkorange",
+    linewidth = 1
+  ) +
+  annotate("text", x = -1.4, y =  0.0, label = "H(X|Y)", size = 5, fontface = "bold") +
+  annotate("text", x =  0.0, y =  0.0, label = "I(X;Y)", size = 5, fontface = "bold") +
+  annotate("text", x =  1.4, y =  0.0, label = "H(Y|X)", size = 5, fontface = "bold") +
+  annotate("text", x = -0.75, y =  1.8, label = "X",  size = 8, fontface = "bold", colour = "steelblue") +
+  annotate("text", x =  0.75, y =  1.8, label = "Y",  size = 8, fontface = "bold", colour = "darkorange") +
+  coord_equal() +
+  theme_void() +
+  labs(title = "Information Venn Diagram", subtitle = "H(X,Y) = Total area of both circles")
+```
+
+### Why This Matters in Practice
+
+The Venn diagram is a mnemonic, not a geometric proof. Its value is conceptual:
+
+- Overlap reminds you that shared predictability is a finite resource.
+- Non-overlap reminds you conditional uncertainty can remain high even with
+  non-zero dependence.
+- It is a quick diagnostic mental model when reasoning about feature sets and
+  target leakage.
+
+## Mutual Information as a Measure of Association
+
+Unlike Pearson correlation, MI captures *all* statistical dependencies —
+not just linear ones.
+
+```{r mi_vs_correlation}
+#| echo: true
+#| fig-cap: "MI vs. Pearson correlation on three relationships. MI detects the quadratic and circular patterns that correlation misses."
+
+n_pts <- 1000
+
+linear_tbl    <- tibble(x = rnorm(n_pts), y = 0.8 * x + rnorm(n_pts, sd = 0.6), rel = "Linear")
+quadratic_tbl <- tibble(x = runif(n_pts, -2, 2), y = x^2 + rnorm(n_pts, sd = 0.3), rel = "Quadratic")
+circular_tbl  <- {
+  theta_c <- runif(n_pts, 0, 2 * pi)
+  tibble(x = cos(theta_c) + rnorm(n_pts, sd = 0.1),
+         y = sin(theta_c) + rnorm(n_pts, sd = 0.1),
+         rel = "Circular")
+}
+
+all_rel <- bind_rows(linear_tbl, quadratic_tbl, circular_tbl)
+
+stats_tbl <- all_rel |>
+  group_by(rel) |>
+  summarise(
+    pearson_r = cor(x, y),
+    mi_bits   = estimate_mi_histogram(x, y, n_bins_x = 20L, n_bins_y = 20L),
+    .groups   = "drop"
+  ) |>
+  mutate(label = glue("r = {round(pearson_r, 2)} | MI = {round(mi_bits, 2)} bits"))
+
+ggplot(left_join(all_rel, stats_tbl, by = "rel"),
+       aes(x = x, y = y)) +
+  geom_point(alpha = 0.25, size = 0.8, colour = "steelblue") +
+  geom_text(
+    data = distinct(left_join(all_rel, stats_tbl, by = "rel"), rel, label),
+    aes(x = Inf, y = Inf, label = label),
+    hjust = 1.05, vjust = 1.5, size = 3.5, fontface = "bold"
+  ) +
+  facet_wrap(~rel, scales = "free") +
+  labs(
+    title    = "Mutual Information vs. Pearson Correlation",
+    subtitle = "MI detects non-linear dependencies that Pearson misses",
+    x        = "X",
+    y        = "Y"
+  )
+```
+
+### Why This Matters in Practice
+
+A common modeling failure mode is dropping non-linear predictors because
+Pearson correlation looks small. MI helps avoid that:
+
+- Use correlation for quick linear diagnostics.
+- Use MI when relationship form is unknown or potentially non-linear.
+- If MI is high but correlation is low, flexible models or feature transforms
+  are likely warranted.
+
+
+# KL Divergence and Cross-Entropy
+
+Up to this point, we measured uncertainty inside a single distribution
+(entropy) and shared information between variables (mutual information). The
+next natural question is different:
+
+**What if the distribution we use is wrong?**
+
+That question is central in real modeling work. We rarely know the true
+distribution exactly; we approximate it. KL divergence and cross-entropy are
+the tools that quantify the cost of that approximation.
+
+This section answers three practical questions:
+
+1. How far is my model distribution from reality?
+2. Why does the direction of that comparison matter?
+3. Why is cross-entropy the default loss in modern classification models?
+
+You can think of this section as the bridge from "information as uncertainty"
+to "information as model quality and decision cost".
+
+## Kullback-Leibler Divergence
+
+The **KL divergence** $D_{\text{KL}}(P \| Q)$ measures how much information
+is lost when we use distribution $Q$ to approximate distribution $P$:
+
+$$
+D_{\text{KL}}(P \| Q) = \sum_x P(x) \log_2 \frac{P(x)}{Q(x)}
+$$
+
+It is always $\geq 0$ (Gibbs' inequality), with equality iff $P = Q$.
+Critically, **it is not symmetric** — $D_{\text{KL}}(P \| Q) \neq D_{\text{KL}}(Q \| P)$.
+
+An operational interpretation is **expected coding regret**. If outcomes are
+actually generated from $P$ but we design code lengths for $Q$, then the
+average excess bits per symbol we pay is exactly $D_{\text{KL}}(P\|Q)$.
+
+The same quantity appears in statistics and ML as expected log-loss gap under
+model misspecification. This is why KL is central in likelihood methods,
+variational inference, and Bayesian updating.
+
+Another way to remember KL: it is a **directional mismatch penalty**.
+
+- $D_{KL}(P||Q)$ asks: "If nature is $P$, how costly is it to act as if it were
+  $Q$?"
+- The reverse asks a different question. Hence asymmetry is not a bug; it is a
+  feature of the question being asked.
+
+## Toy KL and Cross-Entropy Calculations
+
+```{r toy_kl_crossentropy_examples}
+#| echo: true
+
+# True class distribution P and two candidate models Q_good / Q_bad
+p_true <- c(0.70, 0.20, 0.10)
+q_good <- c(0.65, 0.25, 0.10)
+q_bad  <- c(0.40, 0.30, 0.30)
+
+h_p <- shannon_entropy(p_true)
+
+toy_kl_tbl <- tibble(
+  model = c("Q_good", "Q_bad"),
+  kl_p_q = c(kl_divergence(p_true, q_good), kl_divergence(p_true, q_bad)),
+  kl_q_p = c(kl_divergence(q_good, p_true), kl_divergence(q_bad, p_true)),
+  cross_entropy = c(cross_entropy(p_true, q_good), cross_entropy(p_true, q_bad)),
+  decomposition_check = cross_entropy - (h_p + kl_p_q)
+)
+
+cat(glue("H(P) = {round(h_p, 4)} bits\n\n"))
+toy_kl_tbl |> knitr::kable(digits = 4, caption = "Toy KL and Cross-Entropy Calculations")
+```
+
+Interpretation:
+
+- `Q_good` has small KL, so cross-entropy is only slightly above $H(P)$.
+- `Q_bad` has much larger KL, so coding/regret penalty is materially larger.
+- `KL(P||Q)` and `KL(Q||P)` differ, reinforcing the directional nature.
+- The decomposition check should be ~0 numerically, confirming
+  $H(P,Q)=H(P)+D_{KL}(P||Q)$.
+
+```{r kl_asymmetry_demo}
+#| echo: true
+#| fig-cap: "Asymmetry of KL divergence illustrated on Gaussians. KL(P||Q) penalises regions where P has mass but Q does not. KL(Q||P) is the reverse."
+
+x_grid <- seq(-6, 10, by = 0.05)
+
+# Two Gaussians: P is the truth, Q is an approximating model
+p_dens <- dnorm(x_grid, mean = 1, sd = 1)
+q_dens <- dnorm(x_grid, mean = 3, sd = 2)
+
+kl_pq_integrand <- ifelse(p_dens < 1e-20, 0, p_dens * log2(p_dens / (q_dens + 1e-20)))
+kl_qp_integrand <- ifelse(q_dens < 1e-20, 0, q_dens * log2(q_dens / (p_dens + 1e-20)))
+
+dx         <- diff(x_grid)[1]
+kl_pq_val  <- sum(kl_pq_integrand) * dx
+kl_qp_val  <- sum(kl_qp_integrand) * dx
+
+tibble(
+  x     = x_grid,
+  P     = p_dens,
+  Q     = q_dens,
+  kl_pq = kl_pq_integrand,
+  kl_qp = kl_qp_integrand
+) |>
+  pivot_longer(-x, names_to = "series", values_to = "value") |>
+  filter(series %in% c("P", "Q")) |>
+  ggplot(aes(x = x, y = value, colour = series)) +
+  geom_line(linewidth = 1.2) +
+  annotate("text", x = 8, y = 0.35,
+           label = glue("KL(P||Q) = {round(kl_pq_val, 3)} bits"), colour = "steelblue",  hjust = 1) +
+  annotate("text", x = 8, y = 0.30,
+           label = glue("KL(Q||P) = {round(kl_qp_val, 3)} bits"), colour = "darkorange", hjust = 1) +
+  scale_colour_manual(
+    values = c("P" = "steelblue", "Q" = "darkorange"),
+    labels = c("P: Truth N(1,1)", "Q: Model N(3,2)")
+  ) +
+  labs(
+    title    = "KL Divergence is Not Symmetric",
+    subtitle = "P is the truth, Q is the approximating model",
+    x        = "x",
+    y        = "Density",
+    colour   = NULL
+  ) +
+  theme(legend.position = "bottom")
+```
+
+## Forward vs. Reverse KL
+
+The direction of the KL divergence matters enormously in practice:
+
+- **Forward KL $D_{\text{KL}}(P \| Q)$ ("mean-seeking")**: The model $Q$
+  must cover all regions where $P$ has mass. Zero-avoiding for $Q$. Used in
+  maximum likelihood estimation.
+- **Reverse KL $D_{\text{KL}}(Q \| P)$ ("mode-seeking")**: The model $Q$
+  concentrates on the modes of $P$. Zero-forcing for $Q$. Used in variational
+  inference.
+
+```{r forward_vs_reverse_kl}
+#| echo: true
+#| fig-cap: "Forward KL finds an average fit; reverse KL locks onto one mode. Both directions minimised against a bimodal target."
+
+x_grid <- seq(-8, 8, by = 0.05)
+dx     <- diff(x_grid)[1]
+
+# True distribution: bimodal
+p_true <- 0.5 * dnorm(x_grid, mean = -3, sd = 1) +
+          0.5 * dnorm(x_grid, mean =  3, sd = 1)
+p_true <- p_true / (sum(p_true) * dx)
+
+# Forward KL optimal: Gaussian with mean and variance matched to P
+p_mean <- sum(x_grid * p_true) * dx
+p_var  <- sum((x_grid - p_mean)^2 * p_true) * dx
+q_forward <- dnorm(x_grid, mean = p_mean, sd = sqrt(p_var))
+
+# Reverse KL optimal: concentrate on one mode
+q_reverse <- dnorm(x_grid, mean = 3, sd = 1)
+
+plot_tbl <- tibble(
+  x         = x_grid,
+  `P (Truth)` = p_true,
+  `Q (Forward KL)` = q_forward,
+  `Q (Reverse KL)` = q_reverse
+) |>
+  pivot_longer(-x, names_to = "series", values_to = "density")
+
+ggplot(plot_tbl, aes(x = x, y = density, colour = series, linetype = series)) +
+  geom_line(linewidth = 1.2) +
+  scale_colour_manual(values = c("steelblue", "firebrick", "darkorange")) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotdash")) +
+  labs(
+    title    = "Forward vs. Reverse KL on a Bimodal Distribution",
+    subtitle = "Forward KL is mean-seeking; Reverse KL is mode-seeking",
+    x        = "x",
+    y        = "Density",
+    colour   = NULL,
+    linetype = NULL
+  ) +
+  theme(legend.position = "bottom")
+```
+
+### Why This Matters in Practice
+
+This choice affects model behavior materially:
+
+- If missing any plausible region is costly, forward-KL-style objectives are
+  safer.
+- If concentrating on high-probability modes is acceptable, reverse-KL-style
+  objectives can be more efficient.
+- Many approximation algorithms differ less by architecture than by which
+  divergence direction they optimize.
+
+## Cross-Entropy and the ML Connection
+
+Cross-entropy connects information theory directly to machine learning:
+
+$$
+H(P, Q) = -\sum_x P(x) \log_2 Q(x) = H(P) + D_{\text{KL}}(P \| Q)
+$$
+
+This decomposition is worth pausing on:
+
+- $H(P)$ is the irreducible uncertainty in the true data-generating process.
+- $D_{\text{KL}}(P\|Q)$ is the additional penalty from using an imperfect model.
+
+So cross-entropy is "unavoidable uncertainty + model error". In training,
+only the second term is controllable.
+
+For binary classification with true label $y \in \{0,1\}$ and predicted
+probability $q = P_\theta(y=1|x)$, the per-example loss is
+
+$$
+\ell_{CE}(y,q) = -\bigl[y\log q + (1-y)\log(1-q)\bigr]
+$$
+
+This explains why overconfident wrong predictions are punished severely: if
+$y=1$ but $q \to 0$, the loss diverges.
+
+When you minimise cross-entropy loss in a neural network, you are
+simultaneously minimising the KL divergence between the true label
+distribution $P$ and your model's predicted distribution $Q$. The entropy
+$H(P)$ is a constant (given the data), so minimising $H(P, Q)$ is exactly
+equivalent to minimising $D_{\text{KL}}(P \| Q)$.
+
+```{r cross_entropy_loss}
+#| echo: true
+#| fig-cap: "Cross-entropy loss as a function of predicted probability q for a true class (p=1). The loss is unbounded as q→0 and zero only when q=1."
+
+q_seq <- seq(0.01, 0.99, by = 0.01)
+
+ce_tbl <- tibble(
+  q                    = q_seq,
+  cross_entropy_bits   = -log2(q_seq),
+  cross_entropy_nats   = -log(q_seq)
+)
+
+p1_ce <- ggplot(ce_tbl, aes(x = q, y = cross_entropy_bits)) +
+  geom_line(colour = "firebrick", linewidth = 1.3) +
+  geom_vline(xintercept = 0.5, linetype = "dashed", alpha = 0.5) +
+  labs(
+    title = "Cross-Entropy Loss (Binary, True Class)",
+    x     = "Predicted Probability q",
+    y     = "Loss [bits]"
+  )
+
+p2_ce <- ggplot(ce_tbl, aes(x = q, y = cross_entropy_nats)) +
+  geom_line(colour = "steelblue", linewidth = 1.3) +
+  geom_vline(xintercept = 0.5, linetype = "dashed", alpha = 0.5) +
+  labs(
+    title = "Cross-Entropy Loss (Binary, True Class)",
+    x     = "Predicted Probability q",
+    y     = "Loss [nats]"
+  )
+
+plot_grid(p1_ce, p2_ce, ncol = 2)
+```
+
+### Why This Matters in Practice
+
+Cross-entropy is not just a training loss; it is a decision-quality metric:
+
+- It rewards calibrated confidence, not just correct class rank.
+- It strongly penalizes catastrophic overconfidence.
+- Improvements in cross-entropy usually translate into better probability
+  forecasts and downstream decision thresholds.
+
+## Jensen-Shannon Divergence: A Symmetric Alternative
+
+The JSD symmetrises KL divergence by comparing each distribution to their
+mixture $M = (P + Q)/2$:
+
+$$
+\text{JSD}(P \| Q) = \frac{1}{2} D_{\text{KL}}(P \| M) + \frac{1}{2} D_{\text{KL}}(Q \| M)
+$$
+
+$\text{JSD} \in [0, 1]$ (bits), and $\sqrt{\text{JSD}}$ is a proper metric
+(satisfies the triangle inequality). It is widely used to compare language
+model output distributions.
+
+```{r jsd_demo}
+#| echo: true
+#| fig-cap: "JSD between two Gaussians as their means separate. JSD is bounded in [0,1]; it reaches its maximum as the distributions become disjoint."
+
+sigma_fixed <- 1.0
+mu_sep      <- seq(0, 8, by = 0.25)
+
+jsd_tbl <- tibble(
+  separation = mu_sep,
+  jsd = map_dbl(mu_sep, function(d) {
+    # Discretise to compute numerically
+    x_g <- seq(-10, 10, by = 0.05)
+    dx  <- diff(x_g)[1]
+    p   <- dnorm(x_g, mean =  d/2, sd = sigma_fixed)
+    q   <- dnorm(x_g, mean = -d/2, sd = sigma_fixed)
+    p   <- p / (sum(p) * dx)
+    q   <- q / (sum(q) * dx)
+    m   <- (p + q) / 2
+    # Numerical KL
+    kl <- function(a, b) sum(ifelse(a < 1e-20, 0, a * log2(a / (b + 1e-20)))) * dx
+    0.5 * kl(p, m) + 0.5 * kl(q, m)
+  })
+)
+
+ggplot(jsd_tbl, aes(x = separation, y = jsd)) +
+  geom_line(colour = "purple", linewidth = 1.3) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "firebrick") +
+  annotate("text", x = 7, y = 0.97, label = "JSD = 1 (disjoint)", hjust = 1, colour = "firebrick") +
+  labs(
+    title    = "JSD Between Two Gaussians vs. Their Separation",
+    subtitle = glue("Both N(μ, σ²) with σ = {sigma_fixed}; means separated by d"),
+    x        = "Mean Separation d",
+    y        = "JSD [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+JSD is often preferred for distribution comparison dashboards because it is
+bounded, symmetric, and numerically stable. It is especially useful for:
+
+- Drift detection between training and production distributions.
+- Segment-to-segment comparison where direction should not matter.
+- Monitoring language model output shifts over time.
+
+
+# Differential Entropy: Continuous Variables
+
+So far we have worked exclusively with discrete distributions. For continuous
+random variables, we define **differential entropy**:
+
+$$
+h(X) = -\int_{-\infty}^{\infty} f(x) \log_2 f(x) \, dx
+$$
+
+**Important caveats**: differential entropy can be negative and is not
+invariant to scaling. It cannot be directly interpreted as "the number of bits
+needed" without specifying quantisation resolution. However, *differences*
+and *mutual information* involving differential entropy are meaningful.
+
+It helps to connect this back to discrete coding by introducing a quantisation
+bin width $\Delta$. If $X_\Delta$ is a discretised version of $X$, then
+approximately
+
+$$
+H(X_\Delta) \approx h(X) + \log_2\!\left(\frac{1}{\Delta}\right)
+$$
+
+as $\Delta \to 0$. The additive resolution term explains why absolute
+differential entropy values can be counterintuitive, while relative quantities
+remain stable and interpretable.
+
+Motivation-wise, differential entropy still matters because many real signals
+are naturally continuous (volatility, latency, temperature, biometrics,
+sensor amplitudes). Even though absolute values can be tricky, changes in
+entropy under transformations or constraints are highly meaningful.
+
+Two useful mental anchors:
+
+- **Spread effect**: wider continuous distributions generally have higher
+  differential entropy.
+- **Unit effect**: rescaling changes entropy by an additive constant. If
+  $Y = aX$, then $h(Y) = h(X) + \log_2|a|$.
+
+## Toy Differential Entropy Calculations
+
+```{r toy_differential_entropy_examples}
+#| echo: true
+
+toy_diff_tbl <- tibble(
+  case = c("Uniform(0,1)", "Uniform(0,4)", "Normal(0,1)", "Normal(0,0.2^2)"),
+  h_bits = c(
+    diff_entropy_uniform(0, 1),
+    diff_entropy_uniform(0, 4),
+    diff_entropy_normal(1),
+    diff_entropy_normal(0.2)
+  )
+)
+
+toy_diff_tbl |> knitr::kable(digits = 4, caption = "Toy Differential Entropy Calculations")
+
+h_u01 <- diff_entropy_uniform(0, 1)
+h_u04 <- diff_entropy_uniform(0, 4)
+h_n1  <- diff_entropy_normal(1)
+h_n2  <- diff_entropy_normal(2)
+
+cat(glue(
+  "Uniform scaling: h(U(0,4)) - h(U(0,1)) = {round(h_u04 - h_u01, 4)} bits (expected: log2(4)=2)\n",
+  "Normal scaling : h(N(0,2^2)) - h(N(0,1)) = {round(h_n2 - h_n1, 4)} bits (expected: log2(2)=1)\n"
+))
+```
+
+This is the key practical takeaway: differential entropy is less about raw
+"bits required" and more about how uncertainty changes as distributions become
+more spread out, more concentrated, or reparameterized.
+
+## Analytical Results for Common Distributions
+
+| Distribution | Parameters | Differential Entropy |
+|---|---|---|
+| Uniform $U(a, b)$ | $a, b$ | $\log_2(b - a)$ |
+| Normal $N(\mu, \sigma^2)$ | $\sigma$ | $\frac{1}{2}\log_2(2\pi e \sigma^2)$ |
+| Exponential $\text{Exp}(\lambda)$ | $\lambda$ | $1 - \log_2 \lambda$ |
+| Laplace $(0, b)$ | $b$ | $\log_2(2eb)$ |
+
+The **Normal distribution maximises differential entropy** among all
+distributions with a fixed variance — a beautiful maximum-entropy result.
+
+This table is most useful as a quick analytic toolkit:
+
+- If you can model a process as approximately Normal/Exponential/Uniform,
+  entropy can be computed instantly without simulation.
+- It provides sanity checks for numerical estimators.
+- It helps separate scale effects from shape effects when comparing datasets.
+
+```{r diff_entropy_demo}
+#| echo: true
+#| fig-cap: "Differential entropy of the Normal distribution grows as log₂(σ). Doubling σ adds exactly 1 bit of uncertainty."
+
+sigma_seq <- seq(0.1, 10, by = 0.1)
+
+diff_entropy_tbl <- tibble(
+  sigma             = sigma_seq,
+  normal_h          = map_dbl(sigma_seq, diff_entropy_normal),
+  exponential_h     = map_dbl(sigma_seq, ~diff_entropy_exp(1 / .x)),
+  uniform_h         = map_dbl(sigma_seq, ~diff_entropy_uniform(-sqrt(3) * .x, sqrt(3) * .x))
+)
+
+pivot_longer(diff_entropy_tbl, -sigma, names_to = "distribution", values_to = "entropy") |>
+  mutate(distribution = str_remove(distribution, "_h") |> str_to_title()) |>
+  ggplot(aes(x = sigma, y = entropy, colour = distribution)) +
+  geom_line(linewidth = 1.2) +
+  geom_hline(yintercept = 0, linetype = "dotted", colour = "grey50") +
+  scale_colour_brewer(palette = "Dark2") +
+  labs(
+    title    = "Differential Entropy vs. Scale Parameter",
+    subtitle = "All distributions have the same standard deviation σ",
+    x        = "Scale (σ)",
+    y        = "Differential Entropy h(X) [bits]",
+    colour   = "Distribution"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+## KDE-Based Entropy Estimation
+
+When the true distribution is unknown, we can estimate differential entropy
+from samples using a kernel density estimator.
+
+```{r kde_entropy_estimation}
+#| echo: true
+#| fig-cap: "KDE-based entropy estimates vs. analytical truth across varying sample sizes. The bias decreases as n grows, but variance remains."
+
+# Beta(2,5) distribution — non-Gaussian, analytical h not trivial
+set.seed(99)
+n_sizes_de  <- c(50, 100, 500, 1000, 5000)
+n_reps_de   <- 100L
+
+# True h(Beta(2,5)) via numerical integration
+x_b <- seq(0.001, 0.999, by = 0.001)
+f_b <- dbeta(x_b, 2, 5)
+true_h_beta <- -sum(f_b * log2(f_b)) * diff(x_b)[1]
+
+kde_conv_tbl <- future_map_dfr(n_sizes_de, function(n) {
+  map_dfr(seq_len(n_reps_de), function(r) {
+    s <- rbeta(n, 2, 5)
+    tibble(n = n, rep = r, h_est = estimate_diff_entropy_kde(s))
+  })
+}, .options = furrr_options(seed = TRUE))
+
+kde_summary <- kde_conv_tbl |>
+  group_by(n) |>
+  summarise(mean_h = mean(h_est), lo = quantile(h_est, 0.1), hi = quantile(h_est, 0.9))
+
+ggplot(kde_summary, aes(x = n)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), fill = "steelblue", alpha = 0.3) +
+  geom_line(aes(y = mean_h), colour = "steelblue", linewidth = 1.2) +
+  geom_hline(yintercept = true_h_beta, colour = "firebrick", linetype = "dashed") +
+  annotate("text", x = 5000, y = true_h_beta + 0.03,
+           label = glue("True h ≈ {round(true_h_beta, 3)} bits"), hjust = 1.1, colour = "firebrick") +
+  scale_x_log10(labels = label_comma()) +
+  labs(
+    title    = "KDE Entropy Estimate for Beta(2,5) Distribution",
+    subtitle = "Shaded: 10th–90th percentile over 100 replications",
+    x        = "Sample Size n (log scale)",
+    y        = "Estimated h(X) [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+For continuous data, entropy estimation is sensitive to smoothing and sample
+size. In production settings:
+
+- Track trends and relative changes rather than over-interpreting a single
+  absolute estimate.
+- Keep estimator choice fixed across time to avoid methodological drift.
+- Pair entropy with distribution plots so variance/bias artifacts are visible.
+
+## Entropy and Gaussianisation
+
+An important practical fact: of all distributions with a given variance, the
+Gaussian has the *highest* differential entropy. This means that transforming
+a non-Gaussian distribution to be more Gaussian-shaped increases its entropy.
+The difference $h(X_{\text{Gaussian}}) - h(X)$ is called the
+**negentropy** — a measure of non-Gaussianity heavily used in Independent
+Component Analysis (ICA).
+
+```{r negentropy_demo}
+#| echo: true
+#| fig-cap: "Differential entropy of several distributions with identical variance (σ²=1). The Gaussian always has the highest entropy — it is the maximum-entropy distribution for a fixed variance."
+
+sigma_sq <- 1.0
+
+dist_entropy_tbl <- tibble(
+  distribution = c("Gaussian", "Uniform (same var)", "Exponential (same var)",
+                   "Laplace (same var)", "Bimodal (same var)"),
+  h_bits = c(
+    diff_entropy_normal(sqrt(sigma_sq)),
+    diff_entropy_uniform(-sqrt(3 * sigma_sq), sqrt(3 * sigma_sq)),
+    diff_entropy_exp(1 / sqrt(sigma_sq)),   # E[X]=sqrt(s), Var[X]=s
+    {b_lap <- sqrt(sigma_sq / 2); log2(2 * exp(1) * b_lap)},  # Laplace(0,b)
+    {# Bimodal: two Gaussians at ±1, σ=0.3
+      x_bm <- seq(-4, 4, by = 0.01)
+      f_bm <- 0.5 * dnorm(x_bm, -1, 0.3) + 0.5 * dnorm(x_bm, 1, 0.3)
+      -sum(f_bm * log2(f_bm + 1e-20)) * 0.01}
+  )
+)
+
+ggplot(dist_entropy_tbl, aes(x = reorder(distribution, h_bits), y = h_bits, fill = h_bits)) +
+  geom_col(show.legend = FALSE) +
+  geom_hline(
+    yintercept = diff_entropy_normal(sqrt(sigma_sq)),
+    linetype   = "dashed",
+    colour     = "firebrick"
+  ) +
+  annotate("text", x = 0.5, y = diff_entropy_normal(sqrt(sigma_sq)) + 0.05,
+           label = "Gaussian bound", hjust = 0, colour = "firebrick") +
+  scale_fill_gradient(low = "steelblue", high = "firebrick") +
+  coord_flip() +
+  labs(
+    title    = "Maximum-Entropy Principle: Gaussian Wins",
+    subtitle = "All distributions have variance σ² = 1",
+    x        = NULL,
+    y        = "Differential Entropy h(X) [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+Gaussianisation and negentropy show up in many pipelines:
+
+- In ICA and blind source separation, maximizing non-Gaussianity helps recover
+  latent components.
+- In anomaly detection, strong deviations from Gaussian entropy structure can
+  reveal regime changes.
+- In feature preprocessing, this principle explains why variance alone is not a
+  complete uncertainty descriptor.
+
+
+# Summary of Part 1
+
+We have covered the first pillar of information theory:
+
+| Concept | Formula | Interpretation |
+|---|---|---|
+| Self-information | $I(x) = -\log_2 P(x)$ | Surprise of a single event |
+| Shannon Entropy | $H(X) = \mathbb{E}[I(X)]$ | Average uncertainty |
+| Rényi Entropy | $H_\alpha(X) = \frac{1}{1-\alpha}\log_2 \sum p^\alpha$ | Family indexed by order |
+| Joint Entropy | $H(X,Y)$ | Uncertainty about two variables together |
+| Conditional Entropy | $H(Y \mid X) = H(X,Y) - H(X)$ | Remaining uncertainty after observing $X$ |
+| Mutual Information | $I(X;Y) = H(X) + H(Y) - H(X,Y)$ | Shared information |
+| KL Divergence | $D_{\text{KL}}(P \| Q)$ | Cost of approximating $P$ with $Q$ |
+| Cross-Entropy | $H(P,Q) = H(P) + D_{\text{KL}}(P\|Q)$ | Total coding cost under wrong model |
+| JSD | $\frac{1}{2}[D_{\text{KL}}(P\|M) + D_{\text{KL}}(Q\|M)]$ | Symmetric bounded divergence |
+| Differential Entropy | $h(X) = -\int f \log_2 f$ | Continuous-variable entropy |
+
+**Part 2** covers the operational applications: channel capacity, source
+coding, Huffman codes, and a set of applied case studies in data compression,
+finance, and machine learning.
+
+If Part 1 gives you the language, Part 2 gives you the engineering limits:
+how few bits you can use, how much noise you can tolerate, and what trade-offs
+are unavoidable.

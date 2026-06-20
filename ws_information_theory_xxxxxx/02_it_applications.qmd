@@ -1,0 +1,869 @@
+---
+title: "Workshop: Introduction to Information Theory — Part 2: Coding, Channels, and Applications"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(entropy)
+library(infotheo)
+library(ggraph)
+library(tidygraph)
+library(broom)
+library(Rcpp)
+
+source("lib_utils.R")
+source("lib_information_theory.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "entropy", "infotheo")
+)
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+)
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+
+# From Theory to Practice
+
+Part 1 built the core language of information theory: entropy, mutual
+information, KL divergence, and cross-entropy. In Part 2, we answer the
+operational questions Shannon cared about:
+
+1. How efficiently can we compress data?
+2. How reliably can we transmit data over noisy channels?
+3. How do these concepts drive modern machine learning and risk modelling?
+
+
+# Source Coding and Data Compression
+
+## Shannon Source Coding Theorem
+
+For a discrete memoryless source with entropy $H(X)$ (bits/symbol), no
+lossless code can achieve expected length below $H(X)$ bits/symbol on average.
+Conversely, there exist codes with expected length arbitrarily close to
+$H(X)$.
+
+For practical prefix-free codes (e.g., Huffman), average code length $L$ obeys:
+
+$$
+H(X) \le L < H(X) + 1
+$$
+
+That inequality is one of the most actionable facts in data compression.
+
+In practical terms, this theorem is a feasibility check. Before choosing any
+algorithm, entropy tells you whether your compression target is realistic at
+all. If your target bit-rate is below $H(X)$ for strict lossless coding,
+no engineering trick can save you.
+
+## Building Huffman Codes from Scratch
+
+```{r huffman_intro}
+#| echo: true
+#| fig-cap: "Huffman codewords for a non-uniform 8-symbol source. Frequent symbols get shorter bit strings."
+
+source_probs <- c(0.30, 0.20, 0.15, 0.10, 0.08, 0.07, 0.06, 0.04)
+source_sym   <- LETTERS[1:length(source_probs)]
+
+huff_tbl <- build_huffman_code(source_sym, source_probs) |>
+  arrange(desc(probability))
+
+entropy_h <- shannon_entropy(source_probs)
+exp_len   <- huffman_expected_length(huff_tbl)
+
+huff_tbl |>
+  mutate(efficiency = entropy_h / exp_len) |>
+  knitr::kable(digits = 4, caption = "Huffman Coding Table")
+
+cat(glue(
+  "Source entropy H(X)         : {round(entropy_h, 4)} bits/symbol\n",
+  "Expected Huffman length L   : {round(exp_len,   4)} bits/symbol\n",
+  "Redundancy (L - H)          : {round(exp_len - entropy_h, 4)} bits/symbol\n",
+  "Coding efficiency (H/L)     : {round(100 * entropy_h / exp_len, 2)}%\n"
+))
+```
+
+### Why This Matters in Practice
+
+This table gives an immediate coding audit:
+
+- `L - H` quantifies how much overhead your practical code pays versus the
+  theoretical optimum.
+- Efficiency close to 100% means your coding scheme is near-optimal for that
+  source model.
+- If efficiency is low, the issue is often source modeling (wrong symbols or
+  granularity), not the code itself.
+
+## Visualising the Compression Bound
+
+```{r huffman_bound_plot}
+#| echo: true
+#| fig-cap: "Across random sources, Huffman expected length remains tightly bounded by H(X) and H(X)+1."
+
+n_trials <- 300
+k_alphabet <- 12
+
+bound_tbl <- map_dfr(seq_len(n_trials), function(i) {
+  p <- rgamma(k_alphabet, shape = runif(1, 0.5, 3), rate = 1)
+  p <- p / sum(p)
+  s <- paste0("s", seq_len(k_alphabet))
+
+  h  <- shannon_entropy(p)
+  hf <- build_huffman_code(s, p)
+  l  <- huffman_expected_length(hf)
+
+  tibble(trial = i, entropy = h, expected_length = l)
+})
+
+ggplot(bound_tbl, aes(x = entropy, y = expected_length)) +
+  geom_point(alpha = 0.5, colour = "steelblue") +
+  geom_abline(intercept = 0, slope = 1, colour = "firebrick", linewidth = 1.2) +
+  geom_abline(intercept = 1, slope = 1, colour = "darkorange", linewidth = 1.2, linetype = "dashed") +
+  labs(
+    title    = "Empirical Verification of Huffman Bound",
+    subtitle = "Solid: L = H(X) | Dashed: L = H(X) + 1",
+    x        = "Entropy H(X) [bits/symbol]",
+    y        = "Expected Huffman Length L [bits/symbol]"
+  )
+```
+
+### Why This Matters in Practice
+
+The scatter around the lower bound is an operational expectation:
+
+- Huffman performs very close to the entropy limit across broad source shapes.
+- The remaining gap is bounded and predictable.
+- This is why Huffman remains a strong baseline even when more complex codecs
+  are available.
+
+## Compression Simulation on Synthetic Text
+
+```{r compression_simulation}
+#| echo: true
+#| fig-cap: "Compression ratio improves when symbol distribution is skewed (lower entropy). Uniform text is incompressible."
+
+simulate_text <- function(n_chars, probs, alphabet = letters) {
+  sample(alphabet[seq_along(probs)], size = n_chars, replace = TRUE, prob = probs)
+}
+
+compression_experiment <- function(probs, n_chars = 10000) {
+  alphabet <- letters[1:length(probs)]
+  message  <- simulate_text(n_chars, probs, alphabet)
+
+  code_tbl <- build_huffman_code(alphabet, probs)
+  encoded  <- huffman_encode(message, code_tbl)
+
+  raw_bits <- n_chars * ceiling(log2(length(alphabet)))
+  cmp_bits <- nchar(encoded)
+
+  tibble(
+    entropy_bits_per_symbol = shannon_entropy(probs),
+    expected_huff_len       = huffman_expected_length(code_tbl),
+    raw_bits_per_symbol     = raw_bits / n_chars,
+    compressed_bits_per_symbol = cmp_bits / n_chars,
+    compression_ratio       = cmp_bits / raw_bits
+  )
+}
+
+k <- 8
+uniform_probs <- rep(1 / k, k)
+moderate_skew <- c(0.30, 0.20, 0.15, 0.10, 0.08, 0.07, 0.06, 0.04)
+heavy_skew    <- c(0.55, 0.20, 0.10, 0.06, 0.04, 0.025, 0.015, 0.01)
+
+cmp_tbl <- bind_rows(
+  compression_experiment(uniform_probs) |> mutate(source = "Uniform"),
+  compression_experiment(moderate_skew) |> mutate(source = "Moderately skewed"),
+  compression_experiment(heavy_skew)    |> mutate(source = "Heavily skewed")
+)
+
+cmp_tbl |>
+  select(source, entropy_bits_per_symbol, compressed_bits_per_symbol, raw_bits_per_symbol, compression_ratio) |>
+  knitr::kable(digits = 3, caption = "Compression Outcomes by Source Distribution")
+
+cmp_tbl |>
+  ggplot(aes(x = source, y = compression_ratio, fill = source)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = percent(compression_ratio, accuracy = 0.1)), vjust = -0.2) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    title = "Compression Ratio by Source Entropy",
+    x     = NULL,
+    y     = "Compressed size / Raw size"
+  )
+```
+
+### Why This Matters in Practice
+
+The simulation separates two questions that are often conflated:
+
+- "Can I compress this at all?" (depends on entropy structure)
+- "How much can I compress?" (depends on both entropy and coding method)
+
+Uniform-like data behaves as near-incompressible noise, while skewed data
+contains exploitable regularity.
+
+
+# Noisy Channels and Capacity
+
+## Shannon's Noisy Channel Theorem
+
+For a communication channel with capacity $C$ (bits/channel use), and coding
+rate $R$:
+
+- if $R < C$, there exist coding schemes with arbitrarily low error probability
+  (as block length increases);
+- if $R > C$, reliable communication is impossible.
+
+This theorem gives a hard physical boundary between possible and impossible
+communication performance.
+
+That boundary is a strategic planning tool:
+
+- If a design rate sits above capacity, investment should go to channel quality,
+  bandwidth, or rate reduction — not to better decoding heuristics alone.
+- If rate is below capacity, coding/latency/complexity trade-offs become the
+  main design space.
+
+## Binary Symmetric Channel (BSC)
+
+The BSC flips each transmitted bit independently with probability $p$.
+Its capacity is:
+
+$$
+C_{\text{BSC}} = 1 - H_b(p)
+$$
+
+where $H_b(p) = -p\log_2 p - (1-p)\log_2(1-p)$ is binary entropy.
+
+```{r bsc_capacity_curve}
+#| echo: true
+#| fig-cap: "BSC capacity as a function of crossover probability p. Capacity is maximal at p=0 and drops to 0 at p=0.5."
+
+cap_tbl <- bsc_capacity_curve(seq(0, 0.5, by = 0.002))
+
+ggplot(cap_tbl, aes(x = p_error)) +
+  geom_line(aes(y = capacity, colour = "Capacity C = 1 - H_b(p)"), linewidth = 1.3) +
+  geom_line(aes(y = binary_entropy, colour = "Binary entropy H_b(p)"), linewidth = 1.3, linetype = "dashed") +
+  scale_colour_manual(values = c("Capacity C = 1 - H_b(p)" = "steelblue", "Binary entropy H_b(p)" = "firebrick")) +
+  labs(
+    title  = "Binary Symmetric Channel: Capacity Curve",
+    x      = "Bit-flip probability p",
+    y      = "Bits per channel use",
+    colour = NULL
+  ) +
+  theme(legend.position = "bottom")
+```
+
+### Why This Matters in Practice
+
+The BSC curve is a direct resilience map:
+
+- Small increases in noise near moderate $p$ can cause meaningful capacity loss.
+- At $p=0.5$, the channel carries no reliable information.
+- Capacity converts raw noise levels into actionable throughput limits.
+
+## Simulating Uncoded vs. Coded Transmission
+
+```{r bsc_coding_simulation}
+#| echo: true
+#| fig-cap: "Simple repetition coding helps at low/moderate noise but wastes rate. Capacity bounds what is fundamentally possible."
+
+decode_repetition3 <- function(bits_rx) {
+  mat <- matrix(bits_rx, ncol = 3, byrow = TRUE)
+  as.integer(rowSums(mat) >= 2)
+}
+
+simulate_bsc_trial <- function(p_error, n_bits = 6000) {
+  bits_tx <- rbinom(n_bits, size = 1, prob = 0.5)
+
+  # Uncoded
+  bits_rx_uncoded <- simulate_bsc(bits_tx, p_error)
+  ber_uncoded <- mean(bits_tx != bits_rx_uncoded)
+
+  # Repetition-3 code (rate = 1/3)
+  bits_rep <- rep(bits_tx, each = 3)
+  bits_rx_rep <- simulate_bsc(bits_rep, p_error)
+  bits_hat_rep <- decode_repetition3(bits_rx_rep)
+  ber_rep <- mean(bits_tx != bits_hat_rep)
+
+  tibble(
+    p_error = p_error,
+    ber_uncoded = ber_uncoded,
+    ber_rep3 = ber_rep,
+    rate_uncoded = 1,
+    rate_rep3 = 1/3,
+    bsc_capacity = bsc_capacity(p_error)
+  )
+}
+
+p_grid <- seq(0.01, 0.45, by = 0.02)
+ber_tbl <- map_dfr(p_grid, ~simulate_bsc_trial(.x, n_bits = 9000))
+
+p1_ber <- ber_tbl |>
+  pivot_longer(c(ber_uncoded, ber_rep3), names_to = "scheme", values_to = "ber") |>
+  mutate(scheme = recode(scheme, ber_uncoded = "Uncoded", ber_rep3 = "Repetition-3")) |>
+  ggplot(aes(x = p_error, y = ber, colour = scheme)) +
+  geom_line(linewidth = 1.2) +
+  scale_colour_manual(values = c("Uncoded" = "firebrick", "Repetition-3" = "steelblue")) +
+  labs(
+    title  = "Bit Error Rate vs. Channel Noise",
+    x      = "BSC crossover probability p",
+    y      = "Bit Error Rate",
+    colour = "Scheme"
+  )
+
+p2_rate <- ber_tbl |>
+  mutate(rep3_feasible = rate_rep3 < bsc_capacity, uncoded_feasible = rate_uncoded < bsc_capacity) |>
+  ggplot(aes(x = p_error)) +
+  geom_line(aes(y = bsc_capacity, colour = "Capacity C"), linewidth = 1.2) +
+  geom_hline(yintercept = 1/3, colour = "steelblue", linetype = "dashed") +
+  geom_hline(yintercept = 1, colour = "firebrick", linetype = "dashed") +
+  labs(
+    title = "Code Rates vs. Capacity",
+    subtitle = "Reliable communication requires rate < C",
+    x = "BSC crossover probability p",
+    y = "Bits/channel use",
+    colour = NULL
+  )
+
+plot_grid(p1_ber, p2_rate, ncol = 2)
+```
+
+### Why This Matters in Practice
+
+This paired plot illustrates the engineering trade-off clearly:
+
+- Lower-rate coding can reduce BER at the cost of throughput.
+- Capacity contextualizes whether that trade-off is fundamentally feasible.
+- A coding scheme can improve reliability but cannot violate the rate-capacity
+  barrier.
+
+## Binary Erasure Channel (BEC)
+
+The BEC erases bits with probability $\epsilon$ (receiver knows which bits are
+missing). Capacity is simply:
+
+$$
+C_{\text{BEC}} = 1 - \epsilon
+$$
+
+```{r bec_capacity}
+#| echo: true
+#| fig-cap: "BEC has linear capacity decay: each erasure directly removes one bit of usable information."
+
+eps_grid <- seq(0, 1, by = 0.01)
+
+bec_tbl <- tibble(
+  epsilon = eps_grid,
+  capacity = bec_capacity(eps_grid)
+)
+
+ggplot(bec_tbl, aes(x = epsilon, y = capacity)) +
+  geom_line(colour = "darkorange", linewidth = 1.3) +
+  labs(
+    title = "Binary Erasure Channel Capacity",
+    x     = "Erasure probability ε",
+    y     = "Capacity [bits/channel use]"
+  )
+```
+
+### Why This Matters in Practice
+
+BEC capacity is operationally simple and highly useful for packet-loss systems:
+
+- Every unit of erasure probability removes the same unit of usable capacity.
+- This linearity makes back-of-the-envelope design and SLA translation easy.
+- It is a good first-order model for dropped frames/packets with explicit
+  missingness indicators.
+
+## AWGN Channel and the Shannon-Hartley Law
+
+For an additive white Gaussian noise channel:
+
+$$
+C = B \log_2(1 + \text{SNR})
+$$
+
+where $B$ is bandwidth and SNR is linear (not dB).
+
+```{r awgn_capacity}
+#| echo: true
+#| fig-cap: "AWGN channel capacity per Hz as a function of SNR in dB."
+
+snr_db <- seq(-20, 30, by = 0.5)
+snr_lin <- 10^(snr_db / 10)
+
+awgn_tbl <- tibble(
+  snr_db    = snr_db,
+  snr_lin   = snr_lin,
+  capacity_per_hz = awgn_capacity(snr_lin, bw = 1)
+)
+
+ggplot(awgn_tbl, aes(x = snr_db, y = capacity_per_hz)) +
+  geom_line(colour = "steelblue", linewidth = 1.3) +
+  labs(
+    title = "Shannon-Hartley Capacity",
+    subtitle = "C/B = log₂(1 + SNR)",
+    x = "SNR [dB]",
+    y = "Spectral efficiency [bits/s/Hz]"
+  )
+```
+
+### Why This Matters in Practice
+
+The log-shape is the key planning insight:
+
+- Early SNR gains are very valuable.
+- At high SNR, returns diminish sharply.
+- This helps decide whether to spend budget on power/SNR improvements or on
+  bandwidth and coding changes.
+
+
+# Applied Information Theory in Machine Learning
+
+## Entropy and Decision Trees
+
+Decision trees choose splits that reduce uncertainty most. In ID3/C4.5-style
+learning, this is **information gain**:
+
+$$
+\text{IG}(Y, X_j) = H(Y) - H(Y \mid X_j)
+$$
+
+```{r decision_tree_information_gain}
+#| echo: true
+#| fig-cap: "Information gain ranking for candidate features in a synthetic classification problem."
+
+set.seed(1234)
+n <- 5000
+
+x_signal  <- rbinom(n, 1, 0.5)
+x_weak    <- rbinom(n, 1, 0.5)
+x_noise_1 <- rbinom(n, 1, 0.5)
+x_noise_2 <- rbinom(n, 1, 0.5)
+
+# Target depends strongly on x_signal, weakly on x_weak
+y <- ifelse(runif(n) < ifelse(x_signal == 1, 0.85, 0.15), 1L, 0L)
+y <- ifelse(runif(n) < ifelse(x_weak == 1, 0.08, -0.08) + 0.5, y, 1L - y)
+
+mi_feature <- function(feature, target) {
+  tab <- table(feature, target)
+  mutual_information(tab / sum(tab))
+}
+
+ig_tbl <- tibble(
+  feature = c("x_signal", "x_weak", "x_noise_1", "x_noise_2"),
+  info_gain_bits = c(
+    mi_feature(x_signal, y),
+    mi_feature(x_weak, y),
+    mi_feature(x_noise_1, y),
+    mi_feature(x_noise_2, y)
+  )
+) |>
+  arrange(desc(info_gain_bits))
+
+ggplot(ig_tbl, aes(x = reorder(feature, info_gain_bits), y = info_gain_bits, fill = feature)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Feature Ranking by Information Gain",
+    x     = NULL,
+    y     = "Information Gain [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+Information gain is an interpretable feature utility metric:
+
+- It quantifies uncertainty reduction in bits, not just relative score order.
+- It can expose useful non-linear predictors that simple linear filters miss.
+- It supports transparent feature triage before expensive model training.
+
+## Cross-Entropy Loss and Calibration
+
+Cross-entropy punishes overconfident wrong predictions much more than uncertain
+ones. This is why modern classifiers optimise log-loss.
+
+```{r calibration_cross_entropy}
+#| echo: true
+#| fig-cap: "Cross-entropy penalties for different prediction quality profiles. Overconfident errors are catastrophic."
+
+n <- 4000
+true_y <- rbinom(n, 1, 0.5)
+
+# Three hypothetical models
+pred_well_calib <- pmin(pmax(0.1 + 0.8 * true_y + rnorm(n, sd = 0.12), 0.001), 0.999)
+pred_underconf  <- pmin(pmax(0.35 + 0.3 * true_y + rnorm(n, sd = 0.08), 0.001), 0.999)
+pred_overconf_wrong <- ifelse(runif(n) < 0.15, ifelse(true_y == 1, 0.001, 0.999), pred_well_calib)
+
+ce_loss <- function(y, p) {
+  -mean(y * log2(p) + (1 - y) * log2(1 - p))
+}
+
+cal_tbl <- tibble(
+  model = c("Well calibrated", "Underconfident", "Overconfident with occasional wrong certainty"),
+  cross_entropy_bits = c(
+    ce_loss(true_y, pred_well_calib),
+    ce_loss(true_y, pred_underconf),
+    ce_loss(true_y, pred_overconf_wrong)
+  )
+)
+
+ggplot(cal_tbl, aes(x = reorder(model, cross_entropy_bits), y = cross_entropy_bits, fill = model)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Cross-Entropy by Prediction Profile",
+    x     = NULL,
+    y     = "Average cross-entropy [bits/sample]"
+  )
+```
+
+### Why This Matters in Practice
+
+This is a calibration lesson, not just a loss-function detail:
+
+- Models can have similar accuracy but very different decision quality.
+- Overconfident mistakes are expensive in risk-sensitive systems.
+- Cross-entropy is a better metric than accuracy when downstream actions depend
+  on probability values.
+
+## VAE View: KL as Information Bottleneck Regulariser
+
+In variational autoencoders, the objective includes:
+
+$$
+\mathbb{E}_{q_\phi(z|x)}[-\log p_\theta(x|z)] + \beta D_{\text{KL}}\bigl(q_\phi(z|x)\|p(z)\bigr)
+$$
+
+The KL term penalises latent posteriors that carry too much information,
+forcing compressed representations. Larger $\beta$ means stronger compression
+(and often lower reconstruction fidelity).
+
+```{r beta_vae_tradeoff}
+#| echo: true
+#| fig-cap: "Synthetic beta-VAE style trade-off curve between reconstruction quality and KL regularisation strength."
+
+beta_grid <- seq(0, 8, by = 0.1)
+
+# Stylised (simulated) trade-off curves for pedagogy
+vae_tbl <- tibble(
+  beta = beta_grid,
+  recon_loss = 0.25 + 0.18 * log1p(beta) + 0.02 * beta,
+  kl_term    = 2.2 * exp(-0.35 * beta) + 0.08,
+  total_elbo = recon_loss + beta * kl_term
+)
+
+p_recon <- ggplot(vae_tbl, aes(x = beta, y = recon_loss)) +
+  geom_line(colour = "steelblue", linewidth = 1.2) +
+  labs(title = "Reconstruction Term", x = "β", y = "Expected -log p(x|z)")
+
+p_kl <- ggplot(vae_tbl, aes(x = beta, y = kl_term)) +
+  geom_line(colour = "firebrick", linewidth = 1.2) +
+  labs(title = "KL Regularisation Term", x = "β", y = "KL(q(z|x)||p(z))")
+
+plot_grid(p_recon, p_kl, ncol = 2)
+```
+
+### Why This Matters in Practice
+
+The $\beta$ dial is a practical control knob:
+
+- Higher $\beta$ encourages simpler latent representations.
+- Lower $\beta$ prioritizes reconstruction detail.
+- The right value depends on whether the goal is compression, generation,
+  disentanglement, or predictive utility.
+
+
+# Finance and Insurance Application
+
+## Mutual Information for Non-Linear Dependence in Risk Signals
+
+Pearson correlation can miss dependence structures driven by regime switches,
+thresholds, or shared latent shocks. MI captures these dependencies.
+
+Here we simulate a stylised insurance setting:
+
+- monthly catastrophe indicator $C_t$
+- claim frequency signal $F_t$
+- claim severity signal $S_t$
+
+Frequency and severity become strongly dependent during catastrophe regimes,
+even when linear correlation appears modest.
+
+```{r insurance_mi_case}
+#| echo: true
+#| fig-cap: "Latent catastrophe regime induces stronger dependence between frequency and severity than Pearson alone suggests."
+
+set.seed(2026)
+n_months <- 12000
+
+cat_regime <- rbinom(n_months, 1, 0.08)
+
+freq <- rpois(n_months, lambda = ifelse(cat_regime == 1, 12, 4))
+sev  <- rgamma(n_months,
+               shape = ifelse(cat_regime == 1, 2.2, 3.5),
+               rate  = ifelse(cat_regime == 1, 0.0012, 0.0035))
+
+pearson_fs <- cor(freq, sev)
+mi_fs      <- estimate_mi_histogram(freq, sev, n_bins_x = 15, n_bins_y = 15)
+
+cat(glue(
+  "Pearson correlation(F, S): {round(pearson_fs, 3)}\n",
+  "Mutual information(F, S): {round(mi_fs, 3)} bits\n"
+))
+
+risk_tbl <- tibble(freq = freq, sev = sev, regime = factor(cat_regime, labels = c("Normal", "Catastrophe")))
+
+p_scatter <- risk_tbl |>
+  sample_n(3000) |>
+  ggplot(aes(x = freq, y = sev, colour = regime)) +
+  geom_point(alpha = 0.35) +
+  scale_y_continuous(labels = label_dollar()) +
+  labs(
+    title = "Frequency-Severity Dependence by Regime",
+    x     = "Claim count (monthly)",
+    y     = "Average severity"
+  ) +
+  theme(legend.position = "bottom")
+
+# rolling MI as an early warning signal
+roll_window <- 250
+roll_idx <- seq(roll_window, n_months, by = 25)
+
+rolling_tbl <- map_dfr(roll_idx, function(i) {
+  idx <- (i - roll_window + 1):i
+  tibble(
+    t = i,
+    mi_roll = estimate_mi_histogram(freq[idx], sev[idx], n_bins_x = 10, n_bins_y = 10),
+    cat_rate = mean(cat_regime[idx])
+  )
+})
+
+p_roll <- ggplot(rolling_tbl, aes(x = t)) +
+  geom_line(aes(y = mi_roll, colour = "Rolling MI"), linewidth = 1.1) +
+  geom_line(aes(y = cat_rate, colour = "Catastrophe rate (window)"), linewidth = 1.1, linetype = "dashed") +
+  scale_colour_manual(values = c("Rolling MI" = "firebrick", "Catastrophe rate (window)" = "steelblue")) +
+  labs(
+    title = "Rolling Mutual Information as Dependence Monitor",
+    x     = "Time index",
+    y     = "Scaled signal",
+    colour = NULL
+  ) +
+  theme(legend.position = "bottom")
+
+plot_grid(p_scatter, p_roll, ncol = 1, rel_heights = c(1.2, 1))
+```
+
+### Why This Matters in Practice
+
+This pattern is common in real portfolios: dependence intensifies in stress
+regimes. Monitoring MI alongside linear metrics can provide earlier warning of
+joint-risk buildup than correlation alone.
+
+## Pricing with Wrong vs. Right Regime Model (KL Penalty)
+
+Suppose pricing assumes a single benign regime distribution while the real
+world is a mixture. KL divergence quantifies model misspecification cost.
+
+```{r pricing_kl_penalty}
+#| echo: true
+#| fig-cap: "KL divergence between true mixed severity and simplified single-regime model grows quickly as catastrophe weight increases."
+
+x_grid <- seq(0.001, 10000, by = 10)
+
+severity_mixture <- function(w_cat) {
+  f <- (1 - w_cat) * dgamma(x_grid, shape = 3.5, rate = 0.0035) +
+       w_cat       * dgamma(x_grid, shape = 2.2, rate = 0.0012)
+  f / sum(f)
+}
+
+severity_single <- dgamma(x_grid, shape = 3.5, rate = 0.0035)
+severity_single <- severity_single / sum(severity_single)
+
+w_seq <- seq(0, 0.30, by = 0.01)
+
+kl_tbl <- tibble(
+  cat_weight = w_seq,
+  kl_bits = map_dbl(w_seq, ~kl_divergence(severity_mixture(.x), severity_single))
+)
+
+ggplot(kl_tbl, aes(x = cat_weight, y = kl_bits)) +
+  geom_line(colour = "firebrick", linewidth = 1.3) +
+  labs(
+    title = "KL Divergence from True Mixed Severity to Simplified Pricing Model",
+    subtitle = "Model risk rises as catastrophe mixture weight increases",
+    x = "Catastrophe mixture weight",
+    y = "D_KL(True || Simplified) [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+KL here acts as a model-risk indicator:
+
+- Rising KL means the simplified pricing view is becoming increasingly costly
+  in information terms.
+- It can support governance thresholds for model refresh triggers.
+- It provides a quantitative bridge between distribution drift and pricing risk.
+
+
+# Cross-Domain Sampler
+
+## Genomics: Sequence Logo Entropy
+
+At each DNA position, entropy quantifies conservation. Low entropy means strong
+evolutionary pressure (highly conserved base), high entropy means variability.
+
+```{r genomics_entropy_sampler}
+#| echo: true
+#| fig-cap: "Per-position entropy across a toy DNA motif alignment. Conserved motifs stand out via low entropy."
+
+set.seed(77)
+
+n_seq <- 250
+positions <- 20
+bases <- c("A", "C", "G", "T")
+
+# Build synthetic motif: conserved positions at 5, 10, 15
+make_probs <- function(pos) {
+  if (pos %in% c(5, 10, 15)) c(0.9, 0.03, 0.04, 0.03) else c(0.25, 0.25, 0.25, 0.25)
+}
+
+alignment <- map_dfc(seq_len(positions), function(pos) {
+  tibble(!!paste0("p", pos) := sample(bases, size = n_seq, replace = TRUE, prob = make_probs(pos)))
+})
+
+pos_entropy <- map_dbl(seq_len(positions), function(pos) {
+  counts <- table(alignment[[pos]])
+  entropy_from_counts(counts)
+})
+
+entropy_tbl <- tibble(position = seq_len(positions), entropy_bits = pos_entropy)
+
+ggplot(entropy_tbl, aes(x = position, y = entropy_bits)) +
+  geom_col(fill = "steelblue") +
+  geom_hline(yintercept = 2, linetype = "dashed", colour = "grey40") +
+  labs(
+    title = "DNA Motif Position Entropy",
+    subtitle = "Maximum for 4 bases is 2 bits",
+    x = "Position",
+    y = "Entropy [bits]"
+  )
+```
+
+### Why This Matters in Practice
+
+Per-position entropy is a compact conservation score:
+
+- Low-entropy sites are candidates for functional importance.
+- High-entropy sites are likely flexible/background positions.
+- The same logic generalizes to other sequence-like domains (clickstreams,
+  event logs, protocol traces).
+
+## NLP: Next-Token Uncertainty and Perplexity
+
+Language-model quality is often reported with cross-entropy and perplexity:
+
+$$
+\text{Perplexity} = 2^{H(P, Q)}
+$$
+
+Lower perplexity implies better predictive modelling.
+
+```{r perplexity_demo}
+#| echo: true
+#| fig-cap: "Perplexity grows exponentially with cross-entropy. Small improvements in cross-entropy can produce meaningful perplexity gains."
+
+ce_seq <- seq(1, 8, by = 0.05)
+
+perp_tbl <- tibble(
+  cross_entropy_bits = ce_seq,
+  perplexity = 2^ce_seq
+)
+
+ggplot(perp_tbl, aes(x = cross_entropy_bits, y = perplexity)) +
+  geom_line(colour = "darkorange", linewidth = 1.3) +
+  scale_y_log10(labels = label_number(accuracy = 1)) +
+  labs(
+    title = "Perplexity vs. Cross-Entropy",
+    x = "Cross-Entropy [bits/token]",
+    y = "Perplexity (log scale)"
+  )
+```
+
+### Why This Matters in Practice
+
+Perplexity translates abstract information units into intuitive branching
+difficulty:
+
+- A model with perplexity 20 behaves as if it is choosing among about 20
+  plausible next tokens on average.
+- Small cross-entropy improvements can yield meaningful perplexity gains.
+- This is why careful probability calibration remains valuable even when top-1
+  predictions look similar.
+
+
+# Summary
+
+Part 2 covered the operational heart of information theory:
+
+- **Source coding**: entropy sets the fundamental lower bound for lossless
+  compression.
+- **Huffman coding**: practical prefix coding that approaches the entropy bound.
+- **Noisy channels**: capacity defines what reliable transmission rates are
+  fundamentally achievable.
+- **BSC/BEC/AWGN**: canonical channels with explicit capacity formulas.
+- **Machine learning**: entropy, information gain, cross-entropy, and KL are
+  built into modern algorithms.
+- **Risk modelling**: MI and KL provide dependence diagnostics and
+  misspecification penalties beyond linear correlation.
+- **Cross-domain relevance**: genomics and NLP show the same core concepts at
+  work in very different systems.
+
+Information theory is powerful because it separates *domain details* from
+*structural limits*: it gives universal rules about uncertainty, compression,
+and communication that apply almost everywhere.

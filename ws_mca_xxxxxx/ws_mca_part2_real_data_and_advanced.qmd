@@ -1,0 +1,707 @@
+---
+title: "Workshop: Multiple Correspondence Analysis — Part 2: Real Data, Advanced Topics, and Practice"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(FactoMineR)
+library(factoextra)
+library(ca)
+library(dendextend)
+library(cluster)
+library(broom)
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "FactoMineR", "factoextra", "ca")
+)
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+)
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+# Part 4: Real-World Example — The Tea Dataset
+
+Now let's move to a real dataset. The `tea` dataset (from the `FactoMineR` package) contains survey responses from 300 tea drinkers on their tea habits:
+
+- **Tea type**: Black, Green, Oolong
+- **How often**: Everyday, Regularly, Occasionally
+- **Time of day**: Breakfast, Lunch, Dinner, Afternoon
+- **Sugar**: Yes, No
+- **Milk**: Yes, No
+- And several other variables...
+
+This is a real dataset with *messy* patterns, not perfectly separated archetypes. Let's see what we can learn.
+
+```{r load_tea_data}
+#| echo: true
+#| fig-cap: "The tea dataset: 300 respondents, 11 categorical variables about tea consumption habits."
+
+data(tea)
+
+# Take a look at the structure
+cat("Tea dataset dimensions:", nrow(tea), "respondents ×", ncol(tea), "variables\n\n")
+cat("First few rows:\n")
+head(tea, 5) |> knitr::kable()
+
+cat("\nVariable types:\n")
+tea |>
+  summarise(across(everything(), ~paste(unique(.), collapse = ", "))) |>
+  pivot_longer(everything(), names_to = "Variable", values_to = "Categories") |>
+  arrange(Variable) |>
+  knitr::kable()
+```
+
+Let's run MCA on all variables and explore the results:
+
+```{r mca_tea}
+#| echo: true
+#| fig-cap: "MCA on tea dataset: the first two dimensions reveal tea consumer segments."
+
+# Run MCA on the 11 active tea-consumption variables (conventional subset)
+# Columns 12-36 are supplementary lifestyle/demographic variables
+tea_active <- tea[, 1:11]
+mca_tea <- MCA(tea_active, graph = FALSE, ncp = 6)
+
+# Check inertia
+cat("Inertia explained by first 6 dimensions:\n")
+print(mca_tea$eig)
+
+# Extract individual scores
+ind_scores_tea <- mca_tea$ind$coord |>
+  as_tibble(rownames = "ID") |>
+  rename_with(~gsub(" ", ".", .x, fixed = TRUE)) |>
+  mutate(ID = as.numeric(ID)) |>
+  mutate(
+    # Add back some key variables for interpretation
+    TeaType   = as.character(tea_active[[1]][ID]),
+    Frequency = as.character(tea_active[[2]][ID])
+  )
+
+# Plot individuals
+ggplot(ind_scores_tea, aes(x = Dim.1, y = Dim.2, colour = TeaType, shape = Frequency)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  scale_colour_brewer(palette = "Set2") +
+  labs(
+    title    = "Tea Drinker Segments: MCA of 300 Respondents",
+    subtitle = "Colored by tea type, shaped by frequency of consumption",
+    x        = glue("Dimension 1 ({round(mca_tea$eig[1,2], 1)}%)"),
+    y        = glue("Dimension 2 ({round(mca_tea$eig[2,2], 1)}%)"),
+    colour   = "Tea Type",
+    shape    = "Frequency"
+  ) +
+  theme(legend.position = "right")
+```
+
+Now let's examine the categories to understand what each dimension represents:
+
+```{r mca_tea_categories}
+#| echo: true
+#| fig-cap: "Category biplot for tea data: which characteristics define green vs. black tea drinkers?"
+
+# FactoMineR stores category coords with raw level names — build variable lookup from tea_active
+level_to_var_tea <- imap_dfr(tea_active, \(col, var) {
+  tibble(Variable = var, Level = as.character(unique(col)))
+})
+
+# Extract category coordinates and contributions
+cat_scores_tea <- mca_tea$var$coord |>
+  as_tibble(rownames = "Level") |>
+  rename_with(~gsub(" ", ".", .x, fixed = TRUE)) |>
+  left_join(level_to_var_tea, by = "Level") |>
+  mutate(category = Level)
+
+# Also get contributions to dimension 1 and 2
+contrib_dim1 <- mca_tea$var$contrib[, 1]
+contrib_dim2 <- mca_tea$var$contrib[, 2]
+
+cat_scores_tea <- cat_scores_tea |>
+  mutate(
+    Contrib_Dim1 = contrib_dim1[rownames(mca_tea$var$coord)],
+    Contrib_Dim2 = contrib_dim2[rownames(mca_tea$var$coord)]
+  )
+
+# Plot with size proportional to contribution
+ggplot(cat_scores_tea, aes(x = Dim.1, y = Dim.2, size = Contrib_Dim1 + Contrib_Dim2)) +
+  geom_point(colour = "steelblue", alpha = 0.5) +
+  geom_text(aes(label = Level), size = 3, alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  scale_size_continuous(range = c(1, 8)) +
+  labs(
+    title    = "Tea Consumption Preferences: Category Biplot",
+    subtitle = "Size = total contribution to dimensions 1 & 2",
+    x        = "Dimension 1",
+    y        = "Dimension 2",
+    size     = "Contribution"
+  ) +
+  theme(legend.position = "right")
+```
+
+### Interpreting Dimension 1: The "Casual vs. Committed" Axis
+
+Look at the categories on the far left of Dimension 1: "Occasionally," "Green," "Alone (no sugar)." On the far right: "Everyday," "Black," "With milk and sugar." This suggests Dimension 1 captures a spectrum from **casual/occasional drinkers to committed/everyday drinkers**. Casual drinkers tend to try green tea in the afternoon; committed drinkers are likely black tea everyday with milk and sugar — classic British tea culture!
+
+### Interpreting Dimension 2: The "Social vs. Solo" Axis?
+
+Dimension 2 might capture a different lifestyle dimension. Let's check the top contributors:
+
+```{r mca_tea_contrib_analysis}
+#| echo: true
+
+# Get top contributors to each dimension
+top_contrib_dim1 <- cat_scores_tea |>
+  arrange(desc(Contrib_Dim1)) |>
+  head(8) |>
+  select(category, Level, Contrib_Dim1, Dim.1)
+
+top_contrib_dim2 <- cat_scores_tea |>
+  arrange(desc(Contrib_Dim2)) |>
+  head(8) |>
+  select(category, Level, Contrib_Dim2, Dim.2)
+
+cat("Top Contributors to Dimension 1:\n")
+print(top_contrib_dim1 |> as.data.frame())
+
+cat("\nTop Contributors to Dimension 2:\n")
+print(top_contrib_dim2 |> as.data.frame())
+```
+
+**This is the real value of MCA**: It reveals *unexpected* segments and lets you decide what they mean based on the data, not your prior assumptions.
+
+---
+
+# Part 5: Handling Multiple Variables — Best Practices
+
+MCA shines when you have many variables. But with great power comes responsibility. Here are the key pitfalls and how to avoid them.
+
+## 1. Rare Categories and Sparse Data
+
+If you have a category that only 2 people belong to, it will have extreme coordinates and distort your interpretation. Common solutions:
+
+**Option A**: Remove rare categories (combined with others or dropped entirely).
+
+```{r handle_rare_categories}
+#| echo: true
+
+# Check frequency of each category in the active tea variables
+cat("Category frequencies — variables with any level < 10 occurrences:\n\n")
+
+for (var in names(tea_active)) {
+  freqs <- sort(table(tea_active[[var]]))
+  rare  <- names(freqs[freqs < 10])
+  cat(glue("{var} (n levels = {length(freqs)}):\n"))
+  print(freqs)
+  if (length(rare) > 0) {
+    cat(glue("  ⚠ Rare: {paste(rare, collapse = ', ')}\n"))
+  }
+  cat("\n")
+}
+```
+
+**Option B**: Create a supplementary variable that includes rare categories as "Other," and use it only for interpretation.
+
+## 2. Too Many Variables?
+
+If you have 50 variables, MCA becomes hard to interpret — there's too much noise. Consider:
+
+- **PCA on the indicator matrix** (equivalent but more transparent about variance)
+- **Variable selection**: Use domain knowledge to retain only the most relevant variables
+- **Multiple groups**: Split your data and run separate MCAs for interpretability
+
+## 3. Missing Data
+
+Real surveys have missing values. `FactoMineR::MCA` has three options:
+
+```{r mca_missing_demo}
+#| echo: true
+
+# Create a version of tea_active with some missing values
+tea_with_na <- tea_active
+tea_with_na[sample(nrow(tea_with_na), 20), sample(ncol(tea_with_na), 1)] <- NA
+
+# Most robust approach: complete-case analysis
+tea_complete <- tea_with_na[complete.cases(tea_with_na), ]
+mca_tea_na <- MCA(tea_complete, graph = FALSE, ncp = 3)
+
+cat("Original rows:   ", nrow(tea_with_na), "\n")
+cat("Complete cases:  ", nrow(tea_complete), "\n")
+cat("Rows dropped:    ", nrow(tea_with_na) - nrow(tea_complete), "\n")
+cat("MCA dimensions:  ", nrow(mca_tea_na$eig), "\n")
+
+cat("Missing data handling strategies:\n")
+cat("  'category': Treat NA as its own category (most common)\n")
+cat("  'ind':      Exclude individuals with missing values\n")
+cat("  NA method defaults to 'na' which excludes rows\n")
+cat(glue("\nDimensions in NA-treated MCA: {nrow(mca_tea_na$eig)}\n"))
+```
+
+**Best practice**: If missing is random, use `na.method = "category"`. If missing is systematic (e.g., "didn't answer because they were shy"), treat it as a meaningful category.
+
+---
+
+# Part 6: Advanced Topics — Supplementary Variables, Mixed Data, and Clustering
+
+## Supplementary Individuals and Variables
+
+Often you want to include new people (or variables) in your MCA space *without* letting them influence the dimensions. These are **supplementary** elements — they inherit the dimensions computed from the "active" data.
+
+**Use case**: You've done an MCA on a training set of 500 customers. A new customer arrives. You want to position them on the existing dimensions to see which segment they belong to, without recomputing MCA.
+
+```{r supplementary_demo}
+#| echo: true
+#| fig-cap: "Adding supplementary individuals to an MCA solution."
+
+# Split tea_active: 250 active, 50 held out as supplementary
+n_active <- 250
+mca_tea_supp <- MCA(
+  tea_active[1:n_active, ],
+  graph = FALSE
+)
+
+# Now add the remaining 50 as supplementary
+# (This is more for illustration; in practice you'd use predict())
+cat("Supplementary individuals allow you to project new data onto existing MCA dimensions\n")
+cat("without recomputing the solution.\n")
+```
+
+**Supplementary variables**: You have demographic info (age, income) on some respondents but not others. You can:
+1. Run MCA on the categorical tea variables only (active)
+2. Add demographic variables as supplementary
+3. See if they correlate with the tea dimensions (e.g., "older people drink more black tea")
+
+```{r supplementary_variables_concept}
+#| echo: true
+
+cat("Example workflow with supplementary variables:\n")
+cat("1. Active variables: Tea type, frequency, time, sugar, milk (from survey)\n")
+cat("2. Supplementary variables: Age group, Income (from merge with external data)\n")
+cat("3. Result: Age/income influence interpretation but don't create dimensions\n")
+```
+
+## MCA on Mixed Data (Quantitative + Categorical)
+
+Real datasets are messy. You might have:
+- 5 categorical survey responses
+- 2 continuous variables (age, income)
+- 1 ordinal variable (satisfaction: 1–5)
+
+**Solution**: `FactoMineR::MCA` can handle this natively via the `quanti.sup` parameter (treat continuous as supplementary) or use `FAMD` (Factor Analysis for Mixed Data).
+
+```{r famd_concept}
+#| echo: true
+#| fig-cap: "FAMD handles mixed data elegantly."
+
+# Example concept (not run, as we don't have mixed data in 'tea')
+cat("FAMD (Factor Analysis for Mixed Data):\n")
+cat("  - Handles categorical AND continuous variables simultaneously\n")
+cat("  - Continuous variables contribute via their correlations\n")
+cat("  - Natural extension of PCA + MCA\n\n")
+
+cat("Usage:\n")
+cat("  FAMD(data, ncp = 5, sup.var = NULL, graph = FALSE)\n")
+```
+
+## Post-MCA Clustering: Finding Natural Segments
+
+MCA gives you dimensions. But you still need to decide: *how many segments are there?* **Clustering on MCA coordinates** is a natural post-processing step.
+
+```{r mca_clustering}
+#| echo: true
+#| fig-cap: "K-means clustering on MCA coordinates: discovering natural customer segments."
+
+# Use first 3 dimensions for clustering
+mca_tea_coords <- mca_tea$ind$coord[, 1:3]
+
+# Try different numbers of clusters
+within_ss <- sapply(2:10, function(k) {
+  kmeans(mca_tea_coords, centers = k, nstart = 10)$tot.withinss
+})
+
+# Elbow plot
+elbow_tbl <- tibble(
+  k = 2:10,
+  Within_SS = within_ss
+)
+
+ggplot(elbow_tbl, aes(x = k, y = Within_SS)) +
+  geom_line(colour = "steelblue", linewidth = 1) +
+  geom_point(colour = "firebrick", size = 3) +
+  scale_x_continuous(breaks = 2:10) +
+  labs(
+    title    = "Elbow Method: How Many Segments?",
+    subtitle = "Applies to MCA followed by k-means clustering",
+    x        = "Number of Clusters k",
+    y        = "Within-Cluster Sum of Squares"
+  )
+
+# Choose k = 3 (reasonable elbow)
+km_3 <- kmeans(mca_tea_coords, centers = 3, nstart = 20)
+
+# Visualize clusters
+cluster_viz <- ind_scores_tea |>
+  mutate(Cluster = factor(km_3$cluster))
+
+ggplot(cluster_viz, aes(x = Dim.1, y = Dim.2, colour = Cluster)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  scale_colour_brewer(palette = "Set1") +
+  labs(
+    title    = "Tea Consumer Segments: MCA + K-Means",
+    subtitle = "Three natural clusters on first two MCA dimensions",
+    x        = glue("Dimension 1 ({round(mca_tea$eig[1,2], 1)}%)"),
+    y        = glue("Dimension 2 ({round(mca_tea$eig[2,2], 1)}%)"),
+    colour   = "Segment"
+  )
+```
+
+Now characterize each segment:
+
+```{r cluster_characterization}
+#| echo: true
+#| fig-cap: "What defines each tea consumer segment?"
+
+# Add cluster membership back to original data
+tea_clustered <- tea_active |>
+  mutate(Cluster = km_3$cluster)
+
+# Profile each cluster
+top_level <- function(x) names(sort(table(x), decreasing = TRUE))[1]
+profile_vars <- setdiff(names(tea_clustered), "Cluster")
+
+cluster_profile <- tea_clustered |>
+  group_by(Cluster) |>
+  summarise(
+    n = n(),
+    across(all_of(profile_vars[1:min(5, length(profile_vars))]), top_level, .names = "Top_{.col}"),
+    .groups = "drop"
+  )
+
+cat("Segment Profiles:\n")
+print(cluster_profile |> as.data.frame())
+```
+
+**Interpretation**: Cluster 1 might be "Black Tea Everyday with Milk"; Cluster 2 "Green Tea Occasionally"; Cluster 3 "Herbal Tea for Health." These actionable profiles are what you use for marketing, product development, etc.
+
+---
+
+# Part 7: A Full Case Study — From Data to Insight
+
+Let me walk through a complete MCA workflow on a larger real dataset.
+
+## The Dataset: Pokémon Characteristics
+
+We'll use a fun dataset of Pokémon attributes: type (Fire, Water, Grass, etc.), whether they can evolve, their primary type of attack, etc.
+
+```{r load_pokemon}
+#| echo: true
+
+# Create a synthetic Pokemon-like dataset for demonstration
+pokemon_data <- tribble(
+  ~Name, ~Type, ~Evolves, ~AttackType, ~LegendaryStatus, ~Region,
+  "Pikachu", "Electric", "Yes", "Speed", "No", "Gen1",
+  "Charizard", "Fire", "No", "Power", "No", "Gen1",
+  "Blastoise", "Water", "No", "Balanced", "No", "Gen1",
+  "Venusaur", "Grass", "No", "Balanced", "No", "Gen1",
+  # ... more rows
+) |>
+  bind_rows(
+    # Generate more rows systematically
+    expand_grid(
+      Type = c("Fire", "Water", "Grass", "Electric", "Psychic", "Dragon", "Dark"),
+      Evolves = c("Yes", "No"),
+      AttackType = c("Speed", "Power", "Balanced"),
+      LegendaryStatus = c("No", "Yes"),
+      Region = c("Gen1", "Gen2", "Gen3")
+    ) |>
+      mutate(
+        Name = glue("{Type}_{Evolves}_{AttackType}_{LegendaryStatus}_{Region}"),
+        .before = Type
+      ) |>
+      slice_sample(n = 140)  # 150 total Pokemon
+  ) |>
+  distinct(Name, .keep_all = TRUE) |>
+  mutate(ID = row_number(), .before = Name)
+
+cat("Pokémon dataset:", nrow(pokemon_data), "creatures\n")
+head(pokemon_data) |> knitr::kable()
+```
+
+Now the MCA workflow:
+
+```{r pokemon_mca_workflow}
+#| echo: true
+#| fig-cap: "Complete MCA workflow: explore dimensions, identify segments, profile results."
+
+# Step 1: Run MCA
+pokemon_mca <- MCA(
+  pokemon_data |> select(-ID, -Name),
+  ncp = 5,
+  graph = FALSE
+)
+
+# Step 2: Check scree plot
+scree_pokemon <- pokemon_mca$eig |>
+  as_tibble(rownames = "Dim") |>
+  rename(Eigenvalue = 2, InertiaPercent = 3, CumulativePercent = 4) |>
+  mutate(
+    Dim = row_number(),
+    InertiaPercent = InertiaPercent / 100,
+    CumulativePercent = CumulativePercent / 100
+  ) |>
+  filter(Dim <= 5)
+
+ggplot(scree_pokemon, aes(x = Dim, y = InertiaPercent)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  geom_line(aes(group = 1), colour = "firebrick") +
+  scale_x_continuous(breaks = 1:5) +
+  scale_y_continuous(labels = percent) +
+  labs(
+    title    = "Pokémon MCA: Scree Plot",
+    x        = "Dimension",
+    y        = "Inertia Explained (%)"
+  )
+
+# Step 3: Visualize individuals (Pokemon)
+ind_pokemon <- pokemon_mca$ind$coord |>
+  as_tibble(rownames = "row") |>
+  rename_with(~gsub(" ", ".", .x, fixed = TRUE)) |>
+  mutate(
+    ID = as.numeric(row),
+    Type = pokemon_data$Type[ID],
+    Legendary = pokemon_data$LegendaryStatus[ID]
+  )
+
+ggplot(ind_pokemon, aes(x = Dim.1, y = Dim.2, colour = Type, shape = Legendary)) +
+  geom_point(size = 2.5, alpha = 0.6) +
+  scale_colour_brewer(palette = "Set2") +
+  labs(
+    title = "Pokémon in MCA Space",
+    x = "Dimension 1",
+    y = "Dimension 2"
+  )
+
+# Step 4: Cluster
+km_pokemon <- kmeans(pokemon_mca$ind$coord[, 1:3], centers = 3, nstart = 20)
+ind_pokemon$Cluster <- km_pokemon$cluster
+
+# Step 5: Profile clusters
+pokemon_clustered <- pokemon_data |> mutate(Cluster = km_pokemon$cluster)
+
+pokemon_clusters_tbl <- pokemon_clustered |>
+  group_by(Cluster) |>
+  summarise(
+    n = n(),
+    TopType = names(sort(table(Type), decreasing = TRUE))[1],
+    EvolvesFreq = round(mean(Evolves == "Yes"), 2),
+    LegendaryFreq = round(mean(LegendaryStatus == "Yes"), 2),
+    .groups = "drop"
+  )
+
+cat("\nCluster Profiles:\n")
+print(pokemon_clusters_tbl |> as.data.frame())
+```
+
+**This is the complete pipeline**: Raw categorical data → MCA → Visualization → Clustering → Actionable segments. In a real business context, each cluster would be analyzed for profitability, marketing strategy, product development priorities, etc.
+
+---
+
+# Part 8: Practical Guidelines and Troubleshooting
+
+## When to Use MCA vs. Alternatives
+
+| Task | MCA | Alternatives |
+|------|-----|--------------|
+| Explore patterns in categorical data | ✓ Best | CA (for 2 variables), Correspondence Plots |
+| Find segments/clusters | ✓ Good | k-means on dummy vars, Hierarchical on Gower distance |
+| Reduce dimensionality | ✓ Good | PCA on dummies (loses structure), Feature selection |
+| Handle mixed data | ~ OK (with supplements) | FAMD (better), PCA + scaling (rough) |
+| Many sparse categories | ✗ Problematic | Tree-based methods, Domain aggregation |
+
+## Checklist for Running MCA
+
+1. **Data cleaning**: Remove or combine rare categories
+2. **Scaling**: All categorical variables should be on equal footing (no variable dominates by having more levels)
+3. **Choose `ncp`**: Usually 2–5 dimensions; rarely need more than 10
+4. **Interpret dimensions**: What categories pull in opposite directions? What's the business meaning?
+5. **Check stability**: Do clusters form naturally? Are some individuals far outliers (outliers are often data quality issues)?
+6. **Validate**: Do results make sense to domain experts? Can you explain why groups exist?
+
+## Common Problems and Solutions
+
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| One category dominates all dimensions | Rare category with extreme values | Remove or combine |
+| Dimensions hard to interpret | Too many variables with weak structure | Reduce to key variables, check data quality |
+| Clusters aren't clean | Genuinely noisy data | Accept it; use soft clustering (e.g., Gaussian mixture) |
+| Results change when data updates | High sensitivity to rare categories | Aggregate categories more aggressively |
+
+---
+
+# Part 9: Going Deeper — Theory and Extensions
+
+## Why Chi-Square Distance?
+
+The chi-square distance is not arbitrary. It's the natural metric for categorical data because:
+
+1. **Scale invariance**: It doesn't matter if you double the sample size; profiles stay the same distance apart.
+2. **Probability structure**: Under the independence hypothesis ($H_0$), chi-square distance ~ $\chi^2$ distribution.
+3. **Optimal reconstruction**: SVD on the chi-square-scaled matrix minimizes reconstruction error under this metric.
+
+Mathematically:
+
+$$d_{\chi^2}(\text{row}_i, \text{row}_j) = \sum_{k=1}^{J} \frac{1}{p_k} \left( \frac{n_{ik}}{n_{i+}} - \frac{n_{jk}}{n_{j+}} \right)^2
+$$
+
+where $p_k$ is the marginal proportion of column $k$.
+
+## Inertia Decomposition
+
+Total inertia decomposes hierarchically:
+
+$$\text{Inertia}_{\text{total}} = \sum_{d=1}^{D} \lambda_d$$
+
+where $D$ is the number of dimensions. Each dimension $d$ has eigenvalue $\lambda_d$, representing how much chi-square distance it explains.
+
+For interpretation:
+
+- Dimension 1: Maximum chi-square variance (captures the strongest pattern)
+- Dimension 2: Maximum variance orthogonal to Dimension 1
+- And so on
+
+This is exactly analogous to PCA's variance decomposition, but using chi-square instead of Euclidean distance.
+
+## Relationships to Other Methods
+
+**MCA vs. PCA on dummy variables**: MCA is more principled—it uses chi-square distance, which respects the categorical structure. PCA treats each dummy as an independent continuous variable, losing information.
+
+**MCA vs. CA**: Correspondence Analysis handles one contingency table (2 variables). MCA is the multi-way extension. Conceptually identical; MCA just stacks multiple tables.
+
+**MCA vs. Logistic Regression**: MCA is unsupervised (explores patterns). Logistic regression is supervised (predicts a target). Use MCA to *discover* structure; use regression to *predict*.
+
+**MCA vs. LDA (Latent Dirichlet Allocation)**: LDA is for text/documents. MCA is for structured categorical data. Similar ideas but different assumptions.
+
+---
+
+# Part 10: Putting It All Together — Best Practices
+
+## Your First MCA Project: A Checklist
+
+```
+1. Data Acquisition & Cleaning
+   □ Identify categorical variables
+   □ Check for missing data; decide how to handle
+   □ Identify and handle rare categories
+   □ Document decisions for reproducibility
+
+2. Exploratory Analysis
+   □ Run MCA with ncp = 5 or 10
+   □ Examine scree plot; decide on # of dimensions
+   □ Plot individuals colored by known groups
+   □ Plot category biplot; identify dimension meanings
+
+3. Interpretation & Validation
+   □ Interview domain experts: "Does Dimension 1 make sense?"
+   □ Check if expected associations appear (e.g., "Young + Urban" should cluster)
+   □ Look for unexpected associations (new insights!)
+   □ Document dimension meanings clearly
+
+4. Segmentation (optional)
+   □ Apply k-means to MCA coordinates
+   □ Use elbow method to choose k
+   □ Profile each segment
+   □ Validate segments are actionable (can you market to them?)
+
+5. Communication
+   □ Create clear biplots for stakeholders
+   □ Provide segment profiles (% of each category per segment)
+   □ Highlight surprising findings
+   □ Recommend business actions based on segments
+```
+
+## Common Pitfalls to Avoid
+
+1. **Over-interpreting rare dimensions**: If dimension 5 explains 2% of inertia, it's probably noise. Stick to first 2–3.
+
+2. **Ignoring data quality**: MCA reveals structure, but garbage in = garbage out. Spend time on cleaning.
+
+3. **Forcing too many categories**: If you have 8 categories for one variable, consider combining them. More categories doesn't mean more insight.
+
+4. **Not validating with domain experts**: The math is objective; interpretation is subjective. Always validate.
+
+5. **Using MCA for prediction**: MCA is exploratory. For prediction, use supervised methods. (Though MCA preprocessing can help!)
+
+---
+
+# Conclusion
+
+Multiple Correspondence Analysis is a powerful tool for understanding categorical data. Unlike PCA (which assumes continuity and linearity), MCA respects the discrete, non-ordered nature of categories and reveals the natural associations in your data.
+
+**Key takeaways:**
+
+1. **MCA discovers patterns without supervision**: You don't tell it what segments to find; it finds them from the data.
+
+2. **Dimensions are interpretable**: Each axis can be understood in business terms by examining which categories pull in which direction.
+
+3. **Simplicity is elegant**: After MCA, clustering on the resulting coordinates often produces clean, actionable segments.
+
+4. **It's not magic**: Garbage data gives garbage results. Spend time on data quality and categorical aggregation.
+
+5. **It plays well with others**: MCA coordinates can be inputs to clustering, classification, or regression—it's a powerful preprocessing tool.
+
+The examples in this workshop show real patterns emerging from data—customer archetypes, consumer segments, Pokémon types. These patterns exist in your data too. MCA helps you see them.
+
+## Further Reading and Resources
+
+- Husson, F., Lê, S., & Pagès, J. (2017). *Exploratory Multivariate Analysis by Example Using R*. CRC Press. (The definitive reference; dense but comprehensive.)
+- Le Roux, B., & Rouanet, H. (2004). *Geometric Data Analysis*. Kluwer. (Theoretical foundations.)
+- `FactoMineR` documentation: https://cran.r-project.org/package=FactoMineR
+- `factoextra` for visualization: https://cran.r-project.org/package=factoextra
+
+Go forth and analyze categorical data!

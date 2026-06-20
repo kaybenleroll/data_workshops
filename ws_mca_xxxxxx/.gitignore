@@ -1,0 +1,30 @@
+# R artifacts
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Quarto outputs
+*.html
+*_cache/
+*_files/
+
+# Data files (local)
+data/*
+data_export/*
+precompute/*
+
+# Docker build logs
+docker_build.log
+quarto_render_output.log
+
+# OS artifacts
+.DS_Store
+.Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/

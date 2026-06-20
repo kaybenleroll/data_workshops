@@ -1,0 +1,370 @@
+---
+title: "Worksheet: Information Theory Exercises"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(glue)
+library(entropy)
+library(infotheo)
+
+source("lib_utils.R")
+source("lib_information_theory.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "entropy", "infotheo")
+)
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallelly::availableCores()
+)
+
+theme_set(theme_cowplot())
+set.seed(42)
+```
+
+# Instructions
+
+This worksheet is designed to reinforce the concepts in:
+
+- Part 1: Foundations (`01_it_basics.qmd`)
+- Part 2: Applications (`02_it_applications.qmd`)
+
+Each section contains:
+
+- **Task**: what to do
+- **Hint**: optional guidance
+- **Starter code**: a scaffold you can run and complete
+- **Check yourself**: expected properties of the result
+
+
+# Exercise 1: Entropy Intuition
+
+## Task
+
+Create three 5-outcome distributions and compare their entropy:
+
+1. Uniform
+2. Moderately skewed
+3. Highly concentrated (one dominant outcome)
+
+Plot them as bar charts and report $H(X)$ for each.
+
+## Starter Code
+
+```{r ex1_starter}
+# TODO: define three distributions that sum to 1
+p_uniform <- rep(1/5, 5)
+p_mod     <- c(0.35, 0.25, 0.20, 0.12, 0.08)
+p_skew    <- c(0.80, 0.10, 0.05, 0.03, 0.02)
+
+ex1_tbl <- tibble(
+  distribution = c("Uniform", "Moderate", "Skewed"),
+  entropy_bits = c(
+    shannon_entropy(p_uniform),
+    shannon_entropy(p_mod),
+    shannon_entropy(p_skew)
+  )
+)
+
+ex1_tbl
+```
+
+## Check Yourself
+
+- Entropy should be highest for uniform, lowest for skewed.
+- All values should be between $0$ and $\log_2(5)$.
+
+
+# Exercise 2: Joint, Conditional, Mutual Information
+
+## Task
+
+Construct a $2 \times 2$ joint distribution where variables are dependent.
+Compute:
+
+- $H(X)$
+- $H(Y)$
+- $H(X,Y)$
+- $H(Y|X)$
+- $I(X;Y)$
+
+Verify the identities:
+
+- $H(X,Y) = H(X) + H(Y|X)$
+- $I(X;Y) = H(Y) - H(Y|X)$
+
+## Starter Code
+
+```{r ex2_starter}
+# Example dependent joint distribution
+joint <- matrix(c(0.45, 0.05,
+                  0.10, 0.40),
+                nrow = 2,
+                byrow = TRUE)
+
+h_x  <- shannon_entropy(rowSums(joint))
+h_y  <- shannon_entropy(colSums(joint))
+h_xy <- joint_entropy(joint)
+h_yx <- conditional_entropy(joint)
+mi   <- mutual_information(joint)
+
+cat(glue(
+  "H(X)      = {round(h_x,  4)}\n",
+  "H(Y)      = {round(h_y,  4)}\n",
+  "H(X,Y)    = {round(h_xy, 4)}\n",
+  "H(Y|X)    = {round(h_yx, 4)}\n",
+  "I(X;Y)    = {round(mi,   4)}\n",
+  "\nCheck 1: H(X)+H(Y|X) = {round(h_x + h_yx, 4)}\n",
+  "Check 2: H(Y)-H(Y|X) = {round(h_y - h_yx, 4)}\n"
+))
+```
+
+## Check Yourself
+
+- $I(X;Y)$ must be non-negative.
+- The two identities should hold up to numerical precision.
+
+
+# Exercise 3: KL Divergence Asymmetry
+
+## Task
+
+Define two discrete distributions $P$ and $Q$ over the same support and show
+numerically that:
+
+$$
+D_{KL}(P\|Q) \ne D_{KL}(Q\|P)
+$$
+
+Also compute JSD and explain why it is symmetric.
+
+## Starter Code
+
+```{r ex3_starter}
+p <- c(0.60, 0.25, 0.10, 0.05)
+q <- c(0.25, 0.25, 0.25, 0.25)
+
+kl_pq <- kl_divergence(p, q)
+kl_qp <- kl_divergence(q, p)
+jsd   <- js_divergence(p, q)
+
+cat(glue(
+  "KL(P||Q) = {round(kl_pq, 4)} bits\n",
+  "KL(Q||P) = {round(kl_qp, 4)} bits\n",
+  "JSD(P,Q) = {round(jsd,   4)} bits\n"
+))
+```
+
+## Check Yourself
+
+- `KL(P||Q)` and `KL(Q||P)` should differ.
+- `JSD(P,Q)` should stay between 0 and 1 bit.
+
+
+# Exercise 4: Huffman Coding Efficiency
+
+## Task
+
+1. Define an 8-symbol source.
+2. Build a Huffman code.
+3. Compute entropy $H(X)$ and expected code length $L$.
+4. Verify $H(X) \le L < H(X) + 1$.
+
+## Starter Code
+
+```{r ex4_starter}
+probs <- c(0.32, 0.20, 0.14, 0.10, 0.08, 0.07, 0.05, 0.04)
+syms  <- LETTERS[1:8]
+
+code_tbl <- build_huffman_code(syms, probs)
+H <- shannon_entropy(probs)
+L <- huffman_expected_length(code_tbl)
+
+code_tbl |>
+  arrange(desc(probability)) |>
+  knitr::kable(digits = 4)
+
+cat(glue(
+  "H(X) = {round(H, 4)}\n",
+  "L    = {round(L, 4)}\n",
+  "H <= L ? {H <= L}\n",
+  "L < H+1 ? {L < H + 1}\n"
+))
+```
+
+## Check Yourself
+
+- Most probable symbol should have one of the shortest codewords.
+- The Huffman inequality should hold.
+
+
+# Exercise 5: Channel Capacity and Code Rate
+
+## Task
+
+For a BSC with several noise levels $p$, compare capacity $C$ against two
+candidate rates:
+
+- $R_1 = 1.0$ (uncoded)
+- $R_2 = 1/3$ (repetition-3 style)
+
+Determine for which $p$ values each rate is theoretically feasible.
+
+## Starter Code
+
+```{r ex5_starter}
+p_grid <- seq(0.01, 0.49, by = 0.01)
+
+cap_tbl <- tibble(
+  p_error = p_grid,
+  capacity = bsc_capacity(p_grid),
+  feasible_uncoded = 1.0 < capacity,
+  feasible_rep3 = (1/3) < capacity
+)
+
+cap_tbl |>
+  summarise(
+    p_max_uncoded = max(p_error[feasible_uncoded]),
+    p_max_rep3    = max(p_error[feasible_rep3])
+  )
+```
+
+## Check Yourself
+
+- `p_max_rep3` should be larger than `p_max_uncoded`.
+- At $p=0.5$, capacity should be 0.
+
+
+# Exercise 6: MI for Feature Ranking
+
+## Task
+
+Simulate a binary target and five candidate features:
+
+- 2 informative
+- 3 noise
+
+Estimate MI(feature, target) and rank features.
+
+## Starter Code
+
+```{r ex6_starter}
+set.seed(101)
+n <- 3000
+
+x1 <- rbinom(n, 1, 0.5)  # strong signal
+x2 <- rbinom(n, 1, 0.5)  # weak signal
+x3 <- rbinom(n, 1, 0.5)  # noise
+x4 <- rbinom(n, 1, 0.5)  # noise
+x5 <- rbinom(n, 1, 0.5)  # noise
+
+y <- ifelse(runif(n) < ifelse(x1 == 1, 0.80, 0.20), 1L, 0L)
+y <- ifelse(runif(n) < ifelse(x2 == 1, 0.06, -0.06) + 0.5, y, 1L - y)
+
+mi_bin <- function(x, y) {
+  tab <- table(x, y)
+  mutual_information(tab / sum(tab))
+}
+
+rank_tbl <- tibble(
+  feature = c("x1", "x2", "x3", "x4", "x5"),
+  mi_bits = c(mi_bin(x1, y), mi_bin(x2, y), mi_bin(x3, y), mi_bin(x4, y), mi_bin(x5, y))
+) |>
+  arrange(desc(mi_bits))
+
+rank_tbl
+```
+
+## Check Yourself
+
+- `x1` should rank first most of the time.
+- Noise variables should have MI close to zero.
+
+
+# Exercise 7: Insurance Dependence Under Stress
+
+## Task
+
+Simulate frequency and severity with a latent catastrophe regime and compare:
+
+- Pearson correlation
+- Mutual information
+
+Then recompute both metrics after removing catastrophe months and compare.
+
+## Starter Code
+
+```{r ex7_starter}
+set.seed(2027)
+n <- 8000
+
+cat_regime <- rbinom(n, 1, 0.10)
+freq <- rpois(n, lambda = ifelse(cat_regime == 1, 10, 4))
+sev  <- rgamma(n,
+               shape = ifelse(cat_regime == 1, 2.0, 3.8),
+               rate  = ifelse(cat_regime == 1, 0.0010, 0.0038))
+
+pearson_all <- cor(freq, sev)
+mi_all      <- estimate_mi_histogram(freq, sev, n_bins_x = 12, n_bins_y = 12)
+
+idx_normal <- which(cat_regime == 0)
+pearson_normal <- cor(freq[idx_normal], sev[idx_normal])
+mi_normal      <- estimate_mi_histogram(freq[idx_normal], sev[idx_normal], n_bins_x = 12, n_bins_y = 12)
+
+cat(glue(
+  "All months: Pearson={round(pearson_all,3)}, MI={round(mi_all,3)} bits\n",
+  "Normal only: Pearson={round(pearson_normal,3)}, MI={round(mi_normal,3)} bits\n"
+))
+```
+
+## Check Yourself
+
+- Dependence should typically be stronger with catastrophe months included.
+- MI often reveals stronger structure than Pearson in non-linear mixtures.
+
+
+# Stretch Problems
+
+1. Implement arithmetic coding and compare average length with Huffman for the
+   same source.
+2. Estimate differential entropy using multiple methods (KDE, kNN, spacing)
+   and compare bias/variance.
+3. Simulate finite-blocklength channel coding trade-offs ($n$, $R$, error
+   probability) around capacity.
+4. Build a small tree-based classifier and compare split rankings by Gini vs.
+   information gain.
+5. Use `infotheo::discretize()` with different methods (`equalwidth`,
+   `equalfreq`, `globalequalwidth`) and inspect MI sensitivity.
