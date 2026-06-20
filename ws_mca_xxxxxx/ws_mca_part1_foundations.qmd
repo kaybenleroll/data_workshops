@@ -1,0 +1,654 @@
+---
+title: "Workshop: Multiple Correspondence Analysis — Part 1: Foundations and Simulation"
+author: "Mick Cooney <mickcooney@gmail.com>"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+editor: source
+execute:
+  message: false
+  warning: false
+  error: false
+format:
+  html:
+    light: superhero
+    dark: darkly
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    fig-width: 11
+    fig-height: 8
+---
+
+```{r import_libraries}
+#| echo: false
+
+library(conflicted)
+library(tidyverse)
+library(scales)
+library(cowplot)
+library(magrittr)
+library(rlang)
+library(purrr)
+library(furrr)
+library(glue)
+library(fs)
+library(FactoMineR)
+library(factoextra)
+library(ca)
+library(dendextend)
+library(cluster)
+library(broom)
+
+source("lib_utils.R")
+
+conflict_lst <- resolve_conflicts(
+  c("magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2", "FactoMineR", "factoextra", "ca")
+)
+
+options(
+  width    = 80L,
+  warn     = 1,
+  mc.cores = parallelly::availableCores()
+)
+
+set.seed(42)
+
+theme_set(theme_cowplot())
+
+plan(multisession)
+```
+
+# The Big Idea: Making Sense of Categorical Data
+
+> *"The greatest value of a picture is when it forces us to notice what we never expected to see."*
+> — John W. Tukey
+
+Imagine you're sitting in a café and you observe customers ordering coffee. You notice:
+
+- Some people always order espresso, always at 8 AM, always on weekdays.
+- Others order cappuccino on weekends, usually in the afternoon.
+- A few order decaf late at night, regardless of the day.
+
+These are **patterns in categorical data** — combinations of choices across multiple dimensions. Each customer exhibits a *lifestyle* or *preference profile*, and you want to uncover the natural groupings: which combinations of choices go together? What defines a "morning espresso type" versus an "afternoon cappuccino person"?
+
+This is the problem that **Multiple Correspondence Analysis (MCA)** solves.
+
+## The Challenge with Categorical Data
+
+For decades, statistics has been built around numerical data. We have well-established techniques for continuous variables: correlation matrices, principal component analysis, linear regression. But **categorical data** — the choices we make, the categories we belong to, the responses on a survey — plays by different rules.
+
+Consider a simple dataset: 100 people surveyed on three questions:
+
+- **Favorite coffee type**: Espresso, Cappuccino, Flat White, Decaf
+- **Time of day**: Morning, Afternoon, Evening, Night
+- **Day of week**: Weekday, Weekend
+
+This yields $4 \times 4 \times 2 = 32$ possible combinations. Some combinations might be common ("Espresso + Morning + Weekday"); others might be rare ("Decaf + Night + Weekday"); and some might barely exist ("Cappuccino + Night + Weekend").
+
+If you try to use traditional correlation analysis, you'll run into problems:
+
+1. **There is no natural ordering** — "Espresso" is not "less than" Cappuccino; they are distinct categories.
+2. **Dummy coding creates artificial structure** — encoding Espresso as 1 and Cappuccino as 0 suggests a relationship that doesn't exist.
+3. **Standard PCA treats all categories equally** — it has no concept that "Espresso at 8 AM on a weekday" is a meaningful combination that often appears together.
+
+**Multiple Correspondence Analysis** solves these problems by asking: *What are the natural associations between categories?* It finds dimensions that best separate and organize the categories in a way that respects the contingency structure — the actual co-occurrence patterns in your data.
+
+## Workshop Materials
+
+All code and materials for this workshop are available on GitHub:
+**https://github.com/kaybenleroll/data_workshops**
+
+This workshop requires the following R packages:
+
+- `FactoMineR`: Core MCA implementation and utilities
+- `factoextra`: Beautiful visualization of MCA results
+- `ca`: Classical correspondence analysis (biplot methods)
+- `cluster` / `dendextend`: Clustering and dendrogram visualization
+- `tidyverse`: Data manipulation and visualization
+- `cowplot`: Plot theming and arrangement
+
+## How to Read This Workshop
+
+This is not a dry mathematical treatise. Instead, we'll build intuition through three complementary lenses:
+
+1. **Geometric intuition**: Pictures of how categories are positioned relative to each other.
+2. **Contingency tables**: Understanding co-occurrence patterns directly.
+3. **Code simulations**: Generating synthetic data so you can see how different patterns emerge in MCA space.
+
+By the end, you'll understand:
+
+- Why MCA is the right tool for categorical data
+- How to run MCA and interpret its output
+- How to use it for exploratory analysis, clustering, and dimensionality reduction
+- When to use advanced techniques like supplementary variables, mixed-data MCA, and post-MCA clustering
+
+---
+
+# Part 1: Building Blocks — From Tables to Geometry
+
+## The Humble Contingency Table
+
+Let's start with the simplest interesting case: a **2 × 2 contingency table**. Suppose we survey 200 people on two questions:
+
+- **Coffee type**: Espresso vs. Cappuccino
+- **Time of day**: Morning vs. Afternoon
+
+We get this observed table:
+
+|                | Morning | Afternoon |
+|---|---|---|
+| **Espresso**   | 60      | 20        |
+| **Cappuccino** | 15      | 105       |
+
+What does this tell us? Visually, it's already clear: Espresso is strongly associated with Morning, and Cappuccino with Afternoon. But *how do we quantify this association?* And how do we visualize it so the relationship jumps out geometrically?
+
+## Chi-Square Distance: Measuring Association
+
+The trick is to ask: **if coffee type and time of day were independent, what would we expect?** If they were unrelated, we'd expect:
+
+$$
+E_{ij} = \frac{(\text{row total}_i) \times (\text{col total}_j)}{\text{grand total}}
+$$
+
+For Espresso + Morning:
+
+$$
+E_{1,1} = \frac{(60 + 20) \times (60 + 15)}{200} = \frac{80 \times 75}{200} = 30
+$$
+
+But we *observed* 60, not 30. That's a big discrepancy. Across all cells:
+
+| | Morning | Afternoon |
+|---|---|---|
+| **Espresso** | Obs: 60, Exp: 30 | Obs: 20, Exp: 50 |
+| **Cappuccino** | Obs: 15, Exp: 45 | Obs: 105, Exp: 75 |
+
+This mismatch is captured by the **chi-square statistic**:
+
+$$
+\chi^2 = \sum_{i,j} \frac{(O_{ij} - E_{ij})^2}{E_{ij}}
+$$
+
+In our example, $\chi^2 \approx 133.33$, which is huge — far beyond what random chance would produce. This table has *strong* association.
+
+But here's the key insight: we can use chi-square distance to define a **metric** between categories. The distance between "Espresso" and "Cappuccino" in "space" can be measured using the chi-square distance between their row profiles (their distributions across all columns).
+
+```{r chisq_demo}
+#| echo: true
+#| fig-cap: "A 2×2 contingency table with a clear association: Espresso→Morning, Cappuccino→Afternoon."
+
+# Observed frequencies
+obs_table <- matrix(c(60, 15, 20, 105), nrow = 2, ncol = 2,
+                    dimnames = list(
+                      c("Espresso", "Cappuccino"),
+                      c("Morning", "Afternoon")
+                    ))
+
+# Expected frequencies under independence
+row_totals <- rowSums(obs_table)
+col_totals <- colSums(obs_table)
+grand_total <- sum(obs_table)
+
+exp_table <- outer(row_totals, col_totals) / grand_total
+
+# Chi-square statistic
+chisq_stat <- sum((obs_table - exp_table)^2 / exp_table)
+
+# Create a nice visualization
+contingency_tbl <- as_tibble(obs_table, rownames = "coffee") |>
+  pivot_longer(cols = -coffee, names_to = "time", values_to = "count")
+
+ggplot(contingency_tbl, aes(x = time, y = coffee, fill = count)) +
+  geom_tile(colour = "white", linewidth = 1.5) +
+  geom_text(aes(label = count), colour = "white", fontface = "bold", size = 6) +
+  scale_fill_gradient(low = "#FFF44F", high = "#D81B60") +
+  labs(
+    title    = "Coffee Preference by Time of Day",
+    subtitle = glue("χ² = {round(chisq_stat, 2)} (very strong association)"),
+    x        = "Time of Day",
+    y        = "Coffee Type",
+    fill     = "Count"
+  ) +
+  theme(
+    axis.text = element_text(size = 12),
+    legend.position = "right"
+  )
+```
+
+### Row and Column Profiles
+
+To perform correspondence analysis, we need to convert this table to *proportions*. For each row, we ask: **what is its profile across the columns?**
+
+For Espresso: $(60/80, 20/80) = (0.75, 0.25)$ — "75% morning, 25% afternoon"  
+For Cappuccino: $(15/120, 105/120) = (0.125, 0.875)$ — "12.5% morning, 87.5% afternoon"
+
+These profiles are dramatically different. If we could visualize them in 2D space, the two points would be far apart.
+
+```{r row_profiles}
+#| echo: true
+#| fig-cap: "Row profiles (coffee types as distributions over time of day). The distance between profiles reflects the strength of association."
+
+# Row profiles
+row_profiles <- obs_table / rowSums(obs_table)
+
+profile_tbl <- as_tibble(row_profiles, rownames = "coffee") |>
+  pivot_longer(cols = -coffee, names_to = "time", values_to = "proportion")
+
+ggplot(profile_tbl, aes(x = time, y = proportion, fill = coffee, group = coffee)) +
+  geom_col(position = "dodge", alpha = 0.8) +
+  scale_y_continuous(labels = percent) +
+  scale_fill_manual(values = c("steelblue", "darkorange")) +
+  labs(
+    title    = "Row Profiles: Coffee Type Distribution by Time of Day",
+    x        = "Time of Day",
+    y        = "Proportion",
+    fill     = "Coffee Type"
+  )
+```
+
+## The Magic: Eigenvector Decomposition
+
+Here's where the magic happens. We want to find a low-dimensional representation (like 2D) that preserves these distances as much as possible. This is solved via the **singular value decomposition (SVD)** of the chi-square-standardized table.
+
+The process:
+
+1. Compute row profiles and column profiles.
+2. Standardize by dividing by expected frequencies (chi-square rescaling).
+3. Decompose the matrix into eigenvectors and eigenvalues.
+4. The eigenvectors become coordinates in MCA space.
+
+The mathematics is elegant: the first eigenvector points in the direction of *maximum chi-square distance* between row/column profiles; the second eigenvector is orthogonal and captures the *next-most variation*; and so on.
+
+For our 2×2 table, there is only one meaningful dimension (we have 4 categories, so at most 3 dimensions, but one is trivial). Let me show this with a simple visualization:
+
+```{r simple_ca_visualization}
+#| echo: true
+#| fig-cap: "Correspondence analysis of the 2×2 table. A 2×2 table yields only one meaningful dimension — points are placed on a number line where distance reflects chi-square distance."
+
+# Perform CA
+ca_fit <- ca::ca(obs_table)
+
+# A 2x2 table has only one meaningful CA dimension (rank-1 after centering).
+# We plot on a number line rather than a biplot.
+all_coords <- tibble(
+  category = c(rownames(ca_fit$rowcoord), rownames(ca_fit$colcoord)),
+  score    = c(ca_fit$rowcoord[, 1], ca_fit$colcoord[, 1]),
+  type     = c(rep("Coffee Type", nrow(ca_fit$rowcoord)),
+               rep("Time of Day",  nrow(ca_fit$colcoord)))
+)
+
+pct_inertia <- round(ca_fit$sv[1]^2 / sum(ca_fit$sv^2) * 100, 1)
+
+ggplot(all_coords, aes(x = score, y = type, colour = type, label = category)) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
+  geom_point(size = 5, alpha = 0.85) +
+  geom_text(nudge_y = 0.25, size = 3.5, fontface = "bold") +
+  scale_colour_manual(values = c("steelblue", "darkorange"), guide = "none") +
+  labs(
+    title    = "Correspondence Analysis — Dimension 1",
+    subtitle = glue("Single axis captures {pct_inertia}% of inertia"),
+    x        = "CA Score (Dimension 1)",
+    y        = NULL
+  ) +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+```
+
+**Key insight**: Espresso and Morning are on the same side (they attract); Cappuccino and Afternoon are on the opposite side. The origin of the plot is at the "grand average" — the center of mass of all categories weighted by frequency.
+
+---
+
+# Part 2: Moving to Multiple Variables — MCA
+
+In the real world, you don't have two variables; you have many. A customer survey might have 15 questions. A marketing dataset might have dozens of categorical features. How do we extend this simple 2×2 correspondence analysis to handle multiple variables?
+
+## The Conceptual Shift: Indicator Matrix
+
+The key is to convert your multi-variable dataset into an **indicator matrix** (also called a Burt matrix variant).
+
+Suppose we have 10 people and 3 variables:
+
+- **Coffee**: Espresso, Cappuccino
+- **Time**: Morning, Afternoon
+- **Day**: Weekday, Weekend
+
+Instead of a single contingency table, we create a matrix where:
+- Each row is a person (observation)
+- Each column is a *category* (not a variable)
+- Each cell is 1 if the person has that category, 0 otherwise
+
+```{r indicator_matrix_demo}
+#| echo: true
+#| fig-cap: "The indicator matrix: each person (row) indicates which categories they belong to."
+
+# Create sample data
+sample_data <- tibble(
+  ID = 1:10,
+  Coffee = c("Espresso", "Espresso", "Cappuccino", "Cappuccino", "Espresso",
+             "Cappuccino", "Espresso", "Cappuccino", "Cappuccino", "Espresso"),
+  Time = c("Morning", "Morning", "Afternoon", "Afternoon", "Afternoon",
+           "Morning", "Evening", "Afternoon", "Morning", "Evening"),
+  Day = c("Weekday", "Weekday", "Weekday", "Weekend", "Weekend",
+          "Weekday", "Weekend", "Weekday", "Weekend", "Weekday")
+)
+
+# Create indicator matrix
+indicator_mat <- sample_data |>
+  select(-ID) |>
+  model.matrix(~ . - 1, data = _) |>
+  as_tibble(rownames = "ID")
+
+# Display a nicely formatted version
+indicator_mat |>
+  head(5) |>
+  knitr::kable(caption = "Indicator Matrix (first 5 people)")
+```
+
+This 10 × 6 indicator matrix is the input to MCA. Each row is a person's profile across all categories. MCA will then find dimensions that best separate *people* (and simultaneously position *categories*) so that categories that co-occur frequently are close together, and categories that rarely co-occur are far apart.
+
+## Why the Indicator Matrix is Singular (and Why That is OK)
+
+This is an important technical point: the complete indicator matrix is **rank-deficient by construction**.
+
+For any variable with $K$ categories, each row has exactly one 1 and $K-1$ zeros, so the category columns for that variable satisfy:
+
+$$
+\sum_{k=1}^{K} x_{ik} = 1 \quad \text{for every row } i
+$$
+
+That linear constraint means those $K$ columns only contain $K-1$ independent degrees of freedom. In other words, each variable contributes one exact dependency.
+
+If we have $Q$ categorical variables with category counts $K_1, K_2, \dots, K_Q$, and total indicator columns
+
+$$
+J = \sum_{q=1}^{Q} K_q,
+$$
+
+then the effective column rank is at most
+
+$$
+\sum_{q=1}^{Q} (K_q - 1) = J - Q
+$$
+
+(and of course cannot exceed $n-1$ from row-centering).
+
+So yes: the full disjunctive matrix is singular. That is expected, and it is exactly analogous to the dummy-variable trap in regression.
+
+## Why We Still Use All $K$ Columns
+
+In regression, we usually drop one dummy column to avoid perfect collinearity. In MCA, we intentionally keep the full disjunctive coding because the goal is different: we want a **symmetric geometric representation of categories**.
+
+Keeping all categories explicit is useful because:
+
+- It treats every category level equally (no arbitrary "reference" level).
+- Distances and contributions are interpreted directly at the category level.
+- Barycentric relationships (individual points as weighted averages of their categories) are preserved cleanly.
+- Supplementary projections are simpler: new observations are encoded the same way as active ones.
+
+If we dropped one category per variable, the geometry would depend on which level was omitted, which makes interpretation less stable and less transparent.
+
+**Why this is fine in MCA**:
+
+- MCA is built around this coding; you do **not** need to drop a reference category manually.
+- The SVD/eigendecomposition naturally yields zero (or near-zero) eigenvalues in redundant directions.
+- Interpretation should focus on the non-zero principal dimensions, which correspond to the true degrees of freedom in categorical structure.
+
+## Inertia: The Total Spread of the Data
+
+In MCA, we measure total variability using **inertia**, which is proportional to the chi-square statistic divided by the total sample size:
+
+$$
+\text{Total Inertia} = \frac{\chi^2}{n}
+$$
+
+This is analogous to the "total variance" in PCA. It tells us: *how much association is there in the data overall?* A high inertia means categories are strongly associated; a low inertia means they're scattered randomly.
+
+When we extract the first MCA dimension, we *reduce* the inertia — we're explaining some of the total variability. The **eigenvalue** of each dimension tells us what fraction of the total inertia it explains. Typically:
+
+- Dimension 1 might explain 15–30% of inertia
+- Dimension 2 might explain 10–20%
+- And so on, with each successive dimension explaining less
+
+```{r inertia_scree_example}
+#| echo: true
+#| fig-cap: "A scree plot from a real MCA: each dimension explains a fraction of total inertia. Typically we retain dimensions where the scree 'bends'."
+
+# Create a synthetic scree plot (realistic structure)
+n_dims <- 12
+eigenvalues <- c(0.45, 0.28, 0.18, 0.12, 0.08, 0.05, 0.03, 0.02, 0.01, 0.005, 0.003, 0.002)
+eigenvalues <- eigenvalues / sum(eigenvalues)  # Normalize to proportions
+
+scree_tbl <- tibble(
+  Dimension = paste0("Dim ", 1:n_dims),
+  Inertia = eigenvalues,
+  Cumulative = cumsum(eigenvalues)
+)
+
+ggplot(scree_tbl |> head(8), aes(x = reorder(Dimension, 1:8), y = Inertia)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  geom_line(aes(group = 1), colour = "firebrick", linewidth = 1) +
+  geom_point(colour = "firebrick", size = 3) +
+  scale_y_continuous(labels = percent) +
+  labs(
+    title    = "Scree Plot: Inertia Explained by Each MCA Dimension",
+    subtitle = "Note the 'elbow' around dimension 3–4",
+    x        = "Dimension",
+    y        = "Inertia Explained (%)"
+  )
+```
+
+**Rule of thumb**: Retain dimensions until the scree "bends" noticeably or until you've explained 60–80% of total inertia.
+
+## Contributions: What Each Category Contributes to Each Dimension
+
+Here's another crucial concept: **contributions**. For each dimension, we ask: which categories are *pulling* the most in that direction?
+
+For example, if Dimension 1 is a "Espresso vs. Cappuccino" axis, then "Espresso" might contribute 40% to Dimension 1 (it's a major player), and "Morning" might contribute 25%, while "Weekend" contributes only 3%.
+
+Contributions help you *interpret* what each dimension means. If a dimension is driven by categories like "Young," "Urban," "High-Income," you might label it "Urban Affluence."
+
+$$
+\text{Contribution of category } i = \frac{(\text{distance from origin}) \times (\text{frequency})}{(\text{inertia of dimension})}
+$$
+
+We'll see this in action when we work with real data.
+
+---
+
+# Part 3: Building Intuition with Simulation
+
+Let me create a synthetic dataset where the patterns are *obvious*, so you can see exactly how MCA reveals structure.
+
+## Scenario: The Coffee Shop Personality Types
+
+Imagine a café with three distinct customer archetypes:
+
+1. **Morning Espresso Regulars**: Come on weekdays, always morning, always espresso, often buy pastries.
+2. **Afternoon Cappuccino Social Club**: Come on weekends, afternoon, cappuccino, eat lunch.
+3. **Late-Night Decaf Readers**: Come evenings, any day, decaf, buy desserts.
+
+We'll simulate 300 customers with these archetypes (with some noise), then show how MCA recovers the structure.
+
+```{r simulate_coffee_data}
+#| echo: true
+#| fig-cap: "Simulated customer profiles: three archetypes with specific preference patterns."
+
+set.seed(42)
+
+# Archetype 1: Morning Espresso Regulars (100 people)
+type1 <- tibble(
+  Archetype = "Morning Espresso",
+  Coffee = sample(c("Espresso", "Americano"), 100, replace = TRUE, prob = c(0.8, 0.2)),
+  Time = sample(c("Morning", "Afternoon"), 100, replace = TRUE, prob = c(0.9, 0.1)),
+  Day = sample(c("Weekday", "Weekend"), 100, replace = TRUE, prob = c(0.85, 0.15)),
+  Pastry = sample(c("Yes", "No"), 100, replace = TRUE, prob = c(0.7, 0.3))
+)
+
+# Archetype 2: Afternoon Cappuccino Social (120 people)
+type2 <- tibble(
+  Archetype = "Afternoon Cappuccino",
+  Coffee = sample(c("Cappuccino", "Latte"), 120, replace = TRUE, prob = c(0.75, 0.25)),
+  Time = sample(c("Afternoon", "Morning"), 120, replace = TRUE, prob = c(0.85, 0.15)),
+  Day = sample(c("Weekend", "Weekday"), 120, replace = TRUE, prob = c(0.7, 0.3)),
+  Pastry = sample(c("Yes", "No"), 120, replace = TRUE, prob = c(0.5, 0.5))
+)
+
+# Archetype 3: Late-Night Decaf Readers (80 people)
+type3 <- tibble(
+  Archetype = "Late-Night Decaf",
+  Coffee = sample(c("Decaf", "Tea"), 80, replace = TRUE, prob = c(0.8, 0.2)),
+  Time = sample(c("Evening", "Afternoon"), 80, replace = TRUE, prob = c(0.85, 0.15)),
+  Day = sample(c("Weekday", "Weekend"), 80, replace = TRUE, prob = c(0.6, 0.4)),
+  Pastry = sample(c("Yes", "No"), 80, replace = TRUE, prob = c(0.6, 0.4))
+)
+
+# Combine and add ID
+coffee_data <- bind_rows(type1, type2, type3) |>
+  mutate(ID = row_number()) |>
+  select(ID, everything())
+
+# Display summary
+cat("Customer Archetypes Summary:\n\n")
+coffee_data |>
+  group_by(Archetype) |>
+  summarise(
+    n = n(),
+    Coffee = paste(names(sort(table(Coffee), decreasing = TRUE))[1:2], collapse = ", "),
+    Time = paste(names(sort(table(Time), decreasing = TRUE))[1:2], collapse = ", "),
+    .groups = "drop"
+  ) |>
+  knitr::kable(caption = "Three customer archetypes with distinct preference patterns")
+
+# Show actual distribution
+dist_tbl <- coffee_data |>
+  count(Archetype, Coffee) |>
+  pivot_wider(names_from = Coffee, values_from = n, values_fill = 0)
+
+cat("\nCoffee distribution by archetype:\n")
+print(dist_tbl)
+```
+
+Now let's apply MCA to this dataset and see if it recovers the three archetypes:
+
+```{r mca_simulation}
+#| echo: true
+#| fig-cap: "MCA applied to the coffee dataset: the three archetypes naturally separate on the first two dimensions."
+
+# Perform MCA
+mca_fit <- MCA(coffee_data |> select(-ID, -Archetype), 
+               graph = FALSE, 
+               ncp = 5)
+
+# Extract individual factor scores
+ind_coords <- mca_fit$ind$coord |>
+  as_tibble(rownames = "ID") |>
+  rename_with(~gsub(" ", ".", .x, fixed = TRUE)) |>
+  mutate(ID = as.numeric(ID)) |>
+  left_join(
+    coffee_data |> select(ID, Archetype),
+    by = "ID"
+  )
+
+# Plot individuals colored by archetype
+ggplot(ind_coords, aes(x = Dim.1, y = Dim.2, colour = Archetype)) +
+  geom_point(size = 2, alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  scale_colour_manual(
+    values = c(
+      "Morning Espresso" = "#FF6B35",
+      "Afternoon Cappuccino" = "#004E89",
+      "Late-Night Decaf" = "#1F77B4"
+    )
+  ) +
+  labs(
+    title    = "MCA: Coffee Shop Customer Archetypes",
+    subtitle = "Three distinct groups emerge naturally on first two dimensions",
+    x        = glue("Dimension 1 ({round(mca_fit$eig[1,2], 1)}% of inertia)"),
+    y        = glue("Dimension 2 ({round(mca_fit$eig[2,2], 1)}% of inertia)"),
+    colour   = "Archetype"
+  )
+```
+
+Excellent! MCA has automatically separated the three archetypes. Now let's see *why* they've separated — which categories define each dimension:
+
+```{r mca_category_biplot}
+#| echo: true
+#| fig-cap: "Category biplot: categories that define the archetypes are positioned accordingly."
+
+# FactoMineR stores category coords with raw level names as row names (e.g., "Espresso", "Morning")
+# Build a level→variable lookup from the input data
+mca_input <- coffee_data |> select(-ID, -Archetype)
+level_to_var <- imap_dfr(mca_input, \(col, var) {
+  tibble(Variable = var, Level = as.character(unique(col)))
+})
+
+# Extract category coordinates
+cat_coords <- mca_fit$var$coord |>
+  as_tibble(rownames = "Level") |>
+  rename_with(~gsub(" ", ".", .x, fixed = TRUE)) |>
+  left_join(level_to_var, by = "Level")
+
+# Plot categories
+ggplot(cat_coords, aes(x = Dim.1, y = Dim.2, colour = Variable, label = Level)) +
+  geom_point(size = 3, alpha = 0.8) +
+  geom_text(nudge_x = 0.05, nudge_y = 0.05, size = 3, alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50", alpha = 0.5) +
+  scale_colour_brewer(palette = "Set1") +
+  labs(
+    title    = "Category Positions: What Defines Each Archetype",
+    subtitle = "Categories on the same side of the plot co-occur frequently",
+    x        = "Dimension 1",
+    y        = "Dimension 2",
+    colour   = "Variable"
+  ) +
+  theme(
+    legend.position = "right"
+  )
+```
+
+**Read this carefully**: The left side is dominated by "Espresso," "Morning," and "Weekday." The right side has "Cappuccino," "Afternoon," and "Weekend." The bottom has "Decaf" and "Evening." This perfectly matches our three archetypes!
+
+This is the power of MCA: it finds *what goes together* without being explicitly told the archetypes exist.
+
+## The Scree Plot: How Much Structure Did We Find?
+
+```{r mca_scree}
+#| echo: true
+#| fig-cap: "Scree plot of the simulated coffee data: inertia drops off after dimension 2–3, suggesting three main patterns."
+
+scree_tbl <- mca_fit$eig |>
+  as_tibble(rownames = "Dimension") |>
+  rename(Eigenvalue = 2, InertiaPercent = 3, CumulativePercent = 4) |>
+  mutate(
+    InertiaPercent = InertiaPercent / 100,
+    CumulativePercent = CumulativePercent / 100
+  ) |>
+  mutate(Dimension = row_number()) |>
+  filter(Dimension <= 8)
+
+ggplot(scree_tbl, aes(x = Dimension, y = InertiaPercent)) +
+  geom_bar(stat = "identity", fill = "steelblue", alpha = 0.7) +
+  geom_line(aes(group = 1), colour = "firebrick", linewidth = 1) +
+  geom_point(colour = "firebrick", size = 3) +
+  scale_x_continuous(breaks = 1:8) +
+  scale_y_continuous(labels = percent) +
+  labs(
+    title    = "Scree Plot: How Much Variability Does Each Dimension Explain?",
+    subtitle = "Strong drop after dimension 2–3",
+    x        = "Dimension",
+    y        = "Inertia Explained (%)"
+  )
+```
+
+The scree plot shows that the first two dimensions capture a substantial portion of the structure. This confirms that our three archetypes are *real* patterns, not noise.
+
+---
+

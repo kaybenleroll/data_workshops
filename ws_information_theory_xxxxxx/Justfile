@@ -1,0 +1,156 @@
+# =============================================================================
+# PROJECT CONFIGURATION
+# =============================================================================
+
+# Docker image naming
+PROJECT_USER    := "kaybenleroll"
+PROJECT_NAME    := "ws_information_theory_202605"
+PROJECT_TAG     := "latest"
+IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
+
+# RStudio Server credentials
+DOCKER_USER     := "rstudio"
+DOCKER_PASS     := "workshop"
+
+# User/group mapping for file permissions in container
+DOCKER_UID      := `id -u`
+DOCKER_GID      := `id -g`
+
+# Directory configuration
+PWD             := `pwd`
+RSTUDIO_PORT    := "8787"
+PROJECT_FOLDER  := "information_theory_workshop"
+CONTAINER_NAME  := "information-theory-workshop"
+
+# Build and logging configuration
+OUTPUT_LOG      := "quarto_render_output.log"
+DOCKER_BUILD_ARGS := ""
+
+# =============================================================================
+# DEFAULT TARGET
+# =============================================================================
+
+default:
+  @just --list
+
+# =============================================================================
+# RENDERING TARGETS (Local or Inside Container)
+# =============================================================================
+
+all: basics applications worksheet
+
+basics:
+  @just _render 01_it_basics
+
+applications:
+  @just _render 02_it_applications
+
+worksheet:
+  @just _render worksheet_information_theory
+
+_render name:
+  @echo "▶ Rendering {{name}}..."
+  @just _render-qmd {{name}}
+  @echo "✓ {{name}} complete"
+
+_render-qmd qmd:
+  #!/usr/bin/env bash
+  file="{{qmd}}"
+  [[ "$file" != *.qmd ]] && file="${file}.qmd"
+  html="${file%.qmd}.html"
+  deps="$file lib_utils.R lib_information_theory.R"
+  mkdir -p .just-cache
+  combined_hash=$(cat $deps 2>/dev/null | md5sum | cut -d' ' -f1)
+  cache_file=".just-cache/$(basename "$html").md5"
+
+  if [ ! -f "$html" ] || \
+     [ ! -f "$cache_file" ] || \
+     [ "$combined_hash" != "$(cat "$cache_file" 2>/dev/null)" ]; then
+    echo "$combined_hash" > "$cache_file"
+    echo "TIMESTAMP: $(date) - Rendering $file" >> {{OUTPUT_LOG}} 2>&1
+    quarto render "$file" --to html >> {{OUTPUT_LOG}} 2>&1
+    echo "TIMESTAMP: $(date) - Finished $file" >> {{OUTPUT_LOG}} 2>&1
+  else
+    echo "$(basename "$html") is up to date"
+  fi
+
+_needs_rebuild output *sources:
+  #!/usr/bin/env bash
+  mkdir -p .just-cache
+  combined_hash=$(cat {{sources}} 2>/dev/null | md5sum | cut -d' ' -f1)
+  cache_file=".just-cache/$(basename {{output}}).md5"
+  if [ ! -f {{output}} ] || \
+     [ ! -f "$cache_file" ] || \
+     [ "$combined_hash" != "$(cat $cache_file 2>/dev/null)" ]; then
+    echo "$combined_hash" > "$cache_file"
+    exit 0
+  else
+    echo "$(basename {{output}}) is up to date"
+    exit 1
+  fi
+
+# =============================================================================
+# CONTAINER OPERATIONS (From Outside)
+# =============================================================================
+
+# Run any target inside the container
+container target:
+  @podman exec -u {{DOCKER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
+    just {{target}}
+
+# Shortcut for rendering everything in the container
+all-container:
+  @just container all
+
+# Shortcut for rendering a specific file in the container
+render-container file:
+  @just container _render {{file}}
+
+# =============================================================================
+# IMAGE MANAGEMENT
+# =============================================================================
+
+image-build *args:
+  podman build {{args}} -t {{IMAGE_TAG}} \
+    --build-arg BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'` \
+    {{DOCKER_BUILD_ARGS}} \
+    -f Dockerfile .
+
+image-rebuild:
+  @just image-build --no-cache
+
+image-run:
+  podman run --rm -d \
+    --userns=keep-id \
+    -e RUNROOTLESS=false \
+    -p "127.0.0.1:{{RSTUDIO_PORT}}:8787" \
+    -e USER={{DOCKER_USER}} \
+    -e PASSWORD={{DOCKER_PASS}} \
+    -e USERID={{DOCKER_UID}} \
+    -e GROUPID={{DOCKER_GID}} \
+    -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}:z" \
+    --name {{CONTAINER_NAME}} \
+    {{IMAGE_TAG}}
+
+image-stop:
+  podman stop {{CONTAINER_NAME}} || true
+
+image-rm: image-stop
+  podman rm {{CONTAINER_NAME}} || true
+
+image-restart: image-stop image-run
+
+image-shell:
+  podman exec -u {{DOCKER_USER}} -it {{CONTAINER_NAME}} bash
+
+# =============================================================================
+# CLEANING
+# =============================================================================
+
+clean:
+  rm -fv *.html
+  rm -rf *_cache/
+  rm -rf *_files/
+  rm -rf .just-cache/
+  rm -rfv precompute/*.parquet precompute/*.qs
+  rm -fv {{OUTPUT_LOG}}
