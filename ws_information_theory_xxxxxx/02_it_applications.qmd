@@ -3,25 +3,6 @@ title: "Workshop: Introduction to Information Theory — Part 2: Coding, Channel
 author: "Mick Cooney <mickcooney@gmail.com>"
 date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 editor: source
-execute:
-  message: false
-  warning: false
-  error: false
-format:
-  html:
-    light: superhero
-    dark: darkly
-    anchor-sections: true
-    embed-resources: true
-    number-sections: true
-    smooth-scroll: true
-    toc: true
-    toc-depth: 3
-    toc-location: left
-    code-fold: true
-    code-summary: "Show code"
-    fig-width: 11
-    fig-height: 8
 ---
 
 ```{r import_libraries}
