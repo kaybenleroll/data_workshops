@@ -1,0 +1,57 @@
+---
+title: "Functional Code and DAGs for Reinsurance Recoveries"
+author: "Mick Cooney <mickcooney@gmail.com>"
+editor: source
+format:
+  revealjs:
+    embed-resources: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+    mathjax: true
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(glue)
+library(scales)
+library(cowplot)
+library(gt)
+library(DiagrammeR)
+library(igraph)
+library(ggraph)
+library(tidygraph)
+
+
+source("lib_utils.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+```
+
+
+### Functional Code and DAGs for Reinsurance Recoveries
+
+Radical Raters Meetup — July 2026
