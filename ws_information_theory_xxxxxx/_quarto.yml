@@ -1,0 +1,27 @@
+format:
+  html:
+    theme:
+      light: [flatly, custom.scss]
+      dark:  [darkly, custom.scss]
+    anchor-sections: true
+    embed-resources: true
+    number-sections: true
+    smooth-scroll: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    code-fold: true
+    code-summary: "Show code"
+    code-copy: true
+    highlight-style: github
+    fig-width: 11
+    fig-height: 8
+    include-in-header:
+      text: |
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+
+execute:
+  message: false
+  warning: false
+  error: false

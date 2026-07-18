@@ -1,0 +1,38 @@
+/*-- scss:defaults --*/
+
+// Typography
+$font-family-sans-serif: "Source Sans 3", "Helvetica Neue", Arial, sans-serif !default;
+$headings-font-family:   "Source Serif 4", Georgia, serif !default;
+$font-size-root:         16px !default;
+$line-height-base:       1.65 !default;
+
+// Code
+$code-block-border-left:      true !default;
+$code-block-border-left-size: 3px !default;
+$code-block-bg:               true !default;
+
+// TOC
+$toc-font-size: 0.82rem !default;
+
+// Callouts — slim down the chunky default border
+$callout-border-width: 3px !default;
+
+/*-- scss:rules --*/
+
+code, pre {
+  font-family: "Source Code Pro", "Fira Code", Consolas, monospace;
+  font-size: 0.88em;
+}
+
+div.sourceCode {
+  border-radius: 4px;
+}
+
+h1, h2, h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+#TOC {
+  font-size: 0.82rem;
+}
