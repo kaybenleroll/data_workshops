@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Commit-msg hook: clean up Claude Code injections from commit messages
+
+COMMIT_MSG_FILE="$1"
+
+# Strip Claude-Session: trailer lines silently
+sed -i '/^Claude-Session:/d' "$COMMIT_MSG_FILE"
+
+# Block Co-Authored-By: Claude lines (case-insensitive)
+if grep -qi "Co-Authored-By:.*Claude" "$COMMIT_MSG_FILE"; then
+  echo ""
+  echo "ERROR: Commit message contains 'Co-Authored-By: Claude' line!"
+  echo ""
+  echo "This keeps commit messages clean and reflects actual authorship."
+  echo ""
+  echo "To fix: Remove the Co-Authored-By line from your commit message and try again."
+  echo ""
+  exit 1
+fi
+
+exit 0
