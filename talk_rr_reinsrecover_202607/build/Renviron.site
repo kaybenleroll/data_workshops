@@ -1,0 +1,15 @@
+R_LIBS=${R_LIBS-'/usr/local/lib/R/site-library:/usr/local/lib/R/library'}
+CRAN=https://packagemanager.posit.co/cran/__linux__/jammy/2023-10-20
+CWD=/home/rstudio
+DEFAULT_USER=rstudio
+GROUPID=1000
+HOSTNAME=2a08c571a82c
+LANG=en_US.UTF-8
+PANDOC_VERSION=default
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+QUARTO_VERSION=default
+R_HOME=/usr/local/lib/R
+R_VERSION=4.3.1
+S6_VERSION=v2.1.0.2
+USER=rstudio
+USERID=1000
