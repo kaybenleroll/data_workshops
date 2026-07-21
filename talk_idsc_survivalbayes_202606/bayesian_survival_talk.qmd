@@ -871,21 +871,21 @@ Needs a lot more work to be usable
 \
 
 
-[https://github.com/kaybenleroll/data_workshops/talk_idsc_survivalbayes_202606]()
+<https://github.com/kaybenleroll/data_workshops/talk_idsc_survivalbayes_202606>
 
 \
 
 
 Main project
 
-[https://github.com/kaybenleroll/bayesian_survival_analysis]()
+<https://github.com/kaybenleroll/bayesian_survival_analysis>
 
 \
 
 
 Old Workshop (non-Bayes)
 
-[https://kaybenleroll.github.io/data_workshops/oldertalks/ws_survival_201809/worksheet_survival.html]()
+<https://kaybenleroll.github.io/data_workshops/oldertalks/ws_survival_201809/worksheet_survival.html>
 
 :::
 

@@ -132,7 +132,7 @@ This talk...
 \
 
 
-[https://github.com/kaybenleroll/data_workshops/talk_dpff_datastart_202310]()
+<https://github.com/kaybenleroll/data_workshops/talk_dpff_datastart_202310>
 
 
 

@@ -89,7 +89,7 @@ dag(~Sprinkler:Rain + Wet:Sprinkler + Wet:Rain) |>
 
 This talk...
 
-[https://github.com/kaybenleroll/data_workshops/talk_citi_pgmfraud_202305]()
+<https://github.com/kaybenleroll/data_workshops/talk_citi_pgmfraud_202305>
 
 
 
