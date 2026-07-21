@@ -10,6 +10,7 @@
 - **Build Artifacts:** Do not modify the `build/`, `*_cache/`, or `*_files/` directories directly. These are auto-generated.
 - **Commit Messages:** Use clear, concise commit messages.
 - **Standard Tooling:** Refer to the local `Makefile` or `Justfile` within the active directory for specific build and test instructions.
+- **Branch Protection:** `master` is protected by a git hook — direct commits are rejected. All changes, including small ones, go through a branch and PR.
 
 ## AI Assistant Configuration
 - This file (`AGENTS.md`) is the canonical source of truth for all AI agents working in this repository.
