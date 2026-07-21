@@ -1,0 +1,7 @@
+"event_id","description","entry_treaty","gross_loss"
+"EV01","Small attritional loss (Tower 1 LOB)","QS01",18668970.6169072
+"EV02","Large loss, exhausts Tower 1 lower layers","QS01",233362132.711339
+"EV03","Large loss on Tower 3 LOB (through sandwich)","QS03",210025919.440206
+"EV04","Multi-LOB catastrophe -> clash hub","CLASH01",1283491729.91237
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","CLASH01",4200518388.80411
+"EV06","Small attritional loss (Tower 2 LOB)","QS02",14001727.9626804

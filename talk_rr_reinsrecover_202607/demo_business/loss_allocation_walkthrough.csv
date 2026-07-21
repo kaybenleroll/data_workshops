@@ -1,0 +1,84 @@
+"event_id","event_desc","treaty_id","treaty_type","gross_in","ceded","net_out","layer_exhausted","final_net_retained"
+"EV01","Small attritional loss (Tower 1 LOB)","QS01","quota_share",18668970.6169072,8027657.36527008,10641313.2516371,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","XOL01_L1","xol_per_occurrence",10641313.2516371,0,10641313.2516371,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","XOL01_L2","xol_per_occurrence",10641313.2516371,0,10641313.2516371,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","XOL01_L3","xol_per_occurrence",10641313.2516371,0,10641313.2516371,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","XOL01_L4","xol_per_occurrence",10641313.2516371,0,10641313.2516371,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","XOL01_L5","xol_per_occurrence",10641313.2516371,0,10641313.2516371,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","XOL01_L6","xol_per_occurrence",10641313.2516371,0,10641313.2516371,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","QSTOP01","quota_share",10641313.2516371,2021849.51781105,8619463.73382603,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","CLASH01","clash",8619463.73382603,0,8619463.73382603,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","AGGXL01","aggregate_xl",8619463.73382603,0,8619463.73382603,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","AGGXL02","aggregate_xl",8619463.73382603,0,8619463.73382603,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","ILW01","ilw",8619463.73382603,0,8619463.73382603,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","ILW02","ilw",8619463.73382603,0,8619463.73382603,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","STOPLOSS01","stop_loss",8619463.73382603,0,8619463.73382603,FALSE,8619463.73382603
+"EV01","Small attritional loss (Tower 1 LOB)","STOPLOSS02","stop_loss",8619463.73382603,0,8619463.73382603,FALSE,8619463.73382603
+"EV02","Large loss, exhausts Tower 1 lower layers","QS01","quota_share",233362132.711339,100345717.065876,133016415.645463,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","XOL01_L1","xol_per_occurrence",133016415.645463,7e+06,126016415.645463,TRUE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","XOL01_L2","xol_per_occurrence",126016415.645463,1.5e+07,111016415.645463,TRUE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","XOL01_L3","xol_per_occurrence",111016415.645463,1.5e+07,96016415.6454635,TRUE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","XOL01_L4","xol_per_occurrence",96016415.6454635,8e+06,88016415.6454635,TRUE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","XOL01_L5","xol_per_occurrence",88016415.6454635,9e+06,79016415.6454635,TRUE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","XOL01_L6","xol_per_occurrence",79016415.6454635,11016415.6454635,6.8e+07,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","QSTOP01","quota_share",6.8e+07,12920000,55080000,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","CLASH01","clash",55080000,0,55080000,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","AGGXL01","aggregate_xl",55080000,0,55080000,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","AGGXL02","aggregate_xl",55080000,0,55080000,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","ILW01","ilw",55080000,0,55080000,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","ILW02","ilw",55080000,0,55080000,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","STOPLOSS01","stop_loss",55080000,0,55080000,FALSE,55080000
+"EV02","Large loss, exhausts Tower 1 lower layers","STOPLOSS02","stop_loss",55080000,0,55080000,FALSE,55080000
+"EV03","Large loss on Tower 3 LOB (through sandwich)","QS03","quota_share",210025919.440206,79809849.3872781,130216070.052927,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL03_L1","xol_per_occurrence",130216070.052927,9e+06,121216070.052927,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL03_L2","xol_per_occurrence",121216070.052927,1e+07,111216070.052927,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL03_L3","xol_per_occurrence",111216070.052927,1e+07,101216070.052927,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL03_L4","xol_per_occurrence",101216070.052927,7e+06,94216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL03_L5","xol_per_occurrence",94216070.0529274,8e+06,86216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL03_L6","xol_per_occurrence",86216070.0529274,8e+06,78216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL04_L1","xol_per_occurrence",78216070.0529274,8e+06,70216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL04_L2","xol_per_occurrence",70216070.0529274,5e+06,65216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL04_L3","xol_per_occurrence",65216070.0529274,4e+06,61216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL04_L4","xol_per_occurrence",61216070.0529274,7e+06,54216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","XOL04_L5","xol_per_occurrence",54216070.0529274,9e+06,45216070.0529274,TRUE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","QSTOP03","quota_share",45216070.0529274,12208338.9142904,33007731.138637,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","QSTOP04","quota_share",33007731.138637,10232396.6529775,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","CLASH01","clash",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","CLASH02","clash",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","CLASH03","clash",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","AGGXL01","aggregate_xl",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","AGGXL02","aggregate_xl",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","ILW01","ilw",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","ILW02","ilw",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","STOPLOSS01","stop_loss",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV03","Large loss on Tower 3 LOB (through sandwich)","STOPLOSS02","stop_loss",22775334.4856595,0,22775334.4856595,FALSE,22775334.4856595
+"EV04","Multi-LOB catastrophe -> clash hub","CLASH01","clash",1283491729.91237,700491729.912367,5.83e+08,FALSE,5.83e+08
+"EV04","Multi-LOB catastrophe -> clash hub","AGGXL01","aggregate_xl",5.83e+08,0,5.83e+08,FALSE,5.83e+08
+"EV04","Multi-LOB catastrophe -> clash hub","AGGXL02","aggregate_xl",5.83e+08,0,5.83e+08,FALSE,5.83e+08
+"EV04","Multi-LOB catastrophe -> clash hub","ILW01","ilw",5.83e+08,0,5.83e+08,FALSE,5.83e+08
+"EV04","Multi-LOB catastrophe -> clash hub","ILW02","ilw",5.83e+08,0,5.83e+08,FALSE,5.83e+08
+"EV04","Multi-LOB catastrophe -> clash hub","STOPLOSS01","stop_loss",5.83e+08,0,5.83e+08,FALSE,5.83e+08
+"EV04","Multi-LOB catastrophe -> clash hub","STOPLOSS02","stop_loss",5.83e+08,0,5.83e+08,FALSE,5.83e+08
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","CLASH01","clash",4200518388.80411,1.167e+09,3033518388.80411,TRUE,2.1e+09
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","AGGXL01","aggregate_xl",3033518388.80411,933518388.804111,2.1e+09,FALSE,2.1e+09
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","AGGXL02","aggregate_xl",2.1e+09,0,2.1e+09,FALSE,2.1e+09
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","ILW01","ilw",2.1e+09,0,2.1e+09,FALSE,2.1e+09
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","ILW02","ilw",2.1e+09,0,2.1e+09,FALSE,2.1e+09
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","STOPLOSS01","stop_loss",2.1e+09,0,2.1e+09,FALSE,2.1e+09
+"EV05","Mega-cat -> exhausts clash, into agg/ILW/stop loss","STOPLOSS02","stop_loss",2.1e+09,0,2.1e+09,FALSE,2.1e+09
+"EV06","Small attritional loss (Tower 2 LOB)","QS02","quota_share",14001727.9626804,5740708.46469895,8261019.49798142,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","XOL02_L1","xol_per_occurrence",8261019.49798142,1261019.49798142,7e+06,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","XOL02_L2","xol_per_occurrence",7e+06,0,7e+06,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","XOL02_L3","xol_per_occurrence",7e+06,0,7e+06,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","XOL02_L4","xol_per_occurrence",7e+06,0,7e+06,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","XOL02_L5","xol_per_occurrence",7e+06,0,7e+06,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","XOL02_L6","xol_per_occurrence",7e+06,0,7e+06,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","QSTOP02","quota_share",7e+06,1330000,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","CLASH02","clash",5670000,0,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","CLASH03","clash",5670000,0,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","AGGXL01","aggregate_xl",5670000,0,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","AGGXL02","aggregate_xl",5670000,0,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","ILW01","ilw",5670000,0,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","ILW02","ilw",5670000,0,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","STOPLOSS01","stop_loss",5670000,0,5670000,FALSE,5670000
+"EV06","Small attritional loss (Tower 2 LOB)","STOPLOSS02","stop_loss",5670000,0,5670000,FALSE,5670000

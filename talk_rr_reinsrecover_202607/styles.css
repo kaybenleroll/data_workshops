@@ -19,7 +19,11 @@
 }
 
 .custom-small table {
-  font-size: .5em
+  font-size: .35em;
+}
+
+.custom-medium table {
+  font-size: .65em;
 }
 
 pre code {
