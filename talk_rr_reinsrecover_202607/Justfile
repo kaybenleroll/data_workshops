@@ -4,7 +4,7 @@ PROJECT_NAME    := "rr-talk-reinsrecover"
 PROJECT_TAG     := "latest"
 IMAGE_TAG       := PROJECT_USER + "/" + PROJECT_NAME + ":" + PROJECT_TAG
 CONTAINER_USER  := "rstudio"
-CONTAINER_PASS  := "reinsrecover"
+CONTAINER_PASS  := "reins"
 CONTAINER_UID   := `id -u`
 CONTAINER_GID   := `id -g`
 PWD             := `pwd`
@@ -36,6 +36,17 @@ render-talk:
   quarto render talk_rr_reinsrecover_202607.qmd --to revealjs
   @echo "TIMESTAMP: $(date) - Finished rendering"
 
+# Render all talk variants (main, opus, fable) locally via Quarto
+render-all:
+  #!/usr/bin/env bash
+  qmd_files=(talk_rr_reinsrecover_202607.qmd talk_rr_reinsrecover_202607_opus.qmd talk_rr_reinsrecover_202607_fable.qmd)
+
+  for file in "${qmd_files[@]}"; do
+    echo "Rendering $file..."
+    quarto render "$file" --to revealjs || exit 1
+  done
+  echo "Rendered ${#qmd_files[@]} file(s)"
+
 # Convert presentation to PDF using decktape inside a container
 pdf-talk:
   @echo "Using {{OCI}} to render PDF with decktape"
@@ -56,8 +67,13 @@ all: render-talk pdf-talk
 
 # Clean generated HTML presentations
 clean-html:
-  rm -fv talk_rr_reinsrecover_202607.html
-  rm -rfv talk_rr_reinsrecover_202607_files
+  #!/usr/bin/env bash
+  basenames=(talk_rr_reinsrecover_202607 talk_rr_reinsrecover_202607_opus talk_rr_reinsrecover_202607_fable)
+
+  for base in "${basenames[@]}"; do
+    rm -fv "${base}.html"
+    rm -rfv "${base}_files"
+  done
 
 # Clean generated PDFs
 clean-pdfs:
@@ -171,3 +187,22 @@ podman-render-pdf:
 
 # Render both HTML and PDF using containerized tools
 podman-render-all: podman-render-html podman-render-pdf
+
+# Render all talk variants (main, opus, fable) inside the running container
+podman-render-talks:
+  #!/usr/bin/env bash
+  if ! {{OCI}} ps --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^{{CONTAINER_NAME}}$'; then
+    echo "Error: container {{CONTAINER_NAME}} is not running. Start it with: just podman-run"
+    exit 1
+  fi
+
+  shopt -s nullglob
+
+  qmd_files=(talk_rr_reinsrecover_202607.qmd talk_rr_reinsrecover_202607_opus.qmd talk_rr_reinsrecover_202607_fable.qmd)
+
+  for file in "${qmd_files[@]}"; do
+    echo "Rendering $file inside container {{CONTAINER_NAME}}..."
+    {{OCI}} exec -u {{CONTAINER_USER}} -w /home/rstudio/{{PROJECT_FOLDER}} {{CONTAINER_NAME}} \
+      quarto render "$file" --to revealjs || exit 1
+  done
+  echo "Rendered ${#qmd_files[@]} file(s) inside container"

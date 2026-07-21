@@ -12,13 +12,11 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
   && apt-get install -y --no-install-recommends \
     byobu \
     bzip2 \
-    clang \
     ditaa \
     gh \
     graphviz \
     htop \
     just \
-    libclang-dev \
     libglpk-dev \
     libgsl-dev \
     libnlopt-dev \
@@ -29,71 +27,22 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
     rsyslog \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p $HOME/.R \
-  && echo "" > $HOME/.R/Makevars \
-  && echo "CC=clang"                                               >> $HOME/.R/Makevars \
-  && echo "CXX=clang++"                                            >> $HOME/.R/Makevars \
-  && echo "CXXFLAGS=-Os"                                           >> $HOME/.R/Makevars \
-  && echo "CXXFLAGS+= -Wno-unused-variable -Wno-unused-function"   >> $HOME/.R/Makevars \
-  && echo "CXXFLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined"   >> $HOME/.R/Makevars \
-  && echo ""                                                       >> $HOME/.R/Makevars \
-  && echo "CC11=clang"                                             >> $HOME/.R/Makevars \
-  && echo "CXX11=clang++"                                          >> $HOME/.R/Makevars \
-  && echo "CXX11FLAGS=-Os"                                         >> $HOME/.R/Makevars \
-  && echo "CXX11FLAGS+= -Wno-unused-variable -Wno-unused-function" >> $HOME/.R/Makevars \
-  && echo "CXX11FLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined" >> $HOME/.R/Makevars \
-  && echo ""                                                       >> $HOME/.R/Makevars \
-  && echo "CC14=clang"                                             >> $HOME/.R/Makevars \
-  && echo "CXX14=clang++"                                          >> $HOME/.R/Makevars \
-  && echo "CXX14FLAGS=-Os"                                         >> $HOME/.R/Makevars \
-  && echo "CXX14FLAGS+= -Wno-unused-variable -Wno-unused-function" >> $HOME/.R/Makevars \
-  && echo "CXX14FLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined" >> $HOME/.R/Makevars \
-  && echo ""                                                       >> $HOME/.R/Makevars \
-  && echo "CC17=clang++"                                           >> $HOME/.R/Makevars \
-  && echo "CXX17=clang++"                                          >> $HOME/.R/Makevars \
-  && echo "CXX17FLAGS=-Os"                                         >> $HOME/.R/Makevars \
-  && echo "CXX17FLAGS+= -Wno-unused-variable -Wno-unused-function" >> $HOME/.R/Makevars \
-  && echo "CXX17FLAGS+= -Wno-unknown-pragmas -Wno-macro-redefined" >> $HOME/.R/Makevars \
-  && echo ""                                                       >> $HOME/.R/Makevars \
   && install2.r --error \
-    anytime \
-    arrow \
-    benchmarkme \
-    broom \
     conflicted \
     cowplot \
-    DataExplorer \
     DiagrammeR \
     directlabels \
     fs \
-    furrr \
+    ggmap \
     ggraph \
     gt \
-    gtsummary \
     igraph \
-    kableExtra \
-    nanoparquet \
-    pryr \
-    qs \
     quarto \
     sessioninfo \
-    snakecase \
-    tictoc \
     tidygraph
 
 
 WORKDIR /tmp
-
-COPY build/docker_install_sys_rpkgs.R /tmp
-RUN Rscript /tmp/docker_install_sys_rpkgs.R
-
-RUN git clone https://github.com/lindenb/makefile2graph.git \
-  && cd makefile2graph \
-  && make \
-  && make install
-
-RUN cp -r $HOME/.R /home/rstudio \
-  && chown -R rstudio:rstudio /home/rstudio/.R
 
 # Enable GitHub Copilot and configure session timeouts
 RUN mkdir -p /etc/rstudio && \
@@ -115,10 +64,6 @@ RUN 7z x /tmp/conffiles.7z       \
   && cp conffiles/rstudio-prefs.json .config/rstudio/  \
   && rm -rfv conffiles/ \
   && touch /home/rstudio/.bash_eternal_history
-
-COPY build/docker_install_user_rpkgs.R /tmp
-RUN Rscript /tmp/docker_install_user_rpkgs.R
-
 
 USER root
 

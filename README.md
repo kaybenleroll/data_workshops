@@ -45,6 +45,7 @@ This repository contains all the files for the various workshops and talks I giv
 
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
+| July 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | Modeling reinsurance treaty recoveries and inuring order with functional code and DAGs. | [📁 View](./talk_rr_reinsrecover_202607/talk_rr_reinsrecover_202607.html) |
 | June 2024 | **Randomised Portfolios in Insurance** | Using randomized portfolios for risk and performance assessment in insurance. | [📁 View](./talk_idsc_randport_202406/README.md) |
 | February 2022 | **Bond Portfolio** | Modeling and calculating bond portfolio cashflows. | [📁 View](./talk_sai_bondcashflow_202202/README.md) |
 
