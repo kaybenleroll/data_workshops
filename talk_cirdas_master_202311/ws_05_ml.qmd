@@ -671,7 +671,7 @@ Assign "topics" to each "document"
 ![](img/nlp_lda.png)
 
 
-Reference: [http://dontloo.github.io/blog/lda/]()
+Reference: <http://dontloo.github.io/blog/lda/>
 
 
 ## word2vec
@@ -708,7 +708,7 @@ Thank You
 
 \
 
-mcooney@describedata.com
+<mcooney@describedata.com>
 
 \
 

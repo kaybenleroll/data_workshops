@@ -919,14 +919,14 @@ Effects non-intuitive
 
 Stand-Up Maths YouTube Channel
 
-[https://www.youtube.com/watch?v=X_DdGRjtwAo]()
+<https://www.youtube.com/watch?v=X_DdGRjtwAo>
 
 \
 
 
 Joseph Newton
 
-[https://www.youtube.com/watch?v=R0gewfLILw0]()
+<https://www.youtube.com/watch?v=R0gewfLILw0>
 
 ---
 
@@ -938,7 +938,7 @@ This talk...
 \
 
 
-[https://github.com/kaybenleroll/data_workshops/talk_gaming_dndadv_202301]()
+<https://github.com/kaybenleroll/data_workshops/talk_gaming_dndadv_202301>
 
 
 

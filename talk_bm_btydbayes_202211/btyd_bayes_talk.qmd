@@ -1367,14 +1367,14 @@ Add monetary modelling
 
 This talk...
 
-[https://github.com/kaybenleroll/data_workshops/talk_bm_btydbayes_202211]()
+<https://github.com/kaybenleroll/data_workshops/talk_bm_btydbayes_202211>
 
 \
 
 
 Workshop...
 
-[https://github.com/kaybenleroll/data_workshops/ws_clvbayes_202201]()
+<https://github.com/kaybenleroll/data_workshops/ws_clvbayes_202201>
 
 
 
