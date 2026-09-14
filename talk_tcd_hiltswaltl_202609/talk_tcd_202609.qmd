@@ -55,6 +55,11 @@ set.seed(42)
 
 # Introduction
 
+# Poll Questions
+
+![](img/vevox-qr-code.png)
+
+
 # A Brief History of AI
 
 # ChatGPT
