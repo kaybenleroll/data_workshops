@@ -53,6 +53,7 @@ This repository contains all the files for the various workshops and talks I giv
 
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
+| September 2026 | **How I Learned to Stop Worrying and Love the LLM** | A personal journey into LLM-assisted development tools and what they mean for practitioners. | [📁 View](./talk_tcd_hiltswaltl_202609/talk_tcd_202609.html) |
 | June 2026 | **How I Learned to Stop Worrying and Love the LLM** | A personal journey into LLM-assisted development tools and what they mean for practitioners. | [📁 View](./talk_sonia_hiltswaltl_202606/talk_sonia_202606.html) |
 | November 2024 | **RAG** | Overview of Retrieval-Augmented Generation (RAG) for chatbots. | [📁 View](./talk_chatbot_genai_202411/talk_genai.html) |
 
@@ -64,24 +65,11 @@ This repository contains all the files for the various workshops and talks I giv
 | :--- | :--- | :--- | :--- |
 | July 2023 | **Construct MTPL Datasets** | Creating and structuring Motor Third-Party Liability datasets. | [📁 View](./ws_reproresearch_202307/README.md) |
 
-### 📈 General Data Science & Fundamentals
-
-| Date | Title | Description | Link |
-| :--- | :--- | :--- | :--- |
-| March 2026 | **Workshop: Introduction to Queuing Theory** | Mathematical study of waiting lines and system optimization. | [📁 View](./ws_queuing_basics_202603/01_queuing_basics.html) |
-
 ### 📊 Bayesian Methods & Probabilistic Modelling
 
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
-| February 2026 | **Workshop: Introduction to Copulas** | Modeling joint multivariate dependencies using copulas. | [📁 View](./ws_copula_basics_202602/ws_copula_basics.html) |
 | January 2022 | **Data Science Soup to Nuts: Retrieving Retail Data** | End-to-end data retrieval and preparation for CLV modeling. | [📁 View](./ws_clvbayes_202201/README.md) |
-
-### 🛡️ Insurance, Finance & Actuarial Science
-
-| Date | Title | Description | Link |
-| :--- | :--- | :--- | :--- |
-| January 2026 | **Life Insurance Lapse Survival Analysis with Rollback Validation** | Practical survival analysis applied to policy lapse prediction. | [📁 View](./ws_survival_202601/README.md) |
 
 ### 🧠 AI, Machine Learning & NLP
 
