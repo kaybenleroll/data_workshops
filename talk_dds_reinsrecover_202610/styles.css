@@ -36,6 +36,13 @@ pre code {
   line-height: 1.2;
 }
 
+/* Smaller still, for long single lines */
+.reveal .tiny-code pre code,
+.reveal .tiny-code div.sourceCode pre code {
+  font-size: 0.7em !important;
+  line-height: 1.2;
+}
+
 .left-align {
   text-align: left !important;
 }

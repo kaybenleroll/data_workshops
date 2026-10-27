@@ -86,6 +86,13 @@ layout_packed_components <- function(graph, max_width = 13, gap = 1.5) {
   layout_mat
 }
 
+# Force-directed (Fruchterman-Reingold) layout with a fixed seed, so the figure is reproducible.
+layout_fr_seeded <- function(graph, seed) {
+  set.seed(seed)
+
+  igraph::layout_with_fr(graph)
+}
+
 plot_inuring_dag <- function(graph, layout, label_col = "treaty_id", label_size = 3) {
   ggraph(graph, layout = layout) +
     geom_edge_link(
@@ -106,7 +113,7 @@ plot_inuring_dag <- function(graph, layout, label_col = "treaty_id", label_size 
 # Needs the file to have been sourced with keep.source = TRUE. Optionally elides the lines
 # from the first line matching `skip_from` to the first one matching `skip_to` inclusive.
 show_function_source <- function(fn_name, skip_from = NULL, skip_to = NULL,
-                                 skip_note = "  # ...") {
+                                 skip_note = "  # ...", keep_from = NULL, keep_to = NULL) {
   src_lines <- deparse(get(fn_name), control = "useSource")
   src_lines[1] <- paste0(fn_name, " <- ", src_lines[1])
 
@@ -119,6 +126,15 @@ show_function_source <- function(fn_name, skip_from = NULL, skip_to = NULL,
       skip_note,
       src_lines[-seq_len(to_idx)]
     )
+  }
+
+  # Optionally keep only the lines from the first one matching `keep_from` to the first one
+  # matching `keep_to`, both inclusive (the heading slide then carries the narration).
+  if(!is.null(keep_from)) {
+    from_idx <- str_which(src_lines, fixed(keep_from))[1]
+    to_idx   <- str_which(src_lines, fixed(keep_to))[1]
+
+    src_lines <- src_lines[from_idx:to_idx]
   }
 
   cat("```r", src_lines, "```", sep = "\n")

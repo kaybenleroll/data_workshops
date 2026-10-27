@@ -174,155 +174,10 @@ synth_n_periods <- nrow(read_csv(glue("{synth_dir}/raw/phase2_mid_seed43/period_
 
 synth_tblgraph <- build_inuring_tblgraph(synth_nodes_tbl, synth_edges_tbl)
 
-mega_caption <- glue(
-  "{mega_stats_lst$treaties} treaties, {mega_stats_lst$edges} inuring edges, ",
-  "{mega_stats_lst$isolated} isolated; up to {mega_stats_lst$max_parents} parents on one treaty"
-  )
+mega_nodes_tbl <- read_parquet(glue("{synth_dir}/realistic_mega/nodes_tbl.parquet"))
+mega_edges_tbl <- read_parquet(glue("{synth_dir}/realistic_mega/edges_tbl.parquet"))
+mega_tblgraph  <- build_inuring_tblgraph(mega_nodes_tbl, mega_edges_tbl)
 ```
-
-
-# Reinsurance Basics
-
-\
-
-Cedants transfer part of their risk (and premium) to reinsurers
-
-\
-
-Capacity, volatility, capital
-
-\
-
-$$
-\text{Gross loss} = \text{Ceded} + \text{Net retained}
-$$
-
----
-
-### Quota Share (QS)
-
-\
-
-Proportional: the same share of every loss (and of premium)
-
-\
-
-::: {.custom-medium}
-```{r show_qs_example}
-#| echo: false
-
-qs_tbl |>
-  transmute(
-    `Gross loss`       = fmt_m(gross_loss),
-    `Ceded (recovery)` = fmt_m(ceded),
-    `Net retained`     = fmt_m(net)
-    ) |>
-  knitr::kable(align = "rrr")
-```
-:::
-
-\
-
-`r percent(qs_cession)` QS. Surplus: proportional, share varies with risk size
-
----
-
-### Excess of Loss (XoL)
-
-\
-
-Non-proportional: pays the part of a loss above the attachment, up to the limit
-
-\
-
-A `r fmt_m(tower_loss)` loss through a two-layer tower
-
-::: {.custom-medium}
-```{r show_tower_example}
-#| echo: false
-
-tower_display_tbl |>
-  transmute(Layer = layer, Band = band, Recovery = fmt_m(recovery)) |>
-  knitr::kable(align = "llr")
-```
-:::
-
-\
-
-Per-risk: one risk's loss. Per-occurrence: one event's total across risks
-
----
-
-Occurrence limit: most paid for any one event
-
-\
-
-Aggregate limit: most paid across all events in the period
-
-\
-
-Reinstatement: limit restored, usually for extra premium
-
-\
-
-Capacity = limit $\times$ (1 + reinstatements)
-
----
-
-::: {.custom-medium}
-```{r show_period_example}
-#| echo: false
-
-period_tbl |>
-  bind_rows(summarise(period_tbl, across(everything(), sum))) |>
-  transmute(
-    Event = c(glue("Event {1:3}"), "Total"),
-    `Event loss` = fmt_m(event_loss),
-    `Occurrence limit only` = fmt_m(occurrence),
-    `One reinstatement` = fmt_m(reinstatement),
-    `Aggregate limit` = fmt_m(aggregate)
-    ) |>
-  knitr::kable(align = "lrrrr")
-```
-:::
-
-\
-
-`r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`: only the cap differs
-
----
-
-### Order Matters
-
-\
-
-Each treaty changes the loss the next one sees
-
-\
-
-::: {.custom-medium}
-```{r show_order_example}
-#| echo: false
-
-order_tbl |>
-  transmute(
-    Sequence = sequence,
-    `First treaty` = fmt_m(first_ceded),
-    `Second treaty` = fmt_m(second_ceded),
-    `Total ceded` = fmt_m(total_ceded),
-    `Net retained` = fmt_m(net)
-    ) |>
-  knitr::kable(align = "lrrrr")
-```
-:::
-
-\
-
-`r fmt_m(order_loss)` loss, `r percent(order_cession)` QS and `r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`
-
-\
-
-Sequence is a graph
 
 
 # The Problem
@@ -353,21 +208,234 @@ Who pays what?
 
 ### What real portfolios look like
 
-![](data_synthreins/realistic_mega/realistic_mega_dag.png){height=480}
+```{r show_mega_dag}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 6
+#| fig-align: center
 
-`r mega_caption`
+mega_layout <- layout_fr_seeded(mega_tblgraph, seed = 2003)
+
+plot_inuring_dag(mega_tblgraph, mega_layout, label_col = "treaty_id", label_size = 1.6)
+```
+
+---
+
+`r mega_stats_lst$treaties` treaties
+
+\
+
+`r mega_stats_lst$edges` inuring edges
+
+---
+
+Up to `r mega_stats_lst$max_parents` parents on one treaty
 
 ---
 
 Hand-drawn diagrams do not scale
 
-\
+---
 
 Code, iteration and a sensible plan
 
 ---
 
 How to allocate losses across treaties?
+
+
+
+# Reinsurance Basics
+
+---
+
+Cedants transfer part of their risk (and premium) to reinsurers
+
+---
+
+Capacity, volatility, capital
+
+---
+
+$$
+\text{Gross loss} = \text{Ceded} + \text{Net retained}
+$$
+
+
+
+### Quota Share (QS)
+
+\
+
+Proportional: the same share of every loss
+
+---
+
+A `r percent(qs_cession)` QS cedes `r percent(qs_cession)` of every loss
+
+---
+
+```{r show_qs_example}
+#| echo: false
+
+qs_tbl |>
+  transmute(
+    `Gross loss`  = fmt_m(gross_loss),
+    !!glue("Ceded ({percent(qs_cession)} QS)") := fmt_m(ceded),
+    `Net retained` = fmt_m(net)
+    ) |>
+  knitr::kable(align = "rrr")
+```
+
+---
+
+Surplus: proportional, but the share varies with risk size
+
+
+
+### Excess of Loss (XoL)
+
+\
+
+Non-proportional: pays only the part of a loss above the attachment
+
+---
+
+$$
+\text{Recovery} = \min\big(\max(L - A,\, 0),\; \ell\big)
+$$
+
+\
+
+Loss $L$, attachment $A$, limit $\ell$
+
+---
+
+A `r fmt_m(tower_loss)` loss through a `r nrow(tower_tbl)`-layer tower
+
+---
+
+```{r show_tower_example}
+#| echo: false
+
+tower_display_tbl |>
+  transmute(Layer = layer, Band = band, Recovery = fmt_m(recovery)) |>
+  knitr::kable(align = "llr")
+```
+
+---
+
+The cedant keeps `r fmt_m(tower_retained)`, below the first attachment
+
+---
+
+Per-risk: one risk's loss
+
+---
+
+Per-occurrence: one event's total across risks
+
+
+
+### Limits and Reinstatements
+
+\
+
+Occurrence limit: most paid for any one event
+
+---
+
+Aggregate limit: most paid across all events in the period
+
+---
+
+Reinstatement: limit restored, usually for extra premium
+
+---
+
+Capacity = limit $\times$ (1 + reinstatements)
+
+---
+
+`r length(period_loss_vec)` events hit one layer
+
+\
+
+`r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`
+
+\
+
+Losses: `r paste(fmt_m(period_loss_vec), collapse = ", ")`
+
+---
+
+::: {.custom-medium}
+```{r show_period_example}
+#| echo: false
+
+period_tbl |>
+  bind_rows(summarise(period_tbl, across(everything(), sum))) |>
+  transmute(
+    Event = c(glue("Event\u00a0{1:3}"), "Total"),
+    `Event loss` = fmt_m(event_loss),
+    `Occurrence only` = fmt_m(occurrence),
+    `One reinstatement` = fmt_m(reinstatement),
+    `Aggregate limit` = fmt_m(aggregate)
+    ) |>
+  knitr::kable(align = "lrrrr")
+```
+:::
+
+---
+
+Same events, same layer: only the cap differs
+
+\
+
+Total recovered: `r fmt_m(sum(period_tbl$occurrence))`, `r fmt_m(sum(period_tbl$reinstatement))`, `r fmt_m(sum(period_tbl$aggregate))`
+
+
+
+### Order Matters
+
+\
+
+Each treaty changes the loss the next one sees
+
+---
+
+A `r fmt_m(order_loss)` loss
+
+\
+
+`r percent(order_cession)` QS and `r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`
+
+---
+
+::: {.custom-medium}
+```{r show_order_example}
+#| echo: false
+
+order_tbl |>
+  transmute(
+    Sequence = sequence,
+    `First treaty` = fmt_m(first_ceded),
+    `Second treaty` = fmt_m(second_ceded),
+    `Total ceded` = fmt_m(total_ceded),
+    `Net retained` = fmt_m(net)
+    ) |>
+  knitr::kable(align = "lrrrr")
+```
+:::
+
+---
+
+Net retained: `r fmt_m(order_tbl$net[1])` or `r fmt_m(order_tbl$net[2])`, depending on the sequence
+
+---
+
+Sequence is a graph
+
 
 
 
@@ -626,38 +694,49 @@ Regulatory authority
 
 # Synthetic Portfolios
 
-\
+---
 
 No real programme to show
 
+---
+
+Generate one instead
+
 \
 
-Generate one instead: deterministic given seed and tier
+Deterministic given seed and tier
 
 ---
 
-### Two Phases
+### Phase 1: Structure
 
 \
 
-Phase 1: structure
-
-Treaties, inuring edges, premiums, exposure, needs, coverage
+Treaties, inuring edges, premiums
 
 \
 
-Phase 2: simulation
+Exposure, needs, coverage
 
-Periods, events, losses, per-treaty flows
+---
+
+### Phase 2: Simulation
 
 \
+
+Periods, events, losses
+
+\
+
+Per-treaty flows
+
+---
 
 Rate-on-line, attachments and limits are structurally derived, not actuarial
 
 ---
 
-::: {.custom-medium}
-```{r show_tier_table}
+```{r show_tier_size}
 #| echo: false
 
 tier_tbl <- tibble(
@@ -672,13 +751,29 @@ tier_tbl <- tibble(
   )
 
 tier_tbl |>
-  knitr::kable(align = "llrrrrrr")
+  select(Portfolio, Phase, Treaties, Connected) |>
+  knitr::kable(align = "llrr")
+```
+
+---
+
+::: {.custom-medium}
+```{r show_tier_shape}
+#| echo: false
+
+tier_tbl |>
+  select(Portfolio, Edges, `Longest path`, `Max parents`, `Cross-scope`) |>
+  knitr::kable(align = "lrrrr")
 ```
 :::
 
+---
+
+Tiers set the scale
+
 \
 
-Tiers set the scale: the mid-tier run has `r synth_p2_lst$events` events over `r synth_n_periods` periods
+Mid tier: `r synth_p2_lst$events` events over `r synth_n_periods` periods
 
 ---
 
@@ -690,36 +785,59 @@ Tiers set the scale: the mid-tier run has `r synth_p2_lst$events` events over `r
 #| fig-height: 6
 #| fig-align: center
 
-synth_layout <- layout_packed_components(synth_tblgraph, max_width = 18)
+synth_layout <- layout_fr_seeded(synth_tblgraph, seed = 43)
 
 plot_inuring_dag(synth_tblgraph, synth_layout, label_col = "treaty_id", label_size = 2.6)
 ```
 
 ---
 
-::: {.custom-medium}
-```{r show_synth_type_mix}
+`r synth_stats_lst$connected` connected treaties in `r synth_stats_lst$components` components
+
+---
+
+Longest path: `r synth_stats_lst$longest_path_edges` edges
+
+---
+
+`r synth_stats_lst$multi_parent_nodes` treaties have more than one parent
+
+---
+
+### Treaty Types
+
+---
+
+```{r define_type_mix}
 #| echo: false
 
-synth_treaties_tbl |>
+type_mix_tbl <- synth_treaties_tbl |>
   summarise(
     treaties  = n(),
     connected = sum(treaty_id %in% synth_nodes_tbl$treaty_id),
     .by = treaty_type
     ) |>
-  arrange(desc(treaties)) |>
-  rename(`Treaty type` = treaty_type, Treaties = treaties, Connected = connected) |>
+  arrange(desc(treaties), treaty_type) |>
+  rename(`Treaty type` = treaty_type, Treaties = treaties, Connected = connected)
+```
+
+```{r show_type_mix_common}
+#| echo: false
+
+type_mix_tbl |>
+  slice(1:4) |>
   knitr::kable(align = "lrr")
 ```
-:::
 
-\
+---
 
-`r synth_stats_lst$connected` connected treaties in `r synth_stats_lst$components` components
+```{r show_type_mix_rare}
+#| echo: false
 
-\
-
-Longest path `r synth_stats_lst$longest_path_edges` edges, `r synth_stats_lst$multi_parent_nodes` multi-parent treaties
+type_mix_tbl |>
+  slice(-(1:4)) |>
+  knitr::kable(align = "lrr")
+```
 
 
 ```{r run_functional_recompute}
@@ -765,19 +883,50 @@ edge_rank_tbl <- synth_edges_tbl |>
 
 # Recomputing Recoveries
 
-\
+---
 
 Treaty step: state in, new state out
 
-\
+---
 
 Portfolio: fold over the treaties in order
 
 ---
 
+### Step 1: Read the Cells This Event Touches
 
 ::: {.small-code}
-```{r show_step_footprint}
+```{r show_step_footprint_cells}
+#| echo: false
+#| results: asis
+
+show_function_source(
+  "step_footprint",
+  keep_from = "step_footprint <- function",
+  keep_to   = "ck <- paste0"
+  )
+```
+:::
+
+---
+
+### Step 2: Each Layer Pays What It Can
+
+::: {.tiny-code}
+```{r show_step_footprint_layers}
+#| echo: false
+#| results: asis
+
+show_function_source("step_footprint", keep_from = "theo <-", keep_to = "act  <-")
+```
+:::
+
+---
+
+### Step 3: Share Pro Rata Across Cells
+
+::: {.small-code}
+```{r show_step_footprint_share}
 #| echo: false
 #| results: asis
 
@@ -785,14 +934,31 @@ show_function_source(
   "step_footprint",
   skip_from = "rows <- tibble(",
   skip_to   = "ceded = as.vector(mat))",
-  skip_note = "  # (emit one row per layer and cell)"
+  skip_note = "  # (emit one row per layer and cell)",
+  keep_from = "share <-",
+  keep_to   = "emit one row"
   )
 ```
 :::
 
 ---
 
+### Step 4: Return the New State
+
 ::: {.small-code}
+```{r show_step_footprint_state}
+#| echo: false
+#| results: asis
+
+show_function_source("step_footprint", keep_from = "state$ledger <-", keep_to = "state$rows <-")
+```
+:::
+
+---
+
+### Then Fold It Over the Treaties
+
+::: {.tiny-code}
 ```{r show_recompute_flows}
 #| echo: false
 #| results: asis
@@ -801,11 +967,11 @@ show_function_source("recompute_flows")
 ```
 :::
 
-\
+---
 
 Towers take one slot, at their first layer's `chain_rank`
 
-\
+---
 
 `r sum(edge_rank_tbl$from_rank < edge_rank_tbl$to_rank)` of `r nrow(edge_rank_tbl)` edges point to a higher rank
 
@@ -817,23 +983,34 @@ Towers take one slot, at their first layer's `chain_rank`
 
 Recompute vs the generator's own `flow_df`
 
-::: {.custom-medium}
-```{r show_reconciliation}
+---
+
+```{r show_reconciliation_rows}
+#| echo: false
+
+tibble(
+  Check = c("Generator rows", "Recompute rows", "Rows matched"),
+  Value = c(
+    comma(recon_tbl$generator_rows),
+    comma(recon_tbl$recompute_rows),
+    comma(recon_tbl$rows_matched)
+    )
+  ) |>
+  knitr::kable(align = "lr")
+```
+
+---
+
+```{r show_reconciliation_diffs}
 #| echo: false
 
 tibble(
   Check = c(
-    "Rows in generator `flow_df`",
-    "Rows in recompute",
-    "Rows matched (ceded and subject loss)",
     "Max abs difference, ceded",
-    "Treaty-periods compared (reinstatements used)",
-    "Max abs difference, reinstatements used"
+    "Treaty-periods compared",
+    "Max abs difference, reinstatements"
     ),
   Value = c(
-    comma(recon_tbl$generator_rows),
-    comma(recon_tbl$recompute_rows),
-    comma(recon_tbl$rows_matched),
     format(recon_tbl$max_diff_ceded, digits = 2),
     comma(nrow(reinstate_tbl)),
     format(max(abs(reinstate_tbl$reinstatements_used - reinstate_tbl$recomputed)), digits = 2)
@@ -841,53 +1018,81 @@ tibble(
   ) |>
   knitr::kable(align = "lr")
 ```
-:::
 
 ---
 
-### Seven Events
+`r comma(recon_tbl$rows_matched)` of `r comma(recon_tbl$generator_rows)` rows match
 
-::: {.custom-medium}
-```{r show_event_summary}
+---
+
+### `r nrow(synth_events_tbl)` Scripted Events
+
+\
+
+One scripted scenario each
+
+---
+
+```{r define_event_summary}
 #| echo: false
 
-synth_walk_tbl |>
+event_summary_tbl <- synth_walk_tbl |>
   summarise(
-    paying = sum(ceded > 0),
-    ceded  = sum(ceded),
+    ceded = sum(ceded),
     .by = c(event_id, final_net_retained)
     ) |>
   inner_join(synth_events_tbl, by = "event_id") |>
   transmute(
-    Event        = event_id,
-    Scenario     = scenario,
-    `Gross loss` = fmt_m(gross_loss),
-    `Entry`      = entry_treaty,
-    Paying       = paying,
-    Ceded        = fmt_m(ceded),
+    Event          = event_id,
+    Scenario       = scenario,
+    `Gross loss`   = fmt_m(gross_loss),
+    Ceded          = fmt_m(ceded),
     `Net retained` = fmt_m(final_net_retained)
-    ) |>
-  knitr::kable(align = "llrlrrr")
+    )
 ```
-:::
+
+```{r show_event_summary_first}
+#| echo: false
+
+event_summary_tbl |>
+  slice(1:4) |>
+  knitr::kable(align = "llrrr")
+```
+
+---
+
+```{r show_event_summary_rest}
+#| echo: false
+
+event_summary_tbl |>
+  slice(-(1:4)) |>
+  knitr::kable(align = "llrrr")
+```
 
 ---
 
 ```{r define_event_walkthrough}
 #| echo: false
 
-event_walkthrough <- function(event_name) {
-  synth_walk_tbl |>
+event_walkthrough <- function(event_name, rows = NULL) {
+  walk_tbl <- synth_walk_tbl |>
     filter(event_id == event_name, ceded > 0 | layer_exhausted) |>
-    left_join(synth_treaties_tbl |> select(treaty_id, treaty_label), by = "treaty_id") |>
     transmute(
       Treaty    = treaty_id,
-      Label     = treaty_label,
       `Subject loss` = fmt_m(gross_in),
       Ceded     = fmt_m(ceded),
       Exhausted = ifelse(layer_exhausted, "yes", "")
-      ) |>
-    knitr::kable(align = "llrrc")
+      )
+
+  if(!is.null(rows)) {
+    walk_tbl <- walk_tbl |> slice(rows)
+  }
+
+  if(all(walk_tbl$Exhausted == "")) {
+    walk_tbl <- walk_tbl |> select(-Exhausted)
+  }
+
+  knitr::kable(walk_tbl, align = c("l", "r", "r", "c")[seq_len(ncol(walk_tbl))])
 }
 
 event_gross <- function(event_name) {
@@ -897,62 +1102,94 @@ event_gross <- function(event_name) {
 event_net <- function(event_name) {
   synth_walk_tbl |> filter(event_id == event_name) |> pull(final_net_retained) |> first()
 }
+
+event_paying <- function(event_name) {
+  synth_walk_tbl |> filter(event_id == event_name, ceded > 0)
+}
 ```
 
 ### EV05: Sandwich plus Clash
 
-`r fmt_m(event_gross("EV05"))` gross loss, `r fmt_m(event_net("EV05"))` net retained
+\
 
-::: {.custom-medium}
-```{r show_ev05}
+`r fmt_m(event_gross("EV05"))` gross loss
+
+---
+
+```{r show_ev05_first}
 #| echo: false
 
-event_walkthrough("EV05")
+event_walkthrough("EV05", rows = 1:5)
 ```
-:::
+
+---
+
+```{r show_ev05_rest}
+#| echo: false
+
+event_walkthrough("EV05", rows = 6:10)
+```
+
+---
+
+`r fmt_m(event_net("EV05"))` net retained
+
+\
+
+`r nrow(event_paying("EV05"))` treaties pay, `r sum(synth_walk_tbl$layer_exhausted[synth_walk_tbl$event_id == "EV05"])` layers exhausted
 
 ---
 
 ### EV07: Aggregate Payout
 
-`r fmt_m(event_gross("EV07"))` gross loss, `r fmt_m(event_net("EV07"))` net retained
+\
 
-::: {.custom-medium}
+`r fmt_m(event_gross("EV07"))` gross loss
+
+---
+
 ```{r show_ev07}
 #| echo: false
 
 event_walkthrough("EV07")
 ```
-:::
+
+---
+
+Aggregate layers pay `r fmt_m(sum(event_paying("EV07")$ceded[event_paying("EV07")$treaty_type %in% c("aggregate_xl", "stop_loss")]))` of `r fmt_m(sum(event_paying("EV07")$ceded))` ceded
+
+\
+
+`r fmt_m(event_net("EV07"))` net retained
 
 ---
 
 ### What the Generator Does Differently
 
-::: {.custom-medium}
-```{r show_generator_comparison}
-#| echo: false
+\
 
-tibble(
-  ` ` = c("Style", "State", "Order", "Edges table", "Result"),
-  Generator = c(
-    "Imperative",
-    "Hashed environments, updated in place",
-    "chain_rank",
-    "Never read",
-    "flow_df"
-    ),
-  Recompute = c(
-    "Functional",
-    "Passed in, new state returned",
-    "chain_rank",
-    glue("Not read; {sum(edge_rank_tbl$from_rank < edge_rank_tbl$to_rank)} of {nrow(edge_rank_tbl)} edges respect the order"),
-    glue("{comma(recon_tbl$rows_matched)} of {comma(recon_tbl$generator_rows)} rows match")
-    )
-  ) |>
-  knitr::kable(align = "lll")
-```
-:::
+Generator: imperative
+
+\
+
+Hashed environments, updated in place
+
+---
+
+Recompute: functional
+
+\
+
+State passed in, new state returned
+
+---
+
+Both order treaties by `chain_rank`
+
+---
+
+Neither reads the edges table
+
 
 
 # Questions
