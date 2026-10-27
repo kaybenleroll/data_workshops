@@ -1,0 +1,13 @@
+metric,value
+treaties,59
+connected,51
+isolated,8
+edges,63
+components,2
+largest_component,47
+longest_path_edges,6
+longest_path_nodes,7
+max_parents,15
+multi_parent_nodes,9
+cross_scope_edges,36
+type_mix,"aggregate_xl:10, clash:2, ilw:2, quota_share:4, stop_loss:3, surplus:6, xol_per_occurrence:21, xol_per_risk:11"

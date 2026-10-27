@@ -1,0 +1,7 @@
+event_id,description,entry_treaty,gross_loss,generator_event_id,scenario
+EV01,Attritional single-LOB event on Aviation [simple proportional],QS04,4359993.50148461,event_51cfe863d37e4523,attritional
+EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],SUR04,98980814.52774039,event_228371f3fd20cc02,exhaustion
+EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L1,25621757.147635084,event_d5057cf1571fde00,reinstatement
+EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],SUR02,333866427.5032355,event_19b9f1686c174598,cat_multi_lob
+EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L1,5788539.630877432,event_008f42ca99f3d596,convergence
+EV06,Large single-LOB event on Specialty Professional Indemnity [largest total recovery],SUR01,95238275.55375755,event_287fb09084a29b45,largest_loss

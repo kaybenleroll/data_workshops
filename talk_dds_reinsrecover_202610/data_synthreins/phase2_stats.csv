@@ -1,0 +1,11 @@
+metric,value
+events,356
+event_types,"attritional:72, cat:13, large:279"
+loss_rows,358
+flow_rows,2736
+distinct_entry_treaties,9
+layer_exhaustions_event_x_layer,39
+distinct_layers_exhausted,13
+treaty_periods_beyond_one_limit,13
+treaty_periods_at_reinstatement_cap,8
+multi_lob_cat_events,2
