@@ -20,13 +20,17 @@ Re-run twice into separate directories: both were byte-identical (`diff -r`) to
 `raw/phase2_large_seed5/`. The talk-ready tables are rebuilt from the raw csv with:
 
 ```sh
-podman run --rm --userns=keep-id -v <data_workshops>:/work -v <generator>/examples/mega:/mega:ro \
-  --entrypoint Rscript docker.io/rocker/tidyverse:4.5.1 \
-  /work/talk_dds_reinsrecover_202610/data_synthreins/derive.R \
-  /work/talk_dds_reinsrecover_202610/data_synthreins /mega/csv
+# from talk_dds_reinsrecover_202610/ (image built once with `just podman-build`)
+podman run --rm --userns=keep-id \
+  -v <data_workshops>:/home/rstudio/reinsrecover:z -v <generator>/examples/mega:/mega:ro \
+  kaybenleroll/dds-talk-reinsrecover:latest \
+  Rscript /home/rstudio/reinsrecover/talk_dds_reinsrecover_202610/data_synthreins/derive.R \
+  /home/rstudio/reinsrecover/talk_dds_reinsrecover_202610/data_synthreins /mega/csv
 ```
 
-(needs `dplyr readr purrr tidyr arrow`; deterministic, running it twice gave identical md5s).
+Run in the talk image (`localhost/kaybenleroll/dds-talk-reinsrecover:latest`, built from the unmodified `Dockerfile`; arrow comes
+with the rocker base, igraph/ggraph/tidygraph from the Dockerfile): every derived output, including the parquet files, was
+byte-identical (md5) to the committed ones. Deterministic.
 
 ## Candidate scan (40 Phase 1 runs, then 3 Phase 2 runs)
 
@@ -151,8 +155,16 @@ exist for cat events with no `loss_df` rows; the recompute now emits ILW from `e
 
 `examples/mega` of the generator (seed 2003, Phase 1, no regeneration; provenance in
 `examples/PROVENANCE.json`), converted with the same rules: `nodes_tbl` (all 127 treaties) and `edges_tbl`
-in csv and parquet, plus `stats.csv`. **No PNG:** neither `igraph`, `ggraph`, `tidygraph` nor
-`networkx` is available without installing, so the figure was skipped as instructed.
+in csv and parquet, plus `stats.csv`. `realistic_mega_dag.png` is a deliberately naive full-graph plot (all 127 nodes, 133 edges, default ggraph layout,
+no label tuning, colour = `treaty_type`), made to show that manual drawing does not scale. Rebuild it with
+`plot_dag.R`, in the same image and mount as above:
+
+```sh
+podman run --rm --userns=keep-id -v <data_workshops>:/home/rstudio/reinsrecover:z \
+  kaybenleroll/dds-talk-reinsrecover:latest \
+  Rscript /home/rstudio/reinsrecover/talk_dds_reinsrecover_202610/data_synthreins/realistic_mega/plot_dag.R \
+  /home/rstudio/reinsrecover/talk_dds_reinsrecover_202610/data_synthreins/realistic_mega
+```
 
 | Metric | Value |
 |---|---|
@@ -185,4 +197,4 @@ in csv and parquet, plus `stats.csv`. **No PNG:** neither `igraph`, `ggraph`, `t
 | `loss_events.csv`, `loss_allocation_walkthrough.csv` | 6 events, 67 rows |
 | `recompute_reconciliation.csv`, `graph_stats.csv`, `phase2_stats.csv` | Verification and stats |
 | `derive.R` | Rebuilds everything above and `realistic_mega/` from `raw/` and the mega example |
-| `realistic_mega/` | Mega nodes/edges (csv + parquet) and `stats.csv` |
+| `realistic_mega/` | Mega nodes/edges (csv + parquet), `stats.csv`, `plot_dag.R`, `realistic_mega_dag.png` |
