@@ -39,6 +39,7 @@ library(arrow)
 
 
 source("lib_utils.R")
+source("lib_treaties.R")
 
 
 conflict_lst <- resolve_conflicts(
@@ -74,6 +75,226 @@ inuring_tblgraph <- tbl_graph(
   directed = TRUE
 )
 ```
+
+
+```{r set_up_basics_examples}
+#| echo: false
+
+qs_cession <- 0.37
+
+qs_tbl <- tibble(gross_loss = c(2e6, 10e6, 40e6)) |>
+  mutate(
+    ceded = qs_recovery(gross_loss, qs_cession),
+    net   = gross_loss - ceded
+    )
+
+tower_loss <- 14e6
+
+tower_tbl <- tibble(
+  layer      = c("L1", "L2"),
+  attachment = c(5e6, 10e6),
+  limit      = c(5e6, 10e6)
+  )
+
+tower_recovery_tbl <- tower_recoveries(tower_loss, tower_tbl) |>
+  transmute(
+    layer,
+    band     = glue("{fmt_m(limit)} xs {fmt_m(attachment)}"),
+    recovery
+    )
+
+tower_retained <- tower_loss - sum(tower_recovery_tbl$recovery)
+
+tower_display_tbl <- bind_rows(
+  tibble(
+    layer    = "Retained",
+    band     = glue("Below {fmt_m(min(tower_tbl$attachment))}"),
+    recovery = tower_retained
+    ),
+  tower_recovery_tbl
+  )
+
+period_loss_vec <- c(8e6, 9e6, 10e6)
+layer_attach    <- 5e6
+layer_limit     <- 5e6
+n_reinstate     <- 1
+
+period_tbl <- tibble(
+  event_loss    = period_loss_vec,
+  occurrence    = period_recoveries(period_loss_vec, layer_attach, layer_limit),
+  reinstatement = period_recoveries(
+    period_loss_vec, layer_attach, layer_limit,
+    cap = layer_limit * (1 + n_reinstate)
+    ),
+  aggregate     = period_recoveries(
+    period_loss_vec, layer_attach, layer_limit,
+    cap = layer_limit
+    )
+  )
+
+order_loss <- 10e6
+
+order_qs  <- \(x) qs_recovery(x, 0.30)
+order_xol <- \(x) xol_recovery(x, attachment = 5e6, limit = 5e6)
+
+order_tbl <- tibble(
+  sequence = c("QS then XoL", "XoL then QS"),
+  result   = list(
+    apply_in_order(order_loss, list(order_qs, order_xol)),
+    apply_in_order(order_loss, list(order_xol, order_qs))
+    )
+  ) |>
+  mutate(
+    first_ceded  = map_dbl(result, \(r) r$ceded[1]),
+    second_ceded = map_dbl(result, \(r) r$ceded[2]),
+    total_ceded  = first_ceded + second_ceded,
+    net          = map_dbl(result, "subject")
+    )
+```
+
+
+# Reinsurance Basics
+
+\
+
+Cedants transfer part of their risk (and premium) to reinsurers
+
+\
+
+Capacity, volatility, capital
+
+\
+
+$$
+\text{Gross loss} = \text{Ceded} + \text{Net retained}
+$$
+
+---
+
+### Quota Share (QS)
+
+\
+
+Proportional: the same share of every loss (and of premium)
+
+\
+
+::: {.custom-medium}
+```{r show_qs_example}
+#| echo: false
+
+qs_tbl |>
+  transmute(
+    `Gross loss`       = fmt_m(gross_loss),
+    `Ceded (recovery)` = fmt_m(ceded),
+    `Net retained`     = fmt_m(net)
+    ) |>
+  knitr::kable(align = "rrr")
+```
+:::
+
+\
+
+`r percent(qs_cession)` QS. Surplus: proportional, share varies with risk size
+
+---
+
+### Excess of Loss (XoL)
+
+\
+
+Non-proportional: pays the part of a loss above the attachment, up to the limit
+
+\
+
+A `r fmt_m(tower_loss)` loss through a two-layer tower
+
+::: {.custom-medium}
+```{r show_tower_example}
+#| echo: false
+
+tower_display_tbl |>
+  transmute(Layer = layer, Band = band, Recovery = fmt_m(recovery)) |>
+  knitr::kable(align = "llr")
+```
+:::
+
+\
+
+Per-risk: one risk's loss. Per-occurrence: one event's total across risks
+
+---
+
+Occurrence limit: most paid for any one event
+
+\
+
+Aggregate limit: most paid across all events in the period
+
+\
+
+Reinstatement: limit restored, usually for extra premium
+
+\
+
+Capacity = limit $\times$ (1 + reinstatements)
+
+---
+
+::: {.custom-medium}
+```{r show_period_example}
+#| echo: false
+
+period_tbl |>
+  bind_rows(summarise(period_tbl, across(everything(), sum))) |>
+  transmute(
+    Event = c(glue("Event {1:3}"), "Total"),
+    `Event loss` = fmt_m(event_loss),
+    `Occurrence limit only` = fmt_m(occurrence),
+    `One reinstatement` = fmt_m(reinstatement),
+    `Aggregate limit` = fmt_m(aggregate)
+    ) |>
+  knitr::kable(align = "lrrrr")
+```
+:::
+
+\
+
+`r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`: only the cap differs
+
+---
+
+### Order Matters
+
+\
+
+Each treaty changes the loss the next one sees
+
+\
+
+::: {.custom-medium}
+```{r show_order_example}
+#| echo: false
+
+order_tbl |>
+  transmute(
+    Sequence = sequence,
+    `First treaty` = fmt_m(first_ceded),
+    `Second treaty` = fmt_m(second_ceded),
+    `Total ceded` = fmt_m(total_ceded),
+    `Net retained` = fmt_m(net)
+    ) |>
+  knitr::kable(align = "lrrrr")
+```
+:::
+
+\
+
+`r fmt_m(order_loss)` loss, 30% QS and `r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`
+
+\
+
+Sequence is a graph
 
 
 # The Problem
