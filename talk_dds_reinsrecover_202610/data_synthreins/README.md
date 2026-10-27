@@ -184,16 +184,9 @@ exist for cat events with no `loss_df` rows; the recompute now emits ILW from `e
 
 `examples/mega` of the generator (seed 2003, Phase 1, no regeneration; provenance in
 `examples/PROVENANCE.json`), converted with the same rules: `nodes_tbl` (all 127 treaties) and `edges_tbl`
-in csv and parquet, plus `stats.csv`. `realistic_mega_dag.png` is a deliberately naive full-graph plot (all 127 nodes, 133 edges, default ggraph layout,
-no label tuning, colour = `treaty_type`), made to show that manual drawing does not scale. Rebuild it with
-`plot_dag.R`, in the same image and mount as above:
-
-```sh
-podman run --rm --userns=keep-id -v <data_workshops>:/home/rstudio/reinsrecover:z \
-  kaybenleroll/dds-talk-reinsrecover:latest \
-  Rscript /home/rstudio/reinsrecover/talk_dds_reinsrecover_202610/data_synthreins/realistic_mega/plot_dag.R \
-  /home/rstudio/reinsrecover/talk_dds_reinsrecover_202610/data_synthreins/realistic_mega
-```
+in csv and parquet, plus `stats.csv`. The talk draws the full 127-node, 133-edge graph live at render time
+(`plot_inuring_dag()` in `lib_utils.R`, seeded force-directed `igraph::layout_with_fr` layout, no label tuning,
+fill = `treaty_type`) to show that manual drawing does not scale. No image is stored.
 
 | Metric | Value |
 |---|---|
@@ -227,4 +220,4 @@ podman run --rm --userns=keep-id -v <data_workshops>:/home/rstudio/reinsrecover:
 | `loss_events.csv`, `loss_allocation_walkthrough.csv` | 7 events, 61 rows |
 | `recompute_reconciliation.csv`, `graph_stats.csv`, `phase2_stats.csv` | Verification and stats |
 | `derive.R` | Rebuilds everything above and `realistic_mega/` from `raw/` and the mega example |
-| `realistic_mega/` | Mega nodes/edges (csv + parquet), `stats.csv`, `plot_dag.R`, `realistic_mega_dag.png` |
+| `realistic_mega/` | Mega nodes/edges (csv + parquet), `stats.csv` |
