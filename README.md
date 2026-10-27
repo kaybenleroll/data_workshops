@@ -7,6 +7,18 @@ permalink: /
 
 This repository contains all the files for the various workshops and talks I give at various meetups and conferences.
 
+## 🆕 Most Recent Talks
+
+The five most recent talks I have given, newest first. Hand-maintained: update it when a new talk is added below.
+
+| Date | Title | Link |
+| :--- | :--- | :--- |
+| September 2026 | **How I Learned to Stop Worrying and Love the LLM** | [📁 View](./talk_tcd_hiltswaltl_202609/talk_tcd_202609.html) |
+| July 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | [📁 View](./talk_rr_reinsrecover_202607/talk_rr_reinsrecover_202607.html) |
+| June 2026 | **How I Learned to Stop Worrying and Love the LLM** | [📁 View](./talk_sonia_hiltswaltl_202606/talk_sonia_202606.html) |
+| March 2026 | **Survival Analysis with Stan** | [📁 View](./talk_dds_survivalbayes_202603/bayesian_survival_talk.html) |
+| December 2025 | **Survival Analysis with Stan** | [📁 View](./talk_bm_survivalbayes_202512/bayesian_survival_talk.html) |
+
 ## 🎙️ Recent Talks
 
 ### ⚙️ Data Engineering & Reproducible Research
