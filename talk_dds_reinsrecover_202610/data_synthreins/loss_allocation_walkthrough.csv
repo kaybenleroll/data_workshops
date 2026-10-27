@@ -1,68 +1,62 @@
 event_id,event_desc,treaty_id,treaty_type,gross_in,ceded,net_out,layer_exhausted,final_net_retained
-EV01,Attritional single-LOB event on Aviation [simple proportional],QS04,quota_share,4359993.50148461,373266.4088835588,3986727.0926010516,FALSE,3986727.0926010516
-EV01,Attritional single-LOB event on Aviation [simple proportional],AGG02_L1,aggregate_xl,3986727.0926010516,0,3986727.0926010516,FALSE,3986727.0926010516
-EV01,Attritional single-LOB event on Aviation [simple proportional],AGG02_L2,aggregate_xl,3986727.0926010516,0,3986727.0926010516,FALSE,3986727.0926010516
-EV01,Attritional single-LOB event on Aviation [simple proportional],AGG02_L3,aggregate_xl,3986727.0926010516,0,3986727.0926010516,FALSE,3986727.0926010516
-EV01,Attritional single-LOB event on Aviation [simple proportional],AGG02_L4,aggregate_xl,3986727.0926010516,0,3986727.0926010516,FALSE,3986727.0926010516
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],SUR04,surplus,98980814.52774039,21195303.338098604,77785511.18964179,FALSE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],XR02_L1,xol_per_risk,77785511.18964179,1608488,76177023.18964179,TRUE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],XR02_L2,xol_per_risk,77785511.18964179,2297840,75487671.18964179,TRUE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],XR02_L3,xol_per_risk,77785511.18964179,3282629,74502882.18964179,TRUE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],XR02_L4,xol_per_risk,77785511.18964179,4689470,73096041.18964179,TRUE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],AGG02_L1,aggregate_xl,65907084.18964179,0,65907084.18964179,FALSE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],AGG02_L2,aggregate_xl,65907084.18964179,0,65907084.18964179,FALSE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],AGG02_L3,aggregate_xl,65907084.18964179,0,65907084.18964179,FALSE,65907084.18964179
-EV02,Large single-LOB event on Specialty Professional Indemnity [layer exhaustion],AGG02_L4,aggregate_xl,65907084.18964179,0,65907084.18964179,FALSE,65907084.18964179
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L1,xol_per_risk,25621757.147635084,0,25621757.147635084,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L2,xol_per_risk,25621757.147635084,1004991.3975441325,24616765.75009095,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L3,xol_per_risk,25621757.147635084,5677298,19944459.147635084,TRUE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L4,xol_per_risk,25621757.147635084,6697430.147635084,18924327,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L5,xol_per_risk,25621757.147635084,0,25621757.147635084,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L6,xol_per_risk,25621757.147635084,0,25621757.147635084,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],XR01_L7,xol_per_risk,25621757.147635084,0,25621757.147635084,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],AGG02_L1,aggregate_xl,12242037.602455867,0,12242037.602455867,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],AGG02_L2,aggregate_xl,12242037.602455867,0,12242037.602455867,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],AGG02_L3,aggregate_xl,12242037.602455867,0,12242037.602455867,FALSE,12242037.602455867
-EV03,Large single-LOB event on Casualty Liability [reinstatement consumed],AGG02_L4,aggregate_xl,12242037.602455867,0,12242037.602455867,FALSE,12242037.602455867
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],SUR02,surplus,89417241.85449399,9976213.431156022,79441028.42333797,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],QS04,quota_share,244449185.64874154,20927707.724919003,223521477.92382255,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO02_L1,xol_per_occurrence,79441028.42333797,23392063.423337966,56048965,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO02_L2,xol_per_occurrence,79441028.42333797,0,79441028.42333797,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO02_L3,xol_per_occurrence,79441028.42333797,0,79441028.42333797,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO03_L1,xol_per_occurrence,56048965,10416960,45632005,TRUE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO03_L2,xol_per_occurrence,56048965,14881372,41167593,TRUE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO03_L3,xol_per_occurrence,56048965,6444392,49604573,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO03_L4,xol_per_occurrence,56048965,0,56048965,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO05_L1,xol_per_occurrence,24306241,0,24306241,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO05_L2,xol_per_occurrence,24306241,0,24306241,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO05_L3,xol_per_occurrence,24306241,0,24306241,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO05_L4,xol_per_occurrence,24306241,0,24306241,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],SL01,stop_loss,24306241,0,24306241,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO06_L1,xol_per_occurrence,247827718.92382255,43206157,204621561.92382255,TRUE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],SL02,stop_loss,9887587.680689013,0,9887587.680689013,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO05_L5,xol_per_occurrence,24306241,0,24306241,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],AGG02_L1,aggregate_xl,100814367,0,100814367,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],SL03,stop_loss,9887587.680689013,0,9887587.680689013,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO06_L2,xol_per_occurrence,247827718.92382255,61723081.99999999,186104636.92382255,TRUE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],AGG02_L2,aggregate_xl,100814367,0,100814367,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],AGG02_L3,aggregate_xl,100814367,0,100814367,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO06_L3,xol_per_occurrence,247827718.92382255,42084112.92382255,205743606,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],XO06_L4,xol_per_occurrence,247827718.92382255,0,247827718.92382255,FALSE,100814366.99999997
-EV04,Cat multi-LOB event on Property Cat + Aviation [cat across LOBs],AGG02_L4,aggregate_xl,100814367,0,100814367,FALSE,100814366.99999997
-EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L1,xol_per_risk,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L2,xol_per_risk,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L3,xol_per_risk,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L4,xol_per_risk,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L5,xol_per_risk,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L6,xol_per_risk,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],XR01_L7,xol_per_risk,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],AGG02_L1,aggregate_xl,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],AGG02_L2,aggregate_xl,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],AGG02_L3,aggregate_xl,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV05,Large single-LOB event on Casualty Liability [convergence],AGG02_L4,aggregate_xl,5788539.630877432,0,5788539.630877432,FALSE,5788539.630877432
-EV06,Large single-LOB event on Specialty Professional Indemnity [largest total recovery],SUR01,surplus,95238275.55375755,41767092.5464159,53471183.007341646,FALSE,29517458.484705485
-EV06,Large single-LOB event on Specialty Professional Indemnity [largest total recovery],QS03,quota_share,53471183.007341646,23953724.52263616,29517458.484705485,FALSE,29517458.484705485
-EV06,Large single-LOB event on Specialty Professional Indemnity [largest total recovery],AGG02_L1,aggregate_xl,29517458.484705485,0,29517458.484705485,FALSE,29517458.484705485
-EV06,Large single-LOB event on Specialty Professional Indemnity [largest total recovery],AGG02_L2,aggregate_xl,29517458.484705485,0,29517458.484705485,FALSE,29517458.484705485
-EV06,Large single-LOB event on Specialty Professional Indemnity [largest total recovery],AGG02_L3,aggregate_xl,29517458.484705485,0,29517458.484705485,FALSE,29517458.484705485
-EV06,Large single-LOB event on Specialty Professional Indemnity [largest total recovery],AGG02_L4,aggregate_xl,29517458.484705485,0,29517458.484705485,FALSE,29517458.484705485
+EV01,Attritional single-LOB event on Specialty Credit [simple proportional],SUR02,surplus,2533260.7674028706,578052.0825139232,1955208.6848889473,FALSE,1157620.7558379825
+EV01,Attritional single-LOB event on Specialty Credit [simple proportional],SUR05,surplus,1955208.6848889473,797587.929050965,1157620.7558379823,FALSE,1157620.7558379825
+EV01,Attritional single-LOB event on Specialty Credit [simple proportional],AGG02_L1,aggregate_xl,1157620.7558379823,0,1157620.7558379823,FALSE,1157620.7558379825
+EV01,Attritional single-LOB event on Specialty Credit [simple proportional],AGG02_L2,aggregate_xl,1157620.7558379823,0,1157620.7558379823,FALSE,1157620.7558379825
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR01_L1,xol_per_risk,42353548.471180856,2367900,39985648.471180856,TRUE,22913531.471180856
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR01_L2,xol_per_risk,42353548.471180856,3382714,38970834.471180856,TRUE,22913531.471180856
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR04_L1,xol_per_risk,36602934.471180856,1185253,35417681.471180856,TRUE,22913531.471180856
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR04_L2,xol_per_risk,36602934.471180856,1693219,34909715.471180856,TRUE,22913531.471180856
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR04_L3,xol_per_risk,36602934.471180856,2418884,34184050.471180856,TRUE,22913531.471180856
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR04_L4,xol_per_risk,36602934.471180856,3455549,33147385.471180856,TRUE,22913531.471180856
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR04_L5,xol_per_risk,36602934.471180856,4936498,31666436.471180856,TRUE,22913531.471180856
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR01_L1,xol_per_risk,13870881.078856582,2367900,11502981.078856582,TRUE,2765591
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR01_L2,xol_per_risk,13870881.078856582,3382714,10488167.078856582,TRUE,2765591
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR04_L1,xol_per_risk,8120267.078856582,1185253,6935014.078856582,TRUE,2765591
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR04_L2,xol_per_risk,8120267.078856582,1693219,6427048.078856582,TRUE,2765591
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR04_L3,xol_per_risk,8120267.078856582,2418884,5701383.078856582,TRUE,2765591
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR04_L4,xol_per_risk,8120267.078856582,57320.07885658182,8062947,FALSE,2765591
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR04_L5,xol_per_risk,8120267.078856582,0,8120267.078856582,FALSE,2765591
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],SUR03,surplus,94322336.07271332,6484374.415866534,87837961.65684678,FALSE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],SUR04,surplus,127655818.78372112,59907249.750882365,67748569.03283876,FALSE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO02_L1,xol_per_occurrence,87837961.65684678,3254481,84583480.65684678,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO02_L2,xol_per_occurrence,87837961.65684678,4649259,83188702.65684678,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO02_L3,xol_per_occurrence,87837961.65684678,6641798,81196163.65684678,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],CLASH01,clash,75342358.03283876,9638371,65703987.03283876,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO02_L4,xol_per_occurrence,87837961.65684678,9488283,78349678.65684678,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],SL01,stop_loss,59081653.633495934,4576948.736005318,54504704.89749061,FALSE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO03_L1,xol_per_occurrence,54504704.89749061,8588319,45916385.89749061,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO02_L5,xol_per_occurrence,87837961.65684678,13554690,74283271.65684678,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO03_L2,xol_per_occurrence,54504704.89749061,12269028,42235676.89749061,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO03_L3,xol_per_occurrence,54504704.89749061,13607945.897490613,40896759,FALSE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO02_L6,xol_per_occurrence,87837961.65684678,19363843,68474118.65684678,TRUE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],SL02,stop_loss,20039412,0,20039412,FALSE,26661745.399342835
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],XO02_L7,xol_per_occurrence,87837961.65684678,23291818.656846777,64546143,FALSE,26661745.399342835
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],SUR02,surplus,24735388.91557684,5644244.468799727,19091144.446777113,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],XO01_L1,xol_per_occurrence,19091144.446777113,538494,18552650.446777113,TRUE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],SUR04,surplus,39604110.3775355,18585704.54644317,21018405.831092328,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],SUR05,surplus,15114453.446777113,6165636.2906534895,8948817.156123623,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],XO01_L2,xol_per_occurrence,19091144.446777113,769277,18321867.446777113,TRUE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],XO01_L3,xol_per_occurrence,19091144.446777113,1098967,17992177.446777113,TRUE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],XO01_L4,xol_per_occurrence,19091144.446777113,1569953,17521191.446777113,TRUE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],CLASH01,clash,29967222.98721595,7477689.987215951,22489533,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],SL01,stop_loss,15773704.882410865,0,15773704.882410865,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],XO03_L1,xol_per_occurrence,15773704.882410865,0,15773704.882410865,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],XO03_L2,xol_per_occurrence,15773704.882410865,0,15773704.882410865,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],XO03_L3,xol_per_occurrence,15773704.882410865,0,15773704.882410865,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],SL02,stop_loss,15773704.882410865,0,15773704.882410865,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],AGG02_L1,aggregate_xl,6715828.117589136,506356.6143243148,6209471.503264821,FALSE,21679362.13697438
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],AGG02_L2,aggregate_xl,6715828.117589136,303814.24870130536,6412013.8688878305,FALSE,21679362.13697438
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR01_L1,xol_per_risk,19095523.774970893,2367900,16727623.774970893,TRUE,2765591
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR01_L2,xol_per_risk,19095523.774970893,3382714,15712809.774970893,TRUE,2765591
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR04_L1,xol_per_risk,13344909.774970893,1185253,12159656.774970893,TRUE,2765591
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR04_L2,xol_per_risk,13344909.774970893,1693219,11651690.774970893,TRUE,2765591
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR04_L3,xol_per_risk,13344909.774970893,2418884,10926025.774970893,TRUE,2765591
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR04_L4,xol_per_risk,13344909.774970893,3455549,9889360.774970893,TRUE,2765591
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR04_L5,xol_per_risk,13344909.774970893,1826413.7749708928,11518496,FALSE,2765591
+EV07,Attritional single-LOB event on Casualty Workers Comp [aggregate / stop loss],QS01,quota_share,114516152.13128269,9893150.983024912,104623001.14825778,FALSE,98602886.08610669
+EV07,Attritional single-LOB event on Casualty Workers Comp [aggregate / stop loss],AGG01_L1,aggregate_xl,104623001.14825778,2611083.8151531806,102011917.3331046,FALSE,98602886.08610669
+EV07,Attritional single-LOB event on Casualty Workers Comp [aggregate / stop loss],AGG01_L2,aggregate_xl,104623001.14825778,1566650.4309759669,103056350.7172818,FALSE,98602886.08610669
+EV07,Attritional single-LOB event on Casualty Workers Comp [aggregate / stop loss],AGG01_L3,aggregate_xl,104623001.14825778,939990.4004696386,103683010.74778813,FALSE,98602886.08610669
+EV07,Attritional single-LOB event on Casualty Workers Comp [aggregate / stop loss],AGG01_L4,aggregate_xl,104623001.14825778,563994.0983977247,104059007.04986005,FALSE,98602886.08610669
+EV07,Attritional single-LOB event on Casualty Workers Comp [aggregate / stop loss],AGG01_L5,aggregate_xl,104623001.14825778,338396.31715457636,104284604.8311032,FALSE,98602886.08610669

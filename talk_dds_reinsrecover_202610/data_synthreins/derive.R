@@ -5,7 +5,7 @@
 # e.g. inside rocker/tidyverse:4.5.1 (needs dplyr, readr, purrr, tidyr, arrow):
 #   Rscript derive.R /work/talk_dds_reinsrecover_202610/data_synthreins /mega/csv
 #
-# Reads   <dir>/raw/phase2_large_seed5/*.csv       (generator Phase 1 + 2 csv)
+# Reads   <dir>/raw/phase2_mid_seed43/*.csv       (generator Phase 1 + 2 csv)
 #         <mega_csv_dir>/{treaty_df,edges_df,lob_df,segment_df,portfolio_df}.csv
 # Writes  <dir>/{treaties,inuring_edges,loss_events,loss_allocation_walkthrough}.csv
 #         <dir>/{nodes_tbl,edges_tbl}.{csv,parquet}
@@ -20,7 +20,7 @@ suppressPackageStartupMessages({
 args <- commandArgs(trailingOnly = TRUE)
 OUT  <- args[1]
 MEGA <- args[2]
-RAW  <- file.path(OUT, "raw", "phase2_large_seed5")
+RAW  <- file.path(OUT, "raw", "phase2_mid_seed43")
 rd   <- function(d, n) read_csv(file.path(d, paste0(n, ".csv")), show_col_types = FALSE, progress = FALSE)
 
 TOL_REL <- 1e-9   # relative tolerance for "match" in the reconciliation and for layer_exhausted
@@ -321,9 +321,10 @@ cross <- et_g |> filter(!prop, treaty_type %in% c("xol_per_risk", "xol_per_occur
   arrange(treaty_id, pidx, event_seq, event_id, method = "radix") |>
   group_by(treaty_id, period_id) |> mutate(cum = cumsum(ceded), prev = cum - ceded) |> ungroup() |>
   filter(prev <= limit * (1 + TOL_REL), cum > limit * (1 + TOL_REL))
+# sandwich: a proportional treaty that pays, ranked strictly between two paying non-proportional treaties
+# (XoL / proportional / XoL ordering in chain_rank)
 sandwich <- et_g |> filter(ceded > 0) |> group_by(event_id) |>
-  summarise(ok = any(!prop) && any(prop & chain_rank < min(chain_rank[!prop])) &&
-              any(prop & chain_rank > min(chain_rank[!prop])), .groups = "drop") |> filter(ok)
+  summarise(ok = any(map_lgl(chain_rank[prop], function(r) any(!prop & chain_rank < r) && any(!prop & chain_rank > r))), .groups = "drop") |> filter(ok)
 conv_nodes <- inuring_edges |> group_by(to_treaty) |> filter(n() > 1) |> ungroup()
 gid_of <- setNames(treaties$generator_treaty_id, treaties$treaty_id)
 conv_hits <- et_g |>
@@ -342,7 +343,6 @@ cand <- list(
   cat_multi_lob = ev_gross |> filter(event_type == "cat", n_lobs > 1) |> top("gross"),
   sandwich = ev_gross |> filter(event_id %in% sandwich$event_id) |> top("gross"),
   convergence = conv_hits |> filter(n_conv > 0) |> inner_join(ev_gross |> filter(event_type == "large"), by = "event_id") |> top("n_conv"),
-  largest_loss = et_g |> group_by(event_id) |> summarise(tot = sum(ceded), .groups = "drop") |> top("tot"),
   clash = et_g |> filter(treaty_type == "clash", ceded > 0) |> arrange(desc(ceded), event_id, method = "radix") |> pull(event_id),
   aggregate = et_g |> filter(treaty_type %in% c("aggregate_xl", "stop_loss"), ceded > 0) |> arrange(desc(ceded), event_id, method = "radix") |> pull(event_id))
 chosen <- character(0); tags <- list()
@@ -363,8 +363,8 @@ desc_tbl <- sel |>
   left_join(ev_gross |> select(generator_event_id = event_id, gross, event_type, n_lobs), by = "generator_event_id") |>
   left_join(ev_lobs, by = c("generator_event_id" = "event_id")) |>
   mutate(description = sprintf("%s %s event on %s [%s]", tools::toTitleCase(event_type), ifelse(n_lobs > 1, "multi-LOB", "single-LOB"), lobs,
-                               c(largest_loss = "largest total recovery", attritional = "simple proportional", exhaustion = "layer exhaustion", reinstatement = "reinstatement consumed",
-                                 cat_multi_lob = "cat across LOBs", sandwich = "QS / XoL / QS sandwich", convergence = "convergence",
+                               c(attritional = "simple proportional", exhaustion = "layer exhaustion", reinstatement = "reinstatement consumed",
+                                 cat_multi_lob = "cat across LOBs", sandwich = "XoL / proportional / XoL sandwich", convergence = "convergence",
                                  clash = "clash hub", aggregate = "aggregate / stop loss")[tag]))
 
 # decide the walkthrough source by reconciling the chosen events

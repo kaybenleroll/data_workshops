@@ -1,11 +1,11 @@
 metric,value
-flow_df rows,2736
-recompute rows,2736
-rows matched (ceded and subject within tol),2736
+flow_df rows,1487
+recompute rows,1487
+rows matched (ceded and subject within tol),1487
 match rate,1
 rows only in one side,0
-max abs diff ceded,3.725290298461914e-9
-max abs diff subject_loss_in,7.450580596923828e-9
-treaty_period rows compared (reinstatements_used),272
-treaty_period max abs diff,4.440892098500626e-16
+max abs diff ceded,1.4901161193847656e-8
+max abs diff subject_loss_in,1.4901161193847656e-8
+treaty_period rows compared (reinstatements_used),370
+treaty_period max abs diff,6.661338147750939e-16
 relative tolerance,1e-9
