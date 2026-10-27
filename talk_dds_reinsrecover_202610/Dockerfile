@@ -44,9 +44,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
 
 WORKDIR /tmp
 
-# Enable GitHub Copilot and configure session timeouts
+# Configure session timeouts
 RUN mkdir -p /etc/rstudio && \
-  echo "copilot-enabled=1" >> /etc/rstudio/rsession.conf && \
   echo "session-timeout-minutes=120" >> /etc/rstudio/rsession.conf && \
   echo "session-timeout-suspend=0" >> /etc/rstudio/rsession.conf && \
   echo "auth-timeout-minutes=0" >> /etc/rstudio/rserver.conf

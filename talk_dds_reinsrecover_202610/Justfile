@@ -117,7 +117,6 @@ podman-run:
     -e USERID={{CONTAINER_UID}} \
     -e GROUPID={{CONTAINER_GID}} \
     -v "{{PWD}}:/home/rstudio/{{PROJECT_FOLDER}}{{MOUNT_Z}}" \
-    -v "{{PWD}}/.rstudio_copilot:/home/rstudio/.config/github-copilot:rw" \
     --name {{CONTAINER_NAME}} \
     {{IMAGE_TAG}}
   @echo "RStudio Server running at http://127.0.0.1:{{RSTUDIO_PORT}}"
