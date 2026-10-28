@@ -139,39 +139,3 @@ show_function_source <- function(fn_name, skip_from = NULL, skip_to = NULL,
 
   cat("```r", src_lines, "```", sep = "\n")
 }
-
-
-# Compare the generator's flow table with a recompute, row by row on
-# (period, event, treaty, lob, loss_type); `tol` is relative.
-reconcile_flows <- function(flow_tbl, recompute_tbl, tol = 1e-9) {
-  make_key <- function(d) {
-    paste(d$period_id, d$event_id, d$treaty_id, coalesce(d$lob_id, "NA"), d$loss_type, sep = "|")
-  }
-
-  is_close <- function(a, b) {
-    (is.na(a) & is.na(b)) |
-      (!is.na(a) & !is.na(b) & abs(a - b) <= tol * pmax(1, abs(a), abs(b)))
-  }
-
-  cmp_tbl <- full_join(
-    flow_tbl |>
-      transmute(k = make_key(flow_tbl), g_subject = subject_loss_in, g_ceded = ceded, in_g = TRUE),
-    recompute_tbl |>
-      transmute(k = make_key(recompute_tbl), f_subject = subject, f_ceded = ceded, in_f = TRUE),
-    by = "k"
-  ) |>
-    mutate(in_g = coalesce(in_g, FALSE), in_f = coalesce(in_f, FALSE)) |>
-    mutate(
-      matched   = in_g & in_f & is_close(g_ceded, f_ceded) & is_close(g_subject, f_subject),
-      d_ceded   = abs(g_ceded - f_ceded),
-      d_subject = abs(g_subject - f_subject)
-    )
-
-  tibble(
-    generator_rows = sum(cmp_tbl$in_g),
-    recompute_rows = sum(cmp_tbl$in_f),
-    rows_matched   = sum(cmp_tbl$matched),
-    max_diff_ceded   = max(cmp_tbl$d_ceded, na.rm = TRUE),
-    max_diff_subject = max(cmp_tbl$d_subject, na.rm = TRUE)
-  )
-}
