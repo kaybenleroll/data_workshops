@@ -75,7 +75,7 @@ inuring_tblgraph <- build_inuring_tblgraph(graph_nodes_tbl, graph_edges_tbl)
 ```{r set_up_basics_examples}
 #| echo: false
 
-qs_cession <- 0.37
+qs_cession <- 0.25
 
 qs_tbl <- tibble(gross_loss = c(2e6, 10e6, 40e6)) |>
   mutate(
@@ -94,7 +94,7 @@ tower_tbl <- tibble(
 tower_recovery_tbl <- tower_recoveries(tower_loss, tower_tbl) |>
   transmute(
     layer,
-    band     = glue("{fmt_m(limit)} xs {fmt_m(attachment)}"),
+    band     = glue("{fmt_limit(limit)}XS{fmt_limit(attachment)}"),
     recovery
     )
 
@@ -184,16 +184,10 @@ mega_tblgraph  <- build_inuring_tblgraph(mega_nodes_tbl, mega_edges_tbl)
 
 ---
 
-::: {.custom-medium}
-```{r show_loss_events}
-#| echo: false
+![](img/hurricane_andrew.jpg){fig-align="center" height="600px"}
 
-loss_events_tbl |>
-  transmute(
-    event_id, description, gross_loss = scales::label_currency()(gross_loss)
-    ) |>
-  knitr::kable(align = "llr")
-```
+::: {.photo-credit}
+Photo: Miami Herald
 :::
 
 ---
@@ -202,11 +196,6 @@ Who pays what?
 
 ---
 
-![](img/inuring_dag.png)
-
----
-
-### What real portfolios look like
 
 ```{r show_mega_dag}
 #| echo: false
@@ -229,19 +218,22 @@ plot_inuring_dag(mega_tblgraph, mega_layout, label_col = "treaty_id", label_size
 
 ---
 
-Up to `r mega_stats_lst$max_parents` parents on one treaty
-
----
-
-Hand-drawn diagrams do not scale
-
----
-
-Code, iteration and a sensible plan
-
----
-
 How to allocate losses across treaties?
+
+---
+
+::: {.custom-medium}
+```{r show_loss_events}
+#| echo: false
+
+loss_events_tbl |>
+  transmute(
+    event_id, description, gross_loss = scales::label_currency()(gross_loss)
+    ) |>
+  knitr::kable(align = "llr")
+```
+:::
+
 
 
 
@@ -249,16 +241,36 @@ How to allocate losses across treaties?
 
 ---
 
-Cedants transfer part of their risk (and premium) to reinsurers
+*Cedants*
+
+\
+
+
+transfer premium/risk to
+
+\
+
+
+*Reinsurers*
 
 ---
 
-Capacity, volatility, capital
+Capacity
+
+\
+
+
+Volatility
+
+\
+
+
+Capital
 
 ---
 
 $$
-\text{Gross loss} = \text{Ceded} + \text{Net retained}
+\text{Gross Loss} = \text{Ceded} + \text{Retained}
 $$
 
 
@@ -267,13 +279,20 @@ $$
 
 \
 
-Proportional: the same share of every loss
+
+Proportional
+
+\
+
+
+Share of premium and losses
 
 ---
 
-A `r percent(qs_cession)` QS cedes `r percent(qs_cession)` of every loss
+25% Quota Share
 
----
+\
+
 
 ```{r show_qs_example}
 #| echo: false
@@ -287,33 +306,29 @@ qs_tbl |>
   knitr::kable(align = "rrr")
 ```
 
----
-
-Surplus: proportional, but the share varies with risk size
-
-
 
 ### Excess of Loss (XoL)
 
 \
 
-Non-proportional: pays only the part of a loss above the attachment
-
----
-
-$$
-\text{Recovery} = \min\big(\max(L - A,\, 0),\; \ell\big)
-$$
+Non-proportional: pays only above *attachment*
 
 \
 
-Loss $L$, attachment $A$, limit $\ell$
+
+Paid upfront
+
+\
+
+
+*Limit* XS *Attach*
 
 ---
 
-A `r fmt_m(tower_loss)` loss through a `r nrow(tower_tbl)`-layer tower
+14m Loss
 
----
+\
+
 
 ```{r show_tower_example}
 #| echo: false
@@ -325,118 +340,107 @@ tower_display_tbl |>
 
 ---
 
-The cedant keeps `r fmt_m(tower_retained)`, below the first attachment
+Who pays at each loss size
 
----
+```{r show_tower_allocation}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5.6
+#| fig-align: center
 
-Per-risk: one risk's loss
+region_lvl <- c("Above tower", tower_tbl$layer[2], tower_tbl$layer[1], "Retention")
+region_lbl <- c(
+  "Retention"   = "Retained by cedant",
+  setNames(
+    glue("{tower_tbl$layer} ({fmt_limit(tower_tbl$limit)}XS{fmt_limit(tower_tbl$attachment)})"),
+    tower_tbl$layer
+    ),
+  "Above tower" = "Above tower (cedant)"
+  )
+region_col <- c(
+  "Retention" = "grey60", "L1" = "#0072B2", "L2" = "#E69F00", "Above tower" = "grey90"
+  )
 
----
+alloc_loss_vec <- c(3e6, 7e6, 12e6, 20e6, 25e6)
+tower_top      <- max(tower_tbl$attachment + tower_tbl$limit)
 
-Per-occurrence: one event's total across risks
+# The tower bar: each region at its true height (retention is everything below the first layer)
+tower_bar_tbl <- bind_rows(
+  tibble(region = "Retention", amount = min(tower_tbl$attachment)),
+  tower_tbl |> transmute(region = layer, amount = limit)
+  ) |>
+  mutate(bar = "Tower")
+
+alloc_tbl <- tibble(gross_loss = alloc_loss_vec) |>
+  mutate(allocation = map(gross_loss, tower_allocation, layers = tower_tbl)) |>
+  unnest(allocation) |>
+  mutate(bar = fmt_limit(gross_loss) |> paste0("m"))
+
+# Every loss is fully allocated: retention + recoveries + above tower = gross loss
+stopifnot(
+  alloc_tbl |>
+    summarise(total = sum(amount), .by = c(gross_loss)) |>
+    summarise(all(near(total, gross_loss))) |>
+    pull(),
+  near(sum(tower_bar_tbl$amount), tower_top)
+  )
+
+bar_lvl <- c("Tower", unique(alloc_tbl$bar))
+
+bind_rows(tower_bar_tbl, alloc_tbl) |>
+  mutate(
+    region = factor(region, levels = region_lvl),
+    bar    = factor(bar, levels = bar_lvl)
+    ) |>
+  ggplot(aes(x = bar, y = amount, fill = region)) +
+    geom_col(
+      aes(linetype = region),
+      position = "stack", colour = "grey30", linewidth = 0.4, width = 0.7
+      ) +
+    geom_hline(
+      yintercept = c(tower_tbl$attachment, tower_top),
+      linetype = "dotted", colour = "grey40"
+      ) +
+    scale_fill_manual(values = region_col, labels = region_lbl, breaks = rev(region_lvl)) +
+    scale_linetype_manual(
+      values = c("Retention" = "solid", "L1" = "solid", "L2" = "solid", "Above tower" = "dashed"),
+      guide = "none"
+      ) +
+    scale_y_continuous(
+      breaks = c(0, tower_tbl$attachment, tower_top, max(alloc_loss_vec)),
+      labels = \(x) fmt_limit(x) |> paste0("m")
+      ) +
+    labs(x = "Gross loss", y = NULL, fill = NULL) +
+    theme(
+      text            = element_text(size = 16),
+      axis.text       = element_text(size = 16),
+      axis.title      = element_text(size = 16),
+      legend.text     = element_text(size = 14),
+      legend.position = "right"
+      )
+```
 
 
 
 ### Limits and Reinstatements
 
+---
+
+Occurrence limit: single event
+
 \
 
-Occurrence limit: most paid for any one event
 
----
+Aggregate limit: all events
 
-Aggregate limit: most paid across all events in the period
+\
 
----
 
 Reinstatement: limit restored, usually for extra premium
 
 ---
 
 Capacity = limit $\times$ (1 + reinstatements)
-
----
-
-`r length(period_loss_vec)` events hit one layer
-
-\
-
-`r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`
-
-\
-
-Losses: `r paste(fmt_m(period_loss_vec), collapse = ", ")`
-
----
-
-::: {.custom-medium}
-```{r show_period_example}
-#| echo: false
-
-period_tbl |>
-  bind_rows(summarise(period_tbl, across(everything(), sum))) |>
-  transmute(
-    Event = c(glue("Event\u00a0{1:3}"), "Total"),
-    `Event loss` = fmt_m(event_loss),
-    `Occurrence only` = fmt_m(occurrence),
-    `One reinstatement` = fmt_m(reinstatement),
-    `Aggregate limit` = fmt_m(aggregate)
-    ) |>
-  knitr::kable(align = "lrrrr")
-```
-:::
-
----
-
-Same events, same layer: only the cap differs
-
-\
-
-Total recovered: `r fmt_m(sum(period_tbl$occurrence))`, `r fmt_m(sum(period_tbl$reinstatement))`, `r fmt_m(sum(period_tbl$aggregate))`
-
-
-
-### Order Matters
-
-\
-
-Each treaty changes the loss the next one sees
-
----
-
-A `r fmt_m(order_loss)` loss
-
-\
-
-`r percent(order_cession)` QS and `r fmt_m(layer_limit)` xs `r fmt_m(layer_attach)`
-
----
-
-::: {.custom-medium}
-```{r show_order_example}
-#| echo: false
-
-order_tbl |>
-  transmute(
-    Sequence = sequence,
-    `First treaty` = fmt_m(first_ceded),
-    `Second treaty` = fmt_m(second_ceded),
-    `Total ceded` = fmt_m(total_ceded),
-    `Net retained` = fmt_m(net)
-    ) |>
-  knitr::kable(align = "lrrrr")
-```
-:::
-
----
-
-Net retained: `r fmt_m(order_tbl$net[1])` or `r fmt_m(order_tbl$net[2])`, depending on the sequence
-
----
-
-Sequence is a graph
-
-
 
 
 # Treaties as Functions

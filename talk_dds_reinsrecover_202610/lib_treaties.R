@@ -1,7 +1,8 @@
 # Pure treaty functions: each maps losses to recoveries, with no hidden state.
 # Used by the "Reinsurance Basics" slides.
 
-fmt_m <- scales::label_number(accuracy = 0.1, scale = 1e-6, suffix = "m")
+fmt_m     <- scales::label_number(accuracy = 0.1, scale = 1e-6, suffix = "m")
+fmt_limit <- scales::label_number(accuracy = 1,   scale = 1e-6, suffix = "")
 
 # Proportional: a fixed share of every loss
 qs_recovery <- function(loss, cession) cession * loss
@@ -15,6 +16,22 @@ xol_recovery <- function(loss, attachment, limit) {
 tower_recoveries <- function(loss, layers) {
   layers |>
     dplyr::mutate(recovery = xol_recovery(loss, attachment, limit))
+}
+
+# One loss split by who pays: cedant retention below the tower, each layer's recovery,
+# and the part above the top of the tower (which reverts to the cedant).
+tower_allocation <- function(loss, layers) {
+  top <- max(layers$attachment + layers$limit)
+
+  dplyr::bind_rows(
+    tibble::tibble(
+      region = "Retention",
+      amount = pmin(loss, min(layers$attachment))
+    ),
+    tower_recoveries(loss, layers) |>
+      dplyr::transmute(region = layer, amount = recovery),
+    tibble::tibble(region = "Above tower", amount = pmax(loss - top, 0))
+  )
 }
 
 # A sequence of event losses against one layer, with an optional cap on the total
