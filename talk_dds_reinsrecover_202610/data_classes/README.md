@@ -73,10 +73,15 @@ at limit x (1 + reinstatements); events are folded in `event_seq` order and the 
   (generator issue #177); this engine does, which is the point of the talk. A thin inuring table can break
   validity: the contrast is `contrast_inuring()`; the proper home for the missing relationships is generator
   issues #208 and #211.
-* **Peer exceptions** (`peer_exception()`, `pick_peer_exceptions()`, `apply_peer_exceptions()`): a treaty that is
-  deliberately not net of an earlier peer is simply the table without that edge. Three deterministic exceptions
-  (same treaty type, chosen by hashing the pair) are applied in `check_classes.R`, which reports whether the outcome
-  stays valid.
+* **Peer exceptions** (`peer_exception()`, `pick_peer_exceptions()`, `pick_valid_peer_exceptions()`, `apply_peer_exceptions()`): a
+  treaty that is deliberately not net of an earlier peer is simply the table without that edge. The three hash-chosen
+  same-type picks of `pick_peer_exceptions()` together break validity (164 rows with net < 0). Valid exceptions exist:
+  `pick_valid_peer_exceptions()` searches deterministically (proportional same-type pairs first, then any same-type
+  pair, then any edge; at most 300 edges), tests every candidate with the engine on top of the ones already accepted and
+  keeps up to three with net >= 0 on every row and a visible effect on the treaty's ceded. For class seed 2003 and sim seed
+  2017 it finds three after testing six edges (a group quota share, a quota share and a surplus). `check_classes.R` reports them.
+* **Invariants as a function**: `engine_invariants(world, res)` returns the live checks used on the slides (accounting,
+  net >= 0, subject and caps, determinism, order independence).
 
 ## Dropped or changed against the generator
 

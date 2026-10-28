@@ -84,8 +84,24 @@ for (i in seq_len(nrow(pe))) {
 cat(sprintf("  all exceptions: ceded %s -> %s, net %s -> %s\n", bn(sum(primary$ledger$ceded)), bn(sum(px$ledger$ceded)), bn(sum(primary$rows$net_loss)), bn(sum(px$rows$net_loss))))
 if (!ox$valid) { print(head(ox$pairs, 5), width = 200); print(head(ox$events, 3)) }
 
+# valid peer exceptions: searched deterministically, each accepted on top of the previous ones, tested with the engine
+vp <- pick_valid_peer_exceptions(w, n = 3)
+check("(pe) search finds three VALID peer exceptions, deterministic", nrow(vp) == 3 && identical(vp, pick_valid_peer_exceptions(w, n = 3)),
+      sprintf("%d edges tested", attr(vp, "searched")))
+vr <- run_inuring_engine(apply_peer_exceptions(w, vp), on_invalid = "ignore")
+check("(pe) HARD: net >= 0 on every row with all valid peer exceptions applied together", over_recovery(vr)$n_rows_over == 0)
+check("(pe) subject <= gross, ceded <= subject, caps hold with all valid peer exceptions", all(vr$ledger$ceded <= vr$ledger$subject_loss_in * (1 + tol)) &&
+        all(vr$ledger$subject_loss_in <= vr$rows$gross_loss[vr$ledger$row_id] * (1 + tol)) && all(exhaustion(vr)$ceded <= exhaustion(vr)$bound * (1 + tol)))
+check("(pe) each valid exception raises its treaty's ceded", all(vp$ceded_after > vp$ceded_before))
+for (i in seq_len(nrow(vp)))
+  cat(sprintf("  valid exception %d: '%s' not net of '%s' [%s]: treaty ceded %s -> %s, total net %s -> %s (cumulative)\n", i, vp$to_name[i], vp$from_name[i], vp$from_type[i],
+              bn(vp$ceded_before[i]), bn(vp$ceded_after[i]), bn(vp$net_before[i]), bn(vp$net_after[i])))
+
+inv <- engine_invariants(w, primary)
+check("(inv) engine_invariants() (the slides' live checks) all pass on the primary run", all(inv$pass), paste(sum(inv$pass), "of", nrow(inv)))
+
 # ---- (iv) determinism ----------------------------------------------------------------------------------------------------------
-md5_of <- function(res) { f <- file.path(".scratch", "ledger_hash.bin")
+md5_of <- function(res) { f <- tempfile(fileext = ".bin"); on.exit(unlink(f))
   writeBin(serialize(res$ledger[c("row_id", "treaty_idx", "subject_loss_in", "ceded")], NULL, version = 3), f); unname(tools::md5sum(f)) }
 w2 <- class_world()
 check("(iv) determinism: two runs, same seeds, identical ledger md5", md5_of(run_inuring_engine(w2)) == md5_of(primary), md5_of(primary))

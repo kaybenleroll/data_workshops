@@ -11,7 +11,7 @@
 #   inuring_table(treaty_df, bridge) -> repair: one explicit direct edge per overlapping indemnity pair (primary if not)
 #   run_inuring_engine(world, inuring) -> list(rows, ledger, events, treaty_period, order, inuring); flags invalid outcomes
 #   outcome_violations(res) inuring_diagnostics(world, inuring, res) -> net < 0 rows/events/pairs; pairs with/without edge
-#   peer_exception() pick_peer_exceptions() apply_peer_exceptions() -> remove an edge: treaty not net of that parent
+#   peer_exception() pick_peer_exceptions() pick_valid_peer_exceptions() apply_peer_exceptions() -> remove an edge: treaty not net of that parent
 #   run_residual_engine(world)       -> the earlier residual-ledger engine in chain_rank order (comparison only)
 #   gross_by() net_by() recoveries_by() exhaustion() treaty_reach() class_treaty_matrix() loss_anatomy2()
 #   inuring_stats() interaction_coverage() compare_inuring() over_recovery() over_recovery_pairs()
@@ -294,6 +294,47 @@ pick_peer_exceptions <- function(world, n = 3) {
   cand <- cand[order(cand$h, method = "radix"), ]
   cand <- cand[!duplicated(cand$to_treaty_id), ]
   utils::head(cand[c("from_treaty_id", "to_treaty_id", "from_name", "to_name", "from_type")], n)
+}
+
+# Deterministic SEARCH for peer exceptions that keep the outcome valid. Candidates are edges parent -> treaty of the
+# primary table between treaties of the same type, in three tiers (both proportional of one kind -- quota share,
+# group quota share or surplus; any other same-type pair; any edge), each ordered by a hash of the pair. Candidates are
+# tested with the engine one after another ON TOP OF the exceptions already accepted (table without the accepted edges and
+# this one: net >= 0 on every row?), so the picks are jointly valid. A pick needs a visible effect (the treaty's ceded
+# changes) and a treaty of its own. Stops after `n` picks or `max_search` edges tested. Returns the picks with the treaty's
+# ceded before (primary run) and after (all accepted exceptions so far), and the total net likewise; attributes
+# `searched` (edges tested), `valid_found` (valid picks) and `candidates`.
+pick_valid_peer_exceptions <- function(world, n = 3, max_search = 300, base = run_inuring_engine(world, on_invalid = "ignore")) {
+  e <- normalise_inuring(world$inuring, world$data)
+  same <- e$from_type == e$to_type
+  prop <- same & e$to_type %in% c("quota_share", "group_quota_share", "surplus")
+  e$tier <- ifelse(prop, 1L, ifelse(same, 2L, 3L))
+  e$h <- hash_unif(paste(e$from_treaty_id, e$to_treaty_id), "peer")
+  e <- e[order(e$tier, e$h, method = "radix"), ]
+  e <- utils::head(e, max_search)
+  ced_of <- function(r, tid) sum(r$ledger$ceded[r$ledger$treaty_id == tid])
+  cur <- normalise_inuring(world$inuring, world$data)
+  key <- function(d) paste(d$from_treaty_id, d$to_treaty_id)
+  found <- list(); tested <- 0L
+  for (i in seq_len(nrow(e))) {
+    if (length(found) >= n) break
+    if (e$to_treaty_id[i] %in% vapply(found, function(f) f$to_treaty_id, "")) next
+    tested <- tested + 1L
+    trial <- cur[key(cur) != key(e[i, ]), ]
+    wx <- world; wx$inuring <- trial
+    r <- run_inuring_engine(wx, on_invalid = "ignore")
+    if (over_recovery(r)$n_rows_over > 0) next
+    before <- ced_of(base, e$to_treaty_id[i]); after <- ced_of(r, e$to_treaty_id[i])
+    if (abs(after - before) <= 1e-6 * max(1, before)) next
+    cur <- trial
+    found[[length(found) + 1L]] <- tibble::tibble(
+      from_treaty_id = e$from_treaty_id[i], to_treaty_id = e$to_treaty_id[i], from_name = e$from_name[i], to_name = e$to_name[i],
+      from_type = e$from_type[i], to_type = e$to_type[i], tier = e$tier[i], ceded_before = before, ceded_after = after,
+      net_before = sum(base$rows$net_loss), net_after = sum(r$rows$net_loss))
+  }
+  out <- if (length(found)) dplyr::bind_rows(found) else tibble::tibble()
+  attr(out, "searched") <- tested; attr(out, "valid_found") <- length(found); attr(out, "candidates") <- nrow(e)
+  out
 }
 
 # A world with the exceptions applied (primary inuring table replaced).
@@ -672,4 +713,28 @@ contrast_inuring <- function(world, a, b, labels = c("a", "b")) {
        total = tibble::tibble(table = labels, gross = c(sum(ra$rows$gross_loss), sum(rb$rows$gross_loss)),
                               ceded = c(sum(ra$ledger$ceded), sum(rb$ledger$ceded)), net = c(sum(ra$rows$net_loss), sum(rb$rows$net_loss))),
        runs = stats::setNames(list(ra, rb), labels))
+}
+
+# ---- Invariants ----------------------------------------------------------------------------------------------------------------
+# The checks of check_classes.R as a function (also used by the slides): one row per check, with pass and detail.
+# `order_check` is an order_sensitivity() result (computed here if NULL).
+engine_invariants <- function(world, res, order_check = NULL, tol = 1e-9) {
+  l <- res$ledger; r <- res$rows
+  ced_row <- gsum(l$ceded, l$row_id, nrow(r))
+  ex <- exhaustion(res)
+  sig <- function(x) { f <- tempfile(fileext = ".bin"); on.exit(unlink(f))
+    writeBin(serialize(x$ledger[c("row_id", "treaty_idx", "subject_loss_in", "ceded")], NULL, version = 3), f); unname(tools::md5sum(f)) }
+  w2 <- class_world(world$class_seed, world$sim_seed, world$n_periods)
+  if (is.null(order_check)) order_check <- order_sensitivity(world, world$inuring, n_random = 20)
+  ow <- order_check$worst
+  tibble::tribble(
+    ~check, ~pass, ~detail,
+    "Gross = ceded + net on every row", all(abs(r$gross_loss - ced_row - r$net_loss) <= tol * pmax(1, r$gross_loss)), sprintf("%d rows", nrow(r)),
+    "Net >= 0 on every row", all(r$net_loss >= -tol * pmax(1, r$gross_loss)), sprintf("min net %.0f", min(r$net_loss)),
+    "Ceded <= subject loss <= gross", all(l$ceded <= l$subject_loss_in * (1 + tol)) && all(l$subject_loss_in <= r$gross_loss[l$row_id] * (1 + tol)),
+      sprintf("%d ledger rows", nrow(l)),
+    "Limits and reinstatement caps hold", all(ex$ceded <= ex$bound * (1 + tol)), sprintf("%d limit checks", nrow(ex)),
+    "Same seeds, same ledger", identical(sig(run_inuring_engine(w2, on_invalid = "ignore")), sig(res)), "md5 of the ledger",
+    "Any application order, same ledger", ow$max_abs_row_diff <= 1e-6 && ow$frac_rows_differ == 0,
+      sprintf("%d orders; max difference %.1e", nrow(order_check$table), ow$max_abs_row_diff))
 }
