@@ -281,6 +281,91 @@ tower_edge_broken_n <- nrow(edge_violations(mega_data, mega_res$order))
 ```
 
 
+```{r set_up_mega_summary}
+#| echo: false
+
+# provenance, read from the data directory's README: tier / seed / periods
+mega_prov <- readLines("data_mega/README.md") |>
+  str_subset(fixed("Tier / seed / phase / periods")) |>
+  str_match("`(\\w+)` / (\\d+) / .* / (\\d+) \\|")
+
+mega_tier    <- mega_prov[1, 2]
+mega_seed    <- mega_prov[1, 3]
+mega_periods <- as.integer(mega_prov[1, 4])
+
+stopifnot(
+  mega_periods == nrow(mega_data$period_df),
+  nrow(mega_data$treaty_df) == mega_stats_lst$treaties,
+  nrow(mega_data$edges_df)  == mega_stats_lst$edges
+  )
+
+# headline totals, and the conservation check gross = net + ceded
+tot_gross <- sum(mega_res$cells$gross_loss)
+tot_net   <- sum(mega_res$cells$net_loss)
+tot_ceded <- sum(mega_res$ledger$ceded[mega_res$ledger$is_indemnity])
+
+stopifnot(near(tot_gross, tot_net + tot_ceded))
+
+ceded_type_tbl <- recoveries_by(mega_res, treaty_type) |>
+  arrange(desc(ceded))
+
+prop_share <- ceded_type_tbl |>
+  filter(treaty_type %in% c("quota_share", "group_quota_share", "surplus")) |>
+  pull(ceded) |>
+  sum() / tot_ceded
+
+top_treaty_tbl <- recoveries_by(mega_res, treaty_id, treaty_type) |>
+  slice_max(ceded, n = 10) |>
+  left_join(mega_data$treaty_df |> select(treaty_id, name), by = "treaty_id") |>
+  mutate(label = short_name(name))
+
+exhausted_tbl <- exhaustion(mega_res, mega_data) |>
+  filter(exhausted) |>
+  count(level, treaty_type)
+
+# the biggest event, step by step in order of application (a tower is one step)
+trace_event <- top_event_tbl$event_id
+
+trace_payer_tbl <- mega_res$ledger |>
+  filter(event_id == trace_event, is_indemnity, ceded > 0) |>
+  left_join(
+    mega_data$treaty_df |> select(treaty_id, name, tower_id, layer_index),
+    by = "treaty_id"
+    ) |>
+  summarise(
+    ceded       = sum(ceded),
+    layers      = n_distinct(treaty_id),
+    first_layer = first(name[order(coalesce(layer_index, 0))]),
+    chain_rank  = first(chain_rank),
+    treaty_type = first(treaty_type),
+    .by = c(tower_id, treaty_id)
+    ) |>
+  mutate(unit = coalesce(tower_id, treaty_id)) |>
+  summarise(
+    ceded       = sum(ceded),
+    layers      = n(),
+    first_layer = first(first_layer[order(str_length(first_layer))]),
+    chain_rank  = first(chain_rank),
+    treaty_type = first(treaty_type),
+    .by = unit
+    ) |>
+  arrange(chain_rank, unit) |>
+  mutate(
+    step = str_remove(first_layer, " \\(\\d+\\)$") |> short_name(),
+    step = if_else(layers > 1, str_c(step, ", ", layers, " layers"), step)
+    )
+
+trace_gross <- top_event_tbl$gross
+trace_net   <- mega_res$cells |> filter(event_id == trace_event) |> pull(net_loss) |> sum()
+
+stopifnot(near(trace_gross - sum(trace_payer_tbl$ceded), trace_net))
+
+# the generator against the engine, and the generator's own ordering rule
+rank_edge_tbl <- mega_data$edges_df |>
+  summarise(forward = sum(chain_rank_from < chain_rank_to), edges = n())
+```
+
+
 # The Problem
 
 ---
@@ -1078,6 +1163,212 @@ Organisation unit
 
 
 Regulatory authority
+
+
+# Running the Numbers
+
+---
+
+Synthetic data, from a generator
+
+\
+
+
+`r str_to_sentence(mega_tier)` tier, seed `r mega_seed`, `r mega_periods` periods
+
+\
+
+
+`r nrow(mega_data$treaty_df)` treaties, `r nrow(mega_data$edges_df)` inuring edges
+
+---
+
+### All the Losses, Gross to Net
+
+```{r show_gross_net_by_period}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+recovery_summary(mega_res, period_id) |>
+  ggplot(aes(x = period_id)) +
+    geom_segment(aes(xend = period_id, y = net, yend = gross), colour = "grey50", linewidth = 1.2) +
+    geom_point(aes(y = gross, colour = "Gross"), size = 5) +
+    geom_point(aes(y = net, colour = "Net"), size = 5) +
+    scale_colour_manual(values = c("Gross" = "#D55E00", "Net" = "#0072B2")) +
+    scale_y_log10(
+      breaks = c(0.5, 1, 2, 5, 10) * 1e9,
+      labels = label_number(scale = 1e-9, suffix = "bn", drop0trailing = TRUE)
+      ) +
+    labs(x = NULL, y = "Loss (log scale)", colour = NULL) +
+    slide_theme
+```
+
+---
+
+### Net after Recoveries
+
+\
+
+
+Gross **`r fmt_bn(tot_gross)`**
+
+\
+
+
+Ceded **`r fmt_bn(tot_ceded)`**
+
+\
+
+
+Net **`r fmt_bn(tot_net)`**, `r percent(tot_net / tot_gross, accuracy = 0.1)` of gross
+
+---
+
+### `r percent(prop_share, accuracy = 1)` of Recoveries Come from Proportional Treaties
+
+```{r show_ceded_by_type}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 4.8
+#| fig-align: center
+
+ceded_type_tbl |>
+  mutate(treaty_type = fct_reorder(treaty_type, ceded)) |>
+  ggplot(aes(x = ceded, y = treaty_type, fill = treaty_type)) +
+    geom_col(show.legend = FALSE) +
+    geom_text(aes(label = fmt_bn(ceded)), hjust = -0.15, size = 5.5) +
+    scale_x_continuous(
+      labels = label_number(scale = 1e-9, suffix = "bn"),
+      expand = expansion(mult = c(0, 0.15))
+      ) +
+    scale_y_discrete(labels = type_lbl) +
+    scale_fill_manual(values = type_col) +
+    labs(x = "Ceded", y = NULL) +
+    slide_theme
+```
+
+---
+
+### Top 10 Treaties by Ceded
+
+```{r show_top_treaties}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+top_treaty_tbl |>
+  mutate(label = fct_reorder(label, ceded)) |>
+  ggplot(aes(x = ceded, y = label, fill = treaty_type)) +
+    geom_col() +
+    geom_text(aes(label = fmt_bn(ceded)), hjust = -0.15, size = 5.5) +
+    scale_x_continuous(
+      labels = label_number(scale = 1e-9, suffix = "bn"),
+      expand = expansion(mult = c(0, 0.12))
+      ) +
+    scale_fill_manual(values = type_col, labels = type_lbl) +
+    labs(x = "Ceded", y = NULL, fill = NULL) +
+    slide_theme +
+    theme(legend.position = c(0.72, 0.2))
+```
+
+---
+
+### Limits That Ran Out
+
+```{r show_exhaustion}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 4.8
+#| fig-align: center
+
+exhausted_tbl |>
+  mutate(
+    level       = factor(level, levels = c("event", "period"), labels = c("Per event", "Per period")),
+    treaty_type = fct_reorder(treaty_type, n, .fun = sum)
+    ) |>
+  ggplot(aes(x = n, y = treaty_type, fill = level)) +
+    geom_col() +
+    geom_text(aes(label = n), hjust = -0.3, size = 5.5) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
+    scale_y_discrete(labels = type_lbl) +
+    scale_fill_manual(values = c("Per event" = "#D55E00", "Per period" = "#0072B2")) +
+    labs(x = "Limits exhausted", y = NULL, fill = NULL) +
+    slide_theme +
+    theme(legend.position = c(0.75, 0.25))
+```
+
+---
+
+### One Event: `r fmt_bn(trace_gross)` Gross, `r fmt_bn(trace_net)` Net
+
+```{r show_event_trace}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+trace_step_tbl <- bind_rows(
+  tibble(step = "Gross loss", xmin = 0, xmax = trace_gross, kind = "gross", label = fmt_bn(trace_gross)),
+  trace_payer_tbl |>
+    mutate(xmax = trace_gross - lag(cumsum(ceded), default = 0), xmin = xmax - ceded) |>
+    transmute(step, xmin, xmax, kind = treaty_type, label = str_c("-", fmt_amt(ceded))),
+  tibble(step = "Net loss", xmin = 0, xmax = trace_net, kind = "net", label = fmt_bn(trace_net))
+  ) |>
+  mutate(step = factor(step, levels = rev(step)), row = as.integer(step))
+
+ggplot(trace_step_tbl) +
+  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = row - 0.4, ymax = row + 0.4, fill = kind)) +
+  geom_text(aes(x = xmax, y = row, label = label), hjust = -0.1, size = 5) +
+  scale_y_continuous(breaks = seq_along(levels(trace_step_tbl$step)), labels = levels(trace_step_tbl$step)) +
+  scale_x_continuous(
+    labels = label_number(scale = 1e-9, suffix = "bn"),
+    expand = expansion(mult = c(0, 0.2))
+    ) +
+  scale_fill_manual(
+    values = c(type_col, gross = "grey35", net = "grey15"),
+    breaks = unique(trace_payer_tbl$treaty_type), labels = \(x) unname(type_lbl[x])
+    ) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  slide_theme +
+  theme(legend.position = "bottom")
+```
+
+---
+
+```{r define_reconciliation}
+#| echo: false
+
+recon_cmp <- compare_flows(mega_res, mega_data)
+```
+
+### Reconciles with the Generator
+
+\
+
+
+`r comma(recon_cmp$n_ok)` of `r comma(recon_cmp$n_generator)` flow rows match
+
+\
+
+
+Largest relative difference: `r format(max(recon_cmp$rows$d_ceded), digits = 2)`
+
+---
+
+### The Generator Orders by `chain_rank`
+
+\
+
+
+It does not read the edges table
+
+\
+
+
+Edges forward in rank: `r rank_edge_tbl$forward` of `r rank_edge_tbl$edges`
 
 
 
