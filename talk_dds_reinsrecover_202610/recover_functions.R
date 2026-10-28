@@ -150,8 +150,8 @@ recovery_plan <- function(data) {
 # Which loss cells a treaty can see: its type responds to the cell's loss class AND the cell's
 # line of business is in its region.
 cell_visible <- function(treaty_type, region, cells) {
-  classes <- responds$loss_type[responds$responds & responds$treaty_type == treaty_type]
-  cells$loss_type %in% classes & cells$lob_id %in% region
+  r <- responds[responds$treaty_type == treaty_type & responds$responds, ]
+  cells$loss_type %in% r$loss_type & cells$lob_id %in% region
 }
 
 # Everything a step needs about one unit, as plain vectors: layer terms, the cap state kind, and
