@@ -220,6 +220,67 @@ loss_orders <- round(log10(max(mega_data$loss_df$gross_loss) / min(mega_data$los
 ```
 
 
+```{r set_up_mega_examples}
+#| echo: false
+
+# one treaty over several lines of business: the clash with the widest footprint
+clash_row <- mega_data$coverage_df |>
+  count(treaty_id, name = "n_lob") |>
+  inner_join(mega_data$treaty_df, by = "treaty_id") |>
+  filter(treaty_type == "clash") |>
+  arrange(desc(n_lob), name) |>
+  slice(1)
+
+clash_tbl <- mega_data$coverage_df |>
+  filter(treaty_id == clash_row$treaty_id) |>
+  transmute(
+    Treaty             = short_name(clash_row$name),
+    Type               = unname(type_lbl[clash_row$treaty_type]),
+    `Line of business` = short_name(lob_name_vec[lob_id])
+    ) |>
+  arrange(`Line of business`)
+
+# one event per loss class, and how many treaties it reaches
+class_reach_tbl <- tibble(Class = names(mega_anat$example_events)) |>
+  mutate(
+    `Loss rows` = map_int(Class, \(k) nrow(mega_anat$example_loss_rows[[k]])),
+    Treaties    = map_int(Class, \(k) nrow(mega_anat$who_sees_what[[k]]))
+    )
+
+who_cat_tbl <- mega_anat$who_sees_what$cat |>
+  filter(is_indemnity) |>
+  summarise(
+    Treaties    = n(),
+    `Max cells` = max(n_cells),
+    Ceded       = sum(ceded),
+    .by = treaty_type
+    ) |>
+  mutate(treaty_type = factor(treaty_type, levels = names(type_lbl))) |>
+  arrange(treaty_type) |>
+  transmute(
+    `Treaty type` = type_lbl[as.character(treaty_type)],
+    Treaties, `Max cells`, Ceded = fmt_amt(Ceded)
+    )
+
+ilw_cat_tbl <- mega_anat$who_sees_what$cat |> filter(!is_indemnity)
+
+# the DAG alone versus the DAG plus a tie-break, against the generator's own ledger
+topo_res  <- recover_losses(mega_data, order_by_topo_sort(mega_data))
+cmp_kahn  <- compare_flows(mega_res, mega_data)
+cmp_topo  <- compare_flows(topo_res, mega_data)
+
+order_cmp_tbl <- tibble(
+  `Application order`     = c("igraph::topo_sort()", "Kahn + chain_rank"),
+  `Ceded rows matching`   = percent(
+    c(cmp_topo$n_ceded_ok, cmp_kahn$n_ceded_ok) / cmp_kahn$n_generator,
+    accuracy = 0.1
+    )
+  )
+
+tower_edge_broken_n <- nrow(edge_violations(mega_data, mega_res$order))
+```
+
+
 # The Problem
 
 ---
@@ -881,6 +942,128 @@ Multiple ways to determine coverage
 
 
 Many-to-many relationship
+
+---
+
+### One Treaty, `r nrow(clash_tbl)` Lines of Business
+
+::: {.custom-medium}
+```{r show_clash_coverage}
+#| echo: false
+
+clash_tbl |>
+  knitr::kable(align = "lll")
+```
+:::
+
+---
+
+### One Event Reaches Many Treaties
+
+::: {.custom-medium}
+```{r show_class_reach}
+#| echo: false
+
+class_reach_tbl |>
+  knitr::kable(align = "lrr")
+```
+:::
+
+---
+
+### Who Sees What: the Cat Event
+
+::: {.custom-medium}
+```{r show_who_sees_cat}
+#| echo: false
+
+who_cat_tbl |>
+  knitr::kable(align = "lrrr")
+```
+:::
+
+---
+
+### ILW Sees No Loss Cells
+
+\
+
+
+`r nrow(ilw_cat_tbl)` ILW treaties, `r sum(ilw_cat_tbl$n_cells)` loss cells
+
+\
+
+
+Pays on an industry loss index
+
+---
+
+### Who Responds to Which Loss Class?
+
+```{r show_responds_tiles}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5.2
+#| fig-align: center
+
+responds |>
+  mutate(
+    treaty_type = factor(treaty_type, levels = rev(names(type_lbl))),
+    loss_type   = factor(loss_type, levels = names(class_col)),
+    answer      = if_else(responds, "yes", "no")
+    ) |>
+  ggplot(aes(x = loss_type, y = treaty_type, fill = responds)) +
+    geom_tile(colour = "white", linewidth = 1) +
+    geom_text(aes(label = answer), size = 5.5) +
+    scale_x_discrete(position = "top") +
+    scale_y_discrete(labels = type_lbl) +
+    scale_fill_manual(values = c("TRUE" = "#56B4E9", "FALSE" = "grey90"), guide = "none") +
+    labs(x = NULL, y = NULL) +
+    slide_theme +
+    theme(axis.line = element_blank(), axis.ticks = element_blank())
+```
+
+---
+
+### The Join: Loss Class and Line of Business
+
+```{r show_cell_visible}
+#| echo: false
+#| results: asis
+
+show_function_source("cell_visible")
+```
+
+---
+
+The DAG gives a partial order
+
+\
+
+
+`chain_rank` breaks the ties
+
+---
+
+### The Graph Is Not Enough: We Need a Tie-Break Rule
+
+::: {.custom-medium}
+```{r show_order_comparison}
+#| echo: false
+
+order_cmp_tbl |>
+  knitr::kable(align = "lr")
+```
+:::
+
+---
+
+### Towers Take One Slot: `r tower_edge_broken_n` of `r nrow(mega_data$edges_df)` Edges Break
+
+\
+
+
+An outside treaty can sit between two layers of a tower
 
 ---
 

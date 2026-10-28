@@ -11,16 +11,11 @@ cat(sprintf("== engine run time: %.2f s elapsed (%d ledger rows)\n", tm[["elapse
 
 # ---- reconciliation with flow_df -----------------------------------------------------------------------
 key <- c("event_id", "treaty_id", "lob_id", "loss_type")
-rel <- \(a, b) ifelse(is.na(a) & is.na(b), 0, abs(a - b) / pmax(abs(a), abs(b), 1, na.rm = TRUE))
-j <- full_join(res$ledger, data$flow_df, by = key, suffix = c("", ".gen"))
-both <- j |> filter(!is.na(period_id), !is.na(period_id.gen))
+rel <- rel_diff
+cf <- compare_flows(res, data)
+cmp <- cf$rows
 cat(sprintf("\n== rows: engine %d, generator %d, matched keys %d, only engine %d, only generator %d\n",
-            nrow(res$ledger), nrow(data$flow_df), nrow(both), sum(is.na(j$period_id.gen)), sum(is.na(j$period_id))))
-cmp <- both |> mutate(d_ceded = rel(ceded, ceded.gen), d_ret = rel(retained_after, retained_after.gen),
-                      d_subj = rel(subject_loss_in, subject_loss_in.gen),
-                      d_reinst = rel(reinstatement_consumed, reinstatement_consumed.gen),
-                      abs_ceded = abs(ceded - ceded.gen), na_mismatch = xor(is.na(reinstatement_consumed), is.na(reinstatement_consumed.gen)),
-                      ok = d_ceded <= 1e-9 & d_ret <= 1e-9 & d_subj <= 1e-9 & d_reinst <= 1e-9 & !na_mismatch)
+            cf$n_engine, cf$n_generator, cf$n_matched_keys, cf$n_only_engine, cf$n_only_generator))
 cat(sprintf("rows matching on ceded, retained_after, subject_loss_in, reinstatement_consumed (rel 1e-9): %d / %d (%.4f%%)\n",
             sum(cmp$ok), nrow(cmp), 100 * mean(cmp$ok)))
 cat(sprintf("max abs diff ceded %.3g | max rel diff ceded %.3g, retained_after %.3g, subject_loss_in %.3g, reinstatement_consumed %.3g\n",
@@ -40,9 +35,9 @@ oa <- order_agrees(data)
 cat("\n== order\n"); print(unlist(oa))
 units <- recovery_units(data); topo <- order_by_topo_sort(data, units)
 alt <- recover_losses(data, topo)
-jt <- inner_join(alt$ledger, data$flow_df, by = key, suffix = c("", ".gen"))
+jt <- compare_flows(alt, data)$rows
 cat(sprintf("topo_sort order vs generator flow_df: ceded matches on %.2f%% of %d rows\n",
-            100 * mean(rel(jt$ceded, jt$ceded.gen) <= 1e-9), nrow(jt)))
+            100 * mean(jt$ceded_ok), nrow(jt)))
 
 # ---- headline numbers ------------------------------------------------------------------------------------
 cat("\n== headline\n")

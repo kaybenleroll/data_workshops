@@ -147,6 +147,13 @@ recovery_plan <- function(data) {
 }
 
 # ---- Unit specifications --------------------------------------------------------------------------
+# Which loss cells a treaty can see: its type responds to the cell's loss class AND the cell's
+# line of business is in its region.
+cell_visible <- function(treaty_type, region, cells) {
+  classes <- responds$loss_type[responds$responds & responds$treaty_type == treaty_type]
+  cells$loss_type %in% classes & cells$lob_id %in% region
+}
+
 # Everything a step needs about one unit, as plain vectors: layer terms, the cap state kind, and
 # cell_ok -- a logical per loss cell (loss class responds AND the cell is in the unit's region).
 unit_spec <- function(unit, data, plan) {
@@ -158,13 +165,11 @@ unit_spec <- function(unit, data, plan) {
                       segment = plan$lob_map$lob_id[plan$lob_map$segment_id == t$scope_id[1]],
                       group = plan$lob_map$lob_id[plan$lob_map$portfolio_id == t$scope_id[1]]),
     none = character(0))
-  ok_type <- responds$responds[match(paste(unit$treaty_type, plan$cells$loss_type),
-                                     paste(responds$treaty_type, responds$loss_type))]
   cap <- if (rule$cap == "premium_linked" && !isTRUE(t$premium_linked_limit[1])) "none" else rule$cap
   list(key = unit$unit_key, type = unit$treaty_type, kernel = rule$kernel, cadence = rule$cadence, cap = cap,
        tidx = match(t$treaty_id, data$treaty_df$treaty_id), attach = t$attachment, limit = t$limit,
        reinst = t$reinstatements, cession = t$cession_pct[1], trigger = t$industry_trigger[1],
-       cell_ok = ok_type & plan$cells$lob_id %in% region)
+       cell_ok = cell_visible(unit$treaty_type, region, plan$cells))
 }
 
 # ---- Kernels: (r, u, used) -> list(mat = n_cells x n_layers ceded, used = new cumulative per layer) ---
@@ -354,6 +359,29 @@ exhaustion <- function(res, data, tol = 1e-9) {
   dplyr::bind_rows(
     lvl(ledg[rule$cadence == "event" & rule$cap == "reinstatement", ], "event_id", "event"),
     lvl(ledg[rule$cadence == "period" | pll, ], "period_id", "period"))
+}
+
+# ---- Reconciliation with the generator ---------------------------------------------------------------
+# Relative difference of two numbers (NA only against NA counts as equal); scaled by max(|a|, |b|, 1).
+rel_diff <- function(a, b) ifelse(is.na(a) & is.na(b), 0, abs(a - b) / pmax(abs(a), abs(b), 1, na.rm = TRUE))
+
+# A run against the generator's flow_df, row by row on (event, treaty, LOB, loss type). Per matched row:
+# relative differences in ceded, retained_after, subject_loss_in and reinstatement_consumed; `ceded_ok`
+# is the ceded test alone, `ok` all four (and NA in the same places). Returns the row table and counts.
+compare_flows <- function(res, data, tol = 1e-9) {
+  key <- c("event_id", "treaty_id", "lob_id", "loss_type")
+  j <- dplyr::full_join(res$ledger, data$flow_df, by = key, suffix = c("", ".gen"))
+  rows <- j |> dplyr::filter(!is.na(period_id), !is.na(period_id.gen)) |>
+    dplyr::mutate(d_ceded = rel_diff(ceded, ceded.gen), d_ret = rel_diff(retained_after, retained_after.gen),
+                  d_subj = rel_diff(subject_loss_in, subject_loss_in.gen),
+                  d_reinst = rel_diff(reinstatement_consumed, reinstatement_consumed.gen),
+                  abs_ceded = abs(ceded - ceded.gen),
+                  na_mismatch = xor(is.na(reinstatement_consumed), is.na(reinstatement_consumed.gen)),
+                  ceded_ok = d_ceded <= tol,
+                  ok = d_ceded <= tol & d_ret <= tol & d_subj <= tol & d_reinst <= tol & !na_mismatch)
+  list(rows = rows, n_engine = nrow(res$ledger), n_generator = nrow(data$flow_df), n_matched_keys = nrow(rows),
+       n_only_engine = sum(is.na(j$period_id.gen)), n_only_generator = sum(is.na(j$period_id)),
+       n_ok = sum(rows$ok), n_ceded_ok = sum(rows$ceded_ok))
 }
 
 # ---- Loss anatomy ------------------------------------------------------------------------------------
