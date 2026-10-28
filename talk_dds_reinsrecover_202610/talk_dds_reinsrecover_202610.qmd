@@ -168,6 +168,58 @@ mega_tblgraph  <- build_inuring_tblgraph(mega_nodes_tbl, mega_edges_tbl)
 ```
 
 
+```{r set_up_mega_engine}
+#| echo: false
+
+source("recover_functions.R", keep.source = TRUE)
+
+mega_data <- load_mega("data_mega")
+mega_res  <- recover_losses(mega_data)
+mega_anat <- loss_anatomy(mega_data, mega_res)
+
+fmt_bn <- label_number(accuracy = 0.1, scale = 1e-9, suffix = "bn")
+fmt_amt <- \(x) if_else(x >= 1e9, fmt_bn(x), fmt_m(x))
+
+# "Casualty Liability (P001 2.1) 17XS5" -> "Casualty Liability 2.1 17XS5"
+short_name <- \(x) str_replace(x, "\\(P001 ([0-9.]+)\\)", "\\1")
+
+type_lbl <- c(
+  quota_share = "Quota share", group_quota_share = "Group quota share",
+  surplus = "Surplus", xol_per_risk = "XoL per risk",
+  xol_per_occurrence = "XoL per occurrence", clash = "Clash",
+  aggregate_xl = "Aggregate XL", stop_loss = "Stop loss", ilw = "ILW"
+  )
+
+# Okabe-Ito: proportional types in blues/greens, excess of loss in oranges
+type_col <- c(
+  group_quota_share = "#0072B2", quota_share = "#56B4E9", surplus = "#009E73",
+  stop_loss = "#CC79A7", xol_per_risk = "#E69F00", xol_per_occurrence = "#D55E00",
+  aggregate_xl = "#F0E442", clash = "#999999", ilw = "#000000"
+  )
+
+class_col <- c(attritional = "#56B4E9", large = "#E69F00", cat = "#D55E00")
+
+slide_theme <- theme(
+  text        = element_text(size = 16),
+  axis.text   = element_text(size = 16),
+  axis.title  = element_text(size = 16),
+  legend.text = element_text(size = 14),
+  strip.text  = element_text(size = 16)
+  )
+
+lob_name_vec <- with(mega_data$lob_df, setNames(name, lob_id))
+
+loss_period_tbl <- gross_by(mega_res, period_id, loss_type) |>
+  mutate(loss_type = factor(loss_type, levels = c("cat", "large", "attritional")))
+
+top_event_tbl   <- gross_by(mega_res, event_id, loss_type, period_id) |>
+  slice_max(gross, n = 1)
+top_event_share <- top_event_tbl$gross / sum(loss_period_tbl$gross)
+
+loss_orders <- round(log10(max(mega_data$loss_df$gross_loss) / min(mega_data$loss_df$gross_loss)))
+```
+
+
 # The Problem
 
 ---
@@ -429,6 +481,168 @@ Reinstatement: limit restored, usually for extra premium
 ---
 
 Capacity = limit $\times$ (1 + reinstatements)
+
+
+# Losses
+
+---
+
+### A Loss Row
+
+::: {.custom-medium}
+```{r show_loss_rows}
+#| echo: false
+
+mega_anat$example_loss_rows |>
+  map(\(d) slice_max(d, gross_loss, n = 1)) |>
+  bind_rows() |>
+  transmute(
+    Event             = str_c(str_sub(event_id, 1, 10), "…"),
+    Period            = period_id,
+    `Line of business` = short_name(lob_name_vec[lob_id]),
+    Class             = loss_type,
+    `Gross loss`      = fmt_amt(gross_loss)
+    ) |>
+  knitr::kable(align = "lllll")
+```
+:::
+
+---
+
+### Attritional: Annual Aggregate per Line
+
+\
+
+
+```{r define_attritional_counts}
+#| echo: false
+
+attr_tbl <- mega_data$loss_df |> filter(loss_type == "attritional")
+
+stopifnot(
+  nrow(attr_tbl) == nrow(mega_data$period_df) * nrow(mega_data$lob_df)
+  )
+```
+
+`r nrow(mega_data$period_df)` periods $\times$ `r nrow(mega_data$lob_df)` lines = `r nrow(attr_tbl)` rows
+
+---
+
+### Large: One Loss, One Line
+
+\
+
+
+```{r define_large_counts}
+#| echo: false
+
+large_tbl <- mega_data$loss_df |> filter(loss_type == "large")
+```
+
+`r nrow(large_tbl)` events
+
+\
+
+
+Largest: `r fmt_bn(max(large_tbl$gross_loss))`
+
+---
+
+### Cat: One Event, Several Lines
+
+::: {.custom-medium}
+```{r show_cat_event}
+#| echo: false
+
+cat_tbl <- mega_anat$example_loss_rows$cat |>
+  arrange(desc(gross_loss)) |>
+  transmute(
+    `Line of business` = short_name(lob_name_vec[lob_id]),
+    `Gross loss`       = fmt_m(gross_loss)
+    )
+
+bind_rows(
+  cat_tbl,
+  tibble(
+    `Line of business` = "Event total",
+    `Gross loss`       = fmt_m(sum(mega_anat$example_loss_rows$cat$gross_loss))
+    )
+  ) |>
+  knitr::kable(align = "lr")
+```
+:::
+
+---
+
+### An Event Has One Class; a Cat Event Has Several Rows
+
+::: {.custom-medium}
+```{r show_rows_per_event}
+#| echo: false
+
+mega_anat$rows_per_event |>
+  transmute(
+    Class        = loss_type,
+    `1 row`      = `1`,
+    `2 rows`     = `2`,
+    `3+ rows`    = `3+`
+    ) |>
+  knitr::kable(align = "lrrr")
+```
+:::
+
+\
+
+
+Events with more than one class: `r mega_anat$events_with_several_loss_types`
+
+---
+
+### One Cat Event Is `r percent(top_event_share, accuracy = 1)` of All Gross Loss
+
+```{r show_gross_by_period}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+ggplot(loss_period_tbl, aes(x = period_id, y = gross, fill = loss_type)) +
+  geom_col(width = 0.7) +
+  annotate(
+    "text", x = 2, y = top_event_tbl$gross, hjust = 0, size = 5.5,
+    label = glue(
+      "{top_event_tbl$period_id}: one {top_event_tbl$loss_type} event\n",
+      "{fmt_bn(top_event_tbl$gross)} = {percent(top_event_share, accuracy = 1)} of all gross loss"
+      )
+    ) +
+  scale_fill_manual(values = class_col, breaks = names(class_col)) +
+  scale_y_continuous(labels = label_number(scale = 1e-9, suffix = "bn")) +
+  labs(x = NULL, y = "Gross loss", fill = NULL) +
+  slide_theme
+```
+
+---
+
+### Losses Span `r loss_orders` Orders of Magnitude
+
+```{r show_loss_sizes}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+mega_data$loss_df |>
+  mutate(loss_type = factor(loss_type, levels = names(class_col))) |>
+  ggplot(aes(x = gross_loss, fill = loss_type)) +
+  geom_histogram(bins = 30, colour = "grey30", linewidth = 0.2, show.legend = FALSE) +
+  facet_wrap(vars(loss_type), ncol = 1, scales = "free_y") +
+  scale_x_log10(
+    breaks = 10^(5:9), labels = label_number(scale_cut = cut_short_scale())
+    ) +
+  scale_fill_manual(values = class_col) +
+  labs(x = "Gross loss (log scale)", y = "Rows") +
+  slide_theme
+```
 
 
 # Treaties as Functions
