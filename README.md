@@ -13,7 +13,7 @@ The five most recent talks I have given, newest first. Hand-maintained: update i
 
 | Date | Title | Link |
 | :--- | :--- | :--- |
-| October 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | [📁 View](./talk_dds_reinsrecover_202610/README.md) |
+| October 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | [📁 View](./talk_dds_reinsrecover_202610/talk_dds_reinsrecover_202610.html) |
 | September 2026 | **How I Learned to Stop Worrying and Love the LLM** | [📁 View](./talk_tcd_hiltswaltl_202609/talk_tcd_202609.html) |
 | July 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | [📁 View](./talk_rr_reinsrecover_202607/talk_rr_reinsrecover_202607.html) |
 | June 2026 | **How I Learned to Stop Worrying and Love the LLM** | [📁 View](./talk_sonia_hiltswaltl_202606/talk_sonia_202606.html) |
@@ -57,7 +57,7 @@ The five most recent talks I have given, newest first. Hand-maintained: update i
 
 | Date | Title | Description | Link |
 | :--- | :--- | :--- | :--- |
-| October 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | Modeling reinsurance treaty recoveries and inuring order with functional code and DAGs. | [📁 View](./talk_dds_reinsrecover_202610/README.md) |
+| October 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | Modeling reinsurance treaty recoveries and inuring order with functional code and DAGs. | [📁 View](./talk_dds_reinsrecover_202610/talk_dds_reinsrecover_202610.html) |
 | July 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | Modeling reinsurance treaty recoveries and inuring order with functional code and DAGs. | [📁 View](./talk_rr_reinsrecover_202607/talk_rr_reinsrecover_202607.html) |
 | June 2024 | **Randomised Portfolios in Insurance** | Using randomized portfolios for risk and performance assessment in insurance. | [📁 View](./talk_idsc_randport_202406/README.md) |
 | February 2022 | **Bond Portfolio** | Modeling and calculating bond portfolio cashflows. | [📁 View](./talk_sai_bondcashflow_202202/README.md) |
