@@ -1,0 +1,1271 @@
+---
+title: "Reckoning on Recoveries"
+subtitle: "Dublin Data Science"
+author: "Mick Cooney <mickcooney@gmail.com>"
+editor: source
+format:
+  revealjs:
+    embed-resources: true
+    theme: night
+    highlight: pygments
+    controls: true
+    center-title-slide: true
+    center: true
+    slide-number: true
+    slide-level: 3
+    show-slide-number: all
+    navigation-mode: vertical
+    progress: true
+    css: styles.css
+    mathjax: true
+---
+
+```{r knit_opts}
+#| include: false
+
+library(conflicted)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(glue)
+library(scales)
+library(cowplot)
+library(gt)
+library(DiagrammeR)
+library(igraph)
+library(ggraph)
+library(tidygraph)
+library(arrow)
+
+
+source("lib_utils.R")
+source("lib_treaties.R")
+
+
+conflict_lst <- resolve_conflicts(
+  c("xml2", "magrittr", "rlang", "dplyr", "readr", "purrr", "ggplot2")
+  )
+
+
+options(
+  width = 80L,
+  warn  = 1,
+  mc.cores = parallel::detectCores()
+  )
+
+
+theme_set(theme_cowplot())
+```
+
+
+```{r set_up_inuring_graph_loss_data}
+#| echo: false
+
+loss_events_tbl     <- read_csv("demo_business/loss_events.csv")
+loss_allocation_tbl <- read_csv("demo_business/loss_allocation_walkthrough.csv")
+
+graph_nodes_tbl <- read_parquet("demo_business/nodes_tbl.parquet")
+graph_edges_tbl <- read_parquet("demo_business/edges_tbl.parquet")
+
+
+inuring_tblgraph <- build_inuring_tblgraph(graph_nodes_tbl, graph_edges_tbl)
+```
+
+
+```{r set_up_basics_examples}
+#| echo: false
+
+qs_cession <- 0.25
+
+qs_tbl <- tibble(gross_loss = c(2e6, 10e6, 40e6)) |>
+  mutate(
+    ceded = qs_recovery(gross_loss, qs_cession),
+    net   = gross_loss - ceded
+    )
+
+tower_loss <- 14e6
+
+tower_tbl <- tibble(
+  layer      = c("L1", "L2"),
+  attachment = c(5e6, 10e6),
+  limit      = c(5e6, 10e6)
+  )
+
+tower_recovery_tbl <- tower_recoveries(tower_loss, tower_tbl) |>
+  transmute(
+    layer,
+    band     = glue("{fmt_limit(limit)}XS{fmt_limit(attachment)}"),
+    recovery
+    )
+
+tower_retained <- tower_loss - sum(tower_recovery_tbl$recovery)
+
+tower_display_tbl <- bind_rows(
+  tibble(
+    layer    = "Retained",
+    band     = glue("Below {fmt_m(min(tower_tbl$attachment))}"),
+    recovery = tower_retained
+    ),
+  tower_recovery_tbl
+  )
+
+period_loss_vec <- c(8e6, 9e6, 10e6)
+layer_attach    <- 5e6
+layer_limit     <- 5e6
+n_reinstate     <- 1
+
+period_tbl <- tibble(
+  event_loss    = period_loss_vec,
+  occurrence    = period_recoveries(period_loss_vec, layer_attach, layer_limit),
+  reinstatement = period_recoveries(
+    period_loss_vec, layer_attach, layer_limit,
+    cap = layer_limit * (1 + n_reinstate)
+    ),
+  aggregate     = period_recoveries(
+    period_loss_vec, layer_attach, layer_limit,
+    cap = layer_limit
+    )
+  )
+
+order_loss    <- 10e6
+order_cession <- 0.30
+
+order_qs  <- \(x) qs_recovery(x, order_cession)
+order_xol <- \(x) xol_recovery(x, attachment = 5e6, limit = 5e6)
+
+order_tbl <- tibble(
+  sequence = c("QS then XoL", "XoL then QS"),
+  result   = list(
+    apply_in_order(order_loss, list(order_qs, order_xol)),
+    apply_in_order(order_loss, list(order_xol, order_qs))
+    )
+  ) |>
+  mutate(
+    first_ceded  = map_dbl(result, \(r) r$ceded[1]),
+    second_ceded = map_dbl(result, \(r) r$ceded[2]),
+    total_ceded  = first_ceded + second_ceded,
+    net          = map_dbl(result, "subject")
+    )
+```
+
+
+```{r set_up_synthetic_data}
+#| echo: false
+
+synth_dir <- "data_synthreins"
+
+read_stats <- function(path) {
+  read_csv(path, show_col_types = FALSE) |>
+    deframe() |>
+    as.list()
+}
+
+mega_stats_lst  <- read_stats(glue("{synth_dir}/realistic_mega/stats.csv"))
+
+mega_nodes_tbl <- read_parquet(glue("{synth_dir}/realistic_mega/nodes_tbl.parquet"))
+mega_edges_tbl <- read_parquet(glue("{synth_dir}/realistic_mega/edges_tbl.parquet"))
+mega_tblgraph  <- build_inuring_tblgraph(mega_nodes_tbl, mega_edges_tbl)
+```
+
+
+```{r set_up_class_engine}
+#| echo: false
+
+# Region x line loss classes, perils, events, risks; explicit inuring engine.
+# Everything below is computed at render time from fixed seeds (about 1.5 s).
+source("class_model.R", keep.source = TRUE)
+source("class_engine.R", keep.source = TRUE)
+
+cw      <- class_world()
+cres    <- run_inuring_engine(cw)
+gen_res <- run_inuring_engine(cw, cw$inuring_generator, on_invalid = "ignore")
+ord_chk <- order_sensitivity(cw, cw$inuring, n_random = 20)
+
+treaty_tbl <- cw$data$treaty_df
+cls_tbl    <- cw$class_table
+
+fmt_bn  <- label_number(accuracy = 0.1, scale = 1e-9, suffix = "bn")
+fmt_bn2 <- label_number(accuracy = 0.01, scale = 1e-9, suffix = "bn")
+fmt_amt <- \(x) if_else(x >= 1e9, fmt_bn(x), fmt_m(x))
+fmt_m0  <- label_number(accuracy = 1, scale = 1e-6, suffix = "m")
+
+# "Casualty Liability (P001 2.1) 17XS5" -> "Casualty Liability 2.1 17XS5"
+short_name <- \(x) {
+  x |>
+    str_replace("\\(P001 ([0-9.]+)\\)", "\\1") |>
+    str_replace("^P001 Segment", "Segment") |>
+    str_replace("^Portfolio 001", "Portfolio")
+}
+
+type_lbl <- c(
+  quota_share = "Quota share", group_quota_share = "Group quota share",
+  surplus = "Surplus", xol_per_risk = "XoL per risk",
+  xol_per_occurrence = "XoL per occurrence", clash = "Clash",
+  aggregate_xl = "Aggregate XL", stop_loss = "Stop loss", ilw = "ILW"
+  )
+
+# Okabe-Ito: proportional types in blues/greens, excess of loss in oranges
+type_col <- c(
+  group_quota_share = "#0072B2", quota_share = "#56B4E9", surplus = "#009E73",
+  stop_loss = "#CC79A7", xol_per_risk = "#E69F00", xol_per_occurrence = "#D55E00",
+  aggregate_xl = "#F0E442", clash = "#999999", ilw = "#000000"
+  )
+
+peril_col <- c(
+  Earthquake = "#D55E00", Windstorm = "#0072B2", Flood = "#56B4E9",
+  Fire = "#E69F00", Liability = "#009E73", Cyber = "#CC79A7",
+  Marine = "#F0E442", Background = "grey70"
+  )
+
+region_tbl <- region_table()
+geo_col <- c(
+  "North America" = "#0072B2", "Europe" = "#E69F00", "UK & Ireland" = "#009E73",
+  "Asia Pacific" = "#D55E00", "Latin America" = "#CC79A7",
+  "Middle East & Africa" = "#56B4E9"
+  )
+
+slide_theme <- theme(
+  text        = element_text(size = 16),
+  axis.text   = element_text(size = 16),
+  axis.title  = element_text(size = 16),
+  legend.text = element_text(size = 14),
+  strip.text  = element_text(size = 16)
+  )
+
+# one label per class for charts: line | region code
+cls_lbl <- cls_tbl |>
+  left_join(region_tbl |> select(region, region_code), by = "region") |>
+  transmute(class_id, label = str_c(lob, " | ", region_code))
+
+peril_event_tbl <- cw$events_sim |>
+  filter(kind == "peril")
+
+event_peril_tbl <- cw$events_sim |>
+  mutate(peril = if_else(kind == "background", "Background", peril))
+```
+
+
+```{r set_up_loss_examples}
+#| echo: false
+
+# the largest event, its classes, and the biggest class split into risks
+big_event <- peril_event_tbl |> slice_max(gross, n = 1)
+
+big_class_tbl <- cres$rows |>
+  filter(event_id == big_event$event_id) |>
+  summarise(
+    n_risks = n(), gross = sum(gross_loss), largest = max(gross_loss),
+    .by = c(class_id, region)
+    ) |>
+  arrange(desc(gross)) |>
+  left_join(cls_lbl, by = "class_id")
+
+big_class_rows <- cres$rows |>
+  filter(event_id == big_event$event_id, class_id == big_class_tbl$class_id[1]) |>
+  arrange(desc(gross_loss))
+
+total_gross  <- sum(cres$rows$gross_loss)
+big_share    <- big_event$gross / total_gross
+loss_orders  <- round(log10(max(cres$rows$gross_loss) / min(cres$rows$gross_loss)))
+
+period_peril_tbl <- cw$events_sim |>
+  mutate(peril = if_else(kind == "background", "Background", peril)) |>
+  summarise(gross = sum(gross), .by = c(period_id, peril)) |>
+  mutate(peril = factor(peril, levels = names(peril_col)))
+
+stopifnot(abs(sum(period_peril_tbl$gross) - total_gross) < 1)
+```
+
+
+```{r set_up_orchestration_examples}
+#| echo: false
+
+bridge_tbl <- cw$bridge
+
+treaties_per_class <- bridge_tbl |> count(class_id, name = "n")
+classes_per_treaty <- bridge_tbl |> count(treaty_id, name = "n")
+
+# one treaty = a filter (lines x regions); the classes it expands to
+filter_pick <- cw$filters |>
+  left_join(classes_per_treaty |> rename(n_classes = n), by = "treaty_id") |>
+  filter(
+    treaty_type %in% c("xol_per_risk", "xol_per_occurrence", "clash"),
+    n_lobs >= 2, n_regions >= 2, between(n_classes, 4, 6)
+    ) |>
+  arrange(desc(restricted), treaty_id) |>
+  slice(1)
+
+filter_name <- short_name(treaty_tbl$name[match(filter_pick$treaty_id, treaty_tbl$treaty_id)])
+
+filter_class_tbl <- bridge_tbl |>
+  filter(treaty_id == filter_pick$treaty_id) |>
+  left_join(cls_tbl |> select(class_id, lob, region), by = "class_id") |>
+  transmute(`Line of business` = lob, Region = region)
+
+# the widest event: how many treaties see it, how many pay
+anat <- loss_anatomy2(cres)
+wide <- anat$examples$widest
+
+# six rows of the explicit inuring table
+inuring_show_tbl <- cw$inuring |>
+  mutate(h = hash_unif(paste(from_treaty_id, to_treaty_id), "show")) |>
+  arrange(h) |>
+  slice_head(n = 6) |>
+  transmute(
+    `Child (net of its parent)` = short_name(to_name),
+    Parent = short_name(from_name)
+    ) |>
+  select(Parent, `Child (net of its parent)`)
+
+# A -> B -> C in the generator's table with A -> C missing although A and C share classes
+gen_tbl <- cw$inuring_generator
+pair_tbl <- unit_pairs(cw$bridge, treaty_tbl)
+chain_tbl <- gen_tbl |>
+  inner_join(
+    gen_tbl, by = c("to_treaty_id" = "from_treaty_id"),
+    suffix = c("_ab", "_bc"), relationship = "many-to-many"
+    ) |>
+  transmute(
+    a = from_treaty_id, b = to_treaty_id, z = to_treaty_id_bc,
+    ta = from_type_ab, tb = to_type_ab, tz = to_type_bc,
+    na = from_name_ab, nb = to_name_ab, nz = to_name_bc
+    ) |>
+  filter(
+    a != z, ta != tb, tb != tz, ta != tz,
+    !paste(a, z) %in% paste(gen_tbl$from_treaty_id, gen_tbl$to_treaty_id),
+    pair_key(a, z) %in% pair_key(pair_tbl$a, pair_tbl$b)
+    ) |>
+  mutate(h = hash_unif(paste(a, b, z), "chain")) |>
+  arrange(h) |>
+  slice(1)
+
+# a loss row where a proportional treaty and an excess-of-loss treaty both pay
+both_row <- cres$ledger |>
+  filter(ceded > 0) |>
+  mutate(proportional = treaty_type %in% c("quota_share", "group_quota_share", "surplus")) |>
+  summarise(
+    n_pay = n(), any_prop = any(proportional),
+    any_xol = any(treaty_type %in% c("xol_per_risk", "xol_per_occurrence", "clash")),
+    gross = cres$rows$gross_loss[first(row_id)],
+    .by = row_id
+    ) |>
+  filter(n_pay == 2, any_prop, any_xol) |>
+  slice_max(gross, n = 1, with_ties = FALSE)
+
+both_tbl <- bind_rows(
+  tibble(Step = "Gross loss", `Subject loss` = both_row$gross, Ceded = NA_real_),
+  cres$ledger |>
+    filter(row_id == both_row$row_id, ceded > 0) |>
+    arrange(desc(subject_loss_in)) |>
+    transmute(
+      Step = str_c(type_lbl[treaty_type], ": ", short_name(treaty_name)),
+      `Subject loss` = subject_loss_in, Ceded = ceded
+      ),
+  tibble(
+    Step = "Net loss", `Subject loss` = cres$rows$net_loss[both_row$row_id], Ceded = NA_real_
+    )
+  )
+
+stopifnot(near(both_row$gross - sum(both_tbl$Ceded, na.rm = TRUE), both_tbl$`Subject loss`[4]))
+
+# the generator's thin table against the repaired one
+gen_diag    <- inuring_diagnostics(cw, cw$inuring_generator, gen_res)
+gen_oc      <- over_recovery(gen_res)
+gen_neg_ev  <- gen_res$rows |>
+  filter(net_loss < -1e-9 * pmax(1, gross_loss)) |>
+  summarise(n = n_distinct(event_id)) |>
+  pull(n)
+rep_oc      <- over_recovery(cres)
+
+# peer exceptions that keep the outcome valid
+peer_tbl <- pick_valid_peer_exceptions(cw, n = 3, base = cres)
+peer_searched <- attr(peer_tbl, "searched")
+peer_res <- run_inuring_engine(apply_peer_exceptions(cw, peer_tbl), on_invalid = "ignore")
+peer_oc  <- over_recovery(peer_res)
+
+# ceded before and after, from the primary run and the run with all exceptions applied together
+peer_tbl <- peer_tbl |>
+  mutate(
+    ceded_before = map_dbl(to_treaty_id, \(id) sum(cres$ledger$ceded[cres$ledger$treaty_id == id])),
+    ceded_after  = map_dbl(to_treaty_id, \(id) sum(peer_res$ledger$ceded[peer_res$ledger$treaty_id == id]))
+    )
+
+order_worst <- ord_chk$worst$max_abs_row_diff
+n_orders    <- nrow(ord_chk$table)
+```
+
+
+```{r set_up_class_summary}
+#| echo: false
+
+# provenance of the treaty structure, read from the data directory's README: tier / seed / periods
+mega_prov <- readLines("data_mega/README.md") |>
+  str_subset(fixed("Tier / seed / phase / periods")) |>
+  str_match("`(\\w+)` / (\\d+) / .* / (\\d+) \\|")
+
+mega_tier    <- mega_prov[1, 2]
+mega_seed    <- mega_prov[1, 3]
+
+# headline totals, and the conservation check gross = net + ceded
+tot_gross <- sum(cres$rows$gross_loss)
+tot_net   <- sum(cres$rows$net_loss)
+tot_ceded <- sum(cres$ledger$ceded)
+
+stopifnot(
+  abs(tot_gross - tot_net - tot_ceded) < 1,
+  as.integer(mega_prov[1, 4]) == nrow(cw$data$period_df),
+  nrow(treaty_tbl) == mega_stats_lst$treaties,
+  nrow(cw$data$edges_df) == mega_stats_lst$edges
+  )
+
+ceded_type_tbl <- recoveries_by(cres, treaty_type) |>
+  arrange(desc(ceded))
+
+prop_share <- ceded_type_tbl |>
+  filter(treaty_type %in% c("quota_share", "group_quota_share", "surplus")) |>
+  pull(ceded) |>
+  sum() / tot_ceded
+
+top_treaty_tbl <- recoveries_by(cres, treaty_id, treaty_name, treaty_type) |>
+  slice_max(ceded, n = 10) |>
+  mutate(label = short_name(treaty_name))
+
+exhausted_tbl <- exhaustion(cres) |>
+  filter(exhausted) |>
+  count(level, treaty_type)
+
+inv_tbl <- engine_invariants(cw, cres, ord_chk)
+
+# the biggest event, step by step in order of application (a tower is one step)
+trace_event <- big_event$event_id
+trace_gross <- big_event$gross
+trace_net   <- cres$events |> filter(event_id == trace_event) |> pull(net)
+
+trace_unit_tbl <- cres$ledger |>
+  filter(event_id == trace_event, ceded > 0) |>
+  mutate(unit = cres$treaties$unit[match(treaty_id, cres$treaties$treaty_id)]) |>
+  summarise(ceded = sum(ceded), .by = unit) |>
+  left_join(cres$units |> select(unit, name, treaty_type), by = "unit") |>
+  mutate(position = match(unit, cres$order))
+
+trace_top_tbl <- trace_unit_tbl |>
+  slice_max(ceded, n = 5, with_ties = FALSE) |>
+  arrange(position)
+
+trace_other_tbl <- trace_unit_tbl |>
+  filter(!unit %in% trace_top_tbl$unit) |>
+  summarise(ceded = sum(ceded), n = n())
+
+trace_payer_tbl <- bind_rows(
+  trace_top_tbl |> transmute(step = short_name(name), ceded, treaty_type),
+  trace_other_tbl |>
+    transmute(step = str_c(n, " other treaties"), ceded, treaty_type = "other")
+  )
+
+stopifnot(abs(trace_gross - sum(trace_payer_tbl$ceded) - trace_net) < 1)
+```
+
+
+# The Problem
+
+---
+
+![](img/hurricane_andrew.jpg){fig-align="center" height="600px"}
+
+::: {.photo-credit}
+Photo: Miami Herald
+:::
+
+---
+
+Who pays what?
+
+---
+
+
+```{r show_mega_dag}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 6
+#| fig-align: center
+
+mega_layout <- layout_fr_seeded(mega_tblgraph, seed = 2003)
+
+plot_inuring_dag(mega_tblgraph, mega_layout, label_col = "treaty_id", label_size = 1.6)
+```
+
+---
+
+`r mega_stats_lst$treaties` treaties
+
+\
+
+`r mega_stats_lst$edges` inuring edges
+
+\
+
+
+The calculation later uses a validated table
+
+---
+
+How to allocate losses across treaties?
+
+---
+
+::: {.custom-medium}
+```{r show_loss_events}
+#| echo: false
+
+loss_events_tbl |>
+  transmute(
+    event_id, description, gross_loss = scales::label_currency()(gross_loss)
+    ) |>
+  knitr::kable(align = "llr")
+```
+:::
+
+
+
+
+# Reinsurance Basics
+
+---
+
+*Cedants*
+
+\
+
+
+transfer premium/risk to
+
+\
+
+
+*Reinsurers*
+
+---
+
+Capacity
+
+\
+
+
+Volatility
+
+\
+
+
+Capital
+
+---
+
+$$
+\text{Gross Loss} = \text{Ceded} + \text{Retained}
+$$
+
+
+
+### Quota Share (QS)
+
+\
+
+
+Proportional
+
+\
+
+
+Share of premium and losses
+
+---
+
+25% Quota Share
+
+\
+
+
+```{r show_qs_example}
+#| echo: false
+
+qs_tbl |>
+  transmute(
+    `Gross loss`  = fmt_m(gross_loss),
+    !!glue("Ceded ({percent(qs_cession)} QS)") := fmt_m(ceded),
+    `Net retained` = fmt_m(net)
+    ) |>
+  knitr::kable(align = "rrr")
+```
+
+
+### Excess of Loss (XoL)
+
+\
+
+Non-proportional: pays only above *attachment*
+
+\
+
+
+Paid upfront
+
+\
+
+
+*Limit* XS *Attach*
+
+---
+
+14m Loss
+
+\
+
+
+```{r show_tower_example}
+#| echo: false
+
+tower_display_tbl |>
+  transmute(Layer = layer, Band = band, Recovery = fmt_m(recovery)) |>
+  knitr::kable(align = "llr")
+```
+
+---
+
+Who pays at each loss size
+
+```{r show_tower_allocation}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5.6
+#| fig-align: center
+
+region_lvl <- c("Above tower", tower_tbl$layer[2], tower_tbl$layer[1], "Retention")
+region_lbl <- c(
+  "Retention"   = "Retained by cedant",
+  setNames(
+    glue("{tower_tbl$layer} ({fmt_limit(tower_tbl$limit)}XS{fmt_limit(tower_tbl$attachment)})"),
+    tower_tbl$layer
+    ),
+  "Above tower" = "Above tower (cedant)"
+  )
+region_col <- c(
+  "Retention" = "grey60", "L1" = "#0072B2", "L2" = "#E69F00", "Above tower" = "grey90"
+  )
+
+alloc_loss_vec <- c(3e6, 7e6, 12e6, 20e6, 25e6)
+tower_top      <- max(tower_tbl$attachment + tower_tbl$limit)
+
+# The tower bar: each region at its true height (retention is everything below the first layer)
+tower_bar_tbl <- bind_rows(
+  tibble(region = "Retention", amount = min(tower_tbl$attachment)),
+  tower_tbl |> transmute(region = layer, amount = limit)
+  ) |>
+  mutate(bar = "Tower")
+
+alloc_tbl <- tibble(gross_loss = alloc_loss_vec) |>
+  mutate(allocation = map(gross_loss, tower_allocation, layers = tower_tbl)) |>
+  unnest(allocation) |>
+  mutate(bar = fmt_limit(gross_loss) |> paste0("m"))
+
+# Every loss is fully allocated: retention + recoveries + above tower = gross loss
+stopifnot(
+  alloc_tbl |>
+    summarise(total = sum(amount), .by = c(gross_loss)) |>
+    summarise(all(near(total, gross_loss))) |>
+    pull(),
+  near(sum(tower_bar_tbl$amount), tower_top)
+  )
+
+bar_lvl <- c("Tower", unique(alloc_tbl$bar))
+
+bind_rows(tower_bar_tbl, alloc_tbl) |>
+  mutate(
+    region = factor(region, levels = region_lvl),
+    bar    = factor(bar, levels = bar_lvl)
+    ) |>
+  ggplot(aes(x = bar, y = amount, fill = region)) +
+    geom_col(
+      aes(linetype = region),
+      position = "stack", colour = "grey30", linewidth = 0.4, width = 0.7
+      ) +
+    geom_hline(
+      yintercept = c(tower_tbl$attachment, tower_top),
+      linetype = "dotted", colour = "grey40"
+      ) +
+    scale_fill_manual(values = region_col, labels = region_lbl, breaks = rev(region_lvl)) +
+    scale_linetype_manual(
+      values = c("Retention" = "solid", "L1" = "solid", "L2" = "solid", "Above tower" = "dashed"),
+      guide = "none"
+      ) +
+    scale_y_continuous(
+      breaks = c(0, tower_tbl$attachment, tower_top, max(alloc_loss_vec)),
+      labels = \(x) fmt_limit(x) |> paste0("m")
+      ) +
+    labs(x = "Gross loss", y = NULL, fill = NULL) +
+    theme(
+      text            = element_text(size = 16),
+      axis.text       = element_text(size = 16),
+      axis.title      = element_text(size = 16),
+      legend.text     = element_text(size = 14),
+      legend.position = "right"
+      )
+```
+
+
+
+### Limits and Reinstatements
+
+---
+
+Occurrence limit: single event
+
+\
+
+
+Aggregate limit: all events
+
+\
+
+
+Reinstatement: limit restored, usually for extra premium
+
+---
+
+Capacity = limit $\times$ (1 + reinstatements)
+
+
+# Data
+
+## Losses
+
+---
+
+### Loss Class
+
+\
+
+
+::: {.custom-medium}
+```{r show_class_examples}
+#| echo: false
+
+cls_tbl |>
+  head(10) |>
+  transmute(
+    `Loss Class`    = class_id,
+    `Premium`       = scales::label_currency()(premium),
+    `Expected Loss` = scales::label_currency()(expected_loss)
+    ) |>
+  knitr::kable(align = "lrr")
+```
+:::
+
+---
+
+### Orders of Magnitude
+
+\
+
+
+```{r show_loss_sizes}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+cres$rows |>
+  ggplot(aes(x = gross_loss)) +
+  geom_histogram(bins = 40, fill = "#56B4E9", colour = "grey30", linewidth = 0.2) +
+  scale_x_log10(
+    breaks = 10^(3:9), labels = label_number(scale_cut = cut_short_scale())
+    ) +
+  labs(x = "Gross loss per risk (log scale)", y = "Loss rows") +
+  slide_theme
+```
+
+## Treaty Data
+
+\
+
+
+::: {.custom-small}
+
+```{r show_treaty_data}
+#| echo: false
+
+treaty_tbl |>
+  head(10) |>
+  transmute(
+    `Treaty ID` = treaty_id,
+    `Type`      = treaty_type,
+    `Name`      = name,
+    `Attach`    = attachment,
+    `Limit`     = limit,
+    `Cession`   = cession_pct
+    ) |>
+  knitr::kable(align = "lllrrr")
+  
+```
+:::
+
+
+## Treaty Coverage
+
+\
+
+
+::: {.custom-small}
+
+```{r show_treaty_coverage_data}
+#| echo: false
+
+bridge_tbl |>
+  head(10) |>
+  transmute(
+    `Treaty` = treaty_id,
+    `Class`  = class_id
+    ) |>
+  knitr::kable(align = "ll")
+```
+:::
+
+
+# Treaties as Functions
+
+---
+
+$$
+Treaty: \text{Losses} \rightarrow \text{Recoveries}
+$$
+
+
+## Recovery Accounting
+
+---
+
+### 10XS10 XoL
+
+\
+
+
+10 million excess of 10 million
+
+---
+
+| Segment      | Gross Loss |
+|--------------|-----------:|
+| Construction |       5.0M |
+| Legal        |      10.0M |
+| I.T.         |       5.0M |
+|              |            |
+| Total        |      20.0M |
+
+
+---
+
+Treaty recovers 10M
+
+---
+
+How do we allocate them?
+
+---
+
+| Segment      | Treaty  | Recovery |
+|--------------|---------|---------:|
+| Construction | 10XS10  |     2.5M |
+| Legal        | 10XS10  |     5.0M |
+| I.T.         | 10XS10  |     2.5M |
+|              |         |          |
+| Total        | 10XS10  |    10.0M |
+
+
+---
+
+### 25% QS
+
+\
+
+
+25% quota-share (often with a limit)
+
+---
+
+| Segment      | Gross Loss |
+|--------------|-----------:|
+| Construction |       5.0M |
+| Legal        |      10.0M |
+| I.T.         |       5.0M |
+|              |            |
+| Total        |      20.0M |
+
+
+---
+
+Treaty recovers 5M
+
+---
+
+
+| Segment      | Treaty  | Recovery |
+|--------------|---------|---------:|
+| Construction | 25% QS  |    1.25M |
+| Legal        | 25% QS  |    2.50M |
+| I.T.         | 25% QS  |    1.25M |
+|              |         |          |
+| Total        | 25% QS  |    5.00M |
+
+
+
+# Inuring
+
+---
+
+Sequencing of treaties
+
+
+## Gross / Subject Losses
+
+---
+
+Subject Loss = Gross Loss - Inuring Recoveries
+
+---
+
+```{r show single_node_connected}
+#| echo: false
+
+target_node <- "XOL02_L1"  # node name/value to match
+
+node_id <- inuring_tblgraph |>
+  activate(nodes) |>
+  as_tibble() |>
+  mutate(row_id = row_number()) |>
+  filter(treaty_id == target_node) |>
+  pull(row_id)
+
+treaty_subgraph <- inuring_tblgraph |>
+  convert(
+    to_local_neighborhood,
+    node  = node_id,
+    order = 1,
+    mode  = "in"
+    )
+
+treaty_subgraph |>
+  ggraph(layout = "stress") +
+  geom_edge_link(arrow = arrow(length = unit(3, "mm")), end_cap = circle(3, "mm")) +
+  geom_node_label(aes(label = treaty_id)) +
+  theme_graph()
+```
+
+
+
+
+## Topological Sort
+
+
+---
+
+Inuring graph dictates calculation order
+
+---
+
+```{r show_full_graph}
+#| echo: false
+
+graph_layout <- inuring_tblgraph |> igraph::layout_with_fr()
+
+ggraph(inuring_tblgraph, layout = graph_layout) +
+  geom_edge_link(
+    arrow  = arrow(angle = 14, type = "closed"),
+    colour = "darkgrey"
+    ) +
+  geom_node_label(
+    aes(label = treaty_id),
+    size  = 2,
+    repel = FALSE
+    ) +
+  scale_x_continuous(expand = expansion(0.03)) +
+  theme_graph()
+
+```
+
+---
+
+::: {.custom-small}
+```{r show_inuring_sort}
+#| echo: false
+
+topo_order <- inuring_tblgraph |>
+  igraph::topo_sort(mode = "out")
+
+inuring_tblgraph |>
+  activate(nodes) |>
+  as_tibble() |>
+  slice(as.integer(topo_order)) |>
+  transmute(
+    calc_order = row_number(),
+    treaty_id, treaty_type, treaty_label, description
+    ) |>
+  head(15) |>
+  knitr::kable()
+
+```
+:::
+
+
+# Orchestration
+
+---
+
+
+::: {.custom-small}
+```
+1. Construct graph
+2. Construct treaty functions
+3. Determine treaty/loss coverage
+4. Topological sort
+5. Loop over each node:
+
+    a. List inuring treaties
+    b. List inuring losses/recoveries
+    c. Keep covered losses/recoveries
+    d. Calculate subject losses
+    e. Calculate recoveries
+
+6. Gather all per-node outputs
+7. Construct outputs
+```
+:::
+
+---
+
+Treaty / Loss coverage non-trivial
+
+---
+
+Multiple ways to determine coverage
+
+\
+
+
+Many-to-many relationship
+
+---
+
+```{r show_bridge_counts}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 4.6
+#| fig-align: center
+
+count_plot <- function(d, xlab, fill, cap) {
+  d |>
+    mutate(n = pmin(n, cap)) |>
+    ggplot(aes(x = n)) +
+      geom_bar(fill = fill, colour = "grey30", linewidth = 0.2, width = 0.9) +
+      scale_x_continuous(
+        breaks = seq(0, cap, by = 4),
+        labels = \(x) if_else(x == cap, str_c(x, "+"), as.character(x))
+        ) +
+      labs(x = xlab, y = NULL) +
+      slide_theme
+}
+
+plot_grid(
+  count_plot(classes_per_treaty, "Classes per treaty", "#0072B2", cap = 16),
+  count_plot(treaties_per_class, "Treaties per class", "#E69F00", cap = 24)
+  )
+```
+
+---
+
+Gross / net premium losses
+
+\
+
+
+Organisation unit
+
+\
+
+
+Regulatory authority
+
+
+
+
+
+# Running the Numbers
+
+---
+
+### All the Losses, Gross to Net
+
+```{r show_gross_net_by_period}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+period_sum_tbl <- class_summary(cres, period_id)
+top_period <- period_sum_tbl |> slice_max(gross, n = 1)
+
+period_sum_tbl |>
+  ggplot(aes(x = period_id)) +
+    geom_segment(aes(xend = period_id, y = net, yend = gross), colour = "grey50", linewidth = 1.2) +
+    geom_point(aes(y = gross, colour = "Gross"), size = 5) +
+    geom_point(aes(y = net, colour = "Net"), size = 5) +
+    annotate(
+      "text", x = top_period$period_id, y = top_period$gross * 1.5, size = 5,
+      label = glue("{str_to_lower(big_event$peril)}: {fmt_bn(big_event$gross)}")
+      ) +
+    scale_colour_manual(values = c("Gross" = "#D55E00", "Net" = "#0072B2")) +
+    scale_y_log10(
+      breaks = c(0.5, 1, 2, 5, 10) * 1e9,
+      labels = label_number(scale = 1e-9, suffix = "bn", drop0trailing = TRUE),
+      expand = expansion(mult = c(0.1, 0.2))
+      ) +
+    labs(x = NULL, y = "Loss (log scale)", colour = NULL) +
+    slide_theme
+```
+
+---
+
+
+### Top 10 Treaties by Ceded
+
+```{r show_top_treaties}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+top_treaty_tbl |>
+  mutate(label = fct_reorder(label, ceded)) |>
+  ggplot(aes(x = ceded, y = label, fill = treaty_type)) +
+    geom_col() +
+    geom_text(aes(label = fmt_bn2(ceded)), hjust = -0.15, size = 5) +
+    scale_x_continuous(
+      labels = label_number(scale = 1e-9, suffix = "bn"),
+      expand = expansion(mult = c(0, 0.15))
+      ) +
+    scale_fill_manual(values = type_col, labels = type_lbl) +
+    labs(x = "Ceded", y = NULL, fill = NULL) +
+    slide_theme +
+    theme(legend.position = c(0.72, 0.2))
+```
+
+---
+
+### Exhaustion
+
+\
+
+
+```{r show_exhaustion}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 4.8
+#| fig-align: center
+
+exhausted_tbl |>
+  mutate(
+    level = factor(
+      level, levels = c("risk", "event", "period", "cap"),
+      labels = c("Per risk", "Per event", "Per period", "Reinstatements used up")
+      ),
+    treaty_type = fct_reorder(treaty_type, n, .fun = sum)
+    ) |>
+  ggplot(aes(x = n, y = treaty_type, fill = level)) +
+    geom_col() +
+    geom_text(
+      aes(label = if_else(n >= 8, as.character(n), "")),
+      position = position_stack(vjust = 0.5), size = 5, colour = "black"
+      ) +
+    geom_text(
+      data = exhausted_tbl |> summarise(n = sum(n), .by = treaty_type),
+      aes(label = n, fill = NULL), hjust = -0.3, size = 5.5
+      ) +
+    scale_x_continuous(expand = expansion(mult = c(0, 0.18))) +
+    scale_y_discrete(labels = type_lbl) +
+    scale_fill_manual(values = c(
+      "Per risk" = "#E69F00", "Per event" = "#D55E00",
+      "Per period" = "#0072B2", "Reinstatements used up" = "#56B4E9"
+      )) +
+    labs(x = "Limits exhausted (ceded summed first, then compared)", y = NULL, fill = NULL) +
+    slide_theme +
+    theme(legend.position = c(0.7, 0.25))
+```
+
+---
+
+### Loss Apportionment
+
+\
+
+
+```{r show_event_trace}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 5
+#| fig-align: center
+
+trace_step_tbl <- bind_rows(
+  tibble(step = "Gross loss", xmin = 0, xmax = trace_gross, kind = "gross", label = fmt_bn(trace_gross)),
+  trace_payer_tbl |>
+    mutate(xmax = trace_gross - lag(cumsum(ceded), default = 0), xmin = xmax - ceded) |>
+    transmute(step, xmin, xmax, kind = treaty_type, label = str_c("-", fmt_amt(ceded))),
+  tibble(step = "Net loss", xmin = 0, xmax = trace_net, kind = "net", label = fmt_bn(trace_net))
+  ) |>
+  mutate(step = factor(step, levels = rev(step)), row = as.integer(step))
+
+ggplot(trace_step_tbl) +
+  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = row - 0.4, ymax = row + 0.4, fill = kind)) +
+  geom_text(aes(x = xmax, y = row, label = label), hjust = -0.1, size = 5) +
+  scale_y_continuous(breaks = seq_along(levels(trace_step_tbl$step)), labels = levels(trace_step_tbl$step)) +
+  scale_x_continuous(
+    labels = label_number(scale = 1e-9, suffix = "bn"),
+    expand = expansion(mult = c(0, 0.2))
+    ) +
+  scale_fill_manual(
+    values = c(type_col, gross = "grey35", net = "grey15", other = "grey60"),
+    breaks = unique(trace_payer_tbl$treaty_type[trace_payer_tbl$treaty_type != "other"]),
+    labels = \(x) unname(type_lbl[x])
+    ) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  slide_theme +
+  theme(legend.position = "bottom")
+```
+
+---
+
+### The Invariants Hold
+
+::: {.custom-medium}
+```{r show_invariants}
+#| echo: false
+
+inv_tbl |>
+  transmute(
+    Check  = check |> str_replace_all(c(">=" = "\u2265", "<=" = "\u2264")),
+    Result = if_else(pass, "PASS", "FAIL")
+    ) |>
+  knitr::kable(align = "lr")
+```
+:::
+
+
+# Questions
+
+\
+
+
+<mickcooney@gmail.com>
+
+\
+
+
+<https://github.com/kaybenleroll/data_workshops/talk_dds_reinsrecover_202610>
+

@@ -1,0 +1,66 @@
+/* Left-align lists within Reveal.js slides */
+.reveal .slides section ul,
+.reveal .slides section ol {
+  text-align: left !important;
+  margin-left: 0 !important;
+  padding-left: 1.2em; /* ensure bullets are visible */
+}
+
+/* Optional: left-align list items themselves */
+.reveal .slides section li {
+  text-align: left !important;
+}
+* {
+  text-align: center;
+}
+
+.reveal table {
+  font-size: 80%;
+}
+
+.custom-small table {
+  font-size: .35em;
+}
+
+.custom-medium table {
+  font-size: .65em;
+}
+
+pre code {
+  text-align: left;
+}
+
+/* Small font for code blocks */
+.small-code pre code {
+  font-size: 0.7em;
+  line-height: 1.2;
+}
+
+/* Smaller still, for long single lines */
+.reveal .tiny-code pre code,
+.reveal .tiny-code div.sourceCode pre code {
+  font-size: 0.7em !important;
+  line-height: 1.2;
+}
+
+.left-align {
+  text-align: left !important;
+}
+
+.left-align p,
+.left-align ul,
+.left-align ol {
+  text-align: left;
+}
+
+/* Photo credit overlay, bottom-right of an image slide */
+.reveal .photo-credit {
+  position: absolute;
+  right: 0.5em;
+  bottom: 0.5em;
+  font-size: 0.5em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+}

@@ -1,0 +1,8 @@
+event_id,description,entry_treaty,gross_loss,generator_event_id,scenario
+EV01,Attritional single-LOB event on Specialty Credit [simple proportional],SUR02,2533260.7674028706,event_dc1b78fbbb9d8aad,attritional
+EV02,Large single-LOB event on Casualty Umbrella [layer exhaustion],XR01_L1,42353548.471180856,event_e0fa3a615d4fbb52,exhaustion
+EV03,Large single-LOB event on Casualty Umbrella [reinstatement consumed],XR01_L1,13870881.078856582,event_81c5558e8cf92ca9,reinstatement
+EV04,Cat multi-LOB event on Property Cat [cat across LOBs],SUR03,221978154.85643443,event_fc8f4dc1c3ac143b,cat_multi_lob
+EV05,Cat multi-LOB event on Specialty Credit + Property Cat [XoL / proportional / XoL sandwich],SUR02,64339499.29311234,event_144e254bfe626343,sandwich
+EV06,Large single-LOB event on Casualty Umbrella [convergence],XR01_L1,19095523.774970893,event_05815c539f04010e,convergence
+EV07,Attritional single-LOB event on Casualty Workers Comp [aggregate / stop loss],QS01,114516152.13128269,event_60376c299202c976,aggregate
