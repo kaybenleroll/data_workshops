@@ -13,11 +13,11 @@ The five most recent talks I have given, newest first. Hand-maintained: update i
 
 | Date | Title | Link |
 | :--- | :--- | :--- |
+| October 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | [📁 View](./talk_dds_reinsrecover_202610/README.md) |
 | September 2026 | **How I Learned to Stop Worrying and Love the LLM** | [📁 View](./talk_tcd_hiltswaltl_202609/talk_tcd_202609.html) |
 | July 2026 | **Functional Code and DAGs for Reinsurance Recoveries** | [📁 View](./talk_rr_reinsrecover_202607/talk_rr_reinsrecover_202607.html) |
 | June 2026 | **How I Learned to Stop Worrying and Love the LLM** | [📁 View](./talk_sonia_hiltswaltl_202606/talk_sonia_202606.html) |
 | March 2026 | **Survival Analysis with Stan** | [📁 View](./talk_dds_survivalbayes_202603/bayesian_survival_talk.html) |
-| December 2025 | **Survival Analysis with Stan** | [📁 View](./talk_bm_survivalbayes_202512/bayesian_survival_talk.html) |
 
 ## 🎙️ Recent Talks
 
