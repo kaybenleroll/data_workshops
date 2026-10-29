@@ -61,7 +61,7 @@ theme_set(theme_cowplot())
 ```{r set_up_inuring_graph_loss_data}
 #| echo: false
 
-loss_events_tbl <- read_csv("demo_business/loss_events.csv")
+loss_events_tbl     <- read_csv("demo_business/loss_events.csv")
 loss_allocation_tbl <- read_csv("demo_business/loss_allocation_walkthrough.csv")
 
 graph_nodes_tbl <- read_parquet("demo_business/nodes_tbl.parquet")
@@ -734,178 +734,38 @@ Reinstatement: limit restored, usually for extra premium
 Capacity = limit $\times$ (1 + reinstatements)
 
 
-# Losses
+# Data
+
+## Losses
 
 ---
 
-### A Loss Class Is a Region $\times$ a Line
+### Loss Class
+
+\
+
 
 ::: {.custom-medium}
 ```{r show_class_examples}
 #| echo: false
 
-bind_rows(
-  cls_tbl |> filter(lob == "Property Cat 1.1") |> slice_head(n = 2),
-  cls_tbl |>
-    filter(lob %in% c("Casualty Liability 2.1", "Marine Cargo 4.1", "Specialty Cyber 5.1")) |>
-    slice_head(n = 1, by = lob)
-  ) |>
+cls_tbl |>
+  head(10) |>
   transmute(
-    `Line of business` = lob, Region = region, Premium = fmt_amt(premium)
+    `Loss Class`    = class_id,
+    `Premium`       = scales::label_currency()(premium),
+    `Expected Loss` = scales::label_currency()(expected_loss)
     ) |>
-  knitr::kable(align = "llr")
+  knitr::kable(align = "lrr")
 ```
 :::
 
 ---
 
-### `r nrow(cls_tbl)` Classes: Each Line Writes Only Some Regions
-
-```{r show_class_grid}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 4.2
-#| fig-align: center
-
-cls_tbl |>
-  count(group, region) |>
-  mutate(
-    region = factor(region, levels = region_tbl$region),
-    group  = factor(group, levels = rev(c("property", "casualty", "specialty", "marine_energy")))
-    ) |>
-  ggplot(aes(x = region, y = group, fill = n)) +
-    geom_tile(colour = "white", linewidth = 1) +
-    geom_text(aes(label = n), size = 6) +
-    scale_x_discrete(position = "top", labels = \(x) str_wrap(x, 10)) +
-    scale_y_discrete(labels = \(x) str_to_sentence(str_replace(x, "_", " & "))) +
-    scale_fill_gradient(low = "#DCEBF5", high = "#56B4E9", guide = "none") +
-    labs(x = NULL, y = NULL) +
-    slide_theme +
-    theme(axis.line = element_blank(), axis.ticks = element_blank())
-```
-
----
-
-### An Event Is a Footprint: One `r str_to_title(big_event$peril)` Hit `r big_event$n_classes` Classes
-
-```{r show_event_footprint}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 5
-#| fig-align: center
-
-big_class_tbl |>
-  slice_head(n = 8) |>
-  mutate(label = fct_reorder(label, gross)) |>
-  ggplot(aes(x = gross, y = label, fill = region)) +
-    geom_col() +
-    geom_text(aes(label = fmt_amt(gross)), hjust = -0.15, size = 5) +
-    scale_x_continuous(
-      labels = label_number(scale = 1e-6, suffix = "m"),
-      expand = expansion(mult = c(0, 0.25))
-      ) +
-    scale_fill_manual(values = geo_col) +
-    labs(x = "Gross loss", y = NULL, fill = NULL) +
-    slide_theme +
-    theme(legend.position = c(0.72, 0.25))
-```
-
----
-
-### One Class Loss Splits into `r nrow(big_class_rows)` Risks
-
-```{r show_risk_split}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 5
-#| fig-align: center
-
-big_class_rows |>
-  mutate(rank = row_number()) |>
-  ggplot(aes(x = rank, y = gross_loss)) +
-    geom_col(fill = "#E69F00", width = 0.8) +
-    annotate(
-      "text", x = nrow(big_class_rows) * 0.35, y = max(big_class_rows$gross_loss) * 0.8,
-      hjust = 0, size = 5.5,
-      label = glue(
-        "{short_name(big_class_tbl$class_id[1])}\n",
-        "largest risk: {percent(max(big_class_rows$gross_loss) / sum(big_class_rows$gross_loss), accuracy = 1)} of the class loss"
-        )
-      ) +
-    scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "m")) +
-    labs(x = "Risks, largest first", y = "Gross loss") +
-    slide_theme +
-    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-```
-
----
-
-### Peril Is Not Risk
+### Orders of Magnitude
 
 \
 
-
-Peril: the cause of loss
-
-\
-
-
-Risk: the exposed unit
-
-\
-
-
-Independent of each other
-
----
-
-### Natural Perils Hit the Most Classes in One Event
-
-```{r show_classes_per_event}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 5
-#| fig-align: center
-
-peril_event_tbl |>
-  mutate(peril = fct_reorder(peril, n_classes, .fun = median)) |>
-  ggplot(aes(x = n_classes, y = peril, colour = peril)) +
-    geom_jitter(height = 0.2, width = 0.1, size = 2.5, alpha = 0.8, show.legend = FALSE) +
-    stat_summary(fun = median, geom = "point", shape = 124, size = 9, colour = "black") +
-    scale_x_continuous(breaks = seq(0, 12, 2)) +
-    scale_colour_manual(values = peril_col) +
-    labs(x = "Classes hit by one event (black bar: median)", y = NULL) +
-    slide_theme
-```
-
----
-
-### One `r str_to_title(big_event$peril)` Is `r percent(big_share, accuracy = 1)` of All Gross Loss (Linear Scale)
-
-```{r show_gross_by_period}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 5
-#| fig-align: center
-
-ggplot(period_peril_tbl, aes(x = period_id, y = gross, fill = peril)) +
-  geom_col(width = 0.7) +
-  annotate(
-    "text", x = 0.5, y = big_event$gross * 1.9, hjust = 0, size = 5.5,
-    label = glue(
-      "{big_event$period_id}: one {str_to_lower(big_event$peril)}\n",
-      "{fmt_bn(big_event$gross)} = {percent(big_share, accuracy = 1)} of all gross loss"
-      )
-    ) +
-  scale_fill_manual(values = peril_col) +
-  scale_y_continuous(labels = label_number(scale = 1e-9, suffix = "bn")) +
-  labs(x = NULL, y = "Gross loss", fill = NULL) +
-  slide_theme
-```
-
----
-
-### Losses Span `r loss_orders` Orders of Magnitude
 
 ```{r show_loss_sizes}
 #| echo: false
@@ -923,6 +783,52 @@ cres$rows |>
   slide_theme
 ```
 
+## Treaty Data
+
+\
+
+
+::: {.custom-small}
+
+```{r show_treaty_data}
+#| echo: false
+
+treaty_tbl |>
+  head(10) |>
+  transmute(
+    `Treaty ID` = treaty_id,
+    `Type`      = treaty_type,
+    `Name`      = name,
+    `Attach`    = attachment,
+    `Limit`     = limit,
+    `Cession`   = cession_pct
+    ) |>
+  knitr::kable(align = "lllrrr")
+  
+```
+:::
+
+
+## Treaty Coverage
+
+\
+
+
+::: {.custom-small}
+
+```{r show_treaty_coverage_data}
+#| echo: false
+
+bridge_tbl |>
+  head(10) |>
+  transmute(
+    `Treaty` = treaty_id,
+    `Class`  = class_id
+    ) |>
+  knitr::kable(align = "ll")
+```
+:::
+
 
 # Treaties as Functions
 
@@ -932,23 +838,8 @@ $$
 Treaty: \text{Losses} \rightarrow \text{Recoveries}
 $$
 
----
-
-Quota Share (QS)
-
-\
-
-
-Excess of Loss (XoL)
-
-\
-
-
-Aggregate / Occurrence Limits
-
 
 ## Recovery Accounting
-
 
 ---
 
@@ -1163,65 +1054,6 @@ Many-to-many relationship
 
 ---
 
-### A Treaty Covers a Filter
-
-::: {.custom-medium}
-```{r show_treaty_filter}
-#| echo: false
-
-filter_class_tbl |>
-  knitr::kable(align = "ll")
-```
-:::
-
-\
-
-
-`r filter_name`
-
-\
-
-
-`r filter_pick$n_lobs` lines × `r filter_pick$n_regions` regions → `r nrow(filter_class_tbl)` classes
-
----
-
-### The Bridge: Which Treaty Covers Which Class
-
-```{r show_bridge_tiles}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 5.2
-#| fig-align: center
-
-bridge_plot_tbl <- bridge_tbl |>
-  left_join(treaty_tbl |> select(treaty_id, treaty_type), by = "treaty_id") |>
-  mutate(class_id = factor(class_id, levels = cls_tbl$class_id))
-
-treaty_order <- bridge_plot_tbl |>
-  summarise(first_class = min(as.integer(class_id)), .by = c(treaty_id, treaty_type)) |>
-  mutate(treaty_type = factor(treaty_type, levels = names(type_lbl))) |>
-  arrange(treaty_type, first_class, treaty_id) |>
-  pull(treaty_id)
-
-group_cut <- cumsum(table(factor(cls_tbl$group, levels = unique(cls_tbl$group)))) + 0.5
-
-bridge_plot_tbl |>
-  mutate(treaty_id = factor(treaty_id, levels = rev(treaty_order))) |>
-  ggplot(aes(x = class_id, y = treaty_id)) +
-    geom_raster(fill = "#0072B2") +
-    geom_vline(xintercept = head(group_cut, -1), colour = "grey40", linewidth = 0.4) +
-    labs(x = glue("{nrow(cls_tbl)} classes, by group"), y = glue("{length(treaty_order)} treaties, by type")) +
-    slide_theme +
-    theme(
-      axis.text = element_blank(), axis.ticks = element_blank(), axis.line = element_blank()
-      )
-```
-
----
-
-### Many-to-Many, in Numbers
-
 ```{r show_bridge_counts}
 #| echo: false
 #| fig-width: 11
@@ -1249,203 +1081,6 @@ plot_grid(
 
 ---
 
-### One `r str_to_title(wide$event$peril)`, `r wide$event$n_classes` Classes, `r wide$n_treaties_seeing` Treaties
-
-\
-
-
-`r wide$n_treaties_seeing` treaties see it
-
-\
-
-
-`r wide$n_treaties_paying` pay
-
----
-
-### Inuring Is Explicit: One Row per Direct Edge
-
-::: {.custom-medium}
-```{r show_inuring_rows}
-#| echo: false
-
-inuring_show_tbl |>
-  knitr::kable(align = "ll")
-```
-:::
-
-\
-
-
-`r nrow(cw$inuring)` rows in all
-
----
-
-### A $\rightarrow$ B and B $\rightarrow$ C: C Is Not Net of A
-
-```{r show_not_transitive}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 4.2
-#| fig-align: center
-
-chain_nodes <- tibble(
-  name  = c("A", "B", "C"),
-  label = str_wrap(short_name(c(chain_tbl$na, chain_tbl$nb, chain_tbl$nz)), 14),
-  type  = c(chain_tbl$ta, chain_tbl$tb, chain_tbl$tz)
-  )
-
-chain_graph <- tbl_graph(
-  nodes = chain_nodes,
-  edges = tibble(from = c("A", "B", "A"), to = c("B", "C", "C"), listed = c(TRUE, TRUE, FALSE)),
-  directed = TRUE
-  )
-
-ggraph(chain_graph, layout = "manual", x = c(0, 1, 2), y = c(0, 0, 0)) +
-  geom_edge_link(
-    aes(filter = listed),
-    arrow = arrow(angle = 14, length = unit(4, "mm"), type = "closed"),
-    start_cap = circle(24, "mm"), end_cap = circle(24, "mm"), colour = "grey40"
-    ) +
-  geom_edge_arc(
-    aes(filter = !listed), strength = 0.35, linetype = "dashed", colour = "grey60",
-    arrow = arrow(angle = 14, length = unit(4, "mm"), type = "closed"),
-    start_cap = circle(24, "mm"), end_cap = circle(24, "mm")
-    ) +
-  geom_node_label(aes(label = label, fill = type), size = 8, show.legend = FALSE) +
-  scale_fill_manual(values = type_col) +
-  annotate("text", x = 1, y = 0.62, size = 8, label = "A \u2192 C is not listed") +
-  scale_x_continuous(expand = expansion(add = 0.45)) +
-  scale_y_continuous(limits = c(-0.3, 0.75)) +
-  theme_graph()
-```
-
----
-
-### Subject Loss: Gross Less the Direct Parents' Recoveries
-
-```{r show_subject_loss_code}
-#| echo: false
-#| results: asis
-
-show_function_source("apply_unit_inuring", keep_from = "par <-", keep_to = "subject <- pmax")
-```
-
----
-
-### Both Can Recover on the Same Loss
-
-::: {.custom-medium}
-```{r show_both_recover}
-#| echo: false
-
-both_tbl |>
-  mutate(across(c(`Subject loss`, Ceded), \(x) if_else(is.na(x), "", fmt_amt(x)))) |>
-  knitr::kable(align = "lrr")
-```
-:::
-
----
-
-$$
-\text{Net} = \text{Gross} - \sum \text{Ceded} \;\ge\; 0 \quad \text{on every loss row}
-$$
-
-\
-
-
-Otherwise the data is invalid
-
----
-
-### The Generator's Table Is a Sample, Not a Valid Portfolio on This Bridge
-
-\
-
-
-Edges link `r percent(gen_diag$n_with_edge / gen_diag$n_overlapping, accuracy = 1)` of overlapping pairs
-
-\
-
-
-`r comma(gen_oc$n_rows_over)` of `r comma(gen_oc$n_rows)` rows end with net $<$ 0
-
-\
-
-
-`r fmt_bn2(gen_oc$amount_over)` over-ceded: `r percent(gen_oc$frac_of_gross, accuracy = 1)` of gross
-
----
-
-### A Repaired Table Is Valid
-
-\
-
-
-`r nrow(cw$inuring)` direct edges: one per overlapping pair
-
-\
-
-
-Rows with net $<$ 0: **`r rep_oc$n_rows_over`**
-
----
-
-### Peer Exception: Not Net of One Peer, Still Valid
-
-::: {.custom-medium}
-```{r show_peer_exceptions}
-#| echo: false
-
-peer_tbl |>
-  transmute(
-    Treaty = short_name(to_name), `Not net of` = short_name(from_name),
-    `Ceded` = str_c(fmt_m0(ceded_before), " \u2192 ", fmt_m0(ceded_after))
-    ) |>
-  knitr::kable(align = "llr")
-```
-:::
-
-\
-
-
-Rows with net $<$ 0: **`r peer_oc$n_rows_over`**
-
----
-
-### Order Does Not Matter
-
-\
-
-
-`r n_orders - 1` random topological orders
-
-\
-
-
-Largest difference in any row: `r format(order_worst, digits = 2)`
-
----
-
-### Where `chain_rank` Comes In
-
-\
-
-
-A score per treaty, drawn by the generator
-
-\
-
-
-A stand-in for contract wording
-
-\
-
-
-It only orients the `r nrow(cw$inuring)` edges
-
----
-
 Gross / net premium losses
 
 \
@@ -1459,26 +1094,10 @@ Organisation unit
 Regulatory authority
 
 
+
+
+
 # Running the Numbers
-
----
-
-Synthetic data, from a generator
-
-\
-
-
-`r str_to_sentence(mega_tier)` tier, seeds `r cw$class_seed` and `r cw$sim_seed`
-
-\
-
-
-`r nrow(cls_tbl)` classes, `r nrow(cw$data$period_df)` periods, `r comma(nrow(cw$loss_rows))` loss rows
-
-\
-
-
-`r nrow(treaty_tbl)` treaties, `r nrow(cw$inuring)` direct inuring edges
 
 ---
 
@@ -1514,49 +1133,6 @@ period_sum_tbl |>
 
 ---
 
-### Net after Recoveries
-
-\
-
-
-Gross **`r fmt_bn(tot_gross)`**
-
-\
-
-
-Ceded **`r fmt_bn(tot_ceded)`**
-
-\
-
-
-Net **`r fmt_bn(tot_net)`**, `r percent(tot_net / tot_gross, accuracy = 0.1)` of gross
-
----
-
-### `r percent(prop_share, accuracy = 1)` of Recoveries Come from Proportional Treaties
-
-```{r show_ceded_by_type}
-#| echo: false
-#| fig-width: 11
-#| fig-height: 4.8
-#| fig-align: center
-
-ceded_type_tbl |>
-  mutate(treaty_type = fct_reorder(treaty_type, ceded)) |>
-  ggplot(aes(x = ceded, y = treaty_type, fill = treaty_type)) +
-    geom_col(show.legend = FALSE) +
-    geom_text(aes(label = fmt_bn(ceded)), hjust = -0.15, size = 5.5) +
-    scale_x_continuous(
-      labels = label_number(scale = 1e-9, suffix = "bn"),
-      expand = expansion(mult = c(0, 0.15))
-      ) +
-    scale_y_discrete(labels = type_lbl) +
-    scale_fill_manual(values = type_col) +
-    labs(x = "Ceded", y = NULL) +
-    slide_theme
-```
-
----
 
 ### Top 10 Treaties by Ceded
 
@@ -1583,7 +1159,10 @@ top_treaty_tbl |>
 
 ---
 
-### Limits That Ran Out
+### Exhaustion
+
+\
+
 
 ```{r show_exhaustion}
 #| echo: false
@@ -1622,7 +1201,10 @@ exhausted_tbl |>
 
 ---
 
-### One Event: `r fmt_bn(trace_gross)` Gross, `r fmt_bn(trace_net)` Net
+### Loss Apportionment
+
+\
+
 
 ```{r show_event_trace}
 #| echo: false
@@ -1673,11 +1255,6 @@ inv_tbl |>
   knitr::kable(align = "lr")
 ```
 :::
-
----
-
-Inuring is explicit, not transitive
-
 
 
 # Questions
